@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { ArrowLeft, ArrowRight, CheckCircle2, Clock3, Gift, Headphones, Instagram, KeyRound, MessageSquare, Package, Phone, Search, Users } from 'lucide-react';
 import { Card, PrimaryButton, SectionHeader } from './components/ui';
+import './service-pages.css';
 
 export type ServiceView = 'services' | 'rental' | 'boost' | 'boost-orders' | 'accounts' | 'account-orders' | 'number-orders' | 'rewards' | 'affiliate' | 'alerts' | 'settings' | 'feedback' | 'privacy';
 
@@ -14,9 +15,7 @@ export function ServicesPage({ open }: { open: (view: ServiceView) => void }) {
   return <><section className="page-intro"><p className="eyebrow">VERXOR SERVICES</p><h1>What are you looking for?</h1><p>Choose a service and complete each step with clear pricing and status.</p></section><div className="service-stack">{catalog.map(({id,title,eyebrow,description,icon:Icon})=><button className="product-card" key={id} onClick={()=>open(id)}><span className="product-icon"><Icon size={20}/></span><span><em>{eyebrow}</em><strong>{title}</strong><small>{description}</small></span><ArrowRight size={17}/></button>)}</div><SectionHeader eyebrow="ORDERS" title="Your activity" /><div className="service-stack"><button className="product-card" onClick={()=>open('number-orders')}><span className="product-icon"><Package size={20}/></span><span><strong>Number orders</strong><small>View your verification orders</small></span><ArrowRight size={17}/></button><button className="product-card" onClick={()=>open('boost-orders')}><span className="product-icon"><Clock3 size={20}/></span><span><strong>Boost orders</strong><small>Track social service delivery</small></span><ArrowRight size={17}/></button></div></>;
 }
 
-function ServiceLayout({ title, eyebrow, description, onBack, children }: { title:string; eyebrow:string; description:string; onBack:()=>void; children:ReactNode }) {
-  return <><button className="back-button" onClick={onBack}><ArrowLeft size={17}/> Back</button><section className="page-intro compact-intro"><p className="eyebrow">{eyebrow}</p><h1>{title}</h1><p>{description}</p></section>{children}</>;
-}
+function ServiceLayout({ title, eyebrow, description, onBack, children }: { title:string; eyebrow:string; description:string; onBack:()=>void; children:ReactNode }) { return <><button className="back-button" onClick={onBack}><ArrowLeft size={17}/> Back</button><section className="page-intro compact-intro"><p className="eyebrow">{eyebrow}</p><h1>{title}</h1><p>{description}</p></section>{children}</>; }
 
 export function ServicePage({ view, onBack }: { view: Exclude<ServiceView, 'services'>; onBack:()=>void }) {
   if(view==='rental') return <ServiceLayout title="Rent a number" eyebrow="DEDICATED LINE" description="Select a country, duration and available number." onBack={onBack}><div className="search-box"><Search size={18}/><input placeholder="Search country" /></div><div className="option-list">{['United States · +1','United Kingdom · +44','Canada · +1'].map(country=><Card className="option-row" key={country}><div className="option-main"><span className="product-icon"><Phone size={18}/></span><div><strong>{country}</strong><small>Voice + SMS available</small></div></div><button className="small-button">Select</button></Card>)}</div></ServiceLayout>;
