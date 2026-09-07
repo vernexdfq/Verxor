@@ -3,6 +3,7 @@ import { ArrowRight, Check, Globe2, Menu, ShieldCheck, X, Zap } from 'lucide-rea
 import { createRoot } from 'react-dom/client';
 import { AppShell } from './components/AppShell';
 import { HomePage, HistoryPage, FundPage, NumbersPage, ProfilePage } from './pages';
+import { ServicePage, ServicesPage, type ServiceView } from './service-pages';
 import type { Page } from './types';
 import './styles.css';
 
@@ -46,9 +47,9 @@ function Landing({ enter }: { enter: () => void }) {
 }
 
 function App() {
-  const [dark,setDark]=useState(false); const [view,setView]=useState<'landing'|'app'>('landing'); const [page,setPage]=useState<Page>('home');
+  const [dark,setDark]=useState(false); const [view,setView]=useState<'landing'|'app'>('landing'); const [page,setPage]=useState<Page>('home'); const [service,setService]=useState<ServiceView | null>(null);
   if(view==='landing') return <div className={dark?'app dark':'app'}><Landing enter={()=>setView('app')}/></div>;
-  const content={home:<HomePage go={setPage}/>,history:<HistoryPage/>,fund:<FundPage/>,numbers:<NumbersPage/>,profile:<ProfilePage/>}[page];
-  return <AppShell dark={dark} page={page} onNavigate={setPage} onToggleTheme={()=>setDark(v=>!v)}>{content}</AppShell>;
+  const content = service === 'services' ? <ServicesPage open={setService}/> : service ? <ServicePage view={service} onBack={()=>setService('services')}/> : ({home:<HomePage go={setPage}/>,history:<HistoryPage/>,fund:<FundPage/>,numbers:<NumbersPage/>,profile:<ProfilePage/>}[page]);
+  return <AppShell dark={dark} page={page} onNavigate={(next)=>{setService(null);setPage(next)}} onToggleTheme={()=>setDark(v=>!v)} onOpenServices={()=>setService('services')} onOpenService={(next)=>setService(next)}>{content}</AppShell>;
 }
 createRoot(document.getElementById('root')!).render(<StrictMode><App/></StrictMode>);
