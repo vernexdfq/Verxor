@@ -8,15 +8,14 @@ import './styles.css';
 function App() {
   const [dark, setDark] = useState(false);
   const [page, setPage] = useState<Page>('home');
-  const go = (next: Page) => setPage(next);
   const content = {
-    home: <HomePage go={go} />,
+    home: <HomePage go={setPage} />,
     history: <HistoryPage />,
     fund: <FundPage />,
     numbers: <NumbersPage />,
     profile: <ProfilePage />,
   }[page];
-  return <AppShell dark={dark} onToggleTheme={() => setDark(v => !v)}>{content}</AppShell>;
+  return <AppShell dark={dark} page={page} onNavigate={setPage} onToggleTheme={() => setDark(v => !v)}>{content}</AppShell>;
 }
 
 createRoot(document.getElementById('root')!).render(<StrictMode><App /></StrictMode>);
