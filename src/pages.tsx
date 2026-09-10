@@ -4,7 +4,8 @@ import { Card, PrimaryButton, SectionHeader } from './components/ui';
 import type { Page } from './types';
 import type { ServiceView } from './service-pages';
 
-const balance = '0.00';
+// Demo presentation only. The production wallet currency will come from the account/region settings.
+const wallet = { amount: '0.00', code: 'USD', symbol: '$' };
 
 export function HomePage({ go, openService }: { go: (page: Page) => void; openService: (view: ServiceView) => void }) {
   return <>
@@ -14,7 +15,7 @@ export function HomePage({ go, openService }: { go: (page: Page) => void; openSe
     </section>
     <Card className="wallet-card">
       <div className="wallet-card-top"><span>AVAILABLE BALANCE</span><span className="wallet-status"><i /> Active</span></div>
-      <div className="wallet-amount-row"><strong>{balance}</strong><button className="balance-visibility" aria-label="Show balance"><Eye size={18} /></button></div>
+      <div className="wallet-amount-row"><strong>{wallet.symbol}{wallet.amount}</strong><button className="balance-visibility" aria-label="Show balance"><Eye size={18} /></button></div>
       <div className="wallet-actions"><button className="wallet-primary" onClick={() => go('fund')}><Plus size={18} /> Fund Wallet</button><button className="wallet-secondary" onClick={() => go('history')}><History size={18} /> History</button></div>
     </Card>
     <SectionHeader eyebrow="SERVICES" title="Quick actions" />
@@ -34,7 +35,7 @@ export function HistoryPage() {
 }
 
 export function FundPage() {
-  return <><section className="page-intro"><p className="eyebrow">WALLET</p><h1>Fund</h1><p>Add funds securely and keep your service balance ready.</p></section><Card className="fund-summary"><div><span>AVAILABLE BALANCE</span><strong>{balance}</strong></div><WalletCards size={22} /></Card><Card className="fund-card"><label htmlFor="fund-amount">Amount</label><div className="amount-input"><span>₦</span><input id="fund-amount" inputMode="decimal" placeholder="0.00" aria-label="Funding amount" /></div><div className="amount-options"><button>₦1,000</button><button>₦5,000</button><button>₦10,000</button></div><PrimaryButton><Plus size={18} /> Continue</PrimaryButton></Card><Card className="security-note"><ShieldCheck size={19} /><div><strong>Secure funding</strong><p>Payment confirmation and wallet updates are shown in your activity.</p></div></Card></>;
+  return <><section className="page-intro"><p className="eyebrow">WALLET</p><h1>Fund</h1><p>Add funds securely and keep your service balance ready.</p></section><Card className="fund-summary"><div><span>AVAILABLE BALANCE · {wallet.code}</span><strong>{wallet.symbol}{wallet.amount}</strong></div><WalletCards size={22} /></Card><Card className="fund-card"><label htmlFor="fund-amount">Amount · {wallet.code}</label><div className="amount-input"><span>{wallet.symbol}</span><input id="fund-amount" inputMode="decimal" placeholder="0.00" aria-label="Funding amount" /></div><div className="amount-options"><button>{wallet.symbol}10</button><button>{wallet.symbol}50</button><button>{wallet.symbol}100</button></div><PrimaryButton><Plus size={18} /> Continue</PrimaryButton></Card><Card className="security-note"><ShieldCheck size={19} /><div><strong>Secure funding</strong><p>Payment confirmation and wallet updates are shown in your activity.</p></div></Card></>;
 }
 
 export function NumbersPage({ openService }: { openService: (view: ServiceView) => void }) {
@@ -54,4 +55,4 @@ export function ProfilePage({ openService }: { openService: (view: ServiceView) 
 }
 
 function ProfileGroup({ title, children }: { title: string; children: ReactNode }) { return <section className="profile-group"><h2>{title}</h2><Card className="profile-list">{children}</Card></section>; }
-function ProfileItem({ icon, title, description, onClick }: { icon: ReactNode; title: string; description: string; onClick?: () => void }) { const Tag = onClick ? 'button' : 'div'; return <Tag className="profile-item" onClick={onClick}><span className="profile-item-icon">{icon}</span><span><strong>{title}</strong><small>{description}</small></span>{onClick && <ArrowRight size={17} />}</Tag>; }
+function ProfileItem({ icon, title, description, onClick }: { icon: ReactNode; title: string; description: string; onClick?: () => void }) { if (onClick) return <button className="profile-item" onClick={onClick}><span className="profile-item-icon">{icon}</span><span><strong>{title}</strong><small>{description}</small></span><ArrowRight size={17} /></button>; return <div className="profile-item"><span className="profile-item-icon">{icon}</span><span><strong>{title}</strong><small>{description}</small></span></div>; }
