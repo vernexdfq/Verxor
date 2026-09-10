@@ -32,7 +32,7 @@ function Landing({ enter }: { enter: () => void }) {
     <main id="top">
       <section className="landing-hero"><div className="hero-copy-wrap">
         <div className="status-pill"><span className="status-dot"/> Canada &amp; USA — OTP ready</div>
-        <h1>Your second number, <span>anywhere in the world.</span></h1>
+        <h1>Your second number <span>anywhere in the world.</span></h1>
         <p>Verify accounts, rent dedicated numbers, grow your social presence and manage your digital services from one reliable platform.</p>
         <div className="hero-actions"><button className="landing-cta" onClick={enter}>Get a number now <ArrowRight size={18}/></button><a className="secondary-link" href="#services">Explore services</a></div>
         <div className="trust-row"><span><ShieldCheck size={16}/> Secure checkout</span><span><Zap size={16}/> Fast delivery</span><span><Globe2 size={16}/> Global coverage</span></div>
