@@ -6,6 +6,7 @@ import { HomePage, HistoryPage, FundPage, NumbersPage, ProfilePage } from './pag
 import { ServicePage, ServicesPage, type ServiceView } from './service-pages';
 import type { Page } from './types';
 import './styles.css';
+import './app-overrides.css';
 
 const services = [
   { title: 'Virtual Numbers', label: 'Instant OTP', description: 'Fast verification numbers for WhatsApp, TikTok, Instagram, Google and 300+ services.' },
@@ -49,7 +50,7 @@ function Landing({ enter }: { enter: () => void }) {
 function App() {
   const [dark,setDark]=useState(false); const [view,setView]=useState<'landing'|'app'>('landing'); const [page,setPage]=useState<Page>('home'); const [service,setService]=useState<ServiceView | null>(null);
   if(view==='landing') return <div className={dark?'app dark':'app'}><Landing enter={()=>setView('app')}/></div>;
-  const content = service === 'services' ? <ServicesPage open={setService}/> : service ? <ServicePage view={service} onBack={()=>setService('services')}/> : ({home:<HomePage go={setPage} openService={setService}/>,history:<HistoryPage/>,fund:<FundPage/>,numbers:<NumbersPage/>,profile:<ProfilePage openService={setService}/>}[page]);
+  const content = service === 'services' ? <ServicesPage open={setService}/> : service ? <ServicePage view={service} onBack={()=>setService('services')}/> : ({home:<HomePage go={setPage} openService={setService}/>,history:<HistoryPage/>,fund:<FundPage/>,numbers:<NumbersPage openService={setService}/>,profile:<ProfilePage openService={setService}/>} [page]);
   return <AppShell dark={dark} page={page} onNavigate={(next)=>{setService(null);setPage(next)}} onToggleTheme={()=>setDark(v=>!v)} onOpenService={(next)=>setService(next)}>{content}</AppShell>;
 }
 createRoot(document.getElementById('root')!).render(<StrictMode><App/></StrictMode>);
