@@ -1,18 +1,14 @@
-import type { ReactNode } from 'react';
-import { ArrowRight, Bell, Clock3, Eye, History, LockKeyhole, LogOut, Plus, ShieldCheck, Smartphone, UserRound, WalletCards, Zap } from 'lucide-react';
+import { useState, type ReactNode } from 'react';
+import { ArrowRight, Bell, Check, Clock3, Copy, Eye, History, LockKeyhole, LogOut, MapPin, Plus, ShieldCheck, Smartphone, UserRound, WalletCards, Zap } from 'lucide-react';
 import { Card, PrimaryButton, SectionHeader } from './components/ui';
 import type { Page } from './types';
 import type { ServiceView } from './service-pages';
 
-// Demo presentation only. The production wallet currency will come from the account/region settings.
+// Demo presentation only. Production wallet data will come from the authenticated account.
 const wallet = { amount: '0.00', code: 'USD', symbol: '$' };
 
 export function HomePage({ go, openService }: { go: (page: Page) => void; openService: (view: ServiceView) => void }) {
   return <>
-    <section className="home-welcome" aria-label="Dashboard overview">
-      <p>Manage your numbers, orders and wallet from one place.</p>
-    </section>
-
     <Card className="wallet-card">
       <div className="wallet-card-top"><span>AVAILABLE BALANCE</span><span className="wallet-status"><i /> Active</span></div>
       <div className="wallet-amount-row"><strong>{wallet.symbol}{wallet.amount}</strong><button className="balance-visibility" aria-label="Show balance"><Eye size={18} /></button></div>
@@ -48,11 +44,54 @@ export function NumbersPage({ openService }: { openService: (view: ServiceView) 
 }
 
 export function ProfilePage({ openService }: { openService: (view: ServiceView) => void }) {
-  return <><section className="profile-summary"><div className="profile-avatar">V</div><div><p className="eyebrow">ACCOUNT</p><h1>Your profile</h1><p>Member since 2026</p></div></section>
-    <ProfileGroup title="ACCOUNT INFORMATION"><ProfileItem icon={<UserRound size={19} />} title="Personal information" description="Name, username, phone and email" /></ProfileGroup>
-    <ProfileGroup title="SECURITY"><ProfileItem icon={<LockKeyhole size={19} />} title="Security" description="Password, PIN and sessions" onClick={() => openService('settings')} /></ProfileGroup>
-    <ProfileGroup title="SUPPORT"><ProfileItem icon={<ShieldCheck size={19} />} title="Help Center" description="Guides and common questions" onClick={() => openService('privacy')} /><ProfileItem icon={<Bell size={19} />} title="Contact Support" description="Get help with an issue" onClick={() => openService('feedback')} /></ProfileGroup>
-    <button className="logout-button"><LogOut size={18} /> Log out</button>
+  const [copied, setCopied] = useState(false);
+  const referralCode = 'VERXOR-DENNY';
+
+  const copyReferral = async () => {
+    try {
+      await navigator.clipboard.writeText(referralCode);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1800);
+    } catch {
+      setCopied(false);
+    }
+  };
+
+  return <>
+    <section className="profile-summary" aria-label="Profile summary">
+      <div className="profile-avatar">V</div>
+      <div><p className="eyebrow">ACCOUNT</p><h1>Your profile</h1><p>Member since 2026</p></div>
+    </section>
+
+    <ProfileGroup title="ACCOUNT INFORMATION">
+      <ProfileItem icon={<UserRound size={19} />} title="Personal information" description="Name, username, phone and email" />
+    </ProfileGroup>
+
+    <ProfileGroup title="PREFERENCES">
+      <ProfileItem icon={<MapPin size={19} />} title="Currency & Region" description={`${wallet.code} · Account region`} onClick={() => openService('settings')} />
+    </ProfileGroup>
+
+    <ProfileGroup title="SECURITY">
+      <ProfileItem icon={<LockKeyhole size={19} />} title="Security" description="Password, PIN and sessions" onClick={() => openService('settings')} />
+    </ProfileGroup>
+
+    <ProfileGroup title="SUPPORT">
+      <ProfileItem icon={<ShieldCheck size={19} />} title="Help Center" description="Guides and common questions" onClick={() => openService('privacy')} />
+      <ProfileItem icon={<Bell size={19} />} title="Contact Support" description="Get help with an issue" onClick={() => openService('feedback')} />
+    </ProfileGroup>
+
+    <section className="profile-group">
+      <h2>REFERRAL</h2>
+      <Card className="referral-card">
+        <div className="referral-copy"><span className="referral-label">REFERRAL CODE</span><strong>{referralCode}</strong></div>
+        <button className="copy-button" onClick={copyReferral} aria-label={copied ? 'Referral code copied' : 'Copy referral code'}>{copied ? <Check size={17} /> : <Copy size={17} />}<span>{copied ? 'Copied' : 'Copy'}</span></button>
+      </Card>
+    </section>
+
+    <section className="profile-group account-danger">
+      <h2>ACCOUNT</h2>
+      <button className="logout-button"><LogOut size={18} /> Log out</button>
+    </section>
   </>;
 }
 
