@@ -9,24 +9,26 @@ const wallet = { amount: '0.00', code: 'USD', symbol: '$' };
 
 export function HomePage({ go, openService }: { go: (page: Page) => void; openService: (view: ServiceView) => void }) {
   return <>
-    <section className="home-heading">
-      <div><p className="eyebrow">WELCOME BACK</p><h1>Good morning, Denny</h1><p>Manage your numbers, orders and wallet in one place.</p></div>
-      <button className="notification-button" aria-label="Notifications" onClick={() => openService('alerts')}><Bell size={20} /></button>
+    <section className="home-welcome" aria-label="Dashboard overview">
+      <p>Manage your numbers, orders and wallet from one place.</p>
     </section>
+
     <Card className="wallet-card">
       <div className="wallet-card-top"><span>AVAILABLE BALANCE</span><span className="wallet-status"><i /> Active</span></div>
       <div className="wallet-amount-row"><strong>{wallet.symbol}{wallet.amount}</strong><button className="balance-visibility" aria-label="Show balance"><Eye size={18} /></button></div>
       <div className="wallet-actions"><button className="wallet-primary" onClick={() => go('fund')}><Plus size={18} /> Fund Wallet</button><button className="wallet-secondary" onClick={() => go('history')}><History size={18} /> History</button></div>
     </Card>
+
     <SectionHeader eyebrow="SERVICES" title="Quick actions" />
     <div className="quick-grid">
-      <button className="quick-card" onClick={() => openService('virtual-numbers')}><span className="quick-icon"><Smartphone size={21} /></span><strong>Virtual Numbers</strong><small>OTP verification</small><ArrowRight size={16} className="quick-arrow" /></button>
-      <button className="quick-card" onClick={() => openService('rental')}><span className="quick-icon"><Clock3 size={21} /></span><strong>Rent a Line</strong><small>Long-term numbers</small><ArrowRight size={16} className="quick-arrow" /></button>
-      <button className="quick-card" onClick={() => openService('boost')}><span className="quick-icon"><Zap size={21} /></span><strong>SMM Boost</strong><small>Social growth</small><ArrowRight size={16} className="quick-arrow" /></button>
-      <button className="quick-card" onClick={() => openService('accounts')}><span className="quick-icon"><UserRound size={21} /></span><strong>Buy Accounts</strong><small>Available inventory</small><ArrowRight size={16} className="quick-arrow" /></button>
+      <button className="quick-card" onClick={() => openService('virtual-numbers')}><span className="quick-icon"><Smartphone size={21} /></span><span className="quick-copy"><strong>Virtual Numbers</strong><small>OTP verification</small></span></button>
+      <button className="quick-card" onClick={() => openService('rental')}><span className="quick-icon"><Clock3 size={21} /></span><span className="quick-copy"><strong>Rent a Line</strong><small>Long-term numbers</small></span></button>
+      <button className="quick-card" onClick={() => openService('boost')}><span className="quick-icon"><Zap size={21} /></span><span className="quick-copy"><strong>SMM Boost</strong><small>Social growth</small></span></button>
+      <button className="quick-card" onClick={() => openService('accounts')}><span className="quick-icon"><UserRound size={21} /></span><span className="quick-copy"><strong>Buy Accounts</strong><small>Available inventory</small></span></button>
     </div>
+
     <SectionHeader eyebrow="ACTIVITY" title="Recent activity" action={<button className="text-button" onClick={() => go('history')}>View all <ArrowRight size={14} /></button>} />
-    <Card className="activity-empty"><div className="activity-empty-icon"><History size={19} /></div><strong>No recent activity</strong><p>Your latest wallet activity and orders will appear here.</p></Card>
+    <Card className="activity-empty"><div className="activity-empty-icon"><History size={18} /></div><div><strong>No recent activity</strong><p>Your wallet activity and orders will appear here.</p></div></Card>
   </>;
 }
 
