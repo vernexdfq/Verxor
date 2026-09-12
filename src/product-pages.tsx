@@ -1,11 +1,34 @@
 import { useMemo, useState } from 'react';
-import { ArrowRight, Check, ChevronDown, Clock3, Copy, Filter, Package, Search, ShieldCheck, Smartphone, Users, X } from 'lucide-react';
+import { ArrowRight, Check, Clock3, Filter, Package, Search, ShieldCheck, Users, X } from 'lucide-react';
 import { Card, PrimaryButton } from './components/ui';
 import './product-pages.css';
 
-type RentalNumber = { id: string; country: string; flag: string; number: string; type: 'Non-VoIP' | 'VoIP'; region: string; price: number; features: string[] };
-type AccountProduct = { id: string; platform: string; tag: string; title: string; subtitle: string; age: string; country: string; price: number; stock: number; instant: boolean; features: string[] };
+type RentalNumber = {
+  id: string;
+  country: string;
+  flag: string;
+  number: string;
+  type: 'Non-VoIP' | 'VoIP';
+  region: string;
+  price: number;
+  features: string[];
+};
 
+type AccountProduct = {
+  id: string;
+  platform: string;
+  tag: string;
+  title: string;
+  subtitle: string;
+  age: string;
+  country: string;
+  price: number;
+  stock: number;
+  instant: boolean;
+  features: string[];
+};
+
+// Development catalog only. Production inventory will come from the provider/service layer.
 const rentalNumbers: RentalNumber[] = [
   { id: 'r1', country: 'United States', flag: '🇺🇸', number: '+1 (201) 555-0184', type: 'Non-VoIP', region: 'New Jersey', price: 12500, features: ['Voice', 'SMS'] },
   { id: 'r2', country: 'United States', flag: '🇺🇸', number: '+1 (305) 555-0142', type: 'VoIP', region: 'Florida', price: 9800, features: ['Voice', 'SMS'] },
@@ -28,49 +51,157 @@ export function RentalPage({ onBack }: { onBack: () => void }) {
   const [query, setQuery] = useState('');
   const [type, setType] = useState<'All' | 'Non-VoIP' | 'VoIP'>('All');
   const [selected, setSelected] = useState<RentalNumber | null>(null);
-  const filtered = useMemo(() => rentalNumbers.filter(n => (`${n.country} ${n.region} ${n.number} ${n.type}`).toLowerCase().includes(query.toLowerCase()) && (type === 'All' || n.type === type)), [query, type]);
+  const filtered = useMemo(
+    () => rentalNumbers.filter((n) => (`${n.country} ${n.region} ${n.number} ${n.type}`).toLowerCase().includes(query.toLowerCase()) && (type === 'All' || n.type === type)),
+    [query, type],
+  );
 
-  return <div className="product-page">
-    <button className="back-button" onClick={onBack}><ArrowRight size={16} className="back-arrow" /> Back to services</button>
-    <header className="product-heading"><span className="eyebrow">DEDICATED LINE</span><h1>Rent a Line</h1><p>Keep a dedicated number for the period you need, with Voice + SMS where supported.</p></header>
-    <div className="product-notice"><ShieldCheck size={17} /><div><strong>Choose for compatibility</strong><span>Number type and supported features are shown before you confirm. Third-party service compatibility is not guaranteed.</span></div></div>
-    <div className="product-toolbar"><label className="product-search"><Search size={17} /><input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search country, region or number" /></label><div className="segmented" role="group" aria-label="Number type"><button className={type === 'All' ? 'active' : ''} onClick={() => setType('All')}>All</button><button className={type === 'Non-VoIP' ? 'active' : ''} onClick={() => setType('Non-VoIP')}>Non-VoIP</button><button className={type === 'VoIP' ? 'active' : ''} onClick={() => setType('VoIP')}>VoIP</button></div></div>
-    <div className="inventory-head"><div><span className="eyebrow">AVAILABLE INVENTORY</span><strong>{filtered.length} numbers</strong></div><span className="live-badge"><i /> Live catalog</span></div>
-    <div className="inventory-list">{filtered.map(n => <Card className="inventory-card" key={n.id}><div className="inventory-main"><div className="country-mark">{n.flag}</div><div className="inventory-copy"><strong>{n.number}</strong><span>{n.country} · {n.region}</span><div className="tag-row"><em className={n.type === 'Non-VoIP' ? 'good' : 'warn'}>{n.type}</em>{n.features.map(f => <em key={f}>{f}</em>)}</div></div></div><div className="inventory-side"><strong>{money(n.price)}</strong><small>from / month</small><button onClick={() => setSelected(n)}>Choose</button></div></Card>)}</div>
-    {!filtered.length && <Card className="product-empty"><div><Search size={20} /></div><strong>No numbers match your search</strong><p>Try another country, region or number type.</p></Card>}
-    {selected && <RentalSheet number={selected} close={() => setSelected(null)} />}
-  </div>;
+  return (
+    <div className="product-page">
+      <button className="back-button" onClick={onBack}><ArrowRight size={16} className="back-arrow" /> Back to services</button>
+
+      <header className="product-heading">
+        <span className="eyebrow">DEDICATED LINE</span>
+        <h1>Rent a Line</h1>
+        <p>Keep a dedicated number for the period you need, with Voice + SMS where supported.</p>
+      </header>
+
+      <div className="product-notice">
+        <ShieldCheck size={17} />
+        <div>
+          <strong>Compatibility is shown before checkout</strong>
+          <span>Number type and supported features are displayed for each listing. Compatibility with third-party services can vary and is not guaranteed.</span>
+        </div>
+      </div>
+
+      <div className="product-toolbar">
+        <label className="product-search">
+          <Search size={17} />
+          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search country, region or number" />
+        </label>
+        <div className="segmented" role="group" aria-label="Number type">
+          {(['All', 'Non-VoIP', 'VoIP'] as const).map((option) => (
+            <button key={option} className={type === option ? 'active' : ''} onClick={() => setType(option)}>{option}</button>
+          ))}
+        </div>
+      </div>
+
+      <div className="inventory-head">
+        <div><span className="eyebrow">PREVIEW INVENTORY</span><strong>{filtered.length} numbers</strong></div>
+        <span className="catalog-badge">Development catalog</span>
+      </div>
+
+      <div className="inventory-list">
+        {filtered.map((n) => (
+          <Card className="inventory-card" key={n.id}>
+            <div className="inventory-main">
+              <div className="country-mark">{n.flag}</div>
+              <div className="inventory-copy">
+                <strong>{n.number}</strong>
+                <span>{n.country} · {n.region}</span>
+                <div className="tag-row">
+                  <em className={n.type === 'Non-VoIP' ? 'good' : 'warn'}>{n.type}</em>
+                  {n.features.map((feature) => <em key={feature}>{feature}</em>)}
+                </div>
+              </div>
+            </div>
+            <div className="inventory-side">
+              <strong>{money(n.price)}</strong>
+              <small>per month</small>
+              <button onClick={() => setSelected(n)}>Review</button>
+            </div>
+          </Card>
+        ))}
+      </div>
+
+      {!filtered.length && <Card className="product-empty"><div><Search size={20} /></div><strong>No numbers match your search</strong><p>Try another country, region or number type.</p></Card>}
+      {selected && <RentalSheet number={selected} close={() => setSelected(null)} />}
+    </div>
+  );
 }
 
 function RentalSheet({ number, close }: { number: RentalNumber; close: () => void }) {
   const [plan, setPlan] = useState('1 Month');
-  const multiplier = plan === '1 Week' ? .35 : plan === '1 Year' ? 10 : 1;
+  const multiplier = plan === '1 Week' ? 0.35 : plan === '1 Year' ? 10 : 1;
   const total = Math.ceil(number.price * multiplier);
-  return <div className="sheet-backdrop" onClick={close}><section className="product-sheet" onClick={e => e.stopPropagation()}><div className="sheet-top"><div><span className="eyebrow">RENTAL DETAILS</span><h2>{number.number}</h2></div><button onClick={close} aria-label="Close"><X size={19} /></button></div><div className="sheet-number"><span>{number.flag}</span><div><strong>{number.country}</strong><small>{number.region} · {number.type}</small></div></div><div className="sheet-section"><span className="field-label">Rental period</span><div className="plan-grid">{['1 Week', '1 Month', '1 Year'].map(p => <button className={plan === p ? 'selected' : ''} key={p} onClick={() => setPlan(p)}><span>{p}</span>{p === '1 Month' && <em>Popular</em>}</button>)}</div></div><div className="sheet-summary"><span>Total</span><strong>{money(total)}</strong></div><PrimaryButton onClick={() => alert('Rental checkout will connect to the Verxor wallet in the next backend phase.')}><Check size={17} /> Continue</PrimaryButton><p className="sheet-footnote">Wallet balance will be checked at checkout. Provider availability is confirmed before provisioning.</p></section></div>;
+
+  return (
+    <div className="sheet-backdrop" onClick={close}>
+      <section className="product-sheet" onClick={(e) => e.stopPropagation()} aria-modal="true" role="dialog">
+        <div className="sheet-top">
+          <div><span className="eyebrow">RENTAL DETAILS</span><h2>{number.number}</h2></div>
+          <button onClick={close} aria-label="Close"><X size={19} /></button>
+        </div>
+        <div className="sheet-number"><span>{number.flag}</span><div><strong>{number.country}</strong><small>{number.region} · {number.type}</small></div></div>
+        <div className="sheet-section">
+          <span className="field-label">Rental period</span>
+          <div className="plan-grid">
+            {['1 Week', '1 Month', '1 Year'].map((period) => (
+              <button className={plan === period ? 'selected' : ''} key={period} onClick={() => setPlan(period)}>
+                <span>{period}</span>{period === '1 Month' && <em>Popular</em>}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="sheet-summary"><span>Total</span><strong>{money(total)}</strong></div>
+        <PrimaryButton onClick={() => alert('Checkout is intentionally disabled until the Verxor wallet and provider service layer are connected.') }><Check size={17} /> Continue</PrimaryButton>
+        <p className="sheet-footnote">The final flow will re-check availability, wallet balance and provider provisioning on the server before charging.</p>
+      </section>
+    </div>
+  );
 }
 
 export function AccountsPage({ onBack }: { onBack: () => void }) {
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState('All');
   const [selected, setSelected] = useState<AccountProduct | null>(null);
-  const categories = ['All', 'Instagram', 'Facebook', 'Gmail', 'TikTok', 'X'];
-  const filtered = useMemo(() => accountProducts.filter(p => (category === 'All' || p.platform === category) && `${p.platform} ${p.title} ${p.subtitle} ${p.country}`.toLowerCase().includes(query.toLowerCase())), [category, query]);
+  const categories = ['All', 'Instagram', 'Facebook', 'TikTok', 'X', 'Telegram', 'WhatsApp', 'Gmail', 'YouTube', 'Discord', 'LinkedIn', 'Spotify', 'Netflix', 'ChatGPT', 'Other'];
+  const filtered = useMemo(
+    () => accountProducts.filter((p) => (category === 'All' || p.platform === category) && `${p.platform} ${p.title} ${p.subtitle} ${p.country}`.toLowerCase().includes(query.toLowerCase())),
+    [category, query],
+  );
 
-  return <div className="product-page">
-    <button className="back-button" onClick={onBack}><ArrowRight size={16} className="back-arrow" /> Back to services</button>
-    <header className="product-heading"><span className="eyebrow">ACCOUNT INVENTORY</span><h1>Buy Accounts</h1><p>Browse available inventory, review exactly what is included, then continue to checkout.</p></header>
-    <div className="account-disclaimer"><ShieldCheck size={17} /><span>Availability, account details and delivery terms are shown before purchase. Use accounts only in accordance with the platform's rules.</span></div>
-    <label className="product-search full"><Search size={17} /><input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search accounts or platforms" /></label>
-    <div className="category-scroll">{categories.map(c => <button key={c} className={category === c ? 'active' : ''} onClick={() => setCategory(c)}>{c}</button>)}</div>
-    <div className="inventory-head"><div><span className="eyebrow">CURRENT INVENTORY</span><strong>{filtered.length} products</strong></div><span className="inventory-note"><Filter size={14} /> Filtered catalog</span></div>
-    <div className="account-grid">{filtered.map(p => <Card className="account-card" key={p.id}><div className="account-card-top"><span className="account-logo">{p.tag}</span><span className={p.instant ? 'delivery instant' : 'delivery'}>{p.instant ? 'Instant' : 'Manual'}</span></div><div className="account-card-copy"><span>{p.platform}</span><strong>{p.title}</strong><small>{p.subtitle}</small></div><div className="account-meta"><span>{p.age} · {p.country}</span><span>{p.stock} in stock</span></div><div className="account-card-bottom"><strong>{money(p.price)}</strong><button onClick={() => setSelected(p)}>View <ArrowRight size={14} /></button></div></Card>)}</div>
-    {!filtered.length && <Card className="product-empty"><div><Package size={20} /></div><strong>No accounts found</strong><p>Try another platform or search term.</p></Card>}
-    {selected && <AccountSheet product={selected} close={() => setSelected(null)} />}
-  </div>;
+  return (
+    <div className="product-page">
+      <button className="back-button" onClick={onBack}><ArrowRight size={16} className="back-arrow" /> Back to services</button>
+      <header className="product-heading">
+        <span className="eyebrow">ACCOUNT INVENTORY</span>
+        <h1>Buy Accounts</h1>
+        <p>Review available inventory, what is included and delivery terms before checkout.</p>
+      </header>
+      <div className="account-disclaimer"><ShieldCheck size={17} /><span>Catalog availability and delivery terms are shown before purchase. Use purchased accounts only in ways permitted by the relevant platform's rules.</span></div>
+      <label className="product-search full"><Search size={17} /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search accounts or platforms" /></label>
+      <div className="category-scroll">{categories.map((c) => <button key={c} className={category === c ? 'active' : ''} onClick={() => setCategory(c)}>{c}</button>)}</div>
+      <div className="inventory-head"><div><span className="eyebrow">PREVIEW INVENTORY</span><strong>{filtered.length} products</strong></div><span className="inventory-note"><Filter size={14} /> Development catalog</span></div>
+      <div className="account-grid">
+        {filtered.map((p) => (
+          <Card className="account-card" key={p.id}>
+            <div className="account-card-top"><span className="account-logo">{p.tag}</span><span className={p.instant ? 'delivery instant' : 'delivery'}>{p.instant ? 'Instant' : 'Manual'}</span></div>
+            <div className="account-card-copy"><span>{p.platform}</span><strong>{p.title}</strong><small>{p.subtitle}</small></div>
+            <div className="account-meta"><span>{p.age} · {p.country}</span><span>{p.stock} in stock</span></div>
+            <div className="account-card-bottom"><strong>{money(p.price)}</strong><button onClick={() => setSelected(p)}>Review <ArrowRight size={14} /></button></div>
+          </Card>
+        ))}
+      </div>
+      {!filtered.length && <Card className="product-empty"><div><Package size={20} /></div><strong>No accounts found</strong><p>Try another platform or search term.</p></Card>}
+      {selected && <AccountSheet product={selected} close={() => setSelected(null)} />}
+    </div>
+  );
 }
 
 function AccountSheet({ product, close }: { product: AccountProduct; close: () => void }) {
-  return <div className="sheet-backdrop" onClick={close}><section className="product-sheet" onClick={e => e.stopPropagation()}><div className="sheet-top"><div><span className="eyebrow">PRODUCT DETAILS</span><h2>{product.title}</h2></div><button onClick={close} aria-label="Close"><X size={19} /></button></div><div className="account-detail-head"><span className="account-logo large">{product.tag}</span><div><strong>{product.platform}</strong><small>{product.age} · {product.country}</small></div></div><div className="detail-features">{product.features.map(f => <span key={f}><Check size={14} /> {f}</span>)}</div><div className="sheet-summary"><div><span>Price</span><small>{product.stock} available</small></div><strong>{money(product.price)}</strong></div><PrimaryButton onClick={() => alert('Account checkout will connect to the Verxor wallet in the next backend phase.')}><Users size={17} /> Continue to checkout</PrimaryButton><p className="sheet-footnote">Credentials should only be displayed after a successful purchase and confirmed delivery.</p></section></div>;
+  return (
+    <div className="sheet-backdrop" onClick={close}>
+      <section className="product-sheet" onClick={(e) => e.stopPropagation()} aria-modal="true" role="dialog">
+        <div className="sheet-top"><div><span className="eyebrow">PRODUCT DETAILS</span><h2>{product.title}</h2></div><button onClick={close} aria-label="Close"><X size={19} /></button></div>
+        <div className="account-detail-head"><span className="account-logo large">{product.tag}</span><div><strong>{product.platform}</strong><small>{product.age} · {product.country}</small></div></div>
+        <div className="detail-features">{product.features.map((feature) => <span key={feature}><Check size={14} /> {feature}</span>)}</div>
+        <div className="sheet-summary"><div><span>Price</span><small>{product.stock} available</small></div><strong>{money(product.price)}</strong></div>
+        <PrimaryButton onClick={() => alert('Checkout is intentionally disabled until the Verxor wallet and provider service layer are connected.')}><Users size={17} /> Continue to checkout</PrimaryButton>
+        <p className="sheet-footnote">Credentials are never shown in the catalog. They should only become available after a successful server-confirmed purchase and delivery.</p>
+      </section>
+    </div>
+  );
 }
 
 export function EmptyOrderState({ kind }: { kind: 'accounts' | 'rentals' }) {
