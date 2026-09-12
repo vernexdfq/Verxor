@@ -1,21 +1,21 @@
-/* Verxor application refinement layer. Keeps the landing page untouched while the signed-in product gets its own visual hierarchy. */
+/* Verxor application refinement layer. The signed-in product uses one restrained visual system. */
 
-/* Home header: one compact identity rail, one bell, one theme control. */
-.topbar-home { min-height: 62px; padding-top: max(8px,env(safe-area-inset-top)); padding-bottom: 6px; }
+/* Home header: one identity rail, one theme control and one notification bell. */
+.topbar-home { min-height:58px; padding-top:max(6px,env(safe-area-inset-top)); padding-bottom:4px; }
 .topbar-home .brand-mark { width:40px; height:40px; flex:0 0 40px; }
 .topbar-greeting { min-width:0; flex:1; margin:0 10px; display:flex; flex-direction:column; justify-content:center; }
-.topbar-greeting span { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--text); font-size:14px; line-height:20px; font-weight:700; letter-spacing:-.015em; }
-.topbar-greeting small { margin-top:1px; color:var(--muted); font-size:10px; line-height:15px; font-weight:500; }
+.topbar-greeting span { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--text); font-size:14px; line-height:19px; font-weight:700; letter-spacing:-.015em; }
+.topbar-greeting small { margin-top:1px; color:var(--muted); font-size:10px; line-height:14px; font-weight:500; }
 .topbar-actions { display:flex; flex:0 0 auto; gap:6px; }
 .topbar-actions .icon-button { width:40px; height:40px; border-radius:12px; }
 .home-welcome { display:none; }
 
-/* Wallet: strong primary action, quieter secondary action, deliberate alignment. */
+/* Wallet: compact hierarchy with a clear primary action. */
 .wallet-card { padding:18px; border:0; border-radius:20px; color:#fff; background:linear-gradient(145deg,#0A1F44 0%,#102A63 55%,#1748B5 100%); box-shadow:0 14px 30px rgba(10,31,68,.16); }
 .wallet-card-top { display:flex; align-items:center; justify-content:space-between; gap:12px; color:rgba(255,255,255,.68); font-size:10px; line-height:15px; font-weight:700; letter-spacing:.08em; }
 .wallet-status { display:inline-flex; align-items:center; gap:6px; padding:5px 8px; border:1px solid rgba(34,197,94,.28); border-radius:999px; color:#86EFAC; background:rgba(34,197,94,.12); font-size:10px; letter-spacing:0; text-transform:none; white-space:nowrap; }
 .wallet-status i { width:6px; height:6px; border-radius:50%; background:#22C55E; }
-.wallet-amount-row { display:flex; align-items:center; gap:10px; min-height:42px; margin:10px 0 18px; }
+.wallet-amount-row { display:flex; align-items:center; gap:10px; min-height:42px; margin:9px 0 16px; }
 .wallet-amount-row strong { font-size:32px; line-height:38px; letter-spacing:-.045em; }
 .balance-visibility { width:38px; height:38px; flex:0 0 38px; display:grid; place-items:center; border:1px solid rgba(255,255,255,.18); border-radius:50%; color:#fff; background:rgba(255,255,255,.09); }
 .balance-visibility:hover { background:rgba(255,255,255,.15); }
@@ -26,24 +26,24 @@
 .wallet-primary:hover { background:#F8FAFC; }
 .wallet-secondary:hover { background:rgba(255,255,255,.09); }
 
-/* Quick actions: compact horizontal service tiles, not oversized empty cards. */
+/* Quick actions: dense enough to scan, spacious enough to tap. */
 .quick-grid { display:grid; grid-template-columns:1fr 1fr; gap:9px; }
-.quick-card { min-width:0; min-height:84px; padding:12px; display:grid; grid-template-columns:38px minmax(0,1fr); align-items:center; gap:10px; text-align:left; border:1px solid var(--border); border-radius:14px; color:var(--text); background:var(--surface); box-shadow:var(--shadow-xs); }
-.quick-card:hover { border-color:var(--primary-soft-strong); background:var(--surface); box-shadow:var(--shadow-sm); }
+.quick-card { min-width:0; min-height:82px; padding:11px; display:grid; grid-template-columns:38px minmax(0,1fr); align-items:center; gap:9px; text-align:left; border:1px solid var(--border); border-radius:14px; color:var(--text); background:var(--surface); box-shadow:var(--shadow-xs); }
+.quick-card:hover { border-color:var(--primary-soft-strong); box-shadow:var(--shadow-sm); }
 .quick-icon { width:38px; height:38px; margin:0; display:grid; place-items:center; border-radius:11px; color:var(--primary); background:var(--primary-soft); }
 .quick-copy { min-width:0; }
 .quick-card strong { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:12px; line-height:18px; }
-.quick-card small { display:block; margin-top:1px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--muted); font-size:10px; line-height:16px; }
+.quick-card small { display:block; margin-top:1px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--muted); font-size:10px; line-height:15px; }
 
-.section-heading { margin-top:24px; margin-bottom:10px; }
+.section-heading { margin-top:22px; margin-bottom:9px; }
 .section-heading h2 { font-size:15px; line-height:21px; letter-spacing:-.01em; }
 .section-heading .eyebrow { margin-bottom:2px; }
 .text-button { min-height:30px; display:inline-flex; align-items:center; gap:3px; padding:3px 0; font-size:12px; }
-.activity-empty { min-height:82px; padding:14px; display:flex; flex-direction:row; align-items:center; gap:11px; border-style:solid; }
+.activity-empty { min-height:78px; padding:13px; display:flex; flex-direction:row; align-items:center; gap:10px; border-style:solid; }
 .activity-empty-icon { width:36px; height:36px; flex:0 0 36px; margin:0; display:grid; place-items:center; border-radius:11px; color:var(--primary); background:var(--primary-soft); }
 .activity-empty > div:last-child { min-width:0; }
 .activity-empty strong { display:block; font-size:12px; line-height:18px; }
-.activity-empty p { max-width:none; margin:2px 0 0; color:var(--muted); font-size:10px; line-height:16px; }
+.activity-empty p { max-width:none; margin:2px 0 0; color:var(--muted); font-size:10px; line-height:15px; }
 
 .history-filters { display:flex; gap:7px; overflow-x:auto; padding:2px 1px 5px; scrollbar-width:none; }
 .history-filters::-webkit-scrollbar { display:none; }
@@ -58,23 +58,23 @@
 .fund-card label { font-size:12px; color:var(--text-secondary); }
 .amount-input { height:52px; margin-top:8px; }
 
-.numbers-intro { padding-bottom:22px; }
+.numbers-intro { padding-bottom:20px; }
 .number-choice-list { display:grid; gap:10px; }
-.number-choice { width:100%; min-height:86px; padding:15px; display:grid; grid-template-columns:44px minmax(0,1fr) 18px; align-items:center; gap:13px; text-align:left; border:1px solid var(--border); border-radius:16px; color:var(--text); background:var(--surface); box-shadow:var(--shadow-xs); }
+.number-choice { width:100%; min-height:84px; padding:14px; display:grid; grid-template-columns:44px minmax(0,1fr) 18px; align-items:center; gap:12px; text-align:left; border:1px solid var(--border); border-radius:16px; color:var(--text); background:var(--surface); box-shadow:var(--shadow-xs); }
 .number-choice:hover { border-color:var(--primary-soft-strong); box-shadow:var(--shadow-sm); }
 .number-choice-icon { width:44px; height:44px; display:grid; place-items:center; border-radius:13px; color:var(--primary); background:var(--primary-soft); }
 .number-choice strong { display:block; margin-bottom:3px; font-size:14px; line-height:21px; }
 .number-choice small { display:block; color:var(--muted); font-size:11px; line-height:17px; }
 .number-choice > svg { color:var(--faint); }
 
-/* Profile: the shared app bar has controls only; the profile identity appears once in content. */
-.topbar-profile { min-height:52px; padding-top:max(6px,env(safe-area-inset-top)); padding-bottom:4px; justify-content:flex-end; }
+/* Profile: no brand mark in the app bar; the content owns the single identity header. */
+.topbar-profile { min-height:46px; padding-top:max(4px,env(safe-area-inset-top)); padding-bottom:2px; justify-content:flex-end; }
 .topbar-profile .topbar-actions { margin-left:auto; }
-.profile-summary { display:flex; align-items:center; gap:13px; padding:8px 0 20px; }
+.profile-summary { display:flex; align-items:center; gap:13px; padding:6px 0 18px; }
 .profile-avatar { width:52px; height:52px; flex:0 0 52px; display:grid; place-items:center; border-radius:16px; color:#fff; background:var(--primary); font-size:20px; font-weight:700; box-shadow:0 7px 18px rgba(37,99,235,.18); }
 .profile-summary h1 { margin-bottom:4px; font-size:25px; line-height:31px; }
 .profile-summary p:last-child { margin:0; color:var(--muted); font-size:12px; line-height:18px; }
-.profile-group { margin-top:20px; }
+.profile-group { margin-top:19px; }
 .profile-group h2 { margin:0 1px 8px; color:var(--muted); font-size:11px; line-height:16px; font-weight:700; letter-spacing:.08em; }
 .profile-list { padding:0 14px; }
 .profile-item { width:100%; min-height:64px; padding:8px 0; display:grid; grid-template-columns:40px minmax(0,1fr) 18px; align-items:center; gap:11px; text-align:left; border:0; border-bottom:1px solid var(--border); color:var(--text); background:transparent; }
@@ -90,9 +90,22 @@
 .referral-copy strong { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:13px; line-height:19px; letter-spacing:.02em; }
 .copy-button { min-height:38px; flex:0 0 auto; padding:0 11px; display:inline-flex; align-items:center; justify-content:center; gap:6px; border:1px solid var(--primary-soft-strong); border-radius:10px; color:var(--primary); background:var(--primary-soft); font-size:11px; font-weight:700; }
 .copy-button:hover { background:var(--primary-soft-strong); }
-.account-danger { margin-top:24px; padding-bottom:8px; }
+.account-danger { margin-top:23px; padding-bottom:8px; }
 .logout-button { width:100%; min-height:44px; margin:0; display:flex; align-items:center; justify-content:center; gap:8px; border:1px solid #FECACA; border-radius:11px; color:#DC2626; background:transparent; font-size:13px; font-weight:700; }
 .logout-button:hover { background:#FEF2F2; }
+
+/* Once-only community modal. */
+.community-overlay { position:fixed; inset:0; z-index:60; display:grid; place-items:center; padding:20px; background:rgba(15,23,42,.48); backdrop-filter:blur(4px); }
+.community-modal { position:relative; width:min(100%,360px); padding:24px 20px 18px; border:1px solid var(--border); border-radius:20px; background:var(--surface); color:var(--text); box-shadow:0 20px 50px rgba(15,23,42,.18); text-align:center; }
+.community-close { position:absolute; top:12px; right:12px; width:36px; height:36px; display:grid; place-items:center; border:1px solid var(--border); border-radius:10px; color:var(--muted); background:var(--surface); }
+.community-icon { width:46px; height:46px; margin:0 auto 12px; display:grid; place-items:center; border-radius:14px; color:#fff; background:var(--primary); font-size:18px; font-weight:700; }
+.community-modal .eyebrow { margin-bottom:3px; }
+.community-modal h2 { margin-bottom:6px; font-size:21px; line-height:28px; }
+.community-modal > p:not(.eyebrow) { margin:0 auto 16px; max-width:290px; color:var(--muted); font-size:12px; line-height:18px; }
+.community-btn { min-height:44px; margin-top:8px; display:flex; align-items:center; justify-content:center; gap:8px; border-radius:11px; font-size:12px; font-weight:700; color:#fff; }
+.community-btn.telegram { background:#2563EB; }
+.community-btn.whatsapp { background:#16A34A; }
+.community-later { min-height:40px; margin-top:5px; padding:0 12px; color:var(--muted); background:transparent; font-size:12px; font-weight:600; }
 
 /* Four-item navigation remains the primary mobile navigation. */
 .bottom-nav { grid-template-columns:repeat(4,1fr); }
@@ -100,17 +113,16 @@
 .nav-item.active { background:transparent; }
 .nav-item.active small { font-weight:700; }
 
-@media (min-width:700px) {
-  .content { padding-left:28px; padding-right:28px; }
-}
-
+@media (min-width:700px) { .content { padding-left:28px; padding-right:28px; } }
 @media (max-width:380px) {
   .content { padding-left:16px; padding-right:16px; }
   .wallet-card { padding:16px; }
-  .wallet-amount-row { margin-bottom:16px; }
+  .wallet-amount-row { margin-bottom:15px; }
   .quick-grid { gap:8px; }
-  .quick-card { min-height:78px; padding:10px; grid-template-columns:36px minmax(0,1fr); gap:8px; }
+  .quick-card { min-height:76px; padding:10px; grid-template-columns:36px minmax(0,1fr); gap:8px; }
   .quick-icon { width:36px; height:36px; }
   .quick-card strong { font-size:11px; }
   .quick-card small { font-size:9px; }
+  .profile-item { grid-template-columns:38px minmax(0,1fr) 18px; gap:9px; }
+  .profile-item-icon { width:38px; height:38px; }
 }
