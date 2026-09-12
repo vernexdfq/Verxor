@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import { ArrowRight, Bell, Check, Clock3, Copy, Eye, History, LockKeyhole, LogOut, MapPin, Plus, ShieldCheck, Smartphone, UserRound, WalletCards, Zap } from 'lucide-react';
+import { ArrowRight, Bell, Check, Clock3, Copy, Eye, History, LockKeyhole, LogOut, MapPin, Plus, ShieldCheck, Smartphone, UserRound, WalletCards, Zap, ChevronRight, Mail, Phone } from 'lucide-react';
 import { Card, PrimaryButton, SectionHeader } from './components/ui';
 import type { Page } from './types';
 import type { ServiceView } from './service-pages';
@@ -65,6 +65,8 @@ export function ProfilePage({ openService }: { openService: (view: ServiceView) 
 
     <ProfileGroup title="ACCOUNT INFORMATION">
       <ProfileItem icon={<UserRound size={19} />} title="Personal information" description="Name, username, phone and email" />
+      <ProfileItem icon={<Mail size={19} />} title="Email" description="Account email address" />
+      <ProfileItem icon={<Phone size={19} />} title="Phone number" description="Verified account number" />
     </ProfileGroup>
 
     <ProfileGroup title="PREFERENCES">
@@ -76,8 +78,8 @@ export function ProfilePage({ openService }: { openService: (view: ServiceView) 
     </ProfileGroup>
 
     <ProfileGroup title="SUPPORT">
-      <ProfileItem icon={<ShieldCheck size={19} />} title="Help Center" description="Guides and common questions" onClick={() => openService('privacy')} />
-      <ProfileItem icon={<Bell size={19} />} title="Contact Support" description="Get help with an issue" onClick={() => openService('feedback')} />
+      <ProfileItem icon={<ShieldCheck size={19} />} title="Help Center" description="Guides and common questions" onClick={() => openService('help')} />
+      <ProfileItem icon={<Bell size={19} />} title="Contact Support" description="Telegram · WhatsApp · Email" onClick={() => openService('feedback')} />
     </ProfileGroup>
 
     <section className="profile-group">
@@ -96,4 +98,7 @@ export function ProfilePage({ openService }: { openService: (view: ServiceView) 
 }
 
 function ProfileGroup({ title, children }: { title: string; children: ReactNode }) { return <section className="profile-group"><h2>{title}</h2><Card className="profile-list">{children}</Card></section>; }
-function ProfileItem({ icon, title, description, onClick }: { icon: ReactNode; title: string; description: string; onClick?: () => void }) { if (onClick) return <button className="profile-item" onClick={onClick}><span className="profile-item-icon">{icon}</span><span><strong>{title}</strong><small>{description}</small></span><ArrowRight size={17} /></button>; return <div className="profile-item"><span className="profile-item-icon">{icon}</span><span><strong>{title}</strong><small>{description}</small></span></div>; }
+function ProfileItem({ icon, title, description, onClick }: { icon: ReactNode; title: string; description: string; onClick?: () => void }) {
+  const content = <><span className="profile-item-icon">{icon}</span><span><strong>{title}</strong><small>{description}</small></span>{onClick && <ChevronRight size={17} />}</>;
+  return onClick ? <button className="profile-item" onClick={onClick}>{content}</button> : <div className="profile-item">{content}</div>;
+}
