@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import { ArrowRight, Bell, Check, Clock3, Copy, Eye, History, LockKeyhole, LogOut, MapPin, Plus, ShieldCheck, Smartphone, UserRound, WalletCards, Zap, ChevronRight, Mail, Phone } from 'lucide-react';
+import { ArrowRight, Bell, Check, Clock3, Copy, Eye, History, LockKeyhole, LogOut, MapPin, Plus, ShieldCheck, Smartphone, UserRound, WalletCards, Zap } from 'lucide-react';
 import { Card, PrimaryButton, SectionHeader } from './components/ui';
 import type { Page } from './types';
 import type { ServiceView } from './service-pages';
@@ -14,7 +14,6 @@ export function HomePage({ go, openService }: { go: (page: Page) => void; openSe
       <div className="wallet-amount-row"><strong>{wallet.symbol}{wallet.amount}</strong><button className="balance-visibility" aria-label="Show balance"><Eye size={18} /></button></div>
       <div className="wallet-actions"><button className="wallet-primary" onClick={() => go('fund')}><Plus size={18} /> Fund Wallet</button><button className="wallet-secondary" onClick={() => go('history')}><History size={18} /> History</button></div>
     </Card>
-
     <SectionHeader eyebrow="SERVICES" title="Quick actions" />
     <div className="quick-grid">
       <button className="quick-card" onClick={() => openService('virtual-numbers')}><span className="quick-icon"><Smartphone size={21} /></span><span className="quick-copy"><strong>Virtual Numbers</strong><small>OTP verification</small></span></button>
@@ -22,7 +21,6 @@ export function HomePage({ go, openService }: { go: (page: Page) => void; openSe
       <button className="quick-card" onClick={() => openService('boost')}><span className="quick-icon"><Zap size={21} /></span><span className="quick-copy"><strong>SMM Boost</strong><small>Social growth</small></span></button>
       <button className="quick-card" onClick={() => openService('accounts')}><span className="quick-icon"><UserRound size={21} /></span><span className="quick-copy"><strong>Buy Accounts</strong><small>Available inventory</small></span></button>
     </div>
-
     <SectionHeader eyebrow="ACTIVITY" title="Recent activity" action={<button className="text-button" onClick={() => go('history')}>View all <ArrowRight size={14} /></button>} />
     <Card className="activity-empty"><div className="activity-empty-icon"><History size={18} /></div><div><strong>No recent activity</strong><p>Your wallet activity and orders will appear here.</p></div></Card>
   </>;
@@ -62,34 +60,26 @@ export function ProfilePage({ openService }: { openService: (view: ServiceView) 
       <div className="profile-avatar">V</div>
       <div><p className="eyebrow">ACCOUNT</p><h1>Your profile</h1><p>Member since 2026</p></div>
     </section>
-
     <ProfileGroup title="ACCOUNT INFORMATION">
       <ProfileItem icon={<UserRound size={19} />} title="Personal information" description="Name, username, phone and email" />
-      <ProfileItem icon={<Mail size={19} />} title="Email" description="Account email address" />
-      <ProfileItem icon={<Phone size={19} />} title="Phone number" description="Verified account number" />
     </ProfileGroup>
-
     <ProfileGroup title="PREFERENCES">
       <ProfileItem icon={<MapPin size={19} />} title="Currency & Region" description={`${wallet.code} · Account region`} onClick={() => openService('settings')} />
     </ProfileGroup>
-
     <ProfileGroup title="SECURITY">
       <ProfileItem icon={<LockKeyhole size={19} />} title="Security" description="Password, PIN and sessions" onClick={() => openService('settings')} />
     </ProfileGroup>
-
     <ProfileGroup title="SUPPORT">
       <ProfileItem icon={<ShieldCheck size={19} />} title="Help Center" description="Guides and common questions" onClick={() => openService('help')} />
       <ProfileItem icon={<Bell size={19} />} title="Contact Support" description="Telegram · WhatsApp · Email" onClick={() => openService('feedback')} />
     </ProfileGroup>
-
     <section className="profile-group">
       <h2>REFERRAL</h2>
-      <Card className="referral-card">
+      <Card className="profile-referral-card">
         <div className="referral-copy"><span className="referral-label">REFERRAL CODE</span><strong>{referralCode}</strong></div>
-        <button className="copy-button" onClick={copyReferral} aria-label={copied ? 'Referral code copied' : 'Copy referral code'}>{copied ? <Check size={17} /> : <Copy size={17} />}<span>{copied ? 'Copied' : 'Copy'}</span></button>
+        <button className="profile-copy-button" onClick={copyReferral} aria-label={copied ? 'Referral code copied' : 'Copy referral code'}>{copied ? <Check size={17} /> : <Copy size={17} />}<span>{copied ? 'Copied' : 'Copy'}</span></button>
       </Card>
     </section>
-
     <section className="profile-group account-danger">
       <h2>ACCOUNT</h2>
       <button className="logout-button"><LogOut size={18} /> Log out</button>
@@ -99,6 +89,6 @@ export function ProfilePage({ openService }: { openService: (view: ServiceView) 
 
 function ProfileGroup({ title, children }: { title: string; children: ReactNode }) { return <section className="profile-group"><h2>{title}</h2><Card className="profile-list">{children}</Card></section>; }
 function ProfileItem({ icon, title, description, onClick }: { icon: ReactNode; title: string; description: string; onClick?: () => void }) {
-  const content = <><span className="profile-item-icon">{icon}</span><span><strong>{title}</strong><small>{description}</small></span>{onClick && <ChevronRight size={17} />}</>;
+  const content = <><span className="profile-item-icon">{icon}</span><span><strong>{title}</strong><small>{description}</small></span>{onClick && <ArrowRight size={17} />}</>;
   return onClick ? <button className="profile-item" onClick={onClick}>{content}</button> : <div className="profile-item">{content}</div>;
 }
