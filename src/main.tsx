@@ -1,12 +1,12 @@
-import { StrictMode, useState } from 'react';
+import { useState } from 'react';
 import { ArrowRight, Check, Globe2, Menu, ShieldCheck, X, Zap } from 'lucide-react';
-import { createRoot } from 'react-dom/client';
+import { StrictMode, createRoot } from 'react-dom/client';
 import { AppShell } from './components/AppShell';
-import { CommunityModal } from './components/CommunityModal';
 import { HomePage, HistoryPage, FundPage, NumbersPage, ProfilePage } from './pages';
 import { ServicePage, ServicesPage, type ServiceView } from './service-pages';
 import type { Page } from './types';
 import './styles.css';
+import './landing.css';
 import './app-overrides.css';
 import './community-refinements.css';
 
@@ -56,6 +56,6 @@ function App() {
   const [service, setService] = useState<ServiceView | null>(null);
   if (view === 'landing') return <div className={dark ? 'app dark' : 'app'}><Landing enter={() => setView('app')} /></div>;
   const content = service === 'services' ? <ServicesPage open={setService} /> : service ? <ServicePage view={service} onBack={() => setService('services')} /> : ({ home:<HomePage go={setPage} openService={setService} />, history:<HistoryPage />, fund:<FundPage />, numbers:<NumbersPage openService={setService} />, profile:<ProfilePage openService={setService} /> }[page]);
-  return <AppShell dark={dark} page={page} onNavigate={(next) => { setService(null); setPage(next); }} onToggleTheme={() => setDark(v => !v)} onOpenService={(next) => setService(next)} onLogout={() => { setService(null); setPage('home'); setView('landing'); }}><CommunityModal />{content}</AppShell>;
+  return <AppShell dark={dark} page={page} onNavigate={(next) => { setService(null); setPage(next); }} onToggleTheme={() => setDark(v => !v)} onOpenService={(next) => setService(next)} onLogout={() => { setService(null); setPage('home'); setView('landing'); }}>{content}</AppShell>;
 }
 createRoot(document.getElementById('root')!).render(<StrictMode><App /></StrictMode>);
