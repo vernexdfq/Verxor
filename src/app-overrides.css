@@ -60,7 +60,7 @@
 
 .numbers-intro { padding-bottom:20px; }
 .number-choice-list { display:grid; gap:10px; }
-.number-choice { width:100%; min-height:84px; padding:14px; display:grid; grid-template-columns:44px minmax(0,1fr) 18px; align-items:center; gap:12px; text-align:left; border:1px solid var(--border); border-radius:16px; color:var(--text); background:var(--surface); box-shadow:var(--shadow-xs); }
+.number-choice { width:100%; min-width:0; min-height:84px; padding:14px; display:grid; grid-template-columns:44px minmax(0,1fr) 18px; align-items:center; gap:12px; text-align:left; border:1px solid var(--border); border-radius:16px; color:var(--text); background:var(--surface); box-shadow:var(--shadow-xs); }
 .number-choice:hover { border-color:var(--primary-soft-strong); box-shadow:var(--shadow-sm); }
 .number-choice-icon { width:44px; height:44px; display:grid; place-items:center; border-radius:13px; color:var(--primary); background:var(--primary-soft); }
 .number-choice strong { display:block; margin-bottom:3px; font-size:14px; line-height:21px; }
@@ -77,11 +77,11 @@
 .profile-group { margin-top:19px; }
 .profile-group h2 { margin:0 1px 8px; color:var(--muted); font-size:11px; line-height:16px; font-weight:700; letter-spacing:.08em; }
 .profile-list { padding:0 14px; }
-.profile-item { width:100%; min-height:64px; padding:8px 0; display:grid; grid-template-columns:40px minmax(0,1fr) 18px; align-items:center; gap:11px; text-align:left; border:0; border-bottom:1px solid var(--border); color:var(--text); background:transparent; }
+.profile-item { width:100%; min-width:0; min-height:64px; padding:8px 0; display:grid; grid-template-columns:40px minmax(0,1fr) 18px; align-items:center; gap:11px; text-align:left; border:0; border-bottom:1px solid var(--border); color:var(--text); background:transparent; }
 .profile-item:last-child { border-bottom:0; }
 .profile-item-icon { width:40px; height:40px; display:grid; place-items:center; border-radius:12px; color:var(--primary); background:var(--primary-soft); }
 .profile-item strong { display:block; margin-bottom:3px; font-size:13px; line-height:19px; }
-.profile-item small { display:block; color:var(--muted); font-size:11px; line-height:17px; }
+.profile-item small { display:block; color:var(--muted); font-size:11px; line-height:17px; overflow-wrap:anywhere; }
 .profile-item > svg { color:var(--faint); }
 .profile-item:hover strong { color:var(--primary); }
 .referral-card { min-height:70px; padding:12px 14px; display:flex; align-items:center; justify-content:space-between; gap:12px; }
@@ -113,16 +113,31 @@
 .nav-item.active { background:transparent; }
 .nav-item.active small { font-weight:700; }
 
+/* Layout guardrails: prevent narrow grids, long labels and fixed navigation from distorting the rail. */
+html, body, #root { width:100%; max-width:100%; }
+body { overflow-x:hidden; }
+.app, .landing { width:100%; max-width:100%; }
+.app-frame { width:min(100%,448px); max-width:448px; overflow-x:clip; }
+.content { width:100%; max-width:100%; min-width:0; }
+.topbar, .content { overflow-wrap:break-word; }
+.quick-card, .number-choice, .product-card, .number-card, .service-line, .profile-item, .support-channel { min-width:0; }
+.product-card > span:nth-child(2), .service-line > div, .number-info, .support-channel > div { min-width:0; }
+.product-card small, .service-line small, .number-info small, .support-channel small { overflow-wrap:anywhere; }
+.number-card > .small-button { flex-shrink:0; }
+
 @media (min-width:700px) { .content { padding-left:28px; padding-right:28px; } }
 @media (max-width:380px) {
   .content { padding-left:16px; padding-right:16px; }
   .wallet-card { padding:16px; }
   .wallet-amount-row { margin-bottom:15px; }
+  .wallet-amount-row strong { font-size:29px; }
   .quick-grid { gap:8px; }
   .quick-card { min-height:76px; padding:10px; grid-template-columns:36px minmax(0,1fr); gap:8px; }
   .quick-icon { width:36px; height:36px; }
   .quick-card strong { font-size:11px; }
   .quick-card small { font-size:9px; }
+  .number-choice { grid-template-columns:40px minmax(0,1fr) 18px; padding:12px; gap:10px; }
+  .number-choice-icon { width:40px; height:40px; }
   .profile-item { grid-template-columns:38px minmax(0,1fr) 18px; gap:9px; }
   .profile-item-icon { width:38px; height:38px; }
 }
