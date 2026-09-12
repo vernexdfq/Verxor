@@ -16,10 +16,8 @@ export function AppShell({ dark, page, onNavigate, onToggleTheme, onOpenService,
   return <div className={`app ${dark ? 'dark' : ''}`}>
     <div className="app-frame">
       <header className={`topbar ${page === 'home' ? 'topbar-home' : ''} ${page === 'profile' ? 'topbar-profile' : ''}`}>
-        {page === 'home' ? <>
-          <button className="brand-mark" aria-label="Verxor home" onClick={() => onNavigate('home')}>V</button>
-          <div className="topbar-greeting" aria-label="Welcome back"><span>Good morning, Denny</span><small>Your Verxor dashboard</small></div>
-        </> : <button className="brand-mark" aria-label="Verxor home" onClick={() => onNavigate('home')}>V</button>}
+        {page !== 'profile' && <button className="brand-mark" aria-label="Verxor home" onClick={() => onNavigate('home')}>V</button>}
+        {page === 'home' && <div className="topbar-greeting" aria-label="Welcome back"><span>Good morning, Denny</span><small>Your Verxor dashboard</small></div>}
         <div className="topbar-actions">
           <IconButton aria-label="Toggle theme" onClick={onToggleTheme}>{dark ? <Sun size={19} /> : <Moon size={19} />}</IconButton>
           <IconButton aria-label="Notifications" onClick={() => onOpenService('alerts')}><Bell size={19} /></IconButton>
