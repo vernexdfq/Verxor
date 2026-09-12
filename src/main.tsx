@@ -8,6 +8,7 @@ import { ServicePage, ServicesPage, type ServiceView } from './service-pages';
 import type { Page } from './types';
 import './styles.css';
 import './app-overrides.css';
+import './community-refinements.css';
 
 const services = [
   { title: 'Virtual Numbers', label: 'Instant OTP', description: 'Fast verification numbers for supported services.' },
