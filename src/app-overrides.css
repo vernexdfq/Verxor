@@ -27,15 +27,15 @@
 .wallet-secondary:hover { background:rgba(255,255,255,.09); }
 
 /* Quick actions: dense enough to scan, spacious enough to tap. */
-.quick-grid { display:grid; grid-template-columns:1fr 1fr; gap:9px; }
-.quick-card { min-width:0; min-height:82px; padding:11px; display:grid; grid-template-columns:38px minmax(0,1fr); align-items:center; gap:9px; text-align:left; border:1px solid var(--border); border-radius:14px; color:var(--text); background:var(--surface); box-shadow:var(--shadow-xs); }
+.quick-grid { display:grid; grid-template-columns:1fr 1fr; gap:9px; grid-auto-rows:82px; }
+.quick-card { width:100%; height:100%; min-width:0; min-height:0; padding:11px; display:grid; grid-template-columns:38px minmax(0,1fr); align-items:center; gap:9px; text-align:left; border:1px solid var(--border); border-radius:14px; color:var(--text); background:var(--surface); box-shadow:var(--shadow-xs); }
 .quick-card:hover { border-color:var(--primary-soft-strong); box-shadow:var(--shadow-sm); }
 .quick-icon { width:38px; height:38px; margin:0; display:grid; place-items:center; border-radius:11px; color:var(--primary); background:var(--primary-soft); }
 .quick-copy { min-width:0; }
 .quick-card strong { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:12px; line-height:18px; }
 .quick-card small { display:block; margin-top:1px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--muted); font-size:10px; line-height:15px; }
 
-.section-heading { margin-top:22px; margin-bottom:9px; }
+.section-heading { margin-top:20px; margin-bottom:9px; }
 .section-heading h2 { font-size:15px; line-height:21px; letter-spacing:-.01em; }
 .section-heading .eyebrow { margin-bottom:2px; }
 .text-button { min-height:30px; display:inline-flex; align-items:center; gap:3px; padding:3px 0; font-size:12px; }
@@ -70,11 +70,12 @@
 /* Profile: no brand mark in the app bar; the content owns the single identity header. */
 .topbar-profile { min-height:46px; padding-top:max(4px,env(safe-area-inset-top)); padding-bottom:2px; justify-content:flex-end; }
 .topbar-profile .topbar-actions { margin-left:auto; }
-.profile-summary { display:flex; align-items:center; gap:13px; padding:6px 0 18px; }
+.profile-summary { display:flex; align-items:center; gap:13px; padding:6px 0 10px; }
 .profile-avatar { width:52px; height:52px; flex:0 0 52px; display:grid; place-items:center; border-radius:16px; color:#fff; background:var(--primary); font-size:20px; font-weight:700; box-shadow:0 7px 18px rgba(37,99,235,.18); }
 .profile-summary h1 { margin-bottom:4px; font-size:25px; line-height:31px; }
 .profile-summary p:last-child { margin:0; color:var(--muted); font-size:12px; line-height:18px; }
-.profile-group { margin-top:19px; }
+.profile-group { margin-top:20px; }
+.profile-summary + .profile-group { margin-top:0; }
 .profile-group h2 { margin:0 1px 8px; color:var(--muted); font-size:11px; line-height:16px; font-weight:700; letter-spacing:.08em; }
 .profile-list { padding:0 14px; }
 .profile-item { width:100%; min-width:0; min-height:64px; padding:8px 0; display:grid; grid-template-columns:40px minmax(0,1fr) 18px; align-items:center; gap:11px; text-align:left; border:0; border-bottom:1px solid var(--border); color:var(--text); background:transparent; }
@@ -90,7 +91,10 @@
 .referral-copy strong { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:13px; line-height:19px; letter-spacing:.02em; }
 .copy-button { min-height:38px; flex:0 0 auto; padding:0 11px; display:inline-flex; align-items:center; justify-content:center; gap:6px; border:1px solid var(--primary-soft-strong); border-radius:10px; color:var(--primary); background:var(--primary-soft); font-size:11px; font-weight:700; }
 .copy-button:hover { background:var(--primary-soft-strong); }
-.account-danger { margin-top:23px; padding-bottom:8px; }
+.profile-referral-card { min-height:70px; padding:12px 14px; display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.profile-copy-button { min-height:38px; flex:0 0 auto; padding:0 11px; display:inline-flex; align-items:center; justify-content:center; gap:6px; border:1px solid var(--primary-soft-strong); border-radius:10px; color:var(--primary); background:var(--primary-soft); font-size:11px; font-weight:700; }
+.profile-copy-button:hover { background:var(--primary-soft-strong); }
+.account-danger { margin-top:24px; padding-bottom:16px; }
 .logout-button { width:100%; min-height:44px; margin:0; display:flex; align-items:center; justify-content:center; gap:8px; border:1px solid #FECACA; border-radius:11px; color:#DC2626; background:transparent; font-size:13px; font-weight:700; }
 .logout-button:hover { background:#FEF2F2; }
 
@@ -108,9 +112,9 @@
 .community-later { min-height:40px; margin-top:5px; padding:0 12px; color:var(--muted); background:transparent; font-size:12px; font-weight:600; }
 
 /* Four-item navigation remains the primary mobile navigation. */
-.bottom-nav { grid-template-columns:repeat(4,1fr); }
-.nav-item { min-height:52px; }
-.nav-item.active { background:transparent; }
+.bottom-nav { grid-template-columns:repeat(4,1fr); padding:8px 12px max(10px,env(safe-area-inset-bottom)); }
+.nav-item { min-height:52px; padding:5px 2px; gap:4px; }
+.nav-item.active { background:var(--primary-soft); }
 .nav-item.active small { font-weight:700; }
 
 /* Layout guardrails: prevent narrow grids, long labels and fixed navigation from distorting the rail. */
@@ -118,21 +122,21 @@ html, body, #root { width:100%; max-width:100%; }
 body { overflow-x:hidden; }
 .app, .landing { width:100%; max-width:100%; }
 .app-frame { width:min(100%,448px); max-width:448px; overflow-x:clip; }
-.content { width:100%; max-width:100%; min-width:0; }
+.content { width:100%; max-width:100%; min-width:0; padding-bottom:calc(112px + env(safe-area-inset-bottom)); }
 .topbar, .content { overflow-wrap:break-word; }
 .quick-card, .number-choice, .product-card, .number-card, .service-line, .profile-item, .support-channel { min-width:0; }
 .product-card > span:nth-child(2), .service-line > div, .number-info, .support-channel > div { min-width:0; }
 .product-card small, .service-line small, .number-info small, .support-channel small { overflow-wrap:anywhere; }
 .number-card > .small-button { flex-shrink:0; }
 
-@media (min-width:700px) { .content { padding-left:28px; padding-right:28px; } }
+@media (min-width:700px) { .content { padding-left:28px; padding-right:28px; padding-bottom:112px; } }
 @media (max-width:380px) {
   .content { padding-left:16px; padding-right:16px; }
   .wallet-card { padding:16px; }
   .wallet-amount-row { margin-bottom:15px; }
   .wallet-amount-row strong { font-size:29px; }
-  .quick-grid { gap:8px; }
-  .quick-card { min-height:76px; padding:10px; grid-template-columns:36px minmax(0,1fr); gap:8px; }
+  .quick-grid { gap:8px; grid-auto-rows:76px; }
+  .quick-card { padding:10px; grid-template-columns:36px minmax(0,1fr); gap:8px; }
   .quick-icon { width:36px; height:36px; }
   .quick-card strong { font-size:11px; }
   .quick-card small { font-size:9px; }
