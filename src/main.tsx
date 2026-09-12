@@ -9,10 +9,10 @@ import './styles.css';
 import './app-overrides.css';
 
 const services = [
-  { title: 'Virtual Numbers', label: 'Instant OTP', description: 'Fast verification numbers for WhatsApp, TikTok, Instagram, Google and 300+ services.' },
-  { title: 'Rent a Line', label: 'Dedicated rentals', description: 'Keep a private USA or global number for hours or days with voice and SMS support.' },
-  { title: 'SMM Boost', label: 'Social & music growth', description: 'Order followers, likes, views and streams with clear delivery tracking.' },
-  { title: 'Buy Accounts', label: 'Premium accounts', description: 'Browse available inventory and receive delivery after payment.' },
+  { title: 'Virtual Numbers', label: 'Instant OTP', description: 'Fast verification numbers for supported services.' },
+  { title: 'Rent a Line', label: 'Dedicated rentals', description: 'Keep a private number for a selected rental period.' },
+  { title: 'SMM Boost', label: 'Social & music growth', description: 'Order growth services with clear delivery tracking.' },
+  { title: 'Buy Accounts', label: 'Premium accounts', description: 'Browse available inventory and delivery information.' },
 ];
 const countries = [['🇺🇸','United States'],['🇬🇧','United Kingdom'],['🇨🇦','Canada'],['🇫🇷','France'],['🇩🇪','Germany'],['🇪🇸','Spain'],['🇮🇹','Italy'],['🇳🇱','Netherlands'],['🇦🇺','Australia'],['🇮🇳','India'],['🇿🇦','South Africa'],['🇧🇷','Brazil']];
 const faqs = [
@@ -43,14 +43,17 @@ function Landing({ enter }: { enter: () => void }) {
       <section id="coverage" className="coverage-section"><div className="landing-section coverage-inner"><div className="section-intro"><span>Coverage</span><h2>Global numbers, clearly presented.</h2><p>Browse supported markets and check current availability inside your account.</p></div><div className="country-grid">{countries.map(([flag,name])=><button key={name} onClick={enter}><span>{flag}</span><strong>{name}</strong><ArrowRight size={15}/></button>)}</div></div></section>
       <section id="pricing" className="landing-section"><div className="pricing-panel"><div><span>Simple funding</span><h2>Pay only for what you use.</h2><p>Fund your wallet, choose a service and keep every payment and order visible in one activity trail.</p></div><div className="pricing-points">{['Wallet-first payments','Clear service pricing','Fast automated delivery','Referral rewards'].map(item=><div key={item}><Check size={17}/>{item}</div>)}</div><button className="landing-cta" onClick={enter}>Create a free account <ArrowRight size={18}/></button></div></section>
       <section id="faq" className="landing-section faq-section"><div className="section-intro centered"><span>Support</span><h2>Questions, answered.</h2></div><div className="faq-list">{faqs.map(([q,a])=><details key={q}><summary>{q}<span>+</span></summary><p>{a}</p></details>)}</div></section>
-    </main><footer className="landing-footer"><div className="footer-brand"><span className="wordmark-mark">V</span><strong>Verxor.com</strong></div><span>© {new Date().getFullYear()} Verxor.com — Connect · Verify · Grow</span></footer>
+    </main><footer className="landing-footer"><div className="footer-brand"><span className="wordmark-mark">V</span><strong>Verxor.com</strong></div><span>© {new Date().getFullYear()} Verxor.com — Your complete digital ecosystem</span></footer>
   </div>;
 }
 
 function App() {
-  const [dark,setDark]=useState(false); const [view,setView]=useState<'landing'|'app'>('landing'); const [page,setPage]=useState<Page>('home'); const [service,setService]=useState<ServiceView | null>(null);
-  if(view==='landing') return <div className={dark?'app dark':'app'}><Landing enter={()=>setView('app')}/></div>;
-  const content = service === 'services' ? <ServicesPage open={setService}/> : service ? <ServicePage view={service} onBack={()=>setService('services')}/> : ({home:<HomePage go={setPage} openService={setService}/>,history:<HistoryPage/>,fund:<FundPage/>,numbers:<NumbersPage openService={setService}/>,profile:<ProfilePage openService={setService}/>} [page]);
-  return <AppShell dark={dark} page={page} onNavigate={(next)=>{setService(null);setPage(next)}} onToggleTheme={()=>setDark(v=>!v)} onOpenService={(next)=>setService(next)}>{content}</AppShell>;
+  const [dark, setDark] = useState(false);
+  const [view, setView] = useState<'landing' | 'app'>('landing');
+  const [page, setPage] = useState<Page>('home');
+  const [service, setService] = useState<ServiceView | null>(null);
+  if (view === 'landing') return <div className={dark ? 'app dark' : 'app'}><Landing enter={() => setView('app')} /></div>;
+  const content = service === 'services' ? <ServicesPage open={setService} /> : service ? <ServicePage view={service} onBack={() => setService('services')} /> : ({ home:<HomePage go={setPage} openService={setService} />, history:<HistoryPage />, fund:<FundPage />, numbers:<NumbersPage openService={setService} />, profile:<ProfilePage openService={setService} /> }[page]);
+  return <AppShell dark={dark} page={page} onNavigate={(next) => { setService(null); setPage(next); }} onToggleTheme={() => setDark(v => !v)} onOpenService={(next) => setService(next)} onLogout={() => { setService(null); setPage('home'); setView('landing'); }}>{content}</AppShell>;
 }
-createRoot(document.getElementById('root')!).render(<StrictMode><App/></StrictMode>);
+createRoot(document.getElementById('root')!).render(<StrictMode><App /></StrictMode>);
