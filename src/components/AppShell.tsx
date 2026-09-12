@@ -5,7 +5,7 @@ import { CommunityModal } from './CommunityModal';
 import type { Page } from '../types';
 import type { ServiceView } from '../service-pages';
 
-export function AppShell({ dark, page, onNavigate, onToggleTheme, onOpenService, children }: { dark: boolean; page: Page; onNavigate: (page: Page) => void; onToggleTheme: () => void; onOpenService: (view: ServiceView) => void; children: ReactNode }) {
+export function AppShell({ dark, page, onNavigate, onToggleTheme, onOpenService, onLogout, children }: { dark: boolean; page: Page; onNavigate: (page: Page) => void; onToggleTheme: () => void; onOpenService: (view: ServiceView) => void; onLogout: () => void; children: ReactNode }) {
   const items: { id: Page; label: string; icon: typeof Home }[] = [
     { id: 'home', label: 'Home', icon: Home },
     { id: 'numbers', label: 'Numbers', icon: Smartphone },
