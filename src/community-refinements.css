@@ -1,0 +1,102 @@
+/* Focused visual refinements for the signed-in experience. */
+
+.quick-icon-blue {
+  color: #2563EB;
+  background: #EFF6FF;
+  box-shadow: inset 0 0 0 1px #DBEAFE;
+}
+.quick-icon-violet {
+  color: #8B5CF6;
+  background: #F5F3FF;
+  box-shadow: inset 0 0 0 1px #EDE9FE;
+}
+.quick-icon-amber {
+  color: #D97706;
+  background: #FFFBEB;
+  box-shadow: inset 0 0 0 1px #FDE68A;
+}
+.quick-icon-cyan {
+  color: #0891B2;
+  background: #ECFEFF;
+  box-shadow: inset 0 0 0 1px #CFFAFE;
+}
+
+.community-overlay {
+  padding: 18px;
+  background: rgba(15, 23, 42, .54);
+  backdrop-filter: blur(7px);
+}
+.community-modal {
+  width: min(100%, 382px);
+  padding: 28px 22px 17px;
+  border-radius: 24px;
+  box-shadow: 0 24px 70px rgba(15, 23, 42, .22);
+}
+.community-close {
+  top: 14px;
+  right: 14px;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--background);
+}
+.community-icon {
+  width: 64px;
+  height: 64px;
+  margin-bottom: 13px;
+  border-radius: 50%;
+  color: var(--primary);
+  background: var(--primary-soft);
+  box-shadow: inset 0 0 0 1px var(--primary-soft-strong);
+}
+.community-modal .eyebrow {
+  color: var(--primary);
+  font-size: 10px;
+  letter-spacing: .1em;
+}
+.community-modal h2 {
+  margin-top: 2px;
+  font-size: 24px;
+  line-height: 30px;
+  letter-spacing: -.035em;
+}
+.community-modal > p:not(.eyebrow) {
+  max-width: 310px;
+  margin-bottom: 18px;
+  font-size: 13px;
+  line-height: 20px;
+}
+.community-btn {
+  min-height: 52px;
+  width: 100%;
+  border-radius: 14px;
+  font-size: 14px;
+  box-shadow: none;
+  transition: transform .18s ease, filter .18s ease;
+}
+.community-btn:hover { filter: brightness(.97); }
+.community-btn:active { transform: scale(.985); }
+.community-btn.telegram { background: #2563EB; }
+.community-btn.whatsapp { background: #16A34A; }
+.community-later {
+  min-height: 42px;
+  margin-top: 5px;
+  font-size: 13px;
+}
+
+.profile-item-link {
+  text-decoration: none;
+}
+.profile-item-link:hover strong { color: var(--primary); }
+.profile-item-icon-telegram {
+  color: #2563EB;
+  background: #EFF6FF;
+}
+.profile-item-icon-whatsapp {
+  color: #16A34A;
+  background: #F0FDF4;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .community-btn { transition: none; }
+}
