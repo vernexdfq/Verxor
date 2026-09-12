@@ -97,6 +97,31 @@
   background: #F0FDF4;
 }
 
+.profile-referral-card {
+  min-height: 70px;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.profile-copy-button {
+  min-height: 38px;
+  flex: 0 0 auto;
+  padding: 0 11px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid var(--primary-soft-strong);
+  border-radius: 10px;
+  color: var(--primary);
+  background: var(--primary-soft);
+  font-size: 11px;
+  font-weight: 700;
+}
+.profile-copy-button:hover { background: var(--primary-soft-strong); }
+
 @media (prefers-reduced-motion: reduce) {
   .community-btn { transition: none; }
 }
