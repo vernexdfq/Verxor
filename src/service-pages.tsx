@@ -82,7 +82,12 @@ export function ServicePage({ view, onBack }: { view: Exclude<ServiceView, 'serv
   if (view === 'rewards') return <ServiceLayout title="Rewards" eyebrow="REWARDS" description="See your earned rewards and available benefits." onBack={onBack}><Card className="reward-card"><Gift size={22} /><div><small>Total rewards</small><strong>₦0.00</strong></div></Card><Card className="info-card"><CheckCircle2 size={18} /><div><strong>Rewards</strong><p>Eligible rewards will be reflected here automatically.</p></div></Card></ServiceLayout>;
   if (view === 'affiliate') return <ServiceLayout title="Affiliate" eyebrow="REFERRALS" description="Share your referral link and track eligible rewards." onBack={onBack}><Card className="referral-card"><small>Your referral link</small><strong>verxor.com/ref/your-link</strong><button className="copy-button">Copy link</button></Card></ServiceLayout>;
   if (view === 'alerts') return <ServiceLayout title="Notifications" eyebrow="ACCOUNT" description="Important account and order updates appear here." onBack={onBack}><EmptyOrders icon={<MessageCircle size={18} />} title="You're all caught up" text="New security, payment and order updates will appear here." /></ServiceLayout>;
-  if (view === 'settings') return <ServiceLayout title="Security" eyebrow="ACCOUNT SECURITY" description="Keep your account protected." onBack={onBack}><Card className="settings-list">{[['Password', 'Update your password'], ['PIN', 'Manage your transaction PIN'], ['Sessions', 'Review active sessions']].map(([a, b]) => <div className="setting-row" key={a}><div><strong>{a}</strong><small>{b}</small></div><ArrowRight size={17} /></div>)}</Card></ServiceLayout>;
+  if (view === 'settings') return <ServiceLayout title="Account & Security" eyebrow="ACCOUNT SETTINGS" description="Review your account region and security controls." onBack={onBack}><Card className="settings-list">
+    <div className="setting-row"><div><strong>Currency & Region</strong><small>USD · Account region</small></div><ArrowRight size={17} /></div>
+    <div className="setting-row"><div><strong>Password</strong><small>Update your password</small></div><ArrowRight size={17} /></div>
+    <div className="setting-row"><div><strong>PIN</strong><small>Manage your transaction PIN</small></div><ArrowRight size={17} /></div>
+    <div className="setting-row"><div><strong>Sessions</strong><small>Review active sessions</small></div><ArrowRight size={17} /></div>
+  </Card></ServiceLayout>;
 
   if (view === 'feedback') return <ServiceLayout title="Contact Support" eyebrow="SUPPORT" description="Get help fast through the channels below." onBack={onBack}>
     <div className="support-channels">
