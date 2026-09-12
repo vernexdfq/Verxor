@@ -1,8 +1,9 @@
 import { useState, type ReactNode } from 'react';
-import { ArrowRight, Bell, Check, Clock3, Copy, Eye, History, LockKeyhole, LogOut, MapPin, Plus, ShieldCheck, Smartphone, UserRound, WalletCards, Zap } from 'lucide-react';
+import { ArrowRight, Bell, Check, Clock3, Copy, Eye, History, LockKeyhole, LogOut, MapPin, MessageCircle, Plus, Send, ShieldCheck, Smartphone, UserRound, WalletCards, Zap } from 'lucide-react';
 import { Card, PrimaryButton, SectionHeader } from './components/ui';
 import type { Page } from './types';
 import type { ServiceView } from './service-pages';
+import { TELEGRAM_URL, WHATSAPP_URL } from './components/CommunityModal';
 
 // Demo presentation only. Production wallet data will come from the authenticated account.
 const wallet = { amount: '0.00', code: 'USD', symbol: '$' };
@@ -16,10 +17,10 @@ export function HomePage({ go, openService }: { go: (page: Page) => void; openSe
     </Card>
     <SectionHeader eyebrow="SERVICES" title="Quick actions" />
     <div className="quick-grid">
-      <button className="quick-card" onClick={() => openService('virtual-numbers')}><span className="quick-icon"><Smartphone size={21} /></span><span className="quick-copy"><strong>Virtual Numbers</strong><small>OTP verification</small></span></button>
-      <button className="quick-card" onClick={() => openService('rental')}><span className="quick-icon"><Clock3 size={21} /></span><span className="quick-copy"><strong>Rent a Line</strong><small>Long-term numbers</small></span></button>
-      <button className="quick-card" onClick={() => openService('boost')}><span className="quick-icon"><Zap size={21} /></span><span className="quick-copy"><strong>SMM Boost</strong><small>Social growth</small></span></button>
-      <button className="quick-card" onClick={() => openService('accounts')}><span className="quick-icon"><UserRound size={21} /></span><span className="quick-copy"><strong>Buy Accounts</strong><small>Available inventory</small></span></button>
+      <button className="quick-card" onClick={() => openService('virtual-numbers')}><span className="quick-icon quick-icon-blue"><Smartphone size={21} /></span><span className="quick-copy"><strong>Virtual Numbers</strong><small>OTP verification</small></span></button>
+      <button className="quick-card" onClick={() => openService('rental')}><span className="quick-icon quick-icon-violet"><Clock3 size={21} /></span><span className="quick-copy"><strong>Rent a Line</strong><small>Long-term numbers</small></span></button>
+      <button className="quick-card" onClick={() => openService('boost')}><span className="quick-icon quick-icon-amber"><Zap size={21} /></span><span className="quick-copy"><strong>SMM Boost</strong><small>Social growth</small></span></button>
+      <button className="quick-card" onClick={() => openService('accounts')}><span className="quick-icon quick-icon-cyan"><UserRound size={21} /></span><span className="quick-copy"><strong>Buy Accounts</strong><small>Available inventory</small></span></button>
     </div>
     <SectionHeader eyebrow="ACTIVITY" title="Recent activity" action={<button className="text-button" onClick={() => go('history')}>View all <ArrowRight size={14} /></button>} />
     <Card className="activity-empty"><div className="activity-empty-icon"><History size={18} /></div><div><strong>No recent activity</strong><p>Your wallet activity and orders will appear here.</p></div></Card>
@@ -69,9 +70,19 @@ export function ProfilePage({ openService }: { openService: (view: ServiceView) 
     <ProfileGroup title="SECURITY">
       <ProfileItem icon={<LockKeyhole size={19} />} title="Security" description="Password, PIN and sessions" onClick={() => openService('settings')} />
     </ProfileGroup>
-    <ProfileGroup title="SUPPORT">
+    <ProfileGroup title="SUPPORT & COMMUNITY">
       <ProfileItem icon={<ShieldCheck size={19} />} title="Help Center" description="Guides and common questions" onClick={() => openService('help')} />
       <ProfileItem icon={<Bell size={19} />} title="Contact Support" description="Telegram · WhatsApp · Email" onClick={() => openService('feedback')} />
+      <a className="profile-item profile-item-link" href={TELEGRAM_URL} target="_blank" rel="noopener noreferrer">
+        <span className="profile-item-icon profile-item-icon-telegram"><Send size={19} /></span>
+        <span><strong>Verxor on Telegram</strong><small>Announcements, promotions and updates</small></span>
+        <ArrowRight size={17} />
+      </a>
+      <a className="profile-item profile-item-link" href={WHATSAPP_URL} target="_blank" rel="noopener noreferrer">
+        <span className="profile-item-icon profile-item-icon-whatsapp"><MessageCircle size={19} /></span>
+        <span><strong>Verxor on WhatsApp</strong><small>Follow the official channel</small></span>
+        <ArrowRight size={17} />
+      </a>
     </ProfileGroup>
     <section className="profile-group">
       <h2>REFERRAL</h2>
