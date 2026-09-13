@@ -5,7 +5,7 @@ export const Route = createFileRoute("/_authenticated/rental/calls")({
   head: () => ({
     meta: [
       { title: "Calls — Verxor" },
-      { name: "description", content: "Call from your rented lines. USA via SignalWire, worldwide via DIDWW." },
+      { name: "description", content: "Call from your rented lines when voice calling is supported." },
       { property: "og:title", content: "Verxor — Calls & Rentals" },
     ],
   }),
