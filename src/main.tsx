@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ArrowRight, Check, Globe2, Menu, ShieldCheck, X, Zap } from 'lucide-react';
-import { StrictMode, createRoot } from 'react-dom/client';
+import { createRoot } from 'react-dom/client';
 import { AppShell } from './components/AppShell';
 import { HomePage, FundPage, NumbersPage, ProfilePage } from './pages';
 import { ServicePage, ServicesPage, type ServiceView } from './service-pages';
@@ -65,4 +65,4 @@ function App() {
     : ({ home:<HomePage go={setPage} openService={setService} />, fund:<FundPage />, numbers:<NumbersPage openService={setService} />, profile:<ProfilePage openService={setService} /> }[page]);
   return <AppShell dark={dark} page={page} onNavigate={(next) => { setService(null); setPage(next); }} onToggleTheme={() => setDark(v => !v)} onOpenService={(next) => setService(next)} onLogout={() => { setService(null); setPage('home'); setView('landing'); }}>{content}</AppShell>;
 }
-createRoot(document.getElementById('root')!).render(<StrictMode><App /></StrictMode>);
+createRoot(document.getElementById('root')!).render(<App />);
