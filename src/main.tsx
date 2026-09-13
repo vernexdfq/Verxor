@@ -4,7 +4,8 @@ import { createRoot } from 'react-dom/client';
 import { AppShell } from './components/AppShell';
 import { HomePage, FundPage, NumbersPage, ProfilePage } from './pages';
 import { ServicePage, ServicesPage, type ServiceView } from './service-pages';
-import { RentalPage, AccountsPage } from './product-pages';
+import { RentalPage } from './rental-page';
+import { AccountsPage } from './product-pages';
 import { ActivityLogsPage } from './activity-logs';
 import type { Page } from './types';
 import './styles.css';
@@ -35,13 +36,7 @@ function Landing({ enter }: { enter: () => void }) {
       <div className="landing-actions"><button className="login-link" onClick={enter}>Log in</button><button className="landing-cta compact" onClick={enter}>Get started</button><button className="menu-button" onClick={() => setMenuOpen(v => !v)} aria-label="Menu">{menuOpen ? <X size={21}/> : <Menu size={21}/>}</button></div>
     </div>{menuOpen && <nav className="mobile-menu"><a href="#services" onClick={() => setMenuOpen(false)}>Services</a><a href="#coverage" onClick={() => setMenuOpen(false)}>Coverage</a><a href="#pricing" onClick={() => setMenuOpen(false)}>Pricing</a><a href="#faq" onClick={() => setMenuOpen(false)}>FAQ</a><button className="landing-cta" onClick={enter}>Get started <ArrowRight size={17}/></button></nav>}</header>
     <main id="top">
-      <section className="landing-hero"><div className="hero-copy-wrap">
-        <div className="status-pill"><span className="status-dot"/> Global coverage</div>
-        <h1>Your second number <span>anywhere in the world.</span></h1>
-        <p>Verify accounts, rent dedicated numbers, grow your social presence and manage your digital services from one reliable platform.</p>
-        <div className="hero-actions"><button className="landing-cta" onClick={enter}>Get a number now <ArrowRight size={18}/></button><a className="secondary-link" href="#services">Explore services</a></div>
-        <div className="trust-row"><span><ShieldCheck size={16}/> Secure checkout</span><span><Zap size={16}/> Fast delivery</span><span><Globe2 size={16}/> Global coverage</span></div>
-      </div><div className="hero-preview"><div className="preview-header"><div><span>VERXOR</span><strong>Digital services</strong></div><span className="preview-status">LIVE</span></div><div className="preview-balance"><small>Wallet balance</small><strong>0.00</strong></div><div className="preview-grid"><div><span className="preview-icon blue">#</span><strong>OTP numbers</strong><small>Instant verification</small></div><div><span className="preview-icon navy">◉</span><strong>Rent a line</strong><small>Dedicated numbers</small></div><div><span className="preview-icon blue">↗</span><strong>Social growth</strong><small>Track every order</small></div><div><span className="preview-icon navy">✓</span><strong>Accounts</strong><small>Ready when you are</small></div></div></div></section>
+      <section className="landing-hero"><div className="hero-copy-wrap"><div className="status-pill"><span className="status-dot"/> Global coverage</div><h1>Your second number <span>anywhere in the world.</span></h1><p>Verify accounts, rent dedicated numbers, grow your social presence and manage your digital services from one reliable platform.</p><div className="hero-actions"><button className="landing-cta" onClick={enter}>Get a number now <ArrowRight size={18}/></button><a className="secondary-link" href="#services">Explore services</a></div><div className="trust-row"><span><ShieldCheck size={16}/> Secure checkout</span><span><Zap size={16}/> Fast delivery</span><span><Globe2 size={16}/> Global coverage</span></div></div><div className="hero-preview"><div className="preview-header"><div><span>VERXOR</span><strong>Digital services</strong></div><span className="preview-status">LIVE</span></div><div className="preview-balance"><small>Wallet balance</small><strong>0.00</strong></div><div className="preview-grid"><div><span className="preview-icon blue">#</span><strong>OTP numbers</strong><small>Instant verification</small></div><div><span className="preview-icon navy">◉</span><strong>Rent a line</strong><small>Dedicated numbers</small></div><div><span className="preview-icon blue">↗</span><strong>Social growth</strong><small>Track every order</small></div><div><span className="preview-icon navy">✓</span><strong>Accounts</strong><small>Ready when you are</small></div></div></div></section>
       <section className="stats-strip"><div><strong>50+</strong><span>Countries</span></div><div><strong>200K+</strong><span>Numbers delivered</span></div><div><strong>24/7</strong><span>Platform access</span></div><div><strong>Live</strong><span>Inventory updates</span></div></section>
       <section id="services" className="landing-section"><div className="section-intro"><span>Services</span><h2>One toolkit. Every essential service.</h2><p>Everything is organized around a simple wallet-first experience, so you can find what you need without navigating a maze.</p></div><div className="service-grid">{services.map((service,i)=><button className="service-card" key={service.title} onClick={enter}><div className={`service-number n${i+1}`}>0{i+1}</div><div><span className="service-label">{service.label}</span><h3>{service.title}</h3><p>{service.description}</p><span className="service-link">Open service <ArrowRight size={15}/></span></div></button>)}</div></section>
       <section id="coverage" className="coverage-section"><div className="landing-section coverage-inner"><div className="section-intro"><span>Coverage</span><h2>Global numbers, clearly presented.</h2><p>Browse supported markets and check current availability inside your account.</p></div><div className="country-grid">{countries.map(([flag,name])=><button key={name} onClick={enter}><span>{flag}</span><strong>{name}</strong><ArrowRight size={15}/></button>)}</div></div></section>
@@ -57,12 +52,7 @@ function App() {
   const [page, setPage] = useState<Page>('home');
   const [service, setService] = useState<ServiceView | null>(null);
   if (view === 'landing') return <div className={dark ? 'app dark' : 'app'}><Landing enter={() => setView('app')} /></div>;
-  const content = service === 'services' ? <ServicesPage open={setService} />
-    : service === 'rental' ? <RentalPage onBack={() => setService('services')} />
-    : service === 'accounts' ? <AccountsPage onBack={() => setService('services')} />
-    : service ? <ServicePage view={service} onBack={() => setService('services')} />
-    : page === 'history' ? <ActivityLogsPage />
-    : ({ home:<HomePage go={setPage} openService={setService} />, fund:<FundPage />, numbers:<NumbersPage openService={setService} />, profile:<ProfilePage openService={setService} /> }[page]);
+  const content = service === 'services' ? <ServicesPage open={setService} /> : service === 'rental' ? <RentalPage onBack={() => setService('services')} /> : service === 'accounts' ? <AccountsPage onBack={() => setService('services')} /> : service ? <ServicePage view={service} onBack={() => setService('services')} /> : page === 'history' ? <ActivityLogsPage /> : ({ home:<HomePage go={setPage} openService={setService} />, fund:<FundPage />, numbers:<NumbersPage openService={setService} />, profile:<ProfilePage openService={setService} /> }[page]);
   return <AppShell dark={dark} page={page} onNavigate={(next) => { setService(null); setPage(next); }} onToggleTheme={() => setDark(v => !v)} onOpenService={(next) => setService(next)} onLogout={() => { setService(null); setPage('home'); setView('landing'); }}>{content}</AppShell>;
 }
 createRoot(document.getElementById('root')!).render(<App />);
