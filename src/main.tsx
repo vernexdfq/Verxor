@@ -51,8 +51,36 @@ function App() {
   const [view, setView] = useState<'landing' | 'app'>('landing');
   const [page, setPage] = useState<Page>('home');
   const [service, setService] = useState<ServiceView | null>(null);
-  if (view === 'landing') return <div className={dark ? 'app dark' : 'app'}><Landing enter={() => setView('app')} /></div>;
-  const content = service === 'services' ? <ServicesPage open={setService} /> : service === 'rental' ? <RentalPage onBack={() => setService('services')} /> : service === 'accounts' ? <AccountsPage onBack={() => setService('services')} /> : service ? <ServicePage view={service} onBack={() => setService('services')} /> : page === 'history' ? <ActivityLogsPage /> : ({ home:<HomePage go={setPage} openService={setService} />, fund:<FundPage />, numbers:<NumbersPage openService={setService} />, profile:<ProfilePage openService={setService} /> }[page]);
-  return <AppShell dark={dark} page={page} onNavigate={(next) => { setService(null); setPage(next); }} onToggleTheme={() => setDark(v => !v)} onOpenService={(next) => setService(next)} onLogout={() => { setService(null); setPage('home'); setView('landing'); }}>{content}</AppShell>;
+
+  if (view === 'landing') {
+    return <div className={dark ? 'app dark' : 'app'}><Landing enter={() => setView('app')} /></div>;
+  }
+
+  // Rental is a full workspace. It uses the single AppShell in deep-service mode
+  // so it does not compete with the primary bottom navigation.
+  const deepService = service === 'rental';
+
+  const content =
+    service === 'services' ? <ServicesPage open={setService} /> :
+    service === 'rental' ? <RentalPage onBack={() => setService('services')} /> :
+    service === 'accounts' ? <AccountsPage onBack={() => setService('services')} /> :
+    service ? <ServicePage view={service} onBack={() => setService('services')} /> :
+    page === 'history' ? <ActivityLogsPage /> :
+    ({ home: <HomePage go={setPage} openService={setService} />, fund: <FundPage />, numbers: <NumbersPage openService={setService} />, profile: <ProfilePage openService={setService} /> }[page]);
+
+  return (
+    <AppShell
+      dark={dark}
+      page={page}
+      deepService={deepService}
+      onNavigate={(next) => { setService(null); setPage(next); }}
+      onToggleTheme={() => setDark((v) => !v)}
+      onOpenService={(next) => setService(next)}
+      onLogout={() => { setService(null); setPage('home'); setView('landing'); }}
+    >
+      {content}
+    </AppShell>
+  );
 }
+
 createRoot(document.getElementById('root')!).render(<App />);
