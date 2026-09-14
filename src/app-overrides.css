@@ -1,5 +1,13 @@
 /* Verxor application refinement layer. The signed-in product uses one restrained visual system. */
 
+/* Missing token used by Rental workspace */
+:root {
+  --surface-muted: #F1F5F9;
+}
+.app.dark {
+  --surface-muted: #1E293B;
+}
+
 /* Home header: one identity rail, one theme control and one notification bell. */
 .topbar-home { min-height:58px; padding-top:max(6px,env(safe-area-inset-top)); padding-bottom:4px; }
 .topbar-home .brand-mark { width:40px; height:40px; flex:0 0 40px; }
@@ -117,7 +125,7 @@
 .nav-item.active { background:var(--primary-soft); }
 .nav-item.active small { font-weight:700; }
 
-/* Layout guardrails: prevent narrow grids, long labels and fixed navigation from distorting the rail. */
+/* Layout guardrails */
 html, body, #root { width:100%; max-width:100%; }
 body { overflow-x:hidden; }
 .app, .landing { width:100%; max-width:100%; }
@@ -129,7 +137,20 @@ body { overflow-x:hidden; }
 .product-card small, .service-line small, .number-info small, .support-channel small { overflow-wrap:anywhere; }
 .number-card > .small-button { flex-shrink:0; }
 
-@media (min-width:700px) { .content { padding-left:28px; padding-right:28px; padding-bottom:112px; } }
+/* Deep-service mode: Rental (and similar workspaces) own the frame.
+   Primary bottom nav and top bar are suppressed so there is only one shell. */
+.app-frame.deep-service .bottom-nav { display: none; }
+.app-frame.deep-service .content {
+  padding-left: 0;
+  padding-right: 0;
+  padding-bottom: max(16px, env(safe-area-inset-bottom));
+}
+
+@media (min-width:700px) {
+  .content { padding-left:28px; padding-right:28px; padding-bottom:112px; }
+  .app-frame.deep-service .content { padding-left: 0; padding-right: 0; }
+}
+
 @media (max-width:380px) {
   .content { padding-left:16px; padding-right:16px; }
   .wallet-card { padding:16px; }
@@ -146,7 +167,7 @@ body { overflow-x:hidden; }
   .profile-item-icon { width:38px; height:38px; }
 }
 
-/* Final Quick Actions tuning: tighter density without changing any other Home surface. */
+/* Final Quick Actions tuning */
 .quick-grid { gap:10px; grid-auto-rows:78px; }
 .quick-card { padding:10px 12px; grid-template-columns:34px minmax(0,1fr); gap:8px; border-radius:13px; box-shadow:none; }
 .quick-card:hover { box-shadow:none; }
