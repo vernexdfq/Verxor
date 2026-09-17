@@ -30,7 +30,7 @@ type Country = { code: string; name: string; dial: string; flag: string };
 
 type RentalPageProps = { onBack: () => void };
 
-const KEYS = [
+const KEYS: { digit: string; letters: string }[] = [
   { digit: '1', letters: '' },
   { digit: '2', letters: 'ABC' },
   { digit: '3', letters: 'DEF' },
@@ -43,7 +43,7 @@ const KEYS = [
   { digit: '*', letters: '' },
   { digit: '0', letters: '+' },
   { digit: '#', letters: '' },
-] as const;
+];
 
 const COUNTRIES: Country[] = [
   { code: 'US', name: 'United States', dial: '+1', flag: '🇺🇸' },
@@ -383,7 +383,7 @@ export function RentalPage({ onBack }: RentalPageProps) {
                     onClick={() => setDial((d) => (d.length >= 18 ? d : d + digit))}
                   >
                     <strong>{digit}</strong>
-                    {letters ? <small>{letters}</small> : digit === '0' ? <small>+</small> : <small>&nbsp;</small>}
+                    <small>{letters || '\u00A0'}</small>
                   </button>
                 ))}
               </div>
