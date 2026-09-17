@@ -1,6 +1,6 @@
 /**
  * Rental workspace — Vernex UI structure, Verxor Vite SPA (no TanStack/Supabase).
- * Local state + empty inventory until providers are connected.
+ * Local state + honest empty inventory until providers are connected.
  */
 import { useMemo, useState, type ReactNode } from 'react';
 import {
@@ -15,8 +15,6 @@ import {
   MessageSquare,
   MoreVertical,
   Phone,
-  PhoneMissed,
-  PhoneOutgoing,
   Plus,
   Search,
   Users,
@@ -179,9 +177,6 @@ function FromSheet({
 }
 
 function Catalog({ country, onBack }: { country: Country; onBack: () => void }) {
-  const [plan, setPlan] = useState('1 Month');
-  const plans = ['1 Week', '1 Month', '1 Year'];
-
   return (
     <div className="catalog-page">
       <header className="catalog-head">
@@ -200,8 +195,8 @@ function Catalog({ country, onBack }: { country: Country; onBack: () => void }) 
           <Hash size={40} strokeWidth={1.25} />
           <strong>No live inventory yet</strong>
           <p>
-            Number catalog will load from the rental provider once SignalWire / DIDWW (or another
-            provider) is connected. No demo numbers are shown as real inventory.
+            Number catalog will load from the rental provider once a provider is connected. No demo
+            numbers are shown as real inventory.
           </p>
         </div>
       </div>
