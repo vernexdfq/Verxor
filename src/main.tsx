@@ -7,6 +7,7 @@ import { ServicePage, ServicesPage, type ServiceView } from './service-pages';
 import { RentalPage } from './rental-page';
 import { AccountsPage } from './product-pages';
 import { ActivityLogsPage } from './activity-logs';
+import { AdminPage } from './admin-page';
 import type { Page } from './types';
 import './styles.css';
 import './landing.css';
@@ -27,7 +28,7 @@ const faqs = [
   ['What happens if a verification is unsuccessful?', 'Eligibility for replacement or refund depends on the selected service and its current fulfillment rules. The order status will show the applicable outcome.'],
 ];
 
-function Landing({ enter }: { enter: () => void }) {
+function Landing({ enter, openAdmin }: { enter: () => void; openAdmin: () => void }) {
   const [menuOpen, setMenuOpen] = useState(false);
   return <div className="landing">
     <header className="landing-header"><div className="landing-nav">
@@ -42,18 +43,39 @@ function Landing({ enter }: { enter: () => void }) {
       <section id="coverage" className="coverage-section"><div className="landing-section coverage-inner"><div className="section-intro"><span>Coverage</span><h2>Global numbers, clearly presented.</h2><p>Browse supported markets and check current availability inside your account.</p></div><div className="country-grid">{countries.map(([flag,name])=><button key={name} onClick={enter}><span>{flag}</span><strong>{name}</strong><ArrowRight size={15}/></button>)}</div></div></section>
       <section id="pricing" className="landing-section"><div className="pricing-panel"><div><span>Simple funding</span><h2>Pay only for what you use.</h2><p>Fund your wallet, choose a service and keep every payment and order visible in one activity trail.</p></div><div className="pricing-points">{['Wallet-first payments','Clear service pricing','Fast automated delivery','Referral rewards'].map(item=><div key={item}><Check size={17}/>{item}</div>)}</div><button className="landing-cta" onClick={enter}>Create a free account <ArrowRight size={18}/></button></div></section>
       <section id="faq" className="landing-section faq-section"><div className="section-intro centered"><span>Support</span><h2>Questions, answered.</h2></div><div className="faq-list">{faqs.map(([q,a])=><details key={q}><summary>{q}<span>+</span></summary><p>{a}</p></details>)}</div></section>
-    </main><footer className="landing-footer"><div className="footer-brand"><span className="wordmark-mark">V</span><strong>Verxor.com</strong></div><span>© {new Date().getFullYear()} Verxor.com — Your complete digital ecosystem</span></footer>
+    </main>
+    <footer className="landing-footer">
+      <div className="footer-brand"><span className="wordmark-mark">V</span><strong>Verxor.com</strong></div>
+      <div className="footer-meta">
+        <span>© {new Date().getFullYear()} Verxor.com — Your complete digital ecosystem</span>
+        <button type="button" className="footer-ops" onClick={openAdmin} title="Platform operator">
+          Ops
+        </button>
+      </div>
+    </footer>
   </div>;
 }
 
 function App() {
   const [dark, setDark] = useState(false);
-  const [view, setView] = useState<'landing' | 'app'>('landing');
+  const [view, setView] = useState<'landing' | 'app' | 'admin'>('landing');
   const [page, setPage] = useState<Page>('home');
   const [service, setService] = useState<ServiceView | null>(null);
 
+  if (view === 'admin') {
+    return (
+      <div className={dark ? 'app dark' : 'app'}>
+        <AdminPage onBack={() => setView('landing')} />
+      </div>
+    );
+  }
+
   if (view === 'landing') {
-    return <div className={dark ? 'app dark' : 'app'}><Landing enter={() => setView('app')} /></div>;
+    return (
+      <div className={dark ? 'app dark' : 'app'}>
+        <Landing enter={() => setView('app')} openAdmin={() => setView('admin')} />
+      </div>
+    );
   }
 
   // Rental is a full workspace. It uses the single AppShell in deep-service mode

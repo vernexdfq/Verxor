@@ -1,0 +1,373 @@
+/* Main Verxor platform admin — Vernex tokens */
+.vx-admin {
+  min-height: 100dvh;
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  background: #f6f8fc;
+  color: #111827;
+  font-family: Inter, system-ui, sans-serif;
+}
+
+.vx-admin-side {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 20px 14px;
+  background: #0b1b4a;
+  color: #e2e8f0;
+}
+
+.vx-admin-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 8px 18px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  margin-bottom: 8px;
+}
+
+.vx-admin-mark {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  background: #2563eb;
+  color: #fff;
+  font-weight: 800;
+  font-size: 14px;
+}
+
+.vx-admin-brand strong {
+  display: block;
+  font-size: 14px;
+  letter-spacing: -0.02em;
+  color: #fff;
+}
+
+.vx-admin-brand small {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+.vx-admin-nav {
+  display: grid;
+  gap: 4px;
+  flex: 1;
+}
+
+.vx-admin-nav button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: #cbd5e1;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.vx-admin-nav button:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+}
+
+.vx-admin-nav button.active {
+  background: #2563eb;
+  color: #fff;
+}
+
+.vx-admin-exit {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: auto;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  background: transparent;
+  color: #94a3b8;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.vx-admin-exit:hover {
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.vx-admin-main {
+  min-width: 0;
+  padding: 24px 28px 40px;
+}
+
+.vx-admin-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 22px;
+}
+
+.vx-admin-eyebrow {
+  display: block;
+  margin-bottom: 6px;
+  color: #2563eb;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+
+.vx-admin-top h1 {
+  margin: 0;
+  font-size: 24px;
+  letter-spacing: -0.03em;
+  color: #0f172a;
+}
+
+.vx-admin-badge {
+  flex: none;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.vx-admin-section {
+  display: grid;
+  gap: 16px;
+}
+
+.vx-admin-lead {
+  margin: 0;
+  max-width: 640px;
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.vx-admin-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.vx-admin-stat {
+  padding: 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.vx-admin-stat small {
+  display: block;
+  margin-bottom: 8px;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.vx-admin-stat strong {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 22px;
+  letter-spacing: -0.03em;
+  color: #0f172a;
+}
+
+.vx-admin-stat span {
+  color: #94a3b8;
+  font-size: 11px;
+}
+
+.vx-admin-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.vx-admin-card {
+  padding: 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.vx-admin-card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  color: #0f172a;
+}
+
+.vx-admin-card-head strong {
+  font-size: 13px;
+}
+
+.vx-admin-card-head svg {
+  color: #2563eb;
+}
+
+.vx-admin-empty {
+  padding: 20px 8px;
+  text-align: center;
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.vx-admin-empty.tall {
+  padding: 48px 20px;
+  border: 1px dashed #e2e8f0;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.vx-admin-empty strong {
+  display: block;
+  margin: 12px 0 6px;
+  color: #0f172a;
+  font-size: 15px;
+}
+
+.vx-admin-empty p {
+  margin: 0 auto;
+  max-width: 420px;
+}
+
+.vx-admin-empty svg {
+  color: #94a3b8;
+}
+
+.vx-admin-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0;
+}
+
+.vx-admin-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid #f1f5f9;
+  font-size: 13px;
+}
+
+.vx-admin-list li:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.vx-admin-list span {
+  color: #334155;
+  font-weight: 600;
+}
+
+.vx-admin-list em {
+  font-style: normal;
+  color: #94a3b8;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.vx-admin-list em.ok {
+  color: #16a34a;
+}
+
+.vx-admin-table-wrap {
+  overflow: auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.vx-admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.vx-admin-table th,
+.vx-admin-table td {
+  padding: 12px 14px;
+  text-align: left;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.vx-admin-table th {
+  background: #f8fafc;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.vx-admin-table tr:last-child td {
+  border-bottom: 0;
+}
+
+.vx-admin-note {
+  margin: 0;
+  color: #94a3b8;
+  font-size: 12px;
+}
+
+@media (max-width: 900px) {
+  .vx-admin {
+    grid-template-columns: 1fr;
+  }
+
+  .vx-admin-side {
+    padding: 14px 12px;
+  }
+
+  .vx-admin-nav {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    flex: none;
+  }
+
+  .vx-admin-nav button {
+    flex-direction: column;
+    gap: 6px;
+    font-size: 11px;
+    padding: 8px 6px;
+  }
+
+  .vx-admin-stats,
+  .vx-admin-grid-2 {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .vx-admin-main {
+    padding: 18px 16px 32px;
+  }
+}
+
+@media (max-width: 560px) {
+  .vx-admin-stats,
+  .vx-admin-grid-2,
+  .vx-admin-nav {
+    grid-template-columns: 1fr;
+  }
+
+  .vx-admin-nav {
+    grid-template-columns: 1fr 1fr;
+  }
+}
