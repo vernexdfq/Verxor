@@ -34,6 +34,13 @@ type Pool = {
   stock: number;
 };
 
+type Country = {
+  code: string;
+  flag: string;
+  name: string;
+  dial: string;
+};
+
 type Service = {
   id: string;
   name: string;
@@ -44,6 +51,7 @@ type ActiveOrder = {
   id: string;
   service: string;
   poolTitle: string;
+  countryName: string;
   number: string;
   price: number;
   status: 'waiting' | 'received';
@@ -63,6 +71,28 @@ const NON_VOIP_POOLS: Pool[] = [
   { id: 'worldwide-fast', title: 'Worldwide · Fast', kind: 'Non-VoIP', location: 'Worldwide', fromPrice: 4200, stock: 55 },
   { id: 'worldwide-premium', title: 'Worldwide · Premium', kind: 'Non-VoIP', location: 'Worldwide', fromPrice: 7200, stock: 12 },
 ];
+
+/** Countries offered under Worldwide pools (USA is not listed here — use USA pools). */
+const WORLDWIDE_COUNTRIES: Country[] = [
+  { code: 'GB', flag: '🇬🇧', name: 'United Kingdom', dial: '+44' },
+  { code: 'CA', flag: '🇨🇦', name: 'Canada', dial: '+1' },
+  { code: 'DE', flag: '🇩🇪', name: 'Germany', dial: '+49' },
+  { code: 'FR', flag: '🇫🇷', name: 'France', dial: '+33' },
+  { code: 'NL', flag: '🇳🇱', name: 'Netherlands', dial: '+31' },
+  { code: 'AU', flag: '🇦🇺', name: 'Australia', dial: '+61' },
+  { code: 'IN', flag: '🇮🇳', name: 'India', dial: '+91' },
+  { code: 'ES', flag: '🇪🇸', name: 'Spain', dial: '+34' },
+  { code: 'IT', flag: '🇮🇹', name: 'Italy', dial: '+39' },
+  { code: 'BR', flag: '🇧🇷', name: 'Brazil', dial: '+55' },
+  { code: 'ZA', flag: '🇿🇦', name: 'South Africa', dial: '+27' },
+  { code: 'NG', flag: '🇳🇬', name: 'Nigeria', dial: '+234' },
+  { code: 'PL', flag: '🇵🇱', name: 'Poland', dial: '+48' },
+  { code: 'SE', flag: '🇸🇪', name: 'Sweden', dial: '+46' },
+  { code: 'ID', flag: '🇮🇩', name: 'Indonesia', dial: '+62' },
+  { code: 'PH', flag: '🇵🇭', name: 'Philippines', dial: '+63' },
+];
+
+const USA_COUNTRY: Country = { code: 'US', flag: '🇺🇸', name: 'United States', dial: '+1' };
 
 const SERVICES: Service[] = [
   { id: 'whatsapp', name: 'WhatsApp', popular: true },
@@ -93,14 +123,27 @@ function servicePrice(pool: Pool, serviceId: string): number {
   return pool.fromPrice + bump;
 }
 
-type Step = 'pools' | 'services' | 'order';
+type Step = 'pools' | 'country' | 'services' | 'order';
 
 export function VirtualNumbersPage({ onBack }: { onBack: () => void }) {
   const [step, setStep] = useState<Step>('pools');
   const [selectedPool, setSelectedPool] = useState<Pool | null>(null);
+  const [selectedCountry, setSelectedCountry] = useState<Country | null>(null);
+  const [countryQuery, setCountryQuery] = useState('');
   const [serviceQuery, setServiceQuery] = useState('');
   const [order, setOrder] = useState<ActiveOrder | null>(null);
   const [copied, setCopied] = useState(false);
+
+  const filteredCountries = useMemo(() => {
+    const q = countryQuery.trim().toLowerCase();
+    if (!q) return WORLDWIDE_COUNTRIES;
+    return WORLDWIDE_COUNTRIES.filter(
+      (c) =>
+        c.name.toLowerCase().includes(q) ||
+        c.dial.includes(q) ||
+        c.code.toLowerCase().includes(q),
+    );
+  }, [countryQuery]);
 
   const filteredServices = useMemo(() => {
     const q = serviceQuery.trim().toLowerCase();
@@ -111,18 +154,35 @@ export function VirtualNumbersPage({ onBack }: { onBack: () => void }) {
   const selectPool = (pool: Pool) => {
     setSelectedPool(pool);
     setServiceQuery('');
+    setCountryQuery('');
+    setOrder(null);
+
+    if (pool.location === 'USA') {
+      // Country is already USA — skip country picker
+      setSelectedCountry(USA_COUNTRY);
+      setStep('services');
+    } else {
+      // Worldwide — user must choose a country
+      setSelectedCountry(null);
+      setStep('country');
+    }
+  };
+
+  const selectCountry = (country: Country) => {
+    setSelectedCountry(country);
+    setServiceQuery('');
     setStep('services');
   };
 
   const buyService = (service: Service) => {
-    if (!selectedPool) return;
+    if (!selectedPool || !selectedCountry) return;
     const price = servicePrice(selectedPool, service.id);
-    const dial = selectedPool.location === 'USA' ? '+1' : '+44';
     const next: ActiveOrder = {
       id: `VN-${Date.now().toString(36).toUpperCase()}`,
       service: service.name,
       poolTitle: selectedPool.title,
-      number: `${dial} ${Math.floor(2000000000 + Math.random() * 7000000000)}`,
+      countryName: selectedCountry.name,
+      number: `${selectedCountry.dial} ${Math.floor(2000000000 + Math.random() * 7000000000)}`,
       price,
       status: 'waiting',
     };
@@ -153,14 +213,27 @@ export function VirtualNumbersPage({ onBack }: { onBack: () => void }) {
   const goPools = () => {
     setStep('pools');
     setSelectedPool(null);
+    setSelectedCountry(null);
     setOrder(null);
     setServiceQuery('');
+    setCountryQuery('');
   };
 
   const handleBack = () => {
-    if (step === 'pools') onBack();
-    else if (step === 'services') goPools();
-    else if (step === 'order') {
+    if (step === 'pools') {
+      onBack();
+    } else if (step === 'country') {
+      goPools();
+    } else if (step === 'services') {
+      // USA came straight from pools; Worldwide came from country
+      if (selectedPool?.location === 'Worldwide') {
+        setSelectedCountry(null);
+        setServiceQuery('');
+        setStep('country');
+      } else {
+        goPools();
+      }
+    } else if (step === 'order') {
       setOrder(null);
       setStep('services');
     }
@@ -217,12 +290,73 @@ export function VirtualNumbersPage({ onBack }: { onBack: () => void }) {
         </>
       )}
 
-      {step === 'services' && selectedPool && (
+      {step === 'country' && selectedPool && (
         <>
           <section className="vn-intro compact">
             <p className="vn-eyebrow">{selectedPool.kind} · {selectedPool.title}</p>
+            <h2>Choose a country</h2>
+            <p>Select where you want the number from. From {money(selectedPool.fromPrice)}.</p>
+          </section>
+
+          <div className="vn-search-wrap">
+            <div className="vn-search">
+              <Search size={17} aria-hidden="true" />
+              <input
+                value={countryQuery}
+                onChange={(e) => setCountryQuery(e.target.value)}
+                placeholder="Search country"
+                aria-label="Search country"
+              />
+              {countryQuery ? (
+                <button type="button" className="vn-clear" onClick={() => setCountryQuery('')} aria-label="Clear search">
+                  <X size={15} />
+                </button>
+              ) : null}
+            </div>
+          </div>
+
+          <div className="vn-service-section">
+            <span className="vn-section-label">{countryQuery ? 'Results' : 'Countries'}</span>
+            <div className="vn-service-list">
+              {filteredCountries.map((country) => (
+                <button
+                  key={country.code}
+                  type="button"
+                  className="vn-service-row"
+                  onClick={() => selectCountry(country)}
+                >
+                  <span className="vn-service-icon vn-flag-icon" aria-hidden="true">
+                    {country.flag}
+                  </span>
+                  <span className="vn-service-copy">
+                    <strong>{country.name}</strong>
+                    <small>{country.dial}</small>
+                  </span>
+                  <span className="vn-service-price">
+                    <ChevronRight size={16} aria-hidden="true" />
+                  </span>
+                </button>
+              ))}
+              {!filteredCountries.length && (
+                <Card className="vn-empty">
+                  <Search size={18} />
+                  <strong>No country found</strong>
+                  <p>Try another search.</p>
+                </Card>
+              )}
+            </div>
+          </div>
+        </>
+      )}
+
+      {step === 'services' && selectedPool && selectedCountry && (
+        <>
+          <section className="vn-intro compact">
+            <p className="vn-eyebrow">
+              {selectedPool.kind} · {selectedPool.title} · {selectedCountry.flag} {selectedCountry.name}
+            </p>
             <h2>Choose a service</h2>
-            <p>From {money(selectedPool.fromPrice)} · {selectedPool.stock} numbers available in this pool</p>
+            <p>From {money(selectedPool.fromPrice)} · {selectedPool.stock} numbers in this pool</p>
           </section>
 
           <div className="vn-search-wrap">
@@ -298,7 +432,9 @@ export function VirtualNumbersPage({ onBack }: { onBack: () => void }) {
           <section className="vn-intro compact">
             <p className="vn-eyebrow">ORDER {order.id}</p>
             <h2>{order.service}</h2>
-            <p>{order.poolTitle}</p>
+            <p>
+              {order.poolTitle} · {order.countryName}
+            </p>
           </section>
 
           <div className="vn-order-wrap">

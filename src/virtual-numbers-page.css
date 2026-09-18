@@ -1,4 +1,4 @@
-/* Verxor Virtual Numbers — two-column pools + service list + order */
+/* Verxor Virtual Numbers — pools → (country if Worldwide) → services → order */
 
 .vn-page {
   width: 100%;
@@ -106,7 +106,6 @@
   text-transform: uppercase;
 }
 
-/* —— Pool grid —— */
 .vn-pool-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
@@ -188,7 +187,6 @@
   line-height: 15px;
   font-weight: 700;
   letter-spacing: -0.01em;
-  /* allow wrap so Worldwide labels are not cut */
   white-space: normal;
   overflow-wrap: anywhere;
   word-break: break-word;
@@ -225,7 +223,6 @@
   color: #FCD34D;
 }
 
-/* —— Service list —— */
 .vn-search-wrap {
   padding: 0 16px 12px;
 }
@@ -344,6 +341,12 @@
   border-radius: 10px;
   color: var(--primary);
   background: var(--primary-soft);
+  font-size: 20px;
+  line-height: 1;
+}
+
+.vn-flag-icon {
+  background: var(--primary-soft);
 }
 
 .vn-service-copy {
@@ -405,7 +408,6 @@
   font-size: 12px;
 }
 
-/* —— Order —— */
 .vn-order-wrap {
   padding: 0 16px 28px;
 }
