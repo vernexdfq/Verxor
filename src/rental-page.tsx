@@ -1,18 +1,20 @@
 /**
- * Rent a Line — dedicated number rentals.
- * Flow: My Lines | Rent (country → duration → confirm) | Number settings.
- * Wallet-only. Demo inventory until providers are connected.
+ * Rent a Line — Call.com-style dedicated number workspace.
+ * Tabs: Calls | Messages | Numbers | Credit
+ * Buy: country → numbers → period → wallet
+ * Per-number: Renew, Rename, DND, Voicemail, Forwarding, Transfer, Delete
  */
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import {
   ArrowLeft,
-  Bell,
   Check,
-  ChevronRight,
-  Clock3,
-  Copy,
-  Forward,
-  Mic,
+  ChevronDown,
+  Clock,
+  Delete,
+  Filter,
+  Grid3X3,
+  Hash,
+  MessageSquare,
   MoreVertical,
   Phone,
   PhoneForwarded,
@@ -22,91 +24,196 @@ import {
   ShieldAlert,
   Trash2,
   UserRound,
-  WalletCards,
+  Users,
+  Wallet,
   X,
+  MicOff,
+  Mic,
+  BellOff,
+  Bell,
 } from 'lucide-react';
-import { Card, PrimaryButton } from './components/ui';
 import './rental-page.css';
+
+type MainTab = 'calls' | 'messages' | 'numbers' | 'credit';
+type CallSub = 'history' | 'contacts' | 'keypad';
+type View =
+  | { kind: 'main' }
+  | { kind: 'buy-country' }
+  | { kind: 'buy-numbers'; country: Country }
+  | { kind: 'buy-period'; country: Country; number: AvailableNumber }
+  | { kind: 'line-settings'; lineId: string };
 
 type Country = {
   code: string;
-  flag: string;
   name: string;
   dial: string;
+  flag: string;
   type: 'VoIP' | 'Non-VoIP';
-  fromPrice: number;
 };
 
-type Duration = {
+type AvailableNumber = {
   id: string;
-  label: string;
-  days: number;
-  priceMultiplier: number;
+  number: string;
+  area: string;
+  monthlyFrom: number;
 };
 
 type RentedLine = {
   id: string;
   label: string;
   number: string;
-  country: string;
   flag: string;
+  country: string;
   type: 'VoIP' | 'Non-VoIP';
   expiresAt: string;
   dnd: boolean;
-  forwarding: string | null;
+  voicemail: boolean;
+  callForward: string | null;
+  smsForward: string | null;
 };
 
-type Step = 'home' | 'country' | 'duration' | 'confirm' | 'detail';
+type Line = {
+  id: string;
+  label: string;
+  number: string;
+  flag: string;
+  type: 'rented' | 'sim';
+};
 
-const COUNTRIES: Country[] = [
-  { code: 'US', flag: '🇺🇸', name: 'United States', dial: '+1', type: 'Non-VoIP', fromPrice: 8500 },
-  { code: 'GB', flag: '🇬🇧', name: 'United Kingdom', dial: '+44', type: 'Non-VoIP', fromPrice: 9200 },
-  { code: 'CA', flag: '🇨🇦', name: 'Canada', dial: '+1', type: 'VoIP', fromPrice: 7800 },
-  { code: 'DE', flag: '🇩🇪', name: 'Germany', dial: '+49', type: 'Non-VoIP', fromPrice: 8800 },
-  { code: 'NL', flag: '🇳🇱', name: 'Netherlands', dial: '+31', type: 'Non-VoIP', fromPrice: 8600 },
-  { code: 'AU', flag: '🇦🇺', name: 'Australia', dial: '+61', type: 'VoIP', fromPrice: 9000 },
-  { code: 'FR', flag: '🇫🇷', name: 'France', dial: '+33', type: 'VoIP', fromPrice: 8400 },
-  { code: 'IN', flag: '🇮🇳', name: 'India', dial: '+91', type: 'VoIP', fromPrice: 4500 },
+const KEYS: { digit: string; letters: string }[] = [
+  { digit: '1', letters: '' },
+  { digit: '2', letters: 'ABC' },
+  { digit: '3', letters: 'DEF' },
+  { digit: '4', letters: 'GHI' },
+  { digit: '5', letters: 'JKL' },
+  { digit: '6', letters: 'MNO' },
+  { digit: '7', letters: 'PQRS' },
+  { digit: '8', letters: 'TUV' },
+  { digit: '9', letters: 'WXYZ' },
+  { digit: '*', letters: '' },
+  { digit: '0', letters: '+' },
+  { digit: '#', letters: '' },
 ];
 
-const DURATIONS: Duration[] = [
-  { id: '7d', label: '7 days', days: 7, priceMultiplier: 1 },
-  { id: '30d', label: '30 days', days: 30, priceMultiplier: 3.2 },
-  { id: '90d', label: '90 days', days: 90, priceMultiplier: 8 },
+const COUNTRIES: Country[] = [
+  { code: 'US', name: 'United States', dial: '+1', flag: '🇺🇸', type: 'Non-VoIP' },
+  { code: 'CA', name: 'Canada', dial: '+1', flag: '🇨🇦', type: 'VoIP' },
+  { code: 'GB', name: 'United Kingdom', dial: '+44', flag: '🇬🇧', type: 'Non-VoIP' },
+  { code: 'DE', name: 'Germany', dial: '+49', flag: '🇩🇪', type: 'Non-VoIP' },
+  { code: 'NL', name: 'Netherlands', dial: '+31', flag: '🇳🇱', type: 'Non-VoIP' },
+  { code: 'FR', name: 'France', dial: '+33', flag: '🇫🇷', type: 'VoIP' },
+  { code: 'AU', name: 'Australia', dial: '+61', flag: '🇦🇺', type: 'VoIP' },
+  { code: 'IN', name: 'India', dial: '+91', flag: '🇮🇳', type: 'VoIP' },
+  { code: 'NG', name: 'Nigeria', dial: '+234', flag: '🇳🇬', type: 'VoIP' },
+  { code: 'GH', name: 'Ghana', dial: '+233', flag: '🇬🇭', type: 'VoIP' },
+];
+
+/** Demo catalog — replace with live provider inventory. */
+function demoNumbers(country: Country): AvailableNumber[] {
+  const areas =
+    country.code === 'US'
+      ? [
+          { area: 'New York, NY', prefix: '212' },
+          { area: 'Los Angeles, CA', prefix: '213' },
+          { area: 'Chicago, IL', prefix: '312' },
+          { area: 'Houston, TX', prefix: '713' },
+          { area: 'Miami, FL', prefix: '305' },
+        ]
+      : country.code === 'GB'
+        ? [
+            { area: 'London', prefix: '20' },
+            { area: 'Manchester', prefix: '161' },
+          ]
+        : [
+            { area: 'Capital', prefix: '1' },
+            { area: 'Metro', prefix: '2' },
+          ];
+
+  return areas.map((a, i) => ({
+    id: `${country.code}-${a.prefix}-${i}`,
+    number: `${country.dial} ${a.prefix}${String(1000000 + i * 137).slice(0, 7)}`,
+    area: a.area,
+    monthlyFrom: country.type === 'Non-VoIP' ? 8500 + i * 400 : 5500 + i * 300,
+  }));
+}
+
+const PERIODS = [
+  { id: '7', label: '7 days', days: 7, mult: 0.35 },
+  { id: '30', label: '30 days', days: 30, mult: 1 },
+  { id: '90', label: '90 days', days: 90, mult: 2.6 },
+  { id: '365', label: '12 months', days: 365, mult: 9 },
 ];
 
 const money = (n: number) => `₦${Math.round(n).toLocaleString('en-NG')}`;
 
-function formatExpiry(iso: string) {
+function formatExp(iso: string) {
   try {
-    return new Date(iso).toLocaleDateString('en-GB', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-    });
+    return new Date(iso).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
   } catch {
     return iso;
   }
 }
 
-function daysLeft(iso: string) {
-  const ms = new Date(iso).getTime() - Date.now();
-  return Math.max(0, Math.ceil(ms / (1000 * 60 * 60 * 24)));
+function EmptyState({
+  title,
+  text,
+  icon,
+  action,
+}: {
+  title: string;
+  text: string;
+  icon: ReactNode;
+  action?: ReactNode;
+}) {
+  return (
+    <div className="rental-empty">
+      {icon}
+      <strong>{title}</strong>
+      <p>{text}</p>
+      {action}
+    </div>
+  );
 }
 
 export function RentalPage({ onBack }: { onBack: () => void }) {
-  const [step, setStep] = useState<Step>('home');
+  const [tab, setTab] = useState<MainTab>('numbers');
+  const [callSub, setCallSub] = useState<CallSub>('history');
+  const [view, setView] = useState<View>({ kind: 'main' });
+  const [dial, setDial] = useState('');
+  const [contactSearch, setContactSearch] = useState('');
+  const [countrySearch, setCountrySearch] = useState('');
+  const [numberSearch, setNumberSearch] = useState('');
+  const [dialCountry, setDialCountry] = useState<Country>(COUNTRIES[0]);
+  const [showDialCountry, setShowDialCountry] = useState(false);
+  const [showFrom, setShowFrom] = useState(false);
+  const [hint, setHint] = useState(true);
   const [lines, setLines] = useState<RentedLine[]>([]);
-  const [selectedLine, setSelectedLine] = useState<RentedLine | null>(null);
-  const [countryQuery, setCountryQuery] = useState('');
-  const [selectedCountry, setSelectedCountry] = useState<Country | null>(null);
-  const [selectedDuration, setSelectedDuration] = useState<Duration | null>(null);
+  const [fromLine, setFromLine] = useState<Line>({
+    id: 'sim',
+    label: 'Device SIM',
+    number: 'Not linked',
+    flag: '📱',
+    type: 'sim',
+  });
+  const [renameOpen, setRenameOpen] = useState(false);
   const [renameValue, setRenameValue] = useState('');
-  const [showRename, setShowRename] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [renewOpen, setRenewOpen] = useState(false);
+  const [forwardOpen, setForwardOpen] = useState<'call' | 'sms' | null>(null);
+  const [forwardValue, setForwardValue] = useState('');
+
+  const fromOptions = useMemo<Line[]>(() => {
+    const rented: Line[] = lines.map((l) => ({
+      id: l.id,
+      label: l.label,
+      number: l.number,
+      flag: l.flag,
+      type: 'rented' as const,
+    }));
+    return [{ id: 'sim', label: 'Device SIM', number: 'Not linked', flag: '📱', type: 'sim' as const }, ...rented];
+  }, [lines]);
 
   const filteredCountries = useMemo(() => {
-    const q = countryQuery.trim().toLowerCase();
+    const q = countrySearch.trim().toLowerCase();
     if (!q) return COUNTRIES;
     return COUNTRIES.filter(
       (c) =>
@@ -114,431 +221,839 @@ export function RentalPage({ onBack }: { onBack: () => void }) {
         c.dial.includes(q) ||
         c.code.toLowerCase().includes(q),
     );
-  }, [countryQuery]);
+  }, [countrySearch]);
 
-  const priceFor = (country: Country, duration: Duration) =>
-    country.fromPrice * duration.priceMultiplier;
+  const activeLine =
+    view.kind === 'line-settings' ? lines.find((l) => l.id === view.lineId) ?? null : null;
 
-  const startRent = () => {
-    setSelectedCountry(null);
-    setSelectedDuration(null);
-    setCountryQuery('');
-    setStep('country');
+  const updateLine = (id: string, patch: Partial<RentedLine>) => {
+    setLines((prev) => prev.map((l) => (l.id === id ? { ...l, ...patch } : l)));
   };
 
-  const pickCountry = (c: Country) => {
-    setSelectedCountry(c);
-    setSelectedDuration(null);
-    setStep('duration');
+  const startBuy = () => {
+    setCountrySearch('');
+    setView({ kind: 'buy-country' });
   };
 
-  const pickDuration = (d: Duration) => {
-    setSelectedDuration(d);
-    setStep('confirm');
+  const selectBuyCountry = (c: Country) => {
+    setNumberSearch('');
+    setView({ kind: 'buy-numbers', country: c });
   };
 
-  const confirmRent = () => {
-    if (!selectedCountry || !selectedDuration) return;
+  const selectNumber = (country: Country, num: AvailableNumber) => {
+    setView({ kind: 'buy-period', country, number: num });
+  };
+
+  const confirmRent = (country: Country, num: AvailableNumber, days: number) => {
     const exp = new Date();
-    exp.setDate(exp.getDate() + selectedDuration.days);
+    exp.setDate(exp.getDate() + days);
     const line: RentedLine = {
       id: `RL-${Date.now().toString(36).toUpperCase()}`,
-      label: `${selectedCountry.name} line`,
-      number: `${selectedCountry.dial} ${Math.floor(2000000000 + Math.random() * 7000000000)}`,
-      country: selectedCountry.name,
-      flag: selectedCountry.flag,
-      type: selectedCountry.type,
+      label: `${country.name} line`,
+      number: num.number,
+      flag: country.flag,
+      country: country.name,
+      type: country.type,
       expiresAt: exp.toISOString(),
       dnd: false,
-      forwarding: null,
+      voicemail: true,
+      callForward: null,
+      smsForward: null,
     };
     setLines((prev) => [line, ...prev]);
-    setSelectedLine(line);
-    setStep('detail');
+    setTab('numbers');
+    setView({ kind: 'line-settings', lineId: line.id });
   };
 
-  const openDetail = (line: RentedLine) => {
-    setSelectedLine(line);
-    setRenameValue(line.label);
-    setShowRename(false);
-    setStep('detail');
+  const releaseLine = (id: string) => {
+    setLines((prev) => prev.filter((l) => l.id !== id));
+    setView({ kind: 'main' });
+    setTab('numbers');
   };
 
-  const updateLine = (patch: Partial<RentedLine>) => {
-    if (!selectedLine) return;
-    const next = { ...selectedLine, ...patch };
-    setSelectedLine(next);
-    setLines((prev) => prev.map((l) => (l.id === next.id ? next : l)));
+  const handleHeaderBack = () => {
+    if (view.kind === 'main') onBack();
+    else if (view.kind === 'buy-country') setView({ kind: 'main' });
+    else if (view.kind === 'buy-numbers') setView({ kind: 'buy-country' });
+    else if (view.kind === 'buy-period') setView({ kind: 'buy-numbers', country: view.country });
+    else if (view.kind === 'line-settings') setView({ kind: 'main' });
   };
 
-  const deleteLine = () => {
-    if (!selectedLine) return;
-    setLines((prev) => prev.filter((l) => l.id !== selectedLine.id));
-    setSelectedLine(null);
-    setStep('home');
-  };
+  const headerTitle =
+    view.kind === 'main'
+      ? tab === 'calls'
+        ? 'Calls'
+        : tab === 'messages'
+          ? 'Messages'
+          : tab === 'numbers'
+            ? 'Numbers'
+            : 'Credit'
+      : view.kind === 'buy-country'
+        ? 'Rent a number'
+        : view.kind === 'buy-numbers'
+          ? view.country.name
+          : view.kind === 'buy-period'
+            ? 'Choose period'
+            : 'Number settings';
 
-  const renewLine = (duration: Duration) => {
-    if (!selectedLine) return;
-    const base = new Date(selectedLine.expiresAt);
-    const from = base.getTime() > Date.now() ? base : new Date();
-    from.setDate(from.getDate() + duration.days);
-    updateLine({ expiresAt: from.toISOString() });
-  };
-
-  const copyNumber = async () => {
-    if (!selectedLine) return;
-    try {
-      await navigator.clipboard.writeText(selectedLine.number.replace(/\s/g, ''));
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 1600);
-    } catch {
-      setCopied(false);
-    }
-  };
-
-  const handleBack = () => {
-    if (step === 'home') onBack();
-    else if (step === 'country') setStep('home');
-    else if (step === 'duration') setStep('country');
-    else if (step === 'confirm') setStep('duration');
-    else if (step === 'detail') setStep('home');
-  };
-
-  return (
-    <div className="rent-page">
-      <header className="rent-topbar">
-        <button type="button" className="rent-icon-btn" onClick={handleBack} aria-label="Back">
-          <ArrowLeft size={19} />
-        </button>
-        <h1>
-          {step === 'home' && 'Rent a Line'}
-          {step === 'country' && 'Choose country'}
-          {step === 'duration' && 'Rental period'}
-          {step === 'confirm' && 'Confirm rental'}
-          {step === 'detail' && 'Line settings'}
-        </h1>
-        <div className="rent-top-actions">
-          <button type="button" className="rent-wallet" aria-label="Wallet">
-            <WalletCards size={15} />
-            <span>$0.00</span>
+  /* ——— Buy: country ——— */
+  if (view.kind === 'buy-country') {
+    return (
+      <div className="rental-page">
+        <header className="rental-header">
+          <button type="button" className="rental-icon-button" onClick={handleHeaderBack} aria-label="Back">
+            <ArrowLeft size={20} />
           </button>
-          <button type="button" className="rent-icon-btn" aria-label="Notifications">
-            <Bell size={18} />
-          </button>
-        </div>
-      </header>
-
-      {step === 'home' && (
-        <>
-          <section className="rent-intro">
-            <h2>Dedicated numbers</h2>
-            <p>Rent a private line for calls and SMS for a fixed period. Pay from your wallet.</p>
-          </section>
-
-          <div className="rent-notice">
-            <ShieldAlert size={16} />
-            <span>
-              Some platforms restrict VoIP. Non-VoIP lines usually work better on strict apps. Voice +
-              SMS where the provider supports them. Access is not guaranteed forever.
-            </span>
+          <h1 className="rental-page-title">{headerTitle}</h1>
+          <span className="rental-head-spacer" />
+        </header>
+        <div className="rental-content">
+          <div className="contact-search">
+            <Search size={16} />
+            <input
+              value={countrySearch}
+              onChange={(e) => setCountrySearch(e.target.value)}
+              placeholder="Search country"
+              autoFocus
+            />
           </div>
-
-          <button type="button" className="rent-cta" onClick={startRent}>
-            <Plus size={18} />
-            Rent a new line
-          </button>
-
-          <div className="rent-section-head">
-            <span className="rent-label">My lines</span>
-            <span className="rent-count">{lines.length}</span>
-          </div>
-
-          {lines.length === 0 ? (
-            <Card className="rent-empty">
-              <Phone size={22} />
-              <strong>No active lines</strong>
-              <p>Rent a number to receive calls and SMS on a dedicated line.</p>
-            </Card>
-          ) : (
-            <div className="rent-line-list">
-              {lines.map((line) => (
-                <button
-                  key={line.id}
-                  type="button"
-                  className="rent-line-card"
-                  onClick={() => openDetail(line)}
-                >
-                  <span className="rent-line-flag">{line.flag}</span>
-                  <span className="rent-line-copy">
-                    <strong>{line.label}</strong>
-                    <small>{line.number}</small>
-                    <small className="rent-line-meta">
-                      Exp. {formatExpiry(line.expiresAt)} · {daysLeft(line.expiresAt)}d left ·{' '}
-                      <span className={line.type === 'Non-VoIP' ? 'good' : 'warn'}>{line.type}</span>
-                    </small>
-                  </span>
-                  <ChevronRight size={17} className="rent-chevron" />
-                </button>
-              ))}
-            </div>
-          )}
-        </>
-      )}
-
-      {step === 'country' && (
-        <>
-          <section className="rent-intro compact">
-            <p className="rent-eyebrow">NEW RENTAL</p>
-            <h2>Choose a country</h2>
-            <p>Pick where the number should be based.</p>
-          </section>
-
-          <div className="rent-search-wrap">
-            <div className="rent-search">
-              <Search size={17} />
-              <input
-                value={countryQuery}
-                onChange={(e) => setCountryQuery(e.target.value)}
-                placeholder="Search country"
-                aria-label="Search country"
-              />
-              {countryQuery ? (
-                <button type="button" className="rent-clear" onClick={() => setCountryQuery('')} aria-label="Clear">
-                  <X size={15} />
-                </button>
-              ) : null}
-            </div>
-          </div>
-
-          <div className="rent-list">
+          <p className="rental-hint-inline">
+            <ShieldAlert size={14} /> VoIP may be restricted on some apps. Non-VoIP usually works better.
+          </p>
+          <div className="sheet-list inline-list">
             {filteredCountries.map((c) => (
-              <button key={c.code} type="button" className="rent-row" onClick={() => pickCountry(c)}>
-                <span className="rent-row-icon">{c.flag}</span>
-                <span className="rent-row-copy">
-                  <strong>
-                    {c.name} · {c.dial}
-                  </strong>
+              <button type="button" className="sheet-row" key={c.code} onClick={() => selectBuyCountry(c)}>
+                <span className="country-flag">{c.flag}</span>
+                <div>
+                  <strong>{c.name}</strong>
                   <small>
-                    <span className={c.type === 'Non-VoIP' ? 'good' : 'warn'}>{c.type}</span>
-                    {' · '}
-                    from {money(c.fromPrice)} / 7 days
+                    <span className={c.type === 'Non-VoIP' ? 'type-good' : 'type-warn'}>{c.type}</span>
+                    {' · '}Voice + SMS where supported
                   </small>
-                </span>
-                <ChevronRight size={17} className="rent-chevron" />
+                </div>
+                <span className="country-dial">{c.dial}</span>
               </button>
             ))}
-            {!filteredCountries.length && (
-              <Card className="rent-empty compact">
-                <Search size={18} />
-                <strong>No countries found</strong>
-              </Card>
+            {!filteredCountries.length && <div className="sheet-empty">No countries match</div>}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  /* ——— Buy: numbers for country ——— */
+  if (view.kind === 'buy-numbers') {
+    const nums = demoNumbers(view.country).filter(
+      (n) =>
+        !numberSearch.trim() ||
+        n.number.includes(numberSearch.trim()) ||
+        n.area.toLowerCase().includes(numberSearch.trim().toLowerCase()),
+    );
+    return (
+      <div className="rental-page">
+        <header className="rental-header">
+          <button type="button" className="rental-icon-button" onClick={handleHeaderBack} aria-label="Back">
+            <ArrowLeft size={20} />
+          </button>
+          <h1 className="rental-page-title">
+            {view.country.flag} {view.country.name}
+          </h1>
+          <span className="rental-head-spacer" />
+        </header>
+        <div className="rental-content">
+          <div className="contact-search">
+            <Search size={16} />
+            <input
+              value={numberSearch}
+              onChange={(e) => setNumberSearch(e.target.value)}
+              placeholder="Search area or number"
+            />
+          </div>
+          <div className="sheet-list inline-list">
+            {nums.map((n) => (
+              <button
+                type="button"
+                className="sheet-row"
+                key={n.id}
+                onClick={() => selectNumber(view.country, n)}
+              >
+                <span className="line-icon">{view.country.flag}</span>
+                <div>
+                  <strong>{n.number}</strong>
+                  <small>
+                    {n.area} · from {money(n.monthlyFrom)}/mo
+                  </small>
+                </div>
+                <span className="row-chevron">›</span>
+              </button>
+            ))}
+            {!nums.length && (
+              <div className="sheet-empty">No numbers match. Live inventory appears when a provider is connected.</div>
             )}
           </div>
-        </>
-      )}
+        </div>
+      </div>
+    );
+  }
 
-      {step === 'duration' && selectedCountry && (
-        <>
-          <section className="rent-intro compact">
-            <p className="rent-eyebrow">
-              {selectedCountry.flag} {selectedCountry.name}
-            </p>
-            <h2>Rental period</h2>
-            <p>Longer periods cost less per day. Paid from your wallet.</p>
-          </section>
-
-          <div className="rent-list">
-            {DURATIONS.map((d) => {
-              const price = priceFor(selectedCountry, d);
+  /* ——— Buy: period ——— */
+  if (view.kind === 'buy-period') {
+    return (
+      <div className="rental-page">
+        <header className="rental-header">
+          <button type="button" className="rental-icon-button" onClick={handleHeaderBack} aria-label="Back">
+            <ArrowLeft size={20} />
+          </button>
+          <h1 className="rental-page-title">Choose period</h1>
+          <span className="rental-head-spacer" />
+        </header>
+        <div className="rental-content">
+          <div className="period-number-card">
+            <strong>{view.number.number}</strong>
+            <small>
+              {view.country.flag} {view.country.name} · {view.number.area} · {view.country.type}
+            </small>
+          </div>
+          <ul className="package-list">
+            {PERIODS.map((p) => {
+              const price = view.number.monthlyFrom * p.mult;
               return (
-                <button key={d.id} type="button" className="rent-duration-card" onClick={() => pickDuration(d)}>
-                  <div>
-                    <strong>{d.label}</strong>
-                    <small>{d.days} days · Voice + SMS where supported</small>
-                  </div>
-                  <div className="rent-duration-price">
-                    <strong>{money(price)}</strong>
-                    <ChevronRight size={16} />
-                  </div>
-                </button>
+                <li key={p.id}>
+                  <button
+                    type="button"
+                    className="package-row"
+                    onClick={() => confirmRent(view.country, view.number, p.days)}
+                  >
+                    <div>
+                      <strong>{p.label}</strong>
+                      <small>Wallet debit · demo assign</small>
+                    </div>
+                    <span>{money(price)} ›</span>
+                  </button>
+                </li>
               );
             })}
-          </div>
-        </>
-      )}
+          </ul>
+          <p className="rental-footnote">
+            Demo only. Live rent will charge your Verxor wallet and provision via the rental provider.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
-      {step === 'confirm' && selectedCountry && selectedDuration && (
-        <>
-          <section className="rent-intro compact">
-            <p className="rent-eyebrow">CONFIRM</p>
-            <h2>Review rental</h2>
-            <p>Demo purchase — live flow will debit wallet and assign a real number.</p>
-          </section>
+  /* ——— Line settings (Call.com number settings) ——— */
+  if (view.kind === 'line-settings' && activeLine) {
+    return (
+      <div className="rental-page">
+        <header className="rental-header">
+          <button type="button" className="rental-icon-button" onClick={handleHeaderBack} aria-label="Back">
+            <ArrowLeft size={20} />
+          </button>
+          <h1 className="rental-page-title">Settings</h1>
+          <span className="rental-head-spacer" />
+        </header>
 
-          <Card className="rent-summary">
-            <div className="rent-summary-row">
-              <span>Country</span>
-              <strong>
-                {selectedCountry.flag} {selectedCountry.name}
-              </strong>
+        <div className="line-settings-hero">
+          <span className="line-settings-flag">{activeLine.flag}</span>
+          <strong>{activeLine.label}</strong>
+          <p>{activeLine.number}</p>
+          <small>
+            Exp. {formatExp(activeLine.expiresAt)} · {activeLine.type}
+          </small>
+        </div>
+
+        <div className="settings-group">
+          <button
+            type="button"
+            className="settings-row"
+            onClick={() => {
+              setRenewOpen(true);
+            }}
+          >
+            <Clock size={18} />
+            <div>
+              <strong>Renew</strong>
+              <small>Extend this number</small>
             </div>
-            <div className="rent-summary-row">
-              <span>Type</span>
-              <strong className={selectedCountry.type === 'Non-VoIP' ? 'good' : 'warn'}>
-                {selectedCountry.type}
-              </strong>
-            </div>
-            <div className="rent-summary-row">
-              <span>Period</span>
-              <strong>{selectedDuration.label}</strong>
-            </div>
-            <div className="rent-summary-row total">
-              <span>Total</span>
-              <strong>{money(priceFor(selectedCountry, selectedDuration))}</strong>
-            </div>
-          </Card>
-
-          <div className="rent-confirm-actions">
-            <PrimaryButton onClick={confirmRent}>Confirm & rent (demo)</PrimaryButton>
-            <button type="button" className="rent-text-btn" onClick={() => setStep('duration')}>
-              Change period
-            </button>
-          </div>
-        </>
-      )}
-
-      {step === 'detail' && selectedLine && (
-        <>
-          <section className="rent-detail-hero">
-            <span className="rent-detail-flag">{selectedLine.flag}</span>
-            <strong className="rent-detail-label">{selectedLine.label}</strong>
-            <p className="rent-detail-number">{selectedLine.number}</p>
-            <button type="button" className="rent-copy" onClick={copyNumber}>
-              {copied ? <Check size={15} /> : <Copy size={15} />}
-              {copied ? 'Copied' : 'Copy number'}
-            </button>
-            <div className="rent-detail-meta">
-              <span>
-                Exp. {formatExpiry(selectedLine.expiresAt)} · {daysLeft(selectedLine.expiresAt)} days left
-              </span>
-              <span className={selectedLine.type === 'Non-VoIP' ? 'good' : 'warn'}>{selectedLine.type}</span>
-            </div>
-          </section>
-
-          <div className="rent-label pad">Manage</div>
-          <Card className="rent-settings-list">
-            <button
-              type="button"
-              className="rent-setting-row"
-              onClick={() => {
-                setRenameValue(selectedLine.label);
-                setShowRename(true);
-              }}
-            >
-              <UserRound size={18} />
-              <span>
-                <strong>Rename</strong>
-                <small>{selectedLine.label}</small>
-              </span>
-              <ChevronRight size={16} />
-            </button>
-
-            <button
-              type="button"
-              className="rent-setting-row"
-              onClick={() => updateLine({ dnd: !selectedLine.dnd })}
-            >
-              <Bell size={18} />
-              <span>
-                <strong>Do not disturb</strong>
-                <small>{selectedLine.dnd ? 'On — incoming calls silenced' : 'Off'}</small>
-              </span>
-              <span className={`rent-toggle ${selectedLine.dnd ? 'on' : ''}`} aria-hidden />
-            </button>
-
-            <button
-              type="button"
-              className="rent-setting-row"
-              onClick={() =>
-                updateLine({
-                  forwarding: selectedLine.forwarding ? null : '+234 — set in live app',
-                })
-              }
-            >
-              <PhoneForwarded size={18} />
-              <span>
-                <strong>Call forwarding</strong>
-                <small>{selectedLine.forwarding ?? 'Off'}</small>
-              </span>
-              <ChevronRight size={16} />
-            </button>
-
-            <div className="rent-setting-row static">
-              <Mic size={18} />
-              <span>
-                <strong>Voicemail</strong>
-                <small>Provider-dependent · configure when live</small>
-              </span>
-            </div>
-
-            <div className="rent-setting-row static">
-              <Forward size={18} />
-              <span>
-                <strong>SMS forward</strong>
-                <small>Email / webhook when provider supports it</small>
-              </span>
-            </div>
-          </Card>
-
-          <div className="rent-label pad">Renew</div>
-          <div className="rent-renew-row">
-            {DURATIONS.map((d) => (
-              <button key={d.id} type="button" className="rent-renew-chip" onClick={() => renewLine(d)}>
-                +{d.label}
-              </button>
-            ))}
-          </div>
-
-          <button type="button" className="rent-danger" onClick={deleteLine}>
-            <Trash2 size={17} />
-            Release this line
+            <span className="row-chevron">›</span>
           </button>
 
-          <p className="rent-footnote">
-            Settings that need a live provider (voicemail audio, real forwarding targets) activate when SignalWire
-            or your rental API is connected.
-          </p>
+          <button
+            type="button"
+            className="settings-row"
+            onClick={() => {
+              setRenameValue(activeLine.label);
+              setRenameOpen(true);
+            }}
+          >
+            <UserRound size={18} />
+            <div>
+              <strong>Rename</strong>
+              <small>{activeLine.label}</small>
+            </div>
+            <span className="row-chevron">›</span>
+          </button>
 
-          {showRename && (
-            <div className="rent-modal">
-              <button type="button" className="rent-modal-backdrop" onClick={() => setShowRename(false)} aria-label="Close" />
-              <div className="rent-modal-sheet">
-                <div className="rent-modal-head">
-                  <strong>Rename line</strong>
-                  <button type="button" onClick={() => setShowRename(false)} aria-label="Close">
-                    <X size={18} />
-                  </button>
-                </div>
+          <button
+            type="button"
+            className="settings-row"
+            onClick={() => updateLine(activeLine.id, { dnd: !activeLine.dnd })}
+          >
+            {activeLine.dnd ? <BellOff size={18} /> : <Bell size={18} />}
+            <div>
+              <strong>Do not disturb</strong>
+              <small>{activeLine.dnd ? 'On' : 'Off'}</small>
+            </div>
+            <span className={`toggle-pill ${activeLine.dnd ? 'on' : ''}`} />
+          </button>
+
+          <button
+            type="button"
+            className="settings-row"
+            onClick={() => updateLine(activeLine.id, { voicemail: !activeLine.voicemail })}
+          >
+            {activeLine.voicemail ? <Mic size={18} /> : <MicOff size={18} />}
+            <div>
+              <strong>Voicemail</strong>
+              <small>{activeLine.voicemail ? 'Enabled' : 'Off'} · greeting when provider supports it</small>
+            </div>
+            <span className={`toggle-pill ${activeLine.voicemail ? 'on' : ''}`} />
+          </button>
+
+          <button
+            type="button"
+            className="settings-row"
+            onClick={() => {
+              setForwardValue(activeLine.callForward ?? '');
+              setForwardOpen('call');
+            }}
+          >
+            <PhoneForwarded size={18} />
+            <div>
+              <strong>Call forwarding</strong>
+              <small>{activeLine.callForward ?? 'Off'}</small>
+            </div>
+            <span className="row-chevron">›</span>
+          </button>
+
+          <button
+            type="button"
+            className="settings-row"
+            onClick={() => {
+              setForwardValue(activeLine.smsForward ?? '');
+              setForwardOpen('sms');
+            }}
+          >
+            <MessageSquare size={18} />
+            <div>
+              <strong>SMS forwarding</strong>
+              <small>{activeLine.smsForward ?? 'Off · email or mobile'}</small>
+            </div>
+            <span className="row-chevron">›</span>
+          </button>
+
+          <button type="button" className="settings-row" disabled>
+            <Settings2 size={18} />
+            <div>
+              <strong>Transfer number</strong>
+              <small>Move to another account · coming with live API</small>
+            </div>
+          </button>
+        </div>
+
+        <button type="button" className="delete-line-btn" onClick={() => releaseLine(activeLine.id)}>
+          <Trash2 size={17} />
+          Delete / release number
+        </button>
+
+        {/* Renew sheet */}
+        {renewOpen && (
+          <div className="sheet-layer">
+            <button type="button" className="sheet-backdrop" onClick={() => setRenewOpen(false)} aria-label="Close" />
+            <div className="sheet">
+              <div className="sheet-head">
+                <h2>Renew</h2>
+                <button type="button" onClick={() => setRenewOpen(false)} aria-label="Close">
+                  <X size={20} />
+                </button>
+              </div>
+              <ul className="package-list sheet-packages">
+                {PERIODS.map((p) => (
+                  <li key={p.id}>
+                    <button
+                      type="button"
+                      className="package-row"
+                      onClick={() => {
+                        const base = new Date(activeLine.expiresAt);
+                        const from = base.getTime() > Date.now() ? base : new Date();
+                        from.setDate(from.getDate() + p.days);
+                        updateLine(activeLine.id, { expiresAt: from.toISOString() });
+                        setRenewOpen(false);
+                      }}
+                    >
+                      <div>
+                        <strong>+{p.label}</strong>
+                        <small>Extend from current expiry</small>
+                      </div>
+                      <span>Apply ›</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        )}
+
+        {/* Rename sheet */}
+        {renameOpen && (
+          <div className="sheet-layer">
+            <button type="button" className="sheet-backdrop" onClick={() => setRenameOpen(false)} aria-label="Close" />
+            <div className="sheet">
+              <div className="sheet-head">
+                <h2>Rename</h2>
+                <button type="button" onClick={() => setRenameOpen(false)} aria-label="Close">
+                  <X size={20} />
+                </button>
+              </div>
+              <div className="sheet-form">
                 <input
-                  className="rent-rename-input"
+                  className="sheet-input"
                   value={renameValue}
                   onChange={(e) => setRenameValue(e.target.value)}
                   maxLength={40}
                   autoFocus
                 />
-                <PrimaryButton
+                <button
+                  type="button"
+                  className="blue-pill full"
                   onClick={() => {
-                    if (renameValue.trim()) updateLine({ label: renameValue.trim() });
-                    setShowRename(false);
+                    if (renameValue.trim()) updateLine(activeLine.id, { label: renameValue.trim() });
+                    setRenameOpen(false);
                   }}
                 >
-                  Save name
-                </PrimaryButton>
+                  Save
+                </button>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* Forward sheet */}
+        {forwardOpen && (
+          <div className="sheet-layer">
+            <button type="button" className="sheet-backdrop" onClick={() => setForwardOpen(null)} aria-label="Close" />
+            <div className="sheet">
+              <div className="sheet-head">
+                <h2>{forwardOpen === 'call' ? 'Call forwarding' : 'SMS forwarding'}</h2>
+                <button type="button" onClick={() => setForwardOpen(null)} aria-label="Close">
+                  <X size={20} />
+                </button>
+              </div>
+              <div className="sheet-form">
+                <input
+                  className="sheet-input"
+                  value={forwardValue}
+                  onChange={(e) => setForwardValue(e.target.value)}
+                  placeholder={forwardOpen === 'call' ? 'Forward to phone number' : 'Email or mobile'}
+                  autoFocus
+                />
+                <button
+                  type="button"
+                  className="blue-pill full"
+                  onClick={() => {
+                    const v = forwardValue.trim() || null;
+                    if (forwardOpen === 'call') updateLine(activeLine.id, { callForward: v });
+                    else updateLine(activeLine.id, { smsForward: v });
+                    setForwardOpen(null);
+                  }}
+                >
+                  Save
+                </button>
+                <button
+                  type="button"
+                  className="text-clear"
+                  onClick={() => {
+                    if (forwardOpen === 'call') updateLine(activeLine.id, { callForward: null });
+                    else updateLine(activeLine.id, { smsForward: null });
+                    setForwardOpen(null);
+                  }}
+                >
+                  Turn off
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  /* ——— Main workspace (Call.com tabs) ——— */
+  return (
+    <div className="rental-page">
+      <header className="rental-header">
+        <button type="button" className="rental-icon-button" onClick={onBack} aria-label="Back to Verxor">
+          <ArrowLeft size={20} />
+        </button>
+        <h1 className="rental-page-title">{headerTitle}</h1>
+        <div className="rental-head-actions">
+          {(tab === 'calls' || tab === 'numbers') && (
+            <button type="button" className="rental-icon-button primary" onClick={startBuy} aria-label="Rent number">
+              <Plus size={22} strokeWidth={2.2} />
+            </button>
           )}
+          {tab === 'messages' && (
+            <button type="button" className="rental-icon-button primary" aria-label="New message">
+              <MessageSquare size={20} />
+            </button>
+          )}
+          {tab === 'credit' && <span className="rental-head-spacer" />}
+        </div>
+      </header>
+
+      {tab === 'calls' && (
+        <>
+          {callSub === 'history' && (
+            <section className="rental-content">
+              <h3>Favorites</h3>
+              {hint && (
+                <div className="favorite-hint">
+                  <span>☆</span>
+                  <p>Star contacts to show them here for quick dial.</p>
+                  <button type="button" onClick={() => setHint(false)} aria-label="Dismiss">
+                    ×
+                  </button>
+                </div>
+              )}
+              <div className="recent-head">
+                <h3>Recents</h3>
+                <div>
+                  <button type="button" aria-label="Filter">
+                    <Filter size={18} />
+                  </button>
+                  <button type="button" aria-label="More">
+                    <MoreVertical size={18} />
+                  </button>
+                </div>
+              </div>
+              <EmptyState
+                title="No call history"
+                text="Rent a number, then outbound and inbound calls appear here."
+                icon={<Clock size={40} />}
+                action={
+                  <button type="button" className="blue-pill" onClick={startBuy}>
+                    Rent a number
+                  </button>
+                }
+              />
+            </section>
+          )}
+
+          {callSub === 'contacts' && (
+            <section className="rental-content">
+              <div className="contact-search">
+                <Search size={16} />
+                <input
+                  value={contactSearch}
+                  onChange={(e) => setContactSearch(e.target.value)}
+                  placeholder="Search contacts"
+                />
+              </div>
+              {lines.length === 0 ? (
+                <EmptyState
+                  title="No contacts yet"
+                  text="Import device contacts or add people after you rent a line."
+                  icon={<Users size={40} />}
+                />
+              ) : (
+                <ul className="contact-list">
+                  {lines
+                    .filter(
+                      (l) =>
+                        !contactSearch.trim() ||
+                        l.label.toLowerCase().includes(contactSearch.toLowerCase()) ||
+                        l.number.replace(/\s/g, '').includes(contactSearch.replace(/\s/g, '')),
+                    )
+                    .map((l) => (
+                      <li key={l.id}>
+                        <div className="contact-avatar">{l.label.charAt(0)}</div>
+                        <div>
+                          <strong>{l.label}</strong>
+                          <small>{l.number}</small>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setFromLine({
+                              id: l.id,
+                              label: l.label,
+                              number: l.number,
+                              flag: l.flag,
+                              type: 'rented',
+                            });
+                            setCallSub('keypad');
+                          }}
+                          aria-label={`Call from ${l.label}`}
+                        >
+                          <Phone size={18} />
+                        </button>
+                      </li>
+                    ))}
+                </ul>
+              )}
+            </section>
+          )}
+
+          {callSub === 'keypad' && (
+            <section className="keypad-section">
+              <button type="button" className="from-pill" onClick={() => setShowFrom(true)}>
+                {fromLine.label}
+                <ChevronDown size={14} />
+              </button>
+              <div className="dial-display">
+                <button type="button" onClick={() => setShowDialCountry(true)}>
+                  {dialCountry.flag}
+                  <ChevronDown size={14} />
+                </button>
+                <span>{dial || dialCountry.dial}</span>
+              </div>
+              <div className="dial-grid">
+                {KEYS.map(({ digit, letters }) => (
+                  <button
+                    type="button"
+                    key={digit}
+                    onClick={() => setDial((d) => (d.length >= 18 ? d : d + digit))}
+                  >
+                    <strong>{digit}</strong>
+                    <small>{letters || '\u00A0'}</small>
+                  </button>
+                ))}
+              </div>
+              <div className="dial-actions">
+                <div className="dial-spacer" />
+                <button type="button" className="call-button" aria-label="Call">
+                  <Phone size={27} fill="white" strokeWidth={0} />
+                </button>
+                <button
+                  type="button"
+                  className="delete-button"
+                  onClick={() => setDial((d) => d.slice(0, -1))}
+                  aria-label="Delete"
+                >
+                  <Delete size={17} />
+                </button>
+              </div>
+              <button type="button" className="browse-pill" onClick={startBuy}>
+                <Hash size={14} /> Browse & rent numbers
+              </button>
+            </section>
+          )}
+
+          <div className="calls-subnav">
+            {(
+              [
+                { id: 'history' as const, label: 'History', icon: Clock },
+                { id: 'contacts' as const, label: 'Contacts', icon: Users },
+                { id: 'keypad' as const, label: 'Keypad', icon: Grid3X3 },
+              ] as const
+            ).map(({ id, label, icon: Icon }) => (
+              <button
+                type="button"
+                key={id}
+                className={callSub === id ? 'active' : ''}
+                onClick={() => setCallSub(id)}
+              >
+                <Icon size={16} />
+                {label}
+              </button>
+            ))}
+          </div>
         </>
+      )}
+
+      {tab === 'messages' && (
+        <section className="rental-content">
+          <div className="contact-search">
+            <Search size={16} />
+            <input placeholder="Search messages" />
+          </div>
+          <EmptyState
+            title="No messages yet"
+            text="SMS on your rented numbers appear here. Tap + after you have a line."
+            icon={<MessageSquare size={48} strokeWidth={1.25} />}
+            action={
+              lines.length === 0 ? (
+                <button type="button" className="blue-pill" onClick={startBuy}>
+                  Rent a number
+                </button>
+              ) : undefined
+            }
+          />
+        </section>
+      )}
+
+      {tab === 'numbers' && (
+        <section className="rental-content">
+          <div className="numbers-section-title">
+            <h3>Phone numbers</h3>
+            <button type="button" className="rental-icon-button primary" onClick={startBuy} aria-label="Add number">
+              <Plus size={20} />
+            </button>
+          </div>
+          {lines.length === 0 ? (
+            <EmptyState
+              title="No numbers yet"
+              text="Rent a virtual number for calls and SMS. Active numbers, expiry and settings appear here."
+              icon={<Hash size={48} strokeWidth={1.25} />}
+              action={
+                <button type="button" className="blue-pill" onClick={startBuy}>
+                  Rent a number
+                </button>
+              }
+            />
+          ) : (
+            <ul className="number-owned-list">
+              {lines.map((l) => (
+                <li key={l.id}>
+                  <button type="button" className="number-owned-row" onClick={() => setView({ kind: 'line-settings', lineId: l.id })}>
+                    <span className="country-flag">{l.flag}</span>
+                    <div>
+                      <strong>{l.label}</strong>
+                      <small>{l.number}</small>
+                      <small className="exp-line">Exp. {formatExp(l.expiresAt)}</small>
+                    </div>
+                    <span className="row-chevron">›</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
+
+      {tab === 'credit' && (
+        <section className="rental-content credit-section">
+          <div className="credit-hero">
+            <small>Wallet balance</small>
+            <strong>$0.00</strong>
+            <button type="button" className="credit-topup" onClick={onBack}>
+              <Wallet size={14} /> Fund Verxor wallet
+            </button>
+          </div>
+          <p className="credit-note">
+            Rentals and renewals are paid from your main Verxor wallet — no separate call-credit packs.
+          </p>
+          <h3>How billing works</h3>
+          <ul className="credit-bullets">
+            <li>Choose country and number</li>
+            <li>Pick 7 days, 30 days, 90 days or 12 months</li>
+            <li>Wallet is debited when the provider confirms</li>
+          </ul>
+        </section>
+      )}
+
+      <nav className="rental-tabs" aria-label="Rental navigation">
+        {(
+          [
+            ['calls', 'Calls', Phone],
+            ['messages', 'Messages', MessageSquare],
+            ['numbers', 'Numbers', Hash],
+            ['credit', 'Credit', Wallet],
+          ] as const
+        ).map(([id, label, Icon]) => (
+          <button
+            type="button"
+            key={id}
+            className={tab === id ? 'active' : ''}
+            onClick={() => {
+              setTab(id);
+              setView({ kind: 'main' });
+            }}
+          >
+            <Icon size={20} strokeWidth={tab === id ? 2.3 : 1.75} />
+            <span>{label}</span>
+          </button>
+        ))}
+      </nav>
+
+      {/* From line sheet */}
+      {showFrom && (
+        <div className="sheet-layer">
+          <button type="button" className="sheet-backdrop" onClick={() => setShowFrom(false)} aria-label="Close" />
+          <div className="sheet">
+            <div className="sheet-head">
+              <h2>Call from</h2>
+              <button type="button" onClick={() => setShowFrom(false)} aria-label="Close">
+                <X size={20} />
+              </button>
+            </div>
+            {fromOptions.map((line) => (
+              <button
+                type="button"
+                className="sheet-row"
+                key={line.id}
+                onClick={() => {
+                  setFromLine(line);
+                  setShowFrom(false);
+                }}
+              >
+                <span className="line-icon">{line.type === 'sim' ? '▮' : line.flag}</span>
+                <div>
+                  <strong>{line.label}</strong>
+                  <small>{line.number}</small>
+                </div>
+                {fromLine.id === line.id && <Check size={18} />}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Dial country sheet */}
+      {showDialCountry && (
+        <div className="sheet-layer">
+          <button type="button" className="sheet-backdrop" onClick={() => setShowDialCountry(false)} aria-label="Close" />
+          <div className="sheet country-sheet">
+            <div className="sheet-head">
+              <h2>Select country</h2>
+              <button type="button" onClick={() => setShowDialCountry(false)} aria-label="Close">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="sheet-search">
+              <Search size={16} />
+              <input
+                value={countrySearch}
+                onChange={(e) => setCountrySearch(e.target.value)}
+                placeholder="Search country"
+                autoFocus
+              />
+            </div>
+            <div className="sheet-list">
+              {filteredCountries.map((c) => (
+                <button
+                  type="button"
+                  className="sheet-row"
+                  key={c.code}
+                  onClick={() => {
+                    setDialCountry(c);
+                    setDial('');
+                    setShowDialCountry(false);
+                    setCountrySearch('');
+                  }}
+                >
+                  <span className="country-flag">{c.flag}</span>
+                  <div>
+                    <strong>{c.name}</strong>
+                  </div>
+                  <span className="country-dial">{c.dial}</span>
+                  {dialCountry.code === c.code && <Check size={18} />}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
