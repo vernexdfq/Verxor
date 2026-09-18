@@ -6,6 +6,7 @@ import { HomePage, FundPage, NumbersPage, ProfilePage } from './pages';
 import { ServicePage, ServicesPage, type ServiceView } from './service-pages';
 import { RentalPage } from './rental-page';
 import { AccountsPage } from './product-pages';
+import { VirtualNumbersPage } from './virtual-numbers-page';
 import { ActivityLogsPage } from './activity-logs';
 import { AdminPage } from './admin-page';
 import type { Page } from './types';
@@ -78,13 +79,13 @@ function App() {
     );
   }
 
-  // Rental is a full workspace. It uses the single AppShell in deep-service mode
-  // so it does not compete with the primary bottom navigation.
+  // Rental is a full workspace. Virtual numbers uses the same shell but keeps bottom nav.
   const deepService = service === 'rental';
 
   const content =
     service === 'services' ? <ServicesPage open={setService} /> :
     service === 'rental' ? <RentalPage onBack={() => setService('services')} /> :
+    service === 'virtual-numbers' ? <VirtualNumbersPage onBack={() => setService('services')} /> :
     service === 'accounts' ? <AccountsPage onBack={() => setService('services')} /> :
     service ? <ServicePage view={service} onBack={() => setService('services')} /> :
     page === 'history' ? <ActivityLogsPage /> :
