@@ -79,8 +79,8 @@ function App() {
     );
   }
 
-  // Rental is a full workspace. Virtual numbers uses the same shell but keeps bottom nav.
-  const deepService = service === 'rental';
+  // Rental and Virtual Numbers own their focused product workspace shell.
+  const deepService = service === 'rental' || service === 'virtual-numbers';
 
   const content =
     service === 'services' ? <ServicesPage open={setService} /> :
