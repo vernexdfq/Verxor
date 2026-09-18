@@ -1,47 +1,40 @@
 /**
- * Rent a Line — Call.com-style dedicated number workspace.
- * Tabs: Calls | Messages | Numbers | Credit
- * Buy: country → numbers → period → wallet
- * Per-number: Renew, Rename, DND, Voicemail, Forwarding, Transfer, Delete
+ * Rent a Line — Call.com-style workspace for dedicated numbers.
+ * Tabs: Calls (History | Contacts | Keypad) · Messages · Numbers · Wallet
+ * Number detail: Renew, Rename, DND, Voicemail, Forwarding, Release
+ * Buy: country → period → confirm (wallet). Demo until provider connected.
  */
 import { useMemo, useState, type ReactNode } from 'react';
 import {
   ArrowLeft,
   Check,
   ChevronDown,
+  ChevronRight,
   Clock,
+  Copy,
   Delete,
   Filter,
   Grid3X3,
   Hash,
   MessageSquare,
+  Mic,
   MoreVertical,
   Phone,
   PhoneForwarded,
   Plus,
   Search,
-  Settings2,
   ShieldAlert,
   Trash2,
   UserRound,
   Users,
   Wallet,
   X,
-  MicOff,
-  Mic,
-  BellOff,
-  Bell,
 } from 'lucide-react';
 import './rental-page.css';
 
-type MainTab = 'calls' | 'messages' | 'numbers' | 'credit';
+type MainTab = 'calls' | 'messages' | 'numbers' | 'wallet';
 type CallSub = 'history' | 'contacts' | 'keypad';
-type View =
-  | { kind: 'main' }
-  | { kind: 'buy-country' }
-  | { kind: 'buy-numbers'; country: Country }
-  | { kind: 'buy-period'; country: Country; number: AvailableNumber }
-  | { kind: 'line-settings'; lineId: string };
+type View = 'main' | 'buy-country' | 'buy-duration' | 'buy-confirm' | 'line-detail';
 
 type Country = {
   code: string;
@@ -49,16 +42,12 @@ type Country = {
   dial: string;
   flag: string;
   type: 'VoIP' | 'Non-VoIP';
+  fromPrice: number;
 };
 
-type AvailableNumber = {
-  id: string;
-  number: string;
-  area: string;
-  monthlyFrom: number;
-};
+type Duration = { id: string; label: string; days: number; multiplier: number };
 
-type RentedLine = {
+type Line = {
   id: string;
   label: string;
   number: string;
@@ -67,17 +56,8 @@ type RentedLine = {
   type: 'VoIP' | 'Non-VoIP';
   expiresAt: string;
   dnd: boolean;
-  voicemail: boolean;
   callForward: string | null;
   smsForward: string | null;
-};
-
-type Line = {
-  id: string;
-  label: string;
-  number: string;
-  flag: string;
-  type: 'rented' | 'sim';
 };
 
 const KEYS: { digit: string; letters: string }[] = [
@@ -96,52 +76,23 @@ const KEYS: { digit: string; letters: string }[] = [
 ];
 
 const COUNTRIES: Country[] = [
-  { code: 'US', name: 'United States', dial: '+1', flag: '🇺🇸', type: 'Non-VoIP' },
-  { code: 'CA', name: 'Canada', dial: '+1', flag: '🇨🇦', type: 'VoIP' },
-  { code: 'GB', name: 'United Kingdom', dial: '+44', flag: '🇬🇧', type: 'Non-VoIP' },
-  { code: 'DE', name: 'Germany', dial: '+49', flag: '🇩🇪', type: 'Non-VoIP' },
-  { code: 'NL', name: 'Netherlands', dial: '+31', flag: '🇳🇱', type: 'Non-VoIP' },
-  { code: 'FR', name: 'France', dial: '+33', flag: '🇫🇷', type: 'VoIP' },
-  { code: 'AU', name: 'Australia', dial: '+61', flag: '🇦🇺', type: 'VoIP' },
-  { code: 'IN', name: 'India', dial: '+91', flag: '🇮🇳', type: 'VoIP' },
-  { code: 'NG', name: 'Nigeria', dial: '+234', flag: '🇳🇬', type: 'VoIP' },
-  { code: 'GH', name: 'Ghana', dial: '+233', flag: '🇬🇭', type: 'VoIP' },
+  { code: 'US', name: 'United States', dial: '+1', flag: '🇺🇸', type: 'Non-VoIP', fromPrice: 8500 },
+  { code: 'GB', name: 'United Kingdom', dial: '+44', flag: '🇬🇧', type: 'Non-VoIP', fromPrice: 9200 },
+  { code: 'CA', name: 'Canada', dial: '+1', flag: '🇨🇦', type: 'VoIP', fromPrice: 7800 },
+  { code: 'DE', name: 'Germany', dial: '+49', flag: '🇩🇪', type: 'Non-VoIP', fromPrice: 8800 },
+  { code: 'NL', name: 'Netherlands', dial: '+31', flag: '🇳🇱', type: 'Non-VoIP', fromPrice: 8600 },
+  { code: 'AU', name: 'Australia', dial: '+61', flag: '🇦🇺', type: 'VoIP', fromPrice: 9000 },
+  { code: 'FR', name: 'France', dial: '+33', flag: '🇫🇷', type: 'VoIP', fromPrice: 8400 },
+  { code: 'IN', name: 'India', dial: '+91', flag: '🇮🇳', type: 'VoIP', fromPrice: 4500 },
+  { code: 'NG', name: 'Nigeria', dial: '+234', flag: '🇳🇬', type: 'VoIP', fromPrice: 5000 },
+  { code: 'GH', name: 'Ghana', dial: '+233', flag: '🇬🇭', type: 'VoIP', fromPrice: 4800 },
 ];
 
-/** Demo catalog — replace with live provider inventory. */
-function demoNumbers(country: Country): AvailableNumber[] {
-  const areas =
-    country.code === 'US'
-      ? [
-          { area: 'New York, NY', prefix: '212' },
-          { area: 'Los Angeles, CA', prefix: '213' },
-          { area: 'Chicago, IL', prefix: '312' },
-          { area: 'Houston, TX', prefix: '713' },
-          { area: 'Miami, FL', prefix: '305' },
-        ]
-      : country.code === 'GB'
-        ? [
-            { area: 'London', prefix: '20' },
-            { area: 'Manchester', prefix: '161' },
-          ]
-        : [
-            { area: 'Capital', prefix: '1' },
-            { area: 'Metro', prefix: '2' },
-          ];
-
-  return areas.map((a, i) => ({
-    id: `${country.code}-${a.prefix}-${i}`,
-    number: `${country.dial} ${a.prefix}${String(1000000 + i * 137).slice(0, 7)}`,
-    area: a.area,
-    monthlyFrom: country.type === 'Non-VoIP' ? 8500 + i * 400 : 5500 + i * 300,
-  }));
-}
-
-const PERIODS = [
-  { id: '7', label: '7 days', days: 7, mult: 0.35 },
-  { id: '30', label: '30 days', days: 30, mult: 1 },
-  { id: '90', label: '90 days', days: 90, mult: 2.6 },
-  { id: '365', label: '12 months', days: 365, mult: 9 },
+const DURATIONS: Duration[] = [
+  { id: '7d', label: '7 days', days: 7, multiplier: 1 },
+  { id: '30d', label: '30 days', days: 30, multiplier: 3.2 },
+  { id: '90d', label: '90 days', days: 90, multiplier: 8 },
+  { id: '365d', label: '12 months', days: 365, multiplier: 28 },
 ];
 
 const money = (n: number) => `₦${Math.round(n).toLocaleString('en-NG')}`;
@@ -154,19 +105,19 @@ function formatExp(iso: string) {
   }
 }
 
-function EmptyState({
+function Empty({
+  icon,
   title,
   text,
-  icon,
   action,
 }: {
+  icon: ReactNode;
   title: string;
   text: string;
-  icon: ReactNode;
   action?: ReactNode;
 }) {
   return (
-    <div className="rental-empty">
+    <div className="rl-empty">
       {icon}
       <strong>{title}</strong>
       <p>{text}</p>
@@ -176,44 +127,30 @@ function EmptyState({
 }
 
 export function RentalPage({ onBack }: { onBack: () => void }) {
+  const [view, setView] = useState<View>('main');
   const [tab, setTab] = useState<MainTab>('numbers');
   const [callSub, setCallSub] = useState<CallSub>('history');
-  const [view, setView] = useState<View>({ kind: 'main' });
-  const [dial, setDial] = useState('');
-  const [contactSearch, setContactSearch] = useState('');
-  const [countrySearch, setCountrySearch] = useState('');
-  const [numberSearch, setNumberSearch] = useState('');
-  const [dialCountry, setDialCountry] = useState<Country>(COUNTRIES[0]);
-  const [showDialCountry, setShowDialCountry] = useState(false);
-  const [showFrom, setShowFrom] = useState(false);
-  const [hint, setHint] = useState(true);
-  const [lines, setLines] = useState<RentedLine[]>([]);
-  const [fromLine, setFromLine] = useState<Line>({
-    id: 'sim',
-    label: 'Device SIM',
-    number: 'Not linked',
-    flag: '📱',
-    type: 'sim',
-  });
-  const [renameOpen, setRenameOpen] = useState(false);
-  const [renameValue, setRenameValue] = useState('');
-  const [renewOpen, setRenewOpen] = useState(false);
-  const [forwardOpen, setForwardOpen] = useState<'call' | 'sms' | null>(null);
-  const [forwardValue, setForwardValue] = useState('');
+  const [lines, setLines] = useState<Line[]>([]);
+  const [activeLine, setActiveLine] = useState<Line | null>(null);
+  const [fromLine, setFromLine] = useState<Line | null>(null);
 
-  const fromOptions = useMemo<Line[]>(() => {
-    const rented: Line[] = lines.map((l) => ({
-      id: l.id,
-      label: l.label,
-      number: l.number,
-      flag: l.flag,
-      type: 'rented' as const,
-    }));
-    return [{ id: 'sim', label: 'Device SIM', number: 'Not linked', flag: '📱', type: 'sim' as const }, ...rented];
-  }, [lines]);
+  const [dial, setDial] = useState('');
+  const [dialCountry, setDialCountry] = useState<Country>(COUNTRIES[0]);
+  const [contactQ, setContactQ] = useState('');
+  const [msgQ, setMsgQ] = useState('');
+
+  const [buyCountry, setBuyCountry] = useState<Country | null>(null);
+  const [buyDuration, setBuyDuration] = useState<Duration | null>(null);
+  const [countryQ, setCountryQ] = useState('');
+  const [showDialCountry, setShowDialCountry] = useState(false);
+  const [showFromSheet, setShowFromSheet] = useState(false);
+  const [showRename, setShowRename] = useState(false);
+  const [renameVal, setRenameVal] = useState('');
+  const [copied, setCopied] = useState(false);
+  const [favHint, setFavHint] = useState(true);
 
   const filteredCountries = useMemo(() => {
-    const q = countrySearch.trim().toLowerCase();
+    const q = countryQ.trim().toLowerCase();
     if (!q) return COUNTRIES;
     return COUNTRIES.filter(
       (c) =>
@@ -221,837 +158,679 @@ export function RentalPage({ onBack }: { onBack: () => void }) {
         c.dial.includes(q) ||
         c.code.toLowerCase().includes(q),
     );
-  }, [countrySearch]);
+  }, [countryQ]);
 
-  const activeLine =
-    view.kind === 'line-settings' ? lines.find((l) => l.id === view.lineId) ?? null : null;
+  const contacts = useMemo(() => {
+    const q = contactQ.trim().toLowerCase();
+    return lines.filter(
+      (l) =>
+        !q ||
+        l.label.toLowerCase().includes(q) ||
+        l.number.replace(/\s/g, '').includes(q.replace(/\s/g, '')),
+    );
+  }, [lines, contactQ]);
 
-  const updateLine = (id: string, patch: Partial<RentedLine>) => {
-    setLines((prev) => prev.map((l) => (l.id === id ? { ...l, ...patch } : l)));
+  const priceOf = (c: Country, d: Duration) => c.fromPrice * d.multiplier;
+
+  const openBuy = () => {
+    setBuyCountry(null);
+    setBuyDuration(null);
+    setCountryQ('');
+    setView('buy-country');
   };
 
-  const startBuy = () => {
-    setCountrySearch('');
-    setView({ kind: 'buy-country' });
-  };
-
-  const selectBuyCountry = (c: Country) => {
-    setNumberSearch('');
-    setView({ kind: 'buy-numbers', country: c });
-  };
-
-  const selectNumber = (country: Country, num: AvailableNumber) => {
-    setView({ kind: 'buy-period', country, number: num });
-  };
-
-  const confirmRent = (country: Country, num: AvailableNumber, days: number) => {
+  const confirmBuy = () => {
+    if (!buyCountry || !buyDuration) return;
     const exp = new Date();
-    exp.setDate(exp.getDate() + days);
-    const line: RentedLine = {
+    exp.setDate(exp.getDate() + buyDuration.days);
+    const line: Line = {
       id: `RL-${Date.now().toString(36).toUpperCase()}`,
-      label: `${country.name} line`,
-      number: num.number,
-      flag: country.flag,
-      country: country.name,
-      type: country.type,
+      label: `${buyCountry.name} line`,
+      number: `${buyCountry.dial} ${Math.floor(2000000000 + Math.random() * 7000000000)}`,
+      flag: buyCountry.flag,
+      country: buyCountry.name,
+      type: buyCountry.type,
       expiresAt: exp.toISOString(),
       dnd: false,
-      voicemail: true,
       callForward: null,
       smsForward: null,
     };
-    setLines((prev) => [line, ...prev]);
+    setLines((p) => [line, ...p]);
+    setActiveLine(line);
+    setFromLine(line);
     setTab('numbers');
-    setView({ kind: 'line-settings', lineId: line.id });
+    setView('line-detail');
   };
 
-  const releaseLine = (id: string) => {
-    setLines((prev) => prev.filter((l) => l.id !== id));
-    setView({ kind: 'main' });
+  const openLine = (line: Line) => {
+    setActiveLine(line);
+    setRenameVal(line.label);
+    setShowRename(false);
+    setView('line-detail');
+  };
+
+  const patchLine = (patch: Partial<Line>) => {
+    if (!activeLine) return;
+    const next = { ...activeLine, ...patch };
+    setActiveLine(next);
+    setLines((p) => p.map((l) => (l.id === next.id ? next : l)));
+    if (fromLine?.id === next.id) setFromLine(next);
+  };
+
+  const renew = (d: Duration) => {
+    if (!activeLine) return;
+    const base = new Date(activeLine.expiresAt);
+    const from = base.getTime() > Date.now() ? base : new Date();
+    from.setDate(from.getDate() + d.days);
+    patchLine({ expiresAt: from.toISOString() });
+  };
+
+  const release = () => {
+    if (!activeLine) return;
+    setLines((p) => p.filter((l) => l.id !== activeLine.id));
+    if (fromLine?.id === activeLine.id) setFromLine(null);
+    setActiveLine(null);
+    setView('main');
     setTab('numbers');
   };
 
-  const handleHeaderBack = () => {
-    if (view.kind === 'main') onBack();
-    else if (view.kind === 'buy-country') setView({ kind: 'main' });
-    else if (view.kind === 'buy-numbers') setView({ kind: 'buy-country' });
-    else if (view.kind === 'buy-period') setView({ kind: 'buy-numbers', country: view.country });
-    else if (view.kind === 'line-settings') setView({ kind: 'main' });
+  const copyNum = async () => {
+    if (!activeLine) return;
+    try {
+      await navigator.clipboard.writeText(activeLine.number.replace(/\s/g, ''));
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1600);
+    } catch {
+      setCopied(false);
+    }
   };
 
-  const headerTitle =
-    view.kind === 'main'
+  const headerBack = () => {
+    if (view === 'main') onBack();
+    else if (view === 'buy-country') setView('main');
+    else if (view === 'buy-duration') setView('buy-country');
+    else if (view === 'buy-confirm') setView('buy-duration');
+    else if (view === 'line-detail') {
+      setView('main');
+      setTab('numbers');
+    }
+  };
+
+  const title =
+    view === 'main'
       ? tab === 'calls'
         ? 'Calls'
         : tab === 'messages'
           ? 'Messages'
           : tab === 'numbers'
-            ? 'Numbers'
-            : 'Credit'
-      : view.kind === 'buy-country'
+            ? 'Phone Numbers'
+            : 'Wallet'
+      : view === 'buy-country'
         ? 'Rent a number'
-        : view.kind === 'buy-numbers'
-          ? view.country.name
-          : view.kind === 'buy-period'
-            ? 'Choose period'
+        : view === 'buy-duration'
+          ? 'Rental period'
+          : view === 'buy-confirm'
+            ? 'Confirm'
             : 'Number settings';
 
-  /* ——— Buy: country ——— */
-  if (view.kind === 'buy-country') {
-    return (
-      <div className="rental-page">
-        <header className="rental-header">
-          <button type="button" className="rental-icon-button" onClick={handleHeaderBack} aria-label="Back">
-            <ArrowLeft size={20} />
-          </button>
-          <h1 className="rental-page-title">{headerTitle}</h1>
-          <span className="rental-head-spacer" />
-        </header>
-        <div className="rental-content">
-          <div className="contact-search">
-            <Search size={16} />
-            <input
-              value={countrySearch}
-              onChange={(e) => setCountrySearch(e.target.value)}
-              placeholder="Search country"
-              autoFocus
-            />
-          </div>
-          <p className="rental-hint-inline">
-            <ShieldAlert size={14} /> VoIP may be restricted on some apps. Non-VoIP usually works better.
-          </p>
-          <div className="sheet-list inline-list">
-            {filteredCountries.map((c) => (
-              <button type="button" className="sheet-row" key={c.code} onClick={() => selectBuyCountry(c)}>
-                <span className="country-flag">{c.flag}</span>
-                <div>
-                  <strong>{c.name}</strong>
-                  <small>
-                    <span className={c.type === 'Non-VoIP' ? 'type-good' : 'type-warn'}>{c.type}</span>
-                    {' · '}Voice + SMS where supported
-                  </small>
-                </div>
-                <span className="country-dial">{c.dial}</span>
-              </button>
-            ))}
-            {!filteredCountries.length && <div className="sheet-empty">No countries match</div>}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  /* ——— Buy: numbers for country ——— */
-  if (view.kind === 'buy-numbers') {
-    const nums = demoNumbers(view.country).filter(
-      (n) =>
-        !numberSearch.trim() ||
-        n.number.includes(numberSearch.trim()) ||
-        n.area.toLowerCase().includes(numberSearch.trim().toLowerCase()),
-    );
-    return (
-      <div className="rental-page">
-        <header className="rental-header">
-          <button type="button" className="rental-icon-button" onClick={handleHeaderBack} aria-label="Back">
-            <ArrowLeft size={20} />
-          </button>
-          <h1 className="rental-page-title">
-            {view.country.flag} {view.country.name}
-          </h1>
-          <span className="rental-head-spacer" />
-        </header>
-        <div className="rental-content">
-          <div className="contact-search">
-            <Search size={16} />
-            <input
-              value={numberSearch}
-              onChange={(e) => setNumberSearch(e.target.value)}
-              placeholder="Search area or number"
-            />
-          </div>
-          <div className="sheet-list inline-list">
-            {nums.map((n) => (
-              <button
-                type="button"
-                className="sheet-row"
-                key={n.id}
-                onClick={() => selectNumber(view.country, n)}
-              >
-                <span className="line-icon">{view.country.flag}</span>
-                <div>
-                  <strong>{n.number}</strong>
-                  <small>
-                    {n.area} · from {money(n.monthlyFrom)}/mo
-                  </small>
-                </div>
-                <span className="row-chevron">›</span>
-              </button>
-            ))}
-            {!nums.length && (
-              <div className="sheet-empty">No numbers match. Live inventory appears when a provider is connected.</div>
-            )}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  /* ——— Buy: period ——— */
-  if (view.kind === 'buy-period') {
-    return (
-      <div className="rental-page">
-        <header className="rental-header">
-          <button type="button" className="rental-icon-button" onClick={handleHeaderBack} aria-label="Back">
-            <ArrowLeft size={20} />
-          </button>
-          <h1 className="rental-page-title">Choose period</h1>
-          <span className="rental-head-spacer" />
-        </header>
-        <div className="rental-content">
-          <div className="period-number-card">
-            <strong>{view.number.number}</strong>
-            <small>
-              {view.country.flag} {view.country.name} · {view.number.area} · {view.country.type}
-            </small>
-          </div>
-          <ul className="package-list">
-            {PERIODS.map((p) => {
-              const price = view.number.monthlyFrom * p.mult;
-              return (
-                <li key={p.id}>
-                  <button
-                    type="button"
-                    className="package-row"
-                    onClick={() => confirmRent(view.country, view.number, p.days)}
-                  >
-                    <div>
-                      <strong>{p.label}</strong>
-                      <small>Wallet debit · demo assign</small>
-                    </div>
-                    <span>{money(price)} ›</span>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-          <p className="rental-footnote">
-            Demo only. Live rent will charge your Verxor wallet and provision via the rental provider.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  /* ——— Line settings (Call.com number settings) ——— */
-  if (view.kind === 'line-settings' && activeLine) {
-    return (
-      <div className="rental-page">
-        <header className="rental-header">
-          <button type="button" className="rental-icon-button" onClick={handleHeaderBack} aria-label="Back">
-            <ArrowLeft size={20} />
-          </button>
-          <h1 className="rental-page-title">Settings</h1>
-          <span className="rental-head-spacer" />
-        </header>
-
-        <div className="line-settings-hero">
-          <span className="line-settings-flag">{activeLine.flag}</span>
-          <strong>{activeLine.label}</strong>
-          <p>{activeLine.number}</p>
-          <small>
-            Exp. {formatExp(activeLine.expiresAt)} · {activeLine.type}
-          </small>
-        </div>
-
-        <div className="settings-group">
-          <button
-            type="button"
-            className="settings-row"
-            onClick={() => {
-              setRenewOpen(true);
-            }}
-          >
-            <Clock size={18} />
-            <div>
-              <strong>Renew</strong>
-              <small>Extend this number</small>
-            </div>
-            <span className="row-chevron">›</span>
-          </button>
-
-          <button
-            type="button"
-            className="settings-row"
-            onClick={() => {
-              setRenameValue(activeLine.label);
-              setRenameOpen(true);
-            }}
-          >
-            <UserRound size={18} />
-            <div>
-              <strong>Rename</strong>
-              <small>{activeLine.label}</small>
-            </div>
-            <span className="row-chevron">›</span>
-          </button>
-
-          <button
-            type="button"
-            className="settings-row"
-            onClick={() => updateLine(activeLine.id, { dnd: !activeLine.dnd })}
-          >
-            {activeLine.dnd ? <BellOff size={18} /> : <Bell size={18} />}
-            <div>
-              <strong>Do not disturb</strong>
-              <small>{activeLine.dnd ? 'On' : 'Off'}</small>
-            </div>
-            <span className={`toggle-pill ${activeLine.dnd ? 'on' : ''}`} />
-          </button>
-
-          <button
-            type="button"
-            className="settings-row"
-            onClick={() => updateLine(activeLine.id, { voicemail: !activeLine.voicemail })}
-          >
-            {activeLine.voicemail ? <Mic size={18} /> : <MicOff size={18} />}
-            <div>
-              <strong>Voicemail</strong>
-              <small>{activeLine.voicemail ? 'Enabled' : 'Off'} · greeting when provider supports it</small>
-            </div>
-            <span className={`toggle-pill ${activeLine.voicemail ? 'on' : ''}`} />
-          </button>
-
-          <button
-            type="button"
-            className="settings-row"
-            onClick={() => {
-              setForwardValue(activeLine.callForward ?? '');
-              setForwardOpen('call');
-            }}
-          >
-            <PhoneForwarded size={18} />
-            <div>
-              <strong>Call forwarding</strong>
-              <small>{activeLine.callForward ?? 'Off'}</small>
-            </div>
-            <span className="row-chevron">›</span>
-          </button>
-
-          <button
-            type="button"
-            className="settings-row"
-            onClick={() => {
-              setForwardValue(activeLine.smsForward ?? '');
-              setForwardOpen('sms');
-            }}
-          >
-            <MessageSquare size={18} />
-            <div>
-              <strong>SMS forwarding</strong>
-              <small>{activeLine.smsForward ?? 'Off · email or mobile'}</small>
-            </div>
-            <span className="row-chevron">›</span>
-          </button>
-
-          <button type="button" className="settings-row" disabled>
-            <Settings2 size={18} />
-            <div>
-              <strong>Transfer number</strong>
-              <small>Move to another account · coming with live API</small>
-            </div>
-          </button>
-        </div>
-
-        <button type="button" className="delete-line-btn" onClick={() => releaseLine(activeLine.id)}>
-          <Trash2 size={17} />
-          Delete / release number
-        </button>
-
-        {/* Renew sheet */}
-        {renewOpen && (
-          <div className="sheet-layer">
-            <button type="button" className="sheet-backdrop" onClick={() => setRenewOpen(false)} aria-label="Close" />
-            <div className="sheet">
-              <div className="sheet-head">
-                <h2>Renew</h2>
-                <button type="button" onClick={() => setRenewOpen(false)} aria-label="Close">
-                  <X size={20} />
-                </button>
-              </div>
-              <ul className="package-list sheet-packages">
-                {PERIODS.map((p) => (
-                  <li key={p.id}>
-                    <button
-                      type="button"
-                      className="package-row"
-                      onClick={() => {
-                        const base = new Date(activeLine.expiresAt);
-                        const from = base.getTime() > Date.now() ? base : new Date();
-                        from.setDate(from.getDate() + p.days);
-                        updateLine(activeLine.id, { expiresAt: from.toISOString() });
-                        setRenewOpen(false);
-                      }}
-                    >
-                      <div>
-                        <strong>+{p.label}</strong>
-                        <small>Extend from current expiry</small>
-                      </div>
-                      <span>Apply ›</span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-        )}
-
-        {/* Rename sheet */}
-        {renameOpen && (
-          <div className="sheet-layer">
-            <button type="button" className="sheet-backdrop" onClick={() => setRenameOpen(false)} aria-label="Close" />
-            <div className="sheet">
-              <div className="sheet-head">
-                <h2>Rename</h2>
-                <button type="button" onClick={() => setRenameOpen(false)} aria-label="Close">
-                  <X size={20} />
-                </button>
-              </div>
-              <div className="sheet-form">
-                <input
-                  className="sheet-input"
-                  value={renameValue}
-                  onChange={(e) => setRenameValue(e.target.value)}
-                  maxLength={40}
-                  autoFocus
-                />
-                <button
-                  type="button"
-                  className="blue-pill full"
-                  onClick={() => {
-                    if (renameValue.trim()) updateLine(activeLine.id, { label: renameValue.trim() });
-                    setRenameOpen(false);
-                  }}
-                >
-                  Save
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Forward sheet */}
-        {forwardOpen && (
-          <div className="sheet-layer">
-            <button type="button" className="sheet-backdrop" onClick={() => setForwardOpen(null)} aria-label="Close" />
-            <div className="sheet">
-              <div className="sheet-head">
-                <h2>{forwardOpen === 'call' ? 'Call forwarding' : 'SMS forwarding'}</h2>
-                <button type="button" onClick={() => setForwardOpen(null)} aria-label="Close">
-                  <X size={20} />
-                </button>
-              </div>
-              <div className="sheet-form">
-                <input
-                  className="sheet-input"
-                  value={forwardValue}
-                  onChange={(e) => setForwardValue(e.target.value)}
-                  placeholder={forwardOpen === 'call' ? 'Forward to phone number' : 'Email or mobile'}
-                  autoFocus
-                />
-                <button
-                  type="button"
-                  className="blue-pill full"
-                  onClick={() => {
-                    const v = forwardValue.trim() || null;
-                    if (forwardOpen === 'call') updateLine(activeLine.id, { callForward: v });
-                    else updateLine(activeLine.id, { smsForward: v });
-                    setForwardOpen(null);
-                  }}
-                >
-                  Save
-                </button>
-                <button
-                  type="button"
-                  className="text-clear"
-                  onClick={() => {
-                    if (forwardOpen === 'call') updateLine(activeLine.id, { callForward: null });
-                    else updateLine(activeLine.id, { smsForward: null });
-                    setForwardOpen(null);
-                  }}
-                >
-                  Turn off
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  /* ——— Main workspace (Call.com tabs) ——— */
   return (
-    <div className="rental-page">
-      <header className="rental-header">
-        <button type="button" className="rental-icon-button" onClick={onBack} aria-label="Back to Verxor">
+    <div className="rl-page">
+      <header className="rl-header">
+        <button type="button" className="rl-icon" onClick={headerBack} aria-label="Back">
           <ArrowLeft size={20} />
         </button>
-        <h1 className="rental-page-title">{headerTitle}</h1>
-        <div className="rental-head-actions">
-          {(tab === 'calls' || tab === 'numbers') && (
-            <button type="button" className="rental-icon-button primary" onClick={startBuy} aria-label="Rent number">
+        <h1>{title}</h1>
+        <div className="rl-header-right">
+          {view === 'main' && (tab === 'calls' || tab === 'numbers') && (
+            <button type="button" className="rl-icon primary" onClick={openBuy} aria-label="Rent number">
               <Plus size={22} strokeWidth={2.2} />
             </button>
           )}
-          {tab === 'messages' && (
-            <button type="button" className="rental-icon-button primary" aria-label="New message">
+          {view === 'main' && tab === 'messages' && (
+            <button type="button" className="rl-icon primary" aria-label="New message">
               <MessageSquare size={20} />
             </button>
           )}
-          {tab === 'credit' && <span className="rental-head-spacer" />}
+          {view !== 'main' && <span className="rl-spacer" />}
         </div>
       </header>
 
-      {tab === 'calls' && (
+      {/* ——— MAIN WORKSPACE ——— */}
+      {view === 'main' && (
         <>
-          {callSub === 'history' && (
-            <section className="rental-content">
-              <h3>Favorites</h3>
-              {hint && (
-                <div className="favorite-hint">
-                  <span>☆</span>
-                  <p>Star contacts to show them here for quick dial.</p>
-                  <button type="button" onClick={() => setHint(false)} aria-label="Dismiss">
-                    ×
-                  </button>
-                </div>
+          {tab === 'calls' && (
+            <>
+              {callSub === 'history' && (
+                <section className="rl-body">
+                  <h3 className="rl-section-title">Favorites</h3>
+                  {favHint && (
+                    <div className="rl-hint-card">
+                      <span>☆</span>
+                      <p>Star contacts to see them here for faster calling.</p>
+                      <button type="button" onClick={() => setFavHint(false)} aria-label="Dismiss">
+                        ×
+                      </button>
+                    </div>
+                  )}
+                  <div className="rl-row-head">
+                    <h3 className="rl-section-title">Recents</h3>
+                    <div className="rl-row-actions">
+                      <button type="button" aria-label="Filter">
+                        <Filter size={18} />
+                      </button>
+                      <button type="button" aria-label="More">
+                        <MoreVertical size={18} />
+                      </button>
+                    </div>
+                  </div>
+                  <Empty
+                    icon={<Clock size={40} strokeWidth={1.25} />}
+                    title="No call history"
+                    text="Rent a number, then outbound and inbound calls appear here."
+                    action={
+                      <button type="button" className="rl-pill" onClick={openBuy}>
+                        Rent a number
+                      </button>
+                    }
+                  />
+                </section>
               )}
-              <div className="recent-head">
-                <h3>Recents</h3>
-                <div>
-                  <button type="button" aria-label="Filter">
-                    <Filter size={18} />
+
+              {callSub === 'contacts' && (
+                <section className="rl-body">
+                  <div className="rl-search">
+                    <Search size={16} />
+                    <input
+                      value={contactQ}
+                      onChange={(e) => setContactQ(e.target.value)}
+                      placeholder="Search contacts"
+                    />
+                  </div>
+                  {contacts.length === 0 ? (
+                    <Empty
+                      icon={<Users size={40} strokeWidth={1.25} />}
+                      title="No contacts yet"
+                      text="Your rented lines and synced contacts will show here."
+                    />
+                  ) : (
+                    <ul className="rl-contact-list">
+                      {contacts.map((l) => (
+                        <li key={l.id}>
+                          <div className="rl-avatar">{l.label.charAt(0).toUpperCase()}</div>
+                          <div>
+                            <strong>{l.label}</strong>
+                            <small>{l.number}</small>
+                          </div>
+                          <button
+                            type="button"
+                            className="rl-call-mini"
+                            onClick={() => {
+                              setFromLine(l);
+                              setCallSub('keypad');
+                            }}
+                            aria-label={`Call ${l.label}`}
+                          >
+                            <Phone size={18} />
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </section>
+              )}
+
+              {callSub === 'keypad' && (
+                <section className="rl-keypad">
+                  <button type="button" className="rl-from-pill" onClick={() => setShowFromSheet(true)}>
+                    {fromLine ? fromLine.label : 'Select line'}
+                    <ChevronDown size={14} />
                   </button>
-                  <button type="button" aria-label="More">
-                    <MoreVertical size={18} />
+                  <div className="rl-dial-display">
+                    <button type="button" onClick={() => setShowDialCountry(true)}>
+                      {dialCountry.flag}
+                      <ChevronDown size={14} />
+                    </button>
+                    <span>{dial || dialCountry.dial}</span>
+                  </div>
+                  <div className="rl-dial-grid">
+                    {KEYS.map(({ digit, letters }) => (
+                      <button
+                        type="button"
+                        key={digit}
+                        onClick={() => setDial((d) => (d.length >= 18 ? d : d + digit))}
+                      >
+                        <strong>{digit}</strong>
+                        <small>{letters || '\u00A0'}</small>
+                      </button>
+                    ))}
+                  </div>
+                  <div className="rl-dial-actions">
+                    <div />
+                    <button type="button" className="rl-call-btn" aria-label="Call">
+                      <Phone size={26} fill="#fff" strokeWidth={0} />
+                    </button>
+                    <button
+                      type="button"
+                      className="rl-del-btn"
+                      onClick={() => setDial((d) => d.slice(0, -1))}
+                      aria-label="Delete"
+                    >
+                      <Delete size={17} />
+                    </button>
+                  </div>
+                  <button type="button" className="rl-browse" onClick={openBuy}>
+                    <Hash size={14} /> Browse & rent numbers
                   </button>
-                </div>
+                </section>
+              )}
+
+              <div className="rl-call-subnav">
+                {(
+                  [
+                    { id: 'history' as const, label: 'History', Icon: Clock },
+                    { id: 'contacts' as const, label: 'Contacts', Icon: Users },
+                    { id: 'keypad' as const, label: 'Keypad', Icon: Grid3X3 },
+                  ] as const
+                ).map(({ id, label, Icon }) => (
+                  <button
+                    type="button"
+                    key={id}
+                    className={callSub === id ? 'active' : ''}
+                    onClick={() => setCallSub(id)}
+                  >
+                    <Icon size={16} />
+                    {label}
+                  </button>
+                ))}
               </div>
-              <EmptyState
-                title="No call history"
-                text="Rent a number, then outbound and inbound calls appear here."
-                icon={<Clock size={40} />}
-                action={
-                  <button type="button" className="blue-pill" onClick={startBuy}>
-                    Rent a number
-                  </button>
-                }
+            </>
+          )}
+
+          {tab === 'messages' && (
+            <section className="rl-body">
+              <div className="rl-search">
+                <Search size={16} />
+                <input value={msgQ} onChange={(e) => setMsgQ(e.target.value)} placeholder="Search" />
+              </div>
+              <Empty
+                icon={<MessageSquare size={48} strokeWidth={1.25} />}
+                title="No messages yet"
+                text="SMS to and from your rented numbers will appear here."
               />
             </section>
           )}
 
-          {callSub === 'contacts' && (
-            <section className="rental-content">
-              <div className="contact-search">
-                <Search size={16} />
-                <input
-                  value={contactSearch}
-                  onChange={(e) => setContactSearch(e.target.value)}
-                  placeholder="Search contacts"
-                />
+          {tab === 'numbers' && (
+            <section className="rl-body">
+              <div className="rl-notice">
+                <ShieldAlert size={15} />
+                <span>
+                  VoIP may be blocked on strict apps. Non-VoIP is usually more compatible. Voice + SMS where the
+                  provider supports them.
+                </span>
               </div>
               {lines.length === 0 ? (
-                <EmptyState
-                  title="No contacts yet"
-                  text="Import device contacts or add people after you rent a line."
-                  icon={<Users size={40} />}
+                <Empty
+                  icon={<Hash size={48} strokeWidth={1.25} />}
+                  title="No numbers yet"
+                  text="Rent a virtual number for calls and SMS. Active numbers, expiry and status show here."
+                  action={
+                    <button type="button" className="rl-pill" onClick={openBuy}>
+                      Rent a number
+                    </button>
+                  }
                 />
               ) : (
-                <ul className="contact-list">
-                  {lines
-                    .filter(
-                      (l) =>
-                        !contactSearch.trim() ||
-                        l.label.toLowerCase().includes(contactSearch.toLowerCase()) ||
-                        l.number.replace(/\s/g, '').includes(contactSearch.replace(/\s/g, '')),
-                    )
-                    .map((l) => (
-                      <li key={l.id}>
-                        <div className="contact-avatar">{l.label.charAt(0)}</div>
-                        <div>
+                <ul className="rl-number-list">
+                  {lines.map((l) => (
+                    <li key={l.id}>
+                      <button type="button" className="rl-number-row" onClick={() => openLine(l)}>
+                        <span className="rl-flag">{l.flag}</span>
+                        <span>
                           <strong>{l.label}</strong>
                           <small>{l.number}</small>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setFromLine({
-                              id: l.id,
-                              label: l.label,
-                              number: l.number,
-                              flag: l.flag,
-                              type: 'rented',
-                            });
-                            setCallSub('keypad');
-                          }}
-                          aria-label={`Call from ${l.label}`}
-                        >
-                          <Phone size={18} />
-                        </button>
-                      </li>
-                    ))}
+                          <small className="rl-exp">
+                            Exp. {formatExp(l.expiresAt)} ·{' '}
+                            <em className={l.type === 'Non-VoIP' ? 'good' : 'warn'}>{l.type}</em>
+                          </small>
+                        </span>
+                        <ChevronRight size={18} />
+                      </button>
+                    </li>
+                  ))}
                 </ul>
               )}
             </section>
           )}
 
-          {callSub === 'keypad' && (
-            <section className="keypad-section">
-              <button type="button" className="from-pill" onClick={() => setShowFrom(true)}>
-                {fromLine.label}
-                <ChevronDown size={14} />
-              </button>
-              <div className="dial-display">
-                <button type="button" onClick={() => setShowDialCountry(true)}>
-                  {dialCountry.flag}
-                  <ChevronDown size={14} />
-                </button>
-                <span>{dial || dialCountry.dial}</span>
-              </div>
-              <div className="dial-grid">
-                {KEYS.map(({ digit, letters }) => (
-                  <button
-                    type="button"
-                    key={digit}
-                    onClick={() => setDial((d) => (d.length >= 18 ? d : d + digit))}
-                  >
-                    <strong>{digit}</strong>
-                    <small>{letters || '\u00A0'}</small>
-                  </button>
-                ))}
-              </div>
-              <div className="dial-actions">
-                <div className="dial-spacer" />
-                <button type="button" className="call-button" aria-label="Call">
-                  <Phone size={27} fill="white" strokeWidth={0} />
-                </button>
-                <button
-                  type="button"
-                  className="delete-button"
-                  onClick={() => setDial((d) => d.slice(0, -1))}
-                  aria-label="Delete"
-                >
-                  <Delete size={17} />
+          {tab === 'wallet' && (
+            <section className="rl-body rl-wallet">
+              <div className="rl-wallet-card">
+                <small>Available balance</small>
+                <strong>$0.00</strong>
+                <button type="button" className="rl-wallet-fund" onClick={onBack}>
+                  <Wallet size={14} /> Fund wallet in Verxor
                 </button>
               </div>
-              <button type="button" className="browse-pill" onClick={startBuy}>
-                <Hash size={14} /> Browse & rent numbers
-              </button>
+              <p className="rl-wallet-note">
+                Rentals are paid from your Verxor wallet. There is no separate call-credit balance.
+              </p>
             </section>
           )}
 
-          <div className="calls-subnav">
+          <nav className="rl-tabs" aria-label="Rental navigation">
             {(
               [
-                { id: 'history' as const, label: 'History', icon: Clock },
-                { id: 'contacts' as const, label: 'Contacts', icon: Users },
-                { id: 'keypad' as const, label: 'Keypad', icon: Grid3X3 },
+                ['calls', 'Calls', Phone],
+                ['messages', 'Messages', MessageSquare],
+                ['numbers', 'Numbers', Hash],
+                ['wallet', 'Wallet', Wallet],
               ] as const
-            ).map(({ id, label, icon: Icon }) => (
+            ).map(([id, label, Icon]) => (
               <button
                 type="button"
                 key={id}
-                className={callSub === id ? 'active' : ''}
-                onClick={() => setCallSub(id)}
+                className={tab === id ? 'active' : ''}
+                onClick={() => setTab(id)}
               >
-                <Icon size={16} />
-                {label}
+                <Icon size={20} strokeWidth={tab === id ? 2.3 : 1.75} />
+                <span>{label}</span>
               </button>
             ))}
-          </div>
+          </nav>
         </>
       )}
 
-      {tab === 'messages' && (
-        <section className="rental-content">
-          <div className="contact-search">
+      {/* ——— BUY: COUNTRY ——— */}
+      {view === 'buy-country' && (
+        <section className="rl-body">
+          <p className="rl-lead">Choose a country for your dedicated line.</p>
+          <div className="rl-search">
             <Search size={16} />
-            <input placeholder="Search messages" />
-          </div>
-          <EmptyState
-            title="No messages yet"
-            text="SMS on your rented numbers appear here. Tap + after you have a line."
-            icon={<MessageSquare size={48} strokeWidth={1.25} />}
-            action={
-              lines.length === 0 ? (
-                <button type="button" className="blue-pill" onClick={startBuy}>
-                  Rent a number
-                </button>
-              ) : undefined
-            }
-          />
-        </section>
-      )}
-
-      {tab === 'numbers' && (
-        <section className="rental-content">
-          <div className="numbers-section-title">
-            <h3>Phone numbers</h3>
-            <button type="button" className="rental-icon-button primary" onClick={startBuy} aria-label="Add number">
-              <Plus size={20} />
-            </button>
-          </div>
-          {lines.length === 0 ? (
-            <EmptyState
-              title="No numbers yet"
-              text="Rent a virtual number for calls and SMS. Active numbers, expiry and settings appear here."
-              icon={<Hash size={48} strokeWidth={1.25} />}
-              action={
-                <button type="button" className="blue-pill" onClick={startBuy}>
-                  Rent a number
-                </button>
-              }
+            <input
+              value={countryQ}
+              onChange={(e) => setCountryQ(e.target.value)}
+              placeholder="Search country"
+              autoFocus
             />
-          ) : (
-            <ul className="number-owned-list">
-              {lines.map((l) => (
-                <li key={l.id}>
-                  <button type="button" className="number-owned-row" onClick={() => setView({ kind: 'line-settings', lineId: l.id })}>
-                    <span className="country-flag">{l.flag}</span>
-                    <div>
-                      <strong>{l.label}</strong>
-                      <small>{l.number}</small>
-                      <small className="exp-line">Exp. {formatExp(l.expiresAt)}</small>
-                    </div>
-                    <span className="row-chevron">›</span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-      )}
-
-      {tab === 'credit' && (
-        <section className="rental-content credit-section">
-          <div className="credit-hero">
-            <small>Wallet balance</small>
-            <strong>$0.00</strong>
-            <button type="button" className="credit-topup" onClick={onBack}>
-              <Wallet size={14} /> Fund Verxor wallet
-            </button>
           </div>
-          <p className="credit-note">
-            Rentals and renewals are paid from your main Verxor wallet — no separate call-credit packs.
-          </p>
-          <h3>How billing works</h3>
-          <ul className="credit-bullets">
-            <li>Choose country and number</li>
-            <li>Pick 7 days, 30 days, 90 days or 12 months</li>
-            <li>Wallet is debited when the provider confirms</li>
-          </ul>
+          <div className="rl-country-list">
+            {filteredCountries.map((c) => (
+              <button
+                type="button"
+                key={c.code}
+                className="rl-country-row"
+                onClick={() => {
+                  setBuyCountry(c);
+                  setBuyDuration(null);
+                  setView('buy-duration');
+                }}
+              >
+                <span className="rl-flag">{c.flag}</span>
+                <span>
+                  <strong>{c.name}</strong>
+                  <small>
+                    {c.dial} · <em className={c.type === 'Non-VoIP' ? 'good' : 'warn'}>{c.type}</em> · from{' '}
+                    {money(c.fromPrice)}/7d
+                  </small>
+                </span>
+                <ChevronRight size={18} />
+              </button>
+            ))}
+            {!filteredCountries.length && <div className="rl-sheet-empty">No countries match</div>}
+          </div>
         </section>
       )}
 
-      <nav className="rental-tabs" aria-label="Rental navigation">
-        {(
-          [
-            ['calls', 'Calls', Phone],
-            ['messages', 'Messages', MessageSquare],
-            ['numbers', 'Numbers', Hash],
-            ['credit', 'Credit', Wallet],
-          ] as const
-        ).map(([id, label, Icon]) => (
-          <button
-            type="button"
-            key={id}
-            className={tab === id ? 'active' : ''}
-            onClick={() => {
-              setTab(id);
-              setView({ kind: 'main' });
-            }}
-          >
-            <Icon size={20} strokeWidth={tab === id ? 2.3 : 1.75} />
-            <span>{label}</span>
-          </button>
-        ))}
-      </nav>
+      {/* ——— BUY: DURATION ——— */}
+      {view === 'buy-duration' && buyCountry && (
+        <section className="rl-body">
+          <p className="rl-lead">
+            {buyCountry.flag} {buyCountry.name} · {buyCountry.type}
+          </p>
+          <div className="rl-duration-list">
+            {DURATIONS.map((d) => (
+              <button
+                type="button"
+                key={d.id}
+                className="rl-duration-row"
+                onClick={() => {
+                  setBuyDuration(d);
+                  setView('buy-confirm');
+                }}
+              >
+                <span>
+                  <strong>{d.label}</strong>
+                  <small>Voice + SMS where supported</small>
+                </span>
+                <span className="rl-price">
+                  {money(priceOf(buyCountry, d))}
+                  <ChevronRight size={16} />
+                </span>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
 
-      {/* From line sheet */}
-      {showFrom && (
-        <div className="sheet-layer">
-          <button type="button" className="sheet-backdrop" onClick={() => setShowFrom(false)} aria-label="Close" />
-          <div className="sheet">
-            <div className="sheet-head">
+      {/* ——— BUY: CONFIRM ——— */}
+      {view === 'buy-confirm' && buyCountry && buyDuration && (
+        <section className="rl-body">
+          <div className="rl-confirm-card">
+            <div>
+              <span>Country</span>
+              <strong>
+                {buyCountry.flag} {buyCountry.name}
+              </strong>
+            </div>
+            <div>
+              <span>Type</span>
+              <strong className={buyCountry.type === 'Non-VoIP' ? 'good' : 'warn'}>{buyCountry.type}</strong>
+            </div>
+            <div>
+              <span>Period</span>
+              <strong>{buyDuration.label}</strong>
+            </div>
+            <div className="total">
+              <span>Total</span>
+              <strong>{money(priceOf(buyCountry, buyDuration))}</strong>
+            </div>
+          </div>
+          <button type="button" className="rl-pill full" onClick={confirmBuy}>
+            Confirm & rent (demo)
+          </button>
+          <p className="rl-foot">Demo only. Live rent debits wallet and assigns a provider number.</p>
+        </section>
+      )}
+
+      {/* ——— LINE DETAIL / SETTINGS ——— */}
+      {view === 'line-detail' && activeLine && (
+        <section className="rl-body rl-detail">
+          <div className="rl-detail-head">
+            <span className="rl-detail-flag">{activeLine.flag}</span>
+            <strong>{activeLine.label}</strong>
+            <p>{activeLine.number}</p>
+            <button type="button" className="rl-copy" onClick={copyNum}>
+              {copied ? <Check size={14} /> : <Copy size={14} />}
+              {copied ? 'Copied' : 'Copy'}
+            </button>
+            <small>
+              Exp. {formatExp(activeLine.expiresAt)} ·{' '}
+              <em className={activeLine.type === 'Non-VoIP' ? 'good' : 'warn'}>{activeLine.type}</em>
+            </small>
+          </div>
+
+          <h3 className="rl-section-title">Settings</h3>
+          <div className="rl-settings">
+            <button
+              type="button"
+              className="rl-set-row"
+              onClick={() => {
+                setRenameVal(activeLine.label);
+                setShowRename(true);
+              }}
+            >
+              <UserRound size={18} />
+              <span>
+                <strong>Rename</strong>
+                <small>{activeLine.label}</small>
+              </span>
+              <ChevronRight size={16} />
+            </button>
+            <button type="button" className="rl-set-row" onClick={() => patchLine({ dnd: !activeLine.dnd })}>
+              <Phone size={18} />
+              <span>
+                <strong>Do not disturb</strong>
+                <small>{activeLine.dnd ? 'On' : 'Off'}</small>
+              </span>
+              <span className={`rl-switch ${activeLine.dnd ? 'on' : ''}`} />
+            </button>
+            <button
+              type="button"
+              className="rl-set-row"
+              onClick={() =>
+                patchLine({
+                  callForward: activeLine.callForward ? null : 'Set when provider is live',
+                })
+              }
+            >
+              <PhoneForwarded size={18} />
+              <span>
+                <strong>Call forwarding</strong>
+                <small>{activeLine.callForward ?? 'Off'}</small>
+              </span>
+              <ChevronRight size={16} />
+            </button>
+            <div className="rl-set-row static">
+              <Mic size={18} />
+              <span>
+                <strong>Voicemail</strong>
+                <small>Greeting & message leaving — provider dependent</small>
+              </span>
+            </div>
+            <div className="rl-set-row static">
+              <MessageSquare size={18} />
+              <span>
+                <strong>SMS forwarding</strong>
+                <small>Email / webhook when supported</small>
+              </span>
+            </div>
+          </div>
+
+          <h3 className="rl-section-title">Renew</h3>
+          <div className="rl-renew">
+            {DURATIONS.map((d) => (
+              <button type="button" key={d.id} className="rl-renew-chip" onClick={() => renew(d)}>
+                +{d.label}
+              </button>
+            ))}
+          </div>
+
+          <button type="button" className="rl-danger" onClick={release}>
+            <Trash2 size={17} /> Delete / release number
+          </button>
+        </section>
+      )}
+
+      {/* Sheets */}
+      {showFromSheet && (
+        <div className="rl-sheet-layer">
+          <button type="button" className="rl-sheet-bg" onClick={() => setShowFromSheet(false)} aria-label="Close" />
+          <div className="rl-sheet">
+            <div className="rl-sheet-head">
               <h2>Call from</h2>
-              <button type="button" onClick={() => setShowFrom(false)} aria-label="Close">
+              <button type="button" onClick={() => setShowFromSheet(false)} aria-label="Close">
                 <X size={20} />
               </button>
             </div>
-            {fromOptions.map((line) => (
-              <button
-                type="button"
-                className="sheet-row"
-                key={line.id}
-                onClick={() => {
-                  setFromLine(line);
-                  setShowFrom(false);
-                }}
-              >
-                <span className="line-icon">{line.type === 'sim' ? '▮' : line.flag}</span>
-                <div>
-                  <strong>{line.label}</strong>
-                  <small>{line.number}</small>
-                </div>
-                {fromLine.id === line.id && <Check size={18} />}
-              </button>
-            ))}
+            {lines.length === 0 ? (
+              <div className="rl-sheet-empty">Rent a number first</div>
+            ) : (
+              lines.map((l) => (
+                <button
+                  type="button"
+                  key={l.id}
+                  className="rl-sheet-row"
+                  onClick={() => {
+                    setFromLine(l);
+                    setShowFromSheet(false);
+                  }}
+                >
+                  <span className="rl-flag">{l.flag}</span>
+                  <span>
+                    <strong>{l.label}</strong>
+                    <small>{l.number}</small>
+                  </span>
+                  {fromLine?.id === l.id && <Check size={18} />}
+                </button>
+              ))
+            )}
           </div>
         </div>
       )}
 
-      {/* Dial country sheet */}
       {showDialCountry && (
-        <div className="sheet-layer">
-          <button type="button" className="sheet-backdrop" onClick={() => setShowDialCountry(false)} aria-label="Close" />
-          <div className="sheet country-sheet">
-            <div className="sheet-head">
+        <div className="rl-sheet-layer">
+          <button type="button" className="rl-sheet-bg" onClick={() => setShowDialCountry(false)} aria-label="Close" />
+          <div className="rl-sheet">
+            <div className="rl-sheet-head">
               <h2>Select country</h2>
               <button type="button" onClick={() => setShowDialCountry(false)} aria-label="Close">
                 <X size={20} />
               </button>
             </div>
-            <div className="sheet-search">
-              <Search size={16} />
-              <input
-                value={countrySearch}
-                onChange={(e) => setCountrySearch(e.target.value)}
-                placeholder="Search country"
-                autoFocus
-              />
-            </div>
-            <div className="sheet-list">
-              {filteredCountries.map((c) => (
+            <div className="rl-sheet-scroll">
+              {COUNTRIES.map((c) => (
                 <button
                   type="button"
-                  className="sheet-row"
                   key={c.code}
+                  className="rl-sheet-row"
                   onClick={() => {
                     setDialCountry(c);
                     setDial('');
                     setShowDialCountry(false);
-                    setCountrySearch('');
                   }}
                 >
-                  <span className="country-flag">{c.flag}</span>
-                  <div>
+                  <span className="rl-flag">{c.flag}</span>
+                  <span>
                     <strong>{c.name}</strong>
-                  </div>
-                  <span className="country-dial">{c.dial}</span>
+                  </span>
+                  <span className="rl-dial-code">{c.dial}</span>
                   {dialCountry.code === c.code && <Check size={18} />}
                 </button>
               ))}
             </div>
+          </div>
+        </div>
+      )}
+
+      {showRename && activeLine && (
+        <div className="rl-sheet-layer">
+          <button type="button" className="rl-sheet-bg" onClick={() => setShowRename(false)} aria-label="Close" />
+          <div className="rl-sheet rl-sheet-compact">
+            <div className="rl-sheet-head">
+              <h2>Rename</h2>
+              <button type="button" onClick={() => setShowRename(false)} aria-label="Close">
+                <X size={20} />
+              </button>
+            </div>
+            <input
+              className="rl-rename-input"
+              value={renameVal}
+              onChange={(e) => setRenameVal(e.target.value)}
+              maxLength={40}
+              autoFocus
+            />
+            <button
+              type="button"
+              className="rl-pill full"
+              onClick={() => {
+                if (renameVal.trim()) patchLine({ label: renameVal.trim() });
+                setShowRename(false);
+              }}
+            >
+              Save
+            </button>
           </div>
         </div>
       )}
