@@ -14,6 +14,7 @@ import './styles.css';
 import './landing.css';
 import './app-overrides.css';
 import './community-refinements.css';
+import './fund-page.css';
 
 const services = [
   { title: 'Virtual Numbers', label: 'Instant OTP', description: 'Fast verification numbers for supported services.' },
