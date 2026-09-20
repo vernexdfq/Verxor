@@ -1,4 +1,4 @@
-import { BellRing, CheckCircle2, Clock3, KeyRound, ShieldCheck, WalletCards } from 'lucide-react';
+import { ArrowLeft, BellRing, CheckCircle2, Clock3, KeyRound, ShieldCheck, WalletCards } from 'lucide-react';
 import { Card } from './components/ui';
 import './service-pages.css';
 
@@ -19,7 +19,7 @@ const notifications: VerxorNotification[] = [];
 // this list from the authenticated user's OTP, order, wallet and security events.
 // Never expose another customer's numbers or OTP codes here.
 
-export function NotificationsPage() {
+export function NotificationsPage({ onBack }: { onBack: () => void }) {
   const unreadCount = notifications.filter((item) => item.unread).length;
 
   return (
