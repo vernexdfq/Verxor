@@ -80,12 +80,12 @@ function App() {
   }
 
   // Rental and Virtual Numbers own their focused product workspace shell.
-  const deepService = service === 'rental' || service === 'virtual-numbers';
+  const deepService = service === 'rental' || service === 'virtual-numbers' || service === 'alerts';
 
   const content =
     service === 'services' ? <ServicesPage open={setService} /> :
     service === 'rental' ? <RentalPage onBack={() => setService('services')} /> :
-    service === 'virtual-numbers' ? <VirtualNumbersPage onBack={() => setService('services')} /> :
+    service === 'virtual-numbers' ? <VirtualNumbersPage onBack={() => setService('services')} onOpenNotifications={() => setService('alerts')} /> :
     service === 'accounts' ? <AccountsPage onBack={() => setService('services')} /> :
     service ? <ServicePage view={service} onBack={() => setService('services')} /> :
     page === 'history' ? <ActivityLogsPage /> :
