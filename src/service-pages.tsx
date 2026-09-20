@@ -2,6 +2,7 @@ import { useMemo, useState, type ReactNode } from 'react';
 import { ArrowLeft, ArrowRight, CheckCircle2, Clock3, Gift, Headphones, Instagram, KeyRound, Mail, MessageCircle, Package, Phone, Search, Send, Users } from 'lucide-react';
 import { Card, PrimaryButton, SectionHeader } from './components/ui';
 import './service-pages.css';
+import { NotificationsPage } from './notifications-page';
 
 export type ServiceView = 'services' | 'virtual-numbers' | 'rental' | 'boost' | 'boost-orders' | 'accounts' | 'account-orders' | 'number-orders' | 'rewards' | 'affiliate' | 'alerts' | 'settings' | 'feedback' | 'help' | 'privacy';
 
@@ -81,7 +82,7 @@ export function ServicePage({ view, onBack }: { view: Exclude<ServiceView, 'serv
   if (view === 'account-orders') return <ServiceLayout title="Account orders" eyebrow="ORDERS" description="Review your account purchase history." onBack={onBack}><EmptyOrders icon={<Users size={18} />} title="No account orders" text="Your account purchases will appear here." /></ServiceLayout>;
   if (view === 'rewards') return <ServiceLayout title="Rewards" eyebrow="REWARDS" description="See your earned rewards and available benefits." onBack={onBack}><Card className="reward-card"><Gift size={22} /><div><small>Total rewards</small><strong>₦0.00</strong></div></Card><Card className="info-card"><CheckCircle2 size={18} /><div><strong>Rewards</strong><p>Eligible rewards will be reflected here automatically.</p></div></Card></ServiceLayout>;
   if (view === 'affiliate') return <ServiceLayout title="Affiliate" eyebrow="REFERRALS" description="Share your referral link and track eligible rewards." onBack={onBack}><Card className="referral-card"><small>Your referral link</small><strong>verxor.com/ref/your-link</strong><button className="copy-button">Copy link</button></Card></ServiceLayout>;
-  if (view === 'alerts') return <ServiceLayout title="Notifications" eyebrow="ACCOUNT" description="Important account and order updates appear here." onBack={onBack}><EmptyOrders icon={<MessageCircle size={18} />} title="You're all caught up" text="New security, payment and order updates will appear here." /></ServiceLayout>;
+  if (view === 'alerts') return <ServiceLayout title="Notifications" eyebrow="ACCOUNT" onBack={onBack}><NotificationsPage /></ServiceLayout>;
   if (view === 'settings') return <ServiceLayout title="Account & Security" eyebrow="ACCOUNT SETTINGS" description="Review your account region and security controls." onBack={onBack}><Card className="settings-list">
     <div className="setting-row"><div><strong>Currency & Region</strong><small>USD · Account region</small></div><ArrowRight size={17} /></div>
     <div className="setting-row"><div><strong>Password</strong><small>Update your password</small></div><ArrowRight size={17} /></div>
