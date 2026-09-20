@@ -1,0 +1,5 @@
+.topbar-context { min-width:0; flex:1 1 auto; display:flex; align-items:center; }
+.topbar-home .topbar-context { min-width:0; }
+.topbar:not(.topbar-home):not(.topbar-profile) .topbar-context { min-width:0; }
+.topbar-greeting { margin-left:0; }
+.topbar-actions { margin-left:auto; }
