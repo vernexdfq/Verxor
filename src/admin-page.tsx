@@ -129,7 +129,7 @@ export function AdminPage({ onBack }: AdminPageProps) {
                     <em>Not connected</em>
                   </li>
                   <li>
-                    <span>Paystack / funding</span>
+                    <span>Flutterwave / funding</span>
                     <em>Not connected</em>
                   </li>
                   <li>
@@ -202,7 +202,7 @@ export function AdminPage({ onBack }: AdminPageProps) {
         {section === 'providers' && (
           <section className="vx-admin-section">
             <p className="vx-admin-lead">
-              Upstream adapters (5SIM, TextVerified, SignalWire, etc.). Keys stay on the server —
+              Upstream provider adapters are managed behind the platform service layer. Provider credentials stay on the server —
               never in partner UIs.
             </p>
             <div className="vx-admin-empty tall">
@@ -233,7 +233,7 @@ export function AdminPage({ onBack }: AdminPageProps) {
                 <li>
                   <span>
                     <CreditCard size={14} style={{ display: 'inline', verticalAlign: 'middle' }} />{' '}
-                    Payout / Paystack
+                    Payout / Flutterwave
                   </span>
                   <em>Not connected</em>
                 </li>
