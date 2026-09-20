@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { Bell, Home, Moon, Smartphone, Sun, UserRound, WalletCards } from 'lucide-react';
 import { IconButton } from './ui';
 import { CommunityModal } from './CommunityModal';
+import './shell-refinements.css';
 import type { Page } from '../types';
 import type { ServiceView } from '../service-pages';
 
