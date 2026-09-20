@@ -1,25 +1,157 @@
 import { useMemo, useState } from 'react';
-import { ArrowDownLeft, ArrowUpRight, Clock3, FileText, Filter, History, Search } from 'lucide-react';
+import { ArrowDownLeft, ArrowUpRight, Clock3, Filter, Search, WalletCards } from 'lucide-react';
 import { Card } from './components/ui';
 import './product-pages.css';
 
 type LogFilter = 'All' | 'Wallet' | 'Numbers' | 'Rentals' | 'Accounts' | 'Boosts';
 
+type HistoryEntry = {
+  id: string;
+  title: string;
+  detail: string;
+  amount: string;
+  status: string;
+  date: string;
+  category: Exclude<LogFilter, 'All'>;
+  incoming?: boolean;
+};
+
+type HistorySummary = {
+  totalDeposited: string;
+  thisMonth: string;
+  serviceSpend: string;
+  currentBalance: string;
+  currency: string;
+};
+
+// The UI is ready for the authenticated ledger/API. Until that connection exists,
+// zero values are intentional; never manufacture customer financial history.
+const summary: HistorySummary = {
+  totalDeposited: '$0.00',
+  thisMonth: '$0.00',
+  serviceSpend: '$0.00',
+  currentBalance: '$0.00',
+  currency: 'USD',
+};
+
+const entries: HistoryEntry[] = [];
+
 export function ActivityLogsPage() {
   const [filter, setFilter] = useState<LogFilter>('All');
   const [query, setQuery] = useState('');
   const filters: LogFilter[] = ['All', 'Wallet', 'Numbers', 'Rentals', 'Accounts', 'Boosts'];
-  const results = useMemo(() => [], [filter, query]);
 
-  return <div className="logs-page">
-    <header className="product-heading"><span className="eyebrow">ACTIVITY</span><h1>History</h1><p>A clear record of wallet activity and every service order.</p></header>
-    <div className="logs-summary"><div><span className="logs-summary-icon"><History size={18} /></span><div><strong>All activity</strong><small>Payments, orders and account events</small></div></div><span className="logs-secure"><FileText size={14} /> Account record</span></div>
-    <label className="product-search full"><Search size={17} /><input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search by reference or service" /></label>
-    <div className="category-scroll log-filters">{filters.map(f => <button key={f} className={filter === f ? 'active' : ''} onClick={() => setFilter(f)}><Filter size={12} /> {f}</button>)}</div>
-    {results.length === 0 ? <Card className="product-empty logs-empty"><div><Clock3 size={20} /></div><strong>No activity yet</strong><p>Once you fund your wallet or place an order, the full record will appear here with its status, amount and reference.</p><button onClick={() => setFilter('All')}>Clear filters</button></Card> : <div className="log-list">{results.map((item: any) => <LogRow key={item.id} item={item} />)}</div>}
-  </div>;
+  const results = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return entries.filter((item) => {
+      const matchesFilter = filter === 'All' || item.category === filter;
+      const matchesQuery = !q || [item.id, item.title, item.detail, item.status].join(' ').toLowerCase().includes(q);
+      return matchesFilter && matchesQuery;
+    });
+  }, [filter, query]);
+
+  return (
+    <div className="logs-page">
+      <header className="product-heading">
+        <span className="eyebrow">ACTIVITY</span>
+        <h1>History</h1>
+        <p>Your wallet, deposits and service activity in one clear record.</p>
+      </header>
+
+      <section className="history-summary" aria-label="Account financial summary">
+        <SummaryCard label="Total deposited" value={summary.totalDeposited} />
+        <SummaryCard label="This month" value={summary.thisMonth} />
+        <SummaryCard label="Service spend" value={summary.serviceSpend} />
+        <SummaryCard label="Current balance" value={summary.currentBalance} />
+      </section>
+
+      <div className="history-account-note">
+        <WalletCards size={16} />
+        <span>Account currency · <strong>{summary.currency}</strong></span>
+      </div>
+
+      <div className="history-toolbar">
+        <label className="product-search full">
+          <Search size={17} />
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search by reference, service or description"
+            aria-label="Search history"
+          />
+        </label>
+
+        <div className="category-scroll log-filters" aria-label="History filters">
+          {filters.map((item) => (
+            <button
+              key={item}
+              className={filter === item ? 'active' : ''}
+              onClick={() => setFilter(item)}
+              type="button"
+            >
+              <Filter size={12} />
+              {item}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="history-section-head">
+        <div>
+          <span className="eyebrow">RECORD</span>
+          <h2>All activity</h2>
+        </div>
+        <span>{results.length} {results.length === 1 ? 'entry' : 'entries'}</span>
+      </div>
+
+      {results.length === 0 ? (
+        <Card className="product-empty logs-empty">
+          <div><Clock3 size={20} /></div>
+          <strong>{query || filter !== 'All' ? 'No matching activity' : 'No activity yet'}</strong>
+          <p>
+            {query || filter !== 'All'
+              ? 'Try another search or clear the selected filter.'
+              : 'Once you fund your wallet or place an order, your deposits, orders, status and references will appear here.'}
+          </p>
+          {(query || filter !== 'All') && (
+            <button type="button" onClick={() => { setQuery(''); setFilter('All'); }}>
+              Clear filters
+            </button>
+          )}
+        </Card>
+      ) : (
+        <div className="log-list">
+          {results.map((item) => <LogRow key={item.id} item={item} />)}
+        </div>
+      )}
+    </div>
+  );
 }
 
-function LogRow({ item }: { item: { id: string; title: string; detail: string; amount: string; status: string; incoming?: boolean } }) {
-  return <Card className="log-row"><span className={`log-icon ${item.incoming ? 'incoming' : ''}`}>{item.incoming ? <ArrowDownLeft size={16} /> : <ArrowUpRight size={16} />}</span><div className="log-copy"><strong>{item.title}</strong><small>{item.detail}</small></div><div className="log-value"><strong>{item.amount}</strong><small>{item.status}</small></div></Card>;
+function SummaryCard({ label, value }: { label: string; value: string }) {
+  return (
+    <Card className="history-summary-card">
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </Card>
+  );
+}
+
+function LogRow({ item }: { item: HistoryEntry }) {
+  return (
+    <Card className="log-row">
+      <span className={`log-icon ${item.incoming ? 'incoming' : ''}`}>
+        {item.incoming ? <ArrowDownLeft size={16} /> : <ArrowUpRight size={16} />}
+      </span>
+      <div className="log-copy">
+        <strong>{item.title}</strong>
+        <small>{item.detail}</small>
+        <span>{item.date} · {item.id}</span>
+      </div>
+      <div className="log-value">
+        <strong>{item.amount}</strong>
+        <small>{item.status}</small>
+      </div>
+    </Card>
+  );
 }
