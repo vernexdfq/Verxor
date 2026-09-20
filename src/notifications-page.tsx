@@ -1,4 +1,4 @@
-import { BellRing, CheckCircle2, Clock3, KeyRound, ShieldCheck, WalletCards } from 'lucide-react';
+import { ArrowLeft, BellRing, CheckCircle2, Clock3, KeyRound, ShieldCheck, WalletCards } from 'lucide-react';
 import { Card } from './components/ui';
 import './service-pages.css';
 
@@ -28,6 +28,17 @@ export function NotificationsPage({
 
   return (
     <div className="notifications-page">
+      <header className="notification-topbar">
+        <button type="button" className="notification-back" onClick={onBack} aria-label="Back">
+          <ArrowLeft size={19} aria-hidden="true" />
+        </button>
+        <strong>Notifications</strong>
+        <button type="button" className="notification-wallet" aria-label="Wallet balance">
+          <WalletCards size={16} aria-hidden="true" />
+          <span>$0.00</span>
+        </button>
+      </header>
+
       <section className="notification-heading">
         <div>
           <span className="eyebrow">ACCOUNT</span>
