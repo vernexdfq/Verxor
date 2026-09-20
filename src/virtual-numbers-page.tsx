@@ -5,20 +5,17 @@ import './virtual-numbers-page.css';
 import './virtual-numbers-refinements.css';
 
 type PoolId =
-  | 'usa-economy'
-  | 'usa-standard'
-  | 'worldwide-economy'
-  | 'worldwide-standard'
-  | 'usa-fast'
-  | 'usa-premium'
-  | 'worldwide-fast'
-  | 'worldwide-premium';
+  | 'usa-s1'
+  | 'usa-s2'
+  | 'worldwide-s1'
+  | 'worldwide-s2';
 
 type Pool = {
   id: PoolId;
   title: string;
-  kind: 'VoIP' | 'Non-VoIP';
+  server: 1 | 2;
   location: 'USA' | 'Worldwide';
+  hint: string;
 };
 
 type Country = {
@@ -43,18 +40,15 @@ type Service = {
   name: string;
 };
 
-const VOIP_POOLS: Pool[] = [
-  { id: 'usa-economy', title: 'USA · Economy', kind: 'VoIP', location: 'USA' },
-  { id: 'usa-standard', title: 'USA · Standard', kind: 'VoIP', location: 'USA' },
-  { id: 'worldwide-economy', title: 'Worldwide · Economy', kind: 'VoIP', location: 'Worldwide' },
-  { id: 'worldwide-standard', title: 'Worldwide · Standard', kind: 'VoIP', location: 'Worldwide' },
+/** Server 1 = lower cost / volume. Server 2 = higher cost / better success rates. No VoIP claims on OTP. */
+const SERVER1_POOLS: Pool[] = [
+  { id: 'usa-s1', title: 'USA · Server 1', server: 1, location: 'USA', hint: 'Economy routes' },
+  { id: 'worldwide-s1', title: 'Worldwide · Server 1', server: 1, location: 'Worldwide', hint: 'Economy routes' },
 ];
 
-const NON_VOIP_POOLS: Pool[] = [
-  { id: 'usa-fast', title: 'USA · Fast', kind: 'Non-VoIP', location: 'USA' },
-  { id: 'usa-premium', title: 'USA · Premium', kind: 'Non-VoIP', location: 'USA' },
-  { id: 'worldwide-fast', title: 'Worldwide · Fast', kind: 'Non-VoIP', location: 'Worldwide' },
-  { id: 'worldwide-premium', title: 'Worldwide · Premium', kind: 'Non-VoIP', location: 'Worldwide' },
+const SERVER2_POOLS: Pool[] = [
+  { id: 'usa-s2', title: 'USA · Server 2', server: 2, location: 'USA', hint: 'Higher success routes' },
+  { id: 'worldwide-s2', title: 'Worldwide · Server 2', server: 2, location: 'Worldwide', hint: 'Higher success routes' },
 ];
 
 const WORLDWIDE_COUNTRIES: Country[] = [
@@ -172,20 +166,24 @@ export function VirtualNumbersPage({
         <>
           <section className="vn-intro">
             <h2>Virtual Numbers</h2>
-            <p>Choose a number based on compatibility, speed and price.</p>
+            <p>Server 1 is lower cost. Server 2 is higher cost with better receive rates.</p>
           </section>
 
-          <section className="vn-pool-grid" aria-label="Number pools">
+          <section className="vn-pool-grid" aria-label="Number servers">
             <div className="vn-pool-column">
-              <span className="vn-type-tag">VoIP</span>
+              <span className="vn-type-tag">Server 1</span>
               <div className="vn-pool-list">
-                {VOIP_POOLS.map((pool) => <PoolCard key={pool.id} pool={pool} onSelect={selectPool} />)}
+                {SERVER1_POOLS.map((pool) => (
+                  <PoolCard key={pool.id} pool={pool} onSelect={selectPool} />
+                ))}
               </div>
             </div>
             <div className="vn-pool-column">
-              <span className="vn-type-tag">Non-VoIP</span>
+              <span className="vn-type-tag">Server 2</span>
               <div className="vn-pool-list">
-                {NON_VOIP_POOLS.map((pool) => <PoolCard key={pool.id} pool={pool} onSelect={selectPool} />)}
+                {SERVER2_POOLS.map((pool) => (
+                  <PoolCard key={pool.id} pool={pool} onSelect={selectPool} />
+                ))}
               </div>
             </div>
           </section>
@@ -201,7 +199,9 @@ export function VirtualNumbersPage({
 
             {orders.length === 0 ? (
               <Card className="vn-orders-empty">
-                <span className="vn-orders-empty-icon"><Smartphone size={18} /></span>
+                <span className="vn-orders-empty-icon">
+                  <Smartphone size={18} />
+                </span>
                 <div>
                   <strong>No numbers purchased yet</strong>
                   <p>Purchased numbers, OTP status and order details will appear here.</p>
@@ -213,8 +213,12 @@ export function VirtualNumbersPage({
                   <article className="vn-order-row" key={order.id}>
                     <div className="vn-order-number">
                       <strong>{order.number}</strong>
-                      <small>{order.service} · {order.poolTitle}</small>
-                      <span>{order.createdAt} · {order.id}</span>
+                      <small>
+                        {order.service} · {order.poolTitle}
+                      </small>
+                      <span>
+                        {order.createdAt} · {order.id}
+                      </span>
                     </div>
                     <div className="vn-order-status">
                       <span className={`vn-status-pill ${order.status}`}>
@@ -233,28 +237,59 @@ export function VirtualNumbersPage({
       {step === 'country' && selectedPool && (
         <>
           <section className="vn-intro compact">
-            <p className="vn-eyebrow">{selectedPool.kind} · {selectedPool.title}</p>
+            <p className="vn-eyebrow">
+              Server {selectedPool.server} · {selectedPool.title}
+            </p>
             <h2>Choose a country</h2>
-            <p>Select the country for this number pool.</p>
+            <p>Select the country for this server.</p>
           </section>
           <div className="vn-search-wrap">
             <div className="vn-search">
               <Search size={17} aria-hidden="true" />
-              <input value={countryQuery} onChange={(event) => setCountryQuery(event.target.value)} placeholder="Search country" aria-label="Search country" />
-              {countryQuery && <button type="button" className="vn-clear" onClick={() => setCountryQuery('')} aria-label="Clear search"><X size={15} /></button>}
+              <input
+                value={countryQuery}
+                onChange={(event) => setCountryQuery(event.target.value)}
+                placeholder="Search country"
+                aria-label="Search country"
+              />
+              {countryQuery && (
+                <button type="button" className="vn-clear" onClick={() => setCountryQuery('')} aria-label="Clear search">
+                  <X size={15} />
+                </button>
+              )}
             </div>
           </div>
           <div className="vn-service-section">
             <span className="vn-section-label">{countryQuery ? 'Results' : 'Countries'}</span>
             <div className="vn-service-list">
               {filteredCountries.map((country) => (
-                <button key={country.code} type="button" className="vn-service-row" onClick={() => { setSelectedCountry(country); setServiceQuery(''); setStep('services'); }}>
-                  <span className="vn-service-icon vn-flag-icon" aria-hidden="true">{country.flag}</span>
-                  <span className="vn-service-copy"><strong>{country.name}</strong><small>{country.dial}</small></span>
+                <button
+                  key={country.code}
+                  type="button"
+                  className="vn-service-row"
+                  onClick={() => {
+                    setSelectedCountry(country);
+                    setServiceQuery('');
+                    setStep('services');
+                  }}
+                >
+                  <span className="vn-service-icon vn-flag-icon" aria-hidden="true">
+                    {country.flag}
+                  </span>
+                  <span className="vn-service-copy">
+                    <strong>{country.name}</strong>
+                    <small>{country.dial}</small>
+                  </span>
                   <ChevronRight size={16} aria-hidden="true" />
                 </button>
               ))}
-              {!filteredCountries.length && <Card className="vn-empty"><Search size={18} /><strong>No country found</strong><p>Try another search.</p></Card>}
+              {!filteredCountries.length && (
+                <Card className="vn-empty">
+                  <Search size={18} />
+                  <strong>No country found</strong>
+                  <p>Try another search.</p>
+                </Card>
+              )}
             </div>
           </div>
         </>
@@ -263,7 +298,9 @@ export function VirtualNumbersPage({
       {step === 'services' && selectedPool && selectedCountry && (
         <>
           <section className="vn-intro compact">
-            <p className="vn-eyebrow">{selectedPool.kind} · {selectedPool.title} · {selectedCountry.flag} {selectedCountry.name}</p>
+            <p className="vn-eyebrow">
+              Server {selectedPool.server} · {selectedPool.title} · {selectedCountry.flag} {selectedCountry.name}
+            </p>
             <h2>Choose a service</h2>
             <p>Available services will use live provider inventory and Verxor pricing.</p>
           </section>
@@ -271,8 +308,17 @@ export function VirtualNumbersPage({
           <div className="vn-search-wrap">
             <div className="vn-search">
               <Search size={17} aria-hidden="true" />
-              <input value={serviceQuery} onChange={(event) => setServiceQuery(event.target.value)} placeholder="Search service" aria-label="Search service" />
-              {serviceQuery && <button type="button" className="vn-clear" onClick={() => setServiceQuery('')} aria-label="Clear search"><X size={15} /></button>}
+              <input
+                value={serviceQuery}
+                onChange={(event) => setServiceQuery(event.target.value)}
+                placeholder="Search service"
+                aria-label="Search service"
+              />
+              {serviceQuery && (
+                <button type="button" className="vn-clear" onClick={() => setServiceQuery('')} aria-label="Clear search">
+                  <X size={15} />
+                </button>
+              )}
             </div>
           </div>
 
@@ -281,15 +327,23 @@ export function VirtualNumbersPage({
             <div className="vn-service-list">
               {filteredServices.map((service) => (
                 <button key={service.id} type="button" className="vn-service-row vn-service-row-disabled" disabled>
-                  <span className="vn-service-icon"><Smartphone size={18} aria-hidden="true" /></span>
-                  <span className="vn-service-copy"><strong>{service.name}</strong><small>Live provider availability coming next</small></span>
+                  <span className="vn-service-icon">
+                    <Smartphone size={18} aria-hidden="true" />
+                  </span>
+                  <span className="vn-service-copy">
+                    <strong>{service.name}</strong>
+                    <small>Live provider availability coming next</small>
+                  </span>
                   <span className="vn-service-price">Unavailable</span>
                 </button>
               ))}
             </div>
             <Card className="vn-provider-note">
               <strong>Live inventory is not connected yet</strong>
-              <p>This screen is intentionally not showing invented numbers, prices or stock. Provider adapters will supply the real catalog, then Verxor pricing will calculate the customer price.</p>
+              <p>
+                Provider adapters supply the real catalog. Backend assigns Server 1 / Server 2 by cost bands and success
+                routing. Numbers above your max cost are filtered out.
+              </p>
             </Card>
           </div>
         </>
@@ -306,7 +360,7 @@ function PoolCard({ pool, onSelect }: { pool: Pool; onSelect: (pool: Pool) => vo
       </span>
       <span className="vn-pool-copy">
         <strong>{pool.title}</strong>
-        <small>{pool.kind === 'VoIP' ? 'Available numbers' : 'From price'}</small>
+        <small>{pool.hint}</small>
       </span>
       <ChevronRight className="vn-pool-chevron" size={16} aria-hidden="true" />
     </button>

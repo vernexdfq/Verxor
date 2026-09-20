@@ -2,7 +2,7 @@ import { ArrowLeft, BellRing, CheckCircle2, Clock3, KeyRound, ShieldCheck, Walle
 import { Card } from './components/ui';
 import './service-pages.css';
 
-export type NotificationKind = 'otp' | 'order' | 'wallet' | 'security' | 'system';
+export type NotificationKind = 'otp' | 'order' | 'wallet' | 'security' | 'system' | 'number';
 
 export type VerxorNotification = {
   id: string;
@@ -14,6 +14,7 @@ export type VerxorNotification = {
   number?: string;
   code?: string;
   service?: string;
+  statusLabel?: string;
 };
 
 export type PurchasedNumber = {
@@ -27,18 +28,20 @@ export type PurchasedNumber = {
 
 export function NotificationsPage({
   notifications = [],
-  purchasedNumbers = [],
   balance = '$0.00',
   onBack,
 }: {
   notifications?: VerxorNotification[];
+  /** @deprecated Purchased numbers belong on Virtual Numbers / History — not on this feed */
   purchasedNumbers?: PurchasedNumber[];
   balance?: string;
   onBack?: () => void;
 }) {
   const unreadCount = notifications.filter((item) => item.unread).length;
-  const otpEvents = notifications.filter((item) => item.kind === 'otp');
-  const otherEvents = notifications.filter((item) => item.kind !== 'otp');
+  const sorted = [...notifications].sort((a, b) => {
+    if (a.unread === b.unread) return 0;
+    return a.unread ? -1 : 1;
+  });
 
   return (
     <div className="notifications-page">
@@ -60,84 +63,38 @@ export function NotificationsPage({
 
       <section className="notification-heading">
         <div>
-          <span className="eyebrow">ACCOUNT ACTIVITY</span>
+          <span className="eyebrow">LATEST</span>
           <h1>Notifications</h1>
-          <p>OTP messages, purchased-number updates, wallet activity and security alerts.</p>
+          <p>Orders, OTP codes, wallet activity and security alerts.</p>
         </div>
-        {unreadCount > 0 && <span className="notification-count">{unreadCount} new</span>}
-      </section>
-
-      <section className="notification-section">
-        <div className="notification-section-head">
-          <div>
-            <span className="notification-section-label">VERIFICATION</span>
-            <h2>OTP messages</h2>
-          </div>
-          <span>{otpEvents.length} {otpEvents.length === 1 ? 'message' : 'messages'}</span>
-        </div>
-
-        {otpEvents.length === 0 ? (
-          <Card className="notification-empty compact">
-            <span className="notification-empty-icon"><KeyRound size={20} /></span>
-            <div>
-              <strong>No OTP messages yet</strong>
-              <p>When one of your purchased numbers receives a verification code, the service, number and code will appear here.</p>
-            </div>
-          </Card>
+        {unreadCount > 0 ? (
+          <span className="notification-count">{unreadCount} new</span>
         ) : (
-          <div className="notification-list">
-            {otpEvents.map((item) => <OtpRow key={item.id} item={item} />)}
-          </div>
+          <span className="notification-count muted">{sorted.length} total</span>
         )}
       </section>
 
-      <section className="notification-section">
-        <div className="notification-section-head">
+      {sorted.length === 0 ? (
+        <Card className="notification-empty compact">
+          <span className="notification-empty-icon">
+            <BellRing size={20} />
+          </span>
           <div>
-            <span className="notification-section-label">YOUR NUMBERS</span>
-            <h2>Purchased numbers</h2>
+            <strong>You're all caught up</strong>
+            <p>New orders, OTP codes, wallet and security updates will appear here.</p>
           </div>
-          <span>{purchasedNumbers.length} {purchasedNumbers.length === 1 ? 'number' : 'numbers'}</span>
+        </Card>
+      ) : (
+        <div className="notification-list">
+          {sorted.map((item) =>
+            item.kind === 'otp' ? (
+              <OtpRow key={item.id} item={item} />
+            ) : (
+              <NotificationRow key={item.id} item={item} />
+            ),
+          )}
         </div>
-
-        {purchasedNumbers.length === 0 ? (
-          <Card className="notification-empty compact">
-            <span className="notification-empty-icon"><CheckCircle2 size={20} /></span>
-            <div>
-              <strong>No purchased numbers yet</strong>
-              <p>Numbers you buy will be listed here with their service and current status.</p>
-            </div>
-          </Card>
-        ) : (
-          <div className="purchased-number-list">
-            {purchasedNumbers.map((item) => <PurchasedNumberRow key={item.id} item={item} />)}
-          </div>
-        )}
-      </section>
-
-      <section className="notification-section">
-        <div className="notification-section-head">
-          <div>
-            <span className="notification-section-label">ACCOUNT</span>
-            <h2>Updates</h2>
-          </div>
-          <span>{otherEvents.length}</span>
-        </div>
-
-        {otherEvents.length === 0 ? (
-          <Card className="notification-empty compact">
-            <span className="notification-empty-icon"><BellRing size={20} /></span>
-            <div>
-              <strong>You're all caught up</strong>
-              <p>New wallet, order and security updates will appear here.</p>
-            </div>
-          </Card>
-        ) : (
-          <div className="notification-list">
-            {otherEvents.map((item) => <NotificationRow key={item.id} item={item} />)}
-          </div>
-        )}
-      </section>
+      )}
     </div>
   );
 }
@@ -145,13 +102,19 @@ export function NotificationsPage({
 function OtpRow({ item }: { item: VerxorNotification }) {
   return (
     <Card className={`notification-row otp-row ${item.unread ? 'unread' : ''}`}>
-      <span className="notification-icon otp"><KeyRound size={17} /></span>
+      <span className="notification-icon otp">
+        <KeyRound size={17} />
+      </span>
       <div className="notification-copy">
         <div>
           <strong>{item.service || item.title}</strong>
           {item.unread && <i aria-label="Unread" />}
+          {item.statusLabel && <span className="notification-badge success">{item.statusLabel}</span>}
         </div>
-        <p>{item.number || 'Purchased number'} · {item.message}</p>
+        <p>
+          {item.number || 'Purchased number'}
+          {item.message ? ` · ${item.message}` : ''}
+        </p>
         <div className="notification-otp-meta">
           {item.code && <strong className="notification-code">{item.code}</strong>}
           <small>{item.time}</small>
@@ -161,28 +124,17 @@ function OtpRow({ item }: { item: VerxorNotification }) {
   );
 }
 
-function PurchasedNumberRow({ item }: { item: PurchasedNumber }) {
-  return (
-    <Card className="purchased-number-row">
-      <span className="purchased-number-icon"><KeyRound size={16} /></span>
-      <div className="notification-copy">
-        <strong>{item.number}</strong>
-        <p>{item.service}{item.label ? ` · ${item.label}` : ''}</p>
-        <small>Purchased {item.purchasedAt}</small>
-      </div>
-      <span className={`purchased-number-status ${item.status}`}>{item.status}</span>
-    </Card>
-  );
-}
-
 function NotificationRow({ item }: { item: VerxorNotification }) {
-  const icon = item.kind === 'wallet'
-    ? <WalletCards size={17} />
-    : item.kind === 'security'
-      ? <ShieldCheck size={17} />
-      : item.kind === 'order'
-        ? <CheckCircle2 size={17} />
-        : <Clock3 size={17} />;
+  const icon =
+    item.kind === 'wallet' ? (
+      <WalletCards size={17} />
+    ) : item.kind === 'security' ? (
+      <ShieldCheck size={17} />
+    ) : item.kind === 'order' || item.kind === 'number' ? (
+      <CheckCircle2 size={17} />
+    ) : (
+      <Clock3 size={17} />
+    );
 
   return (
     <Card className={`notification-row ${item.unread ? 'unread' : ''}`}>
@@ -191,6 +143,11 @@ function NotificationRow({ item }: { item: VerxorNotification }) {
         <div>
           <strong>{item.title}</strong>
           {item.unread && <i aria-label="Unread" />}
+          {item.statusLabel && (
+            <span className={`notification-badge ${item.kind === 'order' || item.kind === 'number' ? 'success' : ''}`}>
+              {item.statusLabel}
+            </span>
+          )}
         </div>
         <p>{item.message}</p>
         <small>{item.time}</small>
