@@ -98,3 +98,118 @@
   .number-card .number-icon { width:36px; height:36px; }
   .small-button { padding:0 9px; }
 }
+
+
+/* Notifications: customer-scoped updates, with OTPs treated as a first-class event. */
+.notifications-page { display:grid; gap:14px; }
+.notification-heading {
+  display:flex;
+  align-items:flex-end;
+  justify-content:space-between;
+  gap:12px;
+}
+.notification-heading h1 { margin:4px 0 7px; }
+.notification-heading p {
+  margin:0;
+  color:var(--muted);
+  font-size:12px;
+  line-height:18px;
+}
+.notification-count {
+  flex:none;
+  padding:6px 8px;
+  border:1px solid var(--primary-soft-strong);
+  border-radius:999px;
+  color:var(--primary);
+  background:var(--primary-soft);
+  font-size:9px;
+  font-weight:700;
+}
+.notification-empty {
+  min-height:220px;
+  padding:30px 20px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+}
+.notification-empty-icon {
+  width:44px;
+  height:44px;
+  margin-bottom:12px;
+  display:grid;
+  place-items:center;
+  border-radius:12px;
+  color:var(--primary);
+  background:var(--primary-soft);
+}
+.notification-empty strong {
+  font-size:14px;
+  line-height:21px;
+}
+.notification-empty p {
+  max-width:300px;
+  margin:5px 0 0;
+  color:var(--muted);
+  font-size:11px;
+  line-height:17px;
+}
+.notification-list { display:grid; gap:8px; }
+.notification-row {
+  min-height:76px;
+  padding:12px;
+  display:grid;
+  grid-template-columns:40px minmax(0,1fr);
+  gap:11px;
+  align-items:start;
+}
+.notification-row.unread { border-color:var(--primary-soft-strong); }
+.notification-icon {
+  width:40px;
+  height:40px;
+  display:grid;
+  place-items:center;
+  border-radius:11px;
+  color:var(--primary);
+  background:var(--primary-soft);
+}
+.notification-icon.otp { color:#7c3aed; background:#f5f3ff; }
+.notification-icon.wallet { color:#15803d; background:#ecfdf3; }
+.notification-icon.security { color:#b45309; background:#fffbeb; }
+.notification-icon.order { color:var(--primary); background:var(--primary-soft); }
+.notification-copy { min-width:0; }
+.notification-copy > div {
+  display:flex;
+  align-items:center;
+  gap:6px;
+}
+.notification-copy strong {
+  font-size:11px;
+  line-height:16px;
+}
+.notification-copy i {
+  width:6px;
+  height:6px;
+  flex:none;
+  border-radius:50%;
+  background:var(--primary);
+}
+.notification-copy p {
+  margin:2px 0 0;
+  color:var(--muted);
+  font-size:10px;
+  line-height:15px;
+}
+.notification-copy small {
+  display:block;
+  margin-top:3px;
+  color:var(--faint);
+  font-size:8px;
+  line-height:12px;
+}
+@media(max-width:380px) {
+  .notification-empty { min-height:200px; padding:24px 16px; }
+  .notification-row { padding:10px; grid-template-columns:36px minmax(0,1fr); gap:9px; }
+  .notification-icon { width:36px; height:36px; }
+}
