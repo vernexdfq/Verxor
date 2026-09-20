@@ -51,9 +51,17 @@ export function AppShell({
               ) : null}
             </div>
             <div className="topbar-actions">
-              <IconButton aria-label="Toggle theme" onClick={onToggleTheme}>
-                {dark ? <Sun size={19} /> : <Moon size={19} />}
-              </IconButton>
+              {page === 'history' && (
+                <button className="inner-wallet-pill" type="button" onClick={() => onNavigate('fund')} aria-label="Open wallet">
+                  <WalletCards size={16} aria-hidden="true" />
+                  <span>$0.00</span>
+                </button>
+              )}
+              {page !== 'history' && (
+                <IconButton aria-label="Toggle theme" onClick={onToggleTheme}>
+                  {dark ? <Sun size={19} /> : <Moon size={19} />}
+                </IconButton>
+              )}
               <IconButton aria-label="Notifications" onClick={() => onOpenService('alerts')}>
                 <Bell size={19} />
               </IconButton>
