@@ -17,7 +17,7 @@ export type VerxorNotification = {
 
 export function NotificationsPage({
   notifications = [],
-  onBack: _onBack,
+  onBack,
 }: {
   notifications?: VerxorNotification[];
   onBack?: () => void;
