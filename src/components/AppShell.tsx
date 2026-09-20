@@ -36,22 +36,19 @@ export function AppShell({
       <div className={`app-frame ${deepService ? 'deep-service' : ''}`}>
         {!deepService && (
           <header className={`topbar ${page === 'home' ? 'topbar-home' : ''} ${page === 'profile' ? 'topbar-profile' : ''}`}>
-            {page === 'home' ? (
-              <>
-                <button className="brand-mark" aria-label="Verxor home" onClick={() => onNavigate('home')}>
-                  V
-                </button>
+            <div className="topbar-context">
+              {page === 'home' ? (
                 <div className="topbar-greeting" aria-label="Welcome back">
                   <span>Good morning, Denny</span>
                   <small>Your Verxor dashboard</small>
                 </div>
-              </>
-            ) : page === 'history' ? (
-              <button className="inner-page-title" onClick={() => onNavigate('home')} aria-label="Back to home">
-                <span aria-hidden="true">‹</span>
-                <strong>History</strong>
-              </button>
-            ) : null}
+              ) : page === 'history' ? (
+                <button className="inner-page-title" onClick={() => onNavigate('home')} aria-label="Back to home">
+                  <span aria-hidden="true">‹</span>
+                  <strong>History</strong>
+                </button>
+              ) : null}
+            </div>
             <div className="topbar-actions">
               <IconButton aria-label="Toggle theme" onClick={onToggleTheme}>
                 {dark ? <Sun size={19} /> : <Moon size={19} />}
