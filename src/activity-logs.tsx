@@ -3,7 +3,7 @@ import { ArrowDownLeft, ArrowUpRight, Clock3, Filter, Search, WalletCards } from
 import { Card } from './components/ui';
 import './product-pages.css';
 
-type LogFilter = 'All' | 'Wallet' | 'Numbers' | 'Rentals' | 'Accounts' | 'Boosts';
+type LogFilter = 'All' | 'Deposits' | 'Numbers' | 'Rentals' | 'Accounts' | 'Boosts';
 
 type HistoryEntry = {
   id: string;
@@ -24,8 +24,6 @@ type HistorySummary = {
   currency: string;
 };
 
-// The UI is ready for the authenticated ledger/API. Until that connection exists,
-// zero values are intentional; never manufacture customer financial history.
 const summary: HistorySummary = {
   totalDeposited: '$0.00',
   thisMonth: '$0.00',
@@ -39,7 +37,7 @@ const entries: HistoryEntry[] = [];
 export function ActivityLogsPage() {
   const [filter, setFilter] = useState<LogFilter>('All');
   const [query, setQuery] = useState('');
-  const filters: LogFilter[] = ['All', 'Wallet', 'Numbers', 'Rentals', 'Accounts', 'Boosts'];
+  const filters: LogFilter[] = ['All', 'Deposits', 'Numbers', 'Rentals', 'Accounts', 'Boosts'];
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -55,7 +53,7 @@ export function ActivityLogsPage() {
       <header className="product-heading">
         <span className="eyebrow">ACTIVITY</span>
         <h1>History</h1>
-        <p>Your wallet, deposits and service activity in one clear record.</p>
+        <p>Your deposits, wallet balance and every service order in one clear record.</p>
       </header>
 
       <section className="history-summary" aria-label="Account financial summary">
@@ -76,19 +74,14 @@ export function ActivityLogsPage() {
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search by reference, service or description"
+            placeholder="Search reference, number or service"
             aria-label="Search history"
           />
         </label>
 
         <div className="category-scroll log-filters" aria-label="History filters">
           {filters.map((item) => (
-            <button
-              key={item}
-              className={filter === item ? 'active' : ''}
-              onClick={() => setFilter(item)}
-              type="button"
-            >
+            <button key={item} className={filter === item ? 'active' : ''} onClick={() => setFilter(item)} type="button">
               <Filter size={12} />
               {item}
             </button>
@@ -99,7 +92,7 @@ export function ActivityLogsPage() {
       <div className="history-section-head">
         <div>
           <span className="eyebrow">RECORD</span>
-          <h2>All activity</h2>
+          <h2>Deposits & activity</h2>
         </div>
         <span>{results.length} {results.length === 1 ? 'entry' : 'entries'}</span>
       </div>
@@ -111,12 +104,10 @@ export function ActivityLogsPage() {
           <p>
             {query || filter !== 'All'
               ? 'Try another search or clear the selected filter.'
-              : 'Once you fund your wallet or place an order, your deposits, orders, status and references will appear here.'}
+              : 'Your deposits, purchases, OTP orders and service activity will appear here as soon as your account has activity.'}
           </p>
           {(query || filter !== 'All') && (
-            <button type="button" onClick={() => { setQuery(''); setFilter('All'); }}>
-              Clear filters
-            </button>
+            <button type="button" onClick={() => { setQuery(''); setFilter('All'); }}>Clear filters</button>
           )}
         </Card>
       ) : (
