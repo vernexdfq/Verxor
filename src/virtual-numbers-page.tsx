@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { ArrowLeft, Bell, ChevronRight, Globe2, Search, Smartphone, WalletCards, X } from 'lucide-react';
 import { Card } from './components/ui';
 import './virtual-numbers-page.css';
+import './virtual-numbers-refinements.css';
 
 type PoolId =
   | 'usa-economy'
