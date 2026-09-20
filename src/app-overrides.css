@@ -182,3 +182,28 @@ body { overflow-x:hidden; }
   .quick-icon { width:32px; height:32px; border-radius:9px; }
   .quick-icon svg { width:18px; height:18px; }
 }
+
+
+/* Inner pages keep the product chrome quiet: the brand mark belongs to Home. */
+.inner-page-title {
+  min-width: 0;
+  min-height: 40px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--text);
+  background: transparent;
+  text-align: left;
+}
+.inner-page-title > span {
+  color: var(--muted);
+  font-size: 28px;
+  line-height: 1;
+  font-weight: 400;
+}
+.inner-page-title strong {
+  font-size: 15px;
+  line-height: 20px;
+  font-weight: 700;
+}
