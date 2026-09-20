@@ -576,3 +576,116 @@
     padding-right: 12px;
   }
 }
+
+
+/* Recent orders: customer-scoped activity beneath the inventory. */
+.vn-recent-section {
+  padding: 0 16px 28px;
+}
+.vn-recent-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 9px;
+}
+.vn-recent-head .vn-section-label {
+  margin-bottom: 2px;
+}
+.vn-recent-head h3 {
+  margin: 0;
+  font-size: 17px;
+  line-height: 23px;
+  letter-spacing: -0.02em;
+}
+.vn-recent-scope {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 600;
+}
+.vn-recent-empty {
+  min-height: 76px;
+  padding: 12px 13px;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+.vn-recent-empty > svg {
+  width: 38px;
+  height: 38px;
+  padding: 9px;
+  flex: none;
+  border-radius: 11px;
+  color: var(--primary);
+  background: var(--primary-soft);
+}
+.vn-recent-empty strong,
+.vn-recent-empty p {
+  display: block;
+}
+.vn-recent-empty strong {
+  font-size: 12px;
+  line-height: 17px;
+}
+.vn-recent-empty p {
+  margin: 2px 0 0;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 15px;
+}
+.vn-recent-list {
+  display: grid;
+  gap: 7px;
+}
+.vn-recent-row {
+  min-height: 66px;
+  padding: 11px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  background: var(--surface);
+}
+.vn-recent-copy {
+  min-width: 0;
+}
+.vn-recent-copy strong,
+.vn-recent-copy small {
+  display: block;
+}
+.vn-recent-copy strong {
+  font-size: 12px;
+  line-height: 17px;
+  font-variant-numeric: tabular-nums;
+}
+.vn-recent-copy small {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 15px;
+}
+.vn-recent-status {
+  flex: none;
+  padding: 5px 7px;
+  border-radius: 999px;
+  color: var(--muted);
+  background: var(--surface-muted);
+  font-size: 9px;
+  font-weight: 700;
+}
+.vn-recent-status.received {
+  color: #15803d;
+  background: #ecfdf3;
+}
+@media (max-width: 360px) {
+  .vn-recent-section {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+  .vn-recent-row {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+}
