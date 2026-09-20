@@ -17,8 +17,10 @@ export type VerxorNotification = {
 
 export function NotificationsPage({
   notifications = [],
+  onBack: _onBack,
 }: {
   notifications?: VerxorNotification[];
+  onBack?: () => void;
 }) {
   const unreadCount = notifications.filter((item) => item.unread).length;
   const otpEvents = notifications.filter((item) => item.kind === 'otp');
