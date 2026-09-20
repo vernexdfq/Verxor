@@ -125,7 +125,7 @@ function servicePrice(pool: Pool, serviceId: string): number {
 
 type Step = 'pools' | 'country' | 'services' | 'order';
 
-export function VirtualNumbersPage({ onBack }: { onBack: () => void }) {
+const recentOrders: ActiveOrder[] = [];\n\nexport function VirtualNumbersPage({ onBack, onOpenNotifications }: { onBack: () => void; onOpenNotifications: () => void }) {
   const [step, setStep] = useState<Step>('pools');
   const [selectedPool, setSelectedPool] = useState<Pool | null>(null);
   const [selectedCountry, setSelectedCountry] = useState<Country | null>(null);
@@ -251,7 +251,7 @@ export function VirtualNumbersPage({ onBack }: { onBack: () => void }) {
             <WalletCards size={15} aria-hidden="true" />
             <span>$0.00</span>
           </button>
-          <button type="button" className="vn-notification" aria-label="Notifications">
+          <button type="button" className="vn-notification" aria-label="Notifications" onClick={onOpenNotifications}>
             <Bell size={18} aria-hidden="true" />
           </button>
         </div>
@@ -287,6 +287,37 @@ export function VirtualNumbersPage({ onBack }: { onBack: () => void }) {
           <p className="vn-hint">
             VoIP is cheaper but some apps restrict it. Non-VoIP usually works better on strict platforms. Success is never guaranteed.
           </p>
+
+          <section className="vn-recent-section" aria-labelledby="vn-recent-orders-title">
+            <div className="vn-recent-head">
+              <div>
+                <span className="vn-section-label">ACTIVITY</span>
+                <h3 id="vn-recent-orders-title">Recent Orders</h3>
+              </div>
+              <span className="vn-recent-scope">Your orders</span>
+            </div>
+            {recentOrders.length === 0 ? (
+              <Card className="vn-recent-empty">
+                <Clock3 size={18} aria-hidden="true" />
+                <div>
+                  <strong>No orders yet</strong>
+                  <p>Your purchased numbers and OTP status will appear here.</p>
+                </div>
+              </Card>
+            ) : (
+              <div className="vn-recent-list">
+                {recentOrders.map((item) => (
+                  <div className="vn-recent-row" key={item.id}>
+                    <div className="vn-recent-copy">
+                      <strong>{item.number}</strong>
+                      <small>{item.service} · {item.poolTitle}</small>
+                    </div>
+                    <span className={`vn-recent-status ${item.status}`}>{item.status === 'received' ? 'OTP received' : 'Waiting'}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
         </>
       )}
 
