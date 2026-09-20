@@ -1,0 +1,90 @@
+/* Fund page — clean, country-aware, not clustered */
+.fund-intro { padding-bottom: 14px; }
+.fund-intro p:last-child { max-width: 340px; }
+.fund-card-clean { padding: 16px; display: grid; gap: 12px; }
+.fund-card-clean label { margin: 0; font-size: 12px; font-weight: 600; color: var(--text-secondary); }
+.fund-card-clean .amount-input { margin-top: 0; height: 52px; }
+.amount-options-4 { grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 0; }
+.amount-options-3 { grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 0; }
+.amount-options-2 { grid-template-columns: repeat(2, 1fr); gap: 8px; margin: 0; }
+.amount-options button.preset-active {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: var(--primary-soft);
+}
+.fund-method-block { display: grid; gap: 8px; }
+.fund-method-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+.fund-method-list { display: grid; gap: 8px; }
+.fund-method {
+  width: 100%;
+  min-height: 56px;
+  padding: 10px 12px;
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) 22px;
+  align-items: center;
+  gap: 10px;
+  text-align: left;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+}
+.fund-method:hover { border-color: var(--primary-soft-strong); }
+.fund-method.active {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+}
+.fund-method-icon {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  color: var(--primary);
+  background: var(--primary-soft);
+}
+.fund-method.active .fund-method-icon {
+  background: #fff;
+  box-shadow: var(--shadow-xs);
+}
+.fund-method-copy strong {
+  display: block;
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 600;
+}
+.fund-method-copy small {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px;
+  line-height: 15px;
+  color: var(--muted);
+}
+.fund-method-check {
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  color: transparent;
+}
+.fund-method-check.on {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: #fff;
+}
+.fund-ready-note {
+  margin: 0;
+  font-size: 11px;
+  line-height: 16px;
+  color: var(--muted);
+  text-align: center;
+}
+@media (max-width: 360px) {
+  .amount-options-4 { grid-template-columns: repeat(2, 1fr); }
+}
