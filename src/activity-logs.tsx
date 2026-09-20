@@ -50,17 +50,19 @@ export function ActivityLogsPage() {
 
   return (
     <div className="logs-page">
-      <header className="product-heading">
-        <span className="eyebrow">ACTIVITY</span>
-        <h1>History</h1>
-        <p>Your deposits, wallet balance and every service order in one clear record.</p>
+      <header className="history-heading">
+        <div>
+          <span className="eyebrow">ACCOUNT ACTIVITY</span>
+          <h1>History</h1>
+          <p>Every deposit, purchase and wallet movement in one account record.</p>
+        </div>
       </header>
 
       <section className="history-summary" aria-label="Account financial summary">
         <SummaryCard label="Total deposited" value={summary.totalDeposited} />
         <SummaryCard label="This month" value={summary.thisMonth} />
         <SummaryCard label="Service spend" value={summary.serviceSpend} />
-        <SummaryCard label="Current balance" value={summary.currentBalance} />
+        <SummaryCard label="Available balance" value={summary.currentBalance} />
       </section>
 
       <div className="history-account-note">
@@ -68,8 +70,16 @@ export function ActivityLogsPage() {
         <span>Account currency · <strong>{summary.currency}</strong></span>
       </div>
 
-      <div className="history-toolbar">
-        <label className="product-search full">
+      <section className="history-record">
+        <div className="history-section-head">
+          <div>
+            <span className="eyebrow">ACCOUNT RECORD</span>
+            <h2>All activity</h2>
+          </div>
+          <span>{results.length} {results.length === 1 ? 'entry' : 'entries'}</span>
+        </div>
+
+        <label className="product-search full history-search">
           <Search size={17} />
           <input
             value={query}
@@ -87,34 +97,26 @@ export function ActivityLogsPage() {
             </button>
           ))}
         </div>
-      </div>
 
-      <div className="history-section-head">
-        <div>
-          <span className="eyebrow">RECORD</span>
-          <h2>Deposits & activity</h2>
-        </div>
-        <span>{results.length} {results.length === 1 ? 'entry' : 'entries'}</span>
-      </div>
-
-      {results.length === 0 ? (
-        <Card className="product-empty logs-empty">
-          <div><Clock3 size={20} /></div>
-          <strong>{query || filter !== 'All' ? 'No matching activity' : 'No activity yet'}</strong>
-          <p>
-            {query || filter !== 'All'
-              ? 'Try another search or clear the selected filter.'
-              : 'Your deposits, purchases, OTP orders and service activity will appear here as soon as your account has activity.'}
-          </p>
-          {(query || filter !== 'All') && (
-            <button type="button" onClick={() => { setQuery(''); setFilter('All'); }}>Clear filters</button>
-          )}
-        </Card>
-      ) : (
-        <div className="log-list">
-          {results.map((item) => <LogRow key={item.id} item={item} />)}
-        </div>
-      )}
+        {results.length === 0 ? (
+          <Card className="product-empty logs-empty">
+            <div className="logs-empty-icon"><Clock3 size={20} /></div>
+            <strong>{query || filter !== 'All' ? 'No matching activity' : 'No activity yet'}</strong>
+            <p>
+              {query || filter !== 'All'
+                ? 'Try another search or clear the selected filter.'
+                : 'Your deposits, OTP purchases, rentals, account orders and boost orders will appear here automatically.'}
+            </p>
+            {(query || filter !== 'All') && (
+              <button className="logs-clear" type="button" onClick={() => { setQuery(''); setFilter('All'); }}>Clear filters</button>
+            )}
+          </Card>
+        ) : (
+          <div className="log-list">
+            {results.map((item) => <LogRow key={item.id} item={item} />)}
+          </div>
+        )}
+      </section>
     </div>
   );
 }
