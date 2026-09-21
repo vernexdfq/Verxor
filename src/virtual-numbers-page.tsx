@@ -5,10 +5,14 @@ import './virtual-numbers-page.css';
 import './virtual-numbers-refinements.css';
 
 type PoolId =
-  | 'usa-s1'
-  | 'usa-s2'
-  | 'worldwide-s1'
-  | 'worldwide-s2';
+  | 'usa-economy'
+  | 'usa-standard'
+  | 'worldwide-economy'
+  | 'worldwide-standard'
+  | 'usa-fast'
+  | 'usa-premium'
+  | 'worldwide-fast'
+  | 'worldwide-premium';
 
 type Pool = {
   id: PoolId;
@@ -40,15 +44,22 @@ type Service = {
   name: string;
 };
 
-/** Server 1 = lower cost / volume. Server 2 = higher cost / better success rates. No VoIP claims on OTP. */
+/**
+ * Column tags only: Server 1 / Server 2 (no VoIP claims on OTP).
+ * Rows keep price tiers: Economy · Standard · Fast · Premium.
+ */
 const SERVER1_POOLS: Pool[] = [
-  { id: 'usa-s1', title: 'USA · Server 1', server: 1, location: 'USA', hint: 'Economy routes' },
-  { id: 'worldwide-s1', title: 'Worldwide · Server 1', server: 1, location: 'Worldwide', hint: 'Economy routes' },
+  { id: 'usa-economy', title: 'USA · Economy', server: 1, location: 'USA', hint: 'Available numbers' },
+  { id: 'usa-standard', title: 'USA · Standard', server: 1, location: 'USA', hint: 'Available numbers' },
+  { id: 'worldwide-economy', title: 'Worldwide · Economy', server: 1, location: 'Worldwide', hint: 'Available numbers' },
+  { id: 'worldwide-standard', title: 'Worldwide · Standard', server: 1, location: 'Worldwide', hint: 'Available numbers' },
 ];
 
 const SERVER2_POOLS: Pool[] = [
-  { id: 'usa-s2', title: 'USA · Server 2', server: 2, location: 'USA', hint: 'Higher success routes' },
-  { id: 'worldwide-s2', title: 'Worldwide · Server 2', server: 2, location: 'Worldwide', hint: 'Higher success routes' },
+  { id: 'usa-fast', title: 'USA · Fast', server: 2, location: 'USA', hint: 'From price' },
+  { id: 'usa-premium', title: 'USA · Premium', server: 2, location: 'USA', hint: 'From price' },
+  { id: 'worldwide-fast', title: 'Worldwide · Fast', server: 2, location: 'Worldwide', hint: 'From price' },
+  { id: 'worldwide-premium', title: 'Worldwide · Premium', server: 2, location: 'Worldwide', hint: 'From price' },
 ];
 
 const WORLDWIDE_COUNTRIES: Country[] = [
@@ -166,10 +177,10 @@ export function VirtualNumbersPage({
         <>
           <section className="vn-intro">
             <h2>Virtual Numbers</h2>
-            <p>Server 1 is lower cost. Server 2 is higher cost with better receive rates.</p>
+            <p>Choose a number based on compatibility, speed and price.</p>
           </section>
 
-          <section className="vn-pool-grid" aria-label="Number servers">
+          <section className="vn-pool-grid" aria-label="Number pools">
             <div className="vn-pool-column">
               <span className="vn-type-tag">Server 1</span>
               <div className="vn-pool-list">
@@ -241,7 +252,7 @@ export function VirtualNumbersPage({
               Server {selectedPool.server} · {selectedPool.title}
             </p>
             <h2>Choose a country</h2>
-            <p>Select the country for this server.</p>
+            <p>Select the country for this number pool.</p>
           </section>
           <div className="vn-search-wrap">
             <div className="vn-search">
@@ -341,8 +352,8 @@ export function VirtualNumbersPage({
             <Card className="vn-provider-note">
               <strong>Live inventory is not connected yet</strong>
               <p>
-                Provider adapters supply the real catalog. Backend assigns Server 1 / Server 2 by cost bands and success
-                routing. Numbers above your max cost are filtered out.
+                Provider adapters supply the real catalog. Backend assigns tiers by cost bands. Numbers above your max
+                cost are filtered out.
               </p>
             </Card>
           </div>
