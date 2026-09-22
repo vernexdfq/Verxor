@@ -6,11 +6,17 @@ export const TELEGRAM_URL = SOCIAL.telegramChannel;
 export const WHATSAPP_URL = SOCIAL.whatsappChannel;
 
 const STORAGE_KEY = 'verxor-community-prompt-last-shown';
-const SHOW_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000;
+/** Show at most once per calendar day (local timezone). */
+const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+
+function todayKey() {
+  const d = new Date();
+  return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+}
 
 function markShown() {
   try {
-    window.localStorage.setItem(STORAGE_KEY, String(Date.now()));
+    window.localStorage.setItem(STORAGE_KEY, todayKey());
   } catch {
     // Storage may be unavailable in restricted browser contexts.
   }
@@ -18,8 +24,15 @@ function markShown() {
 
 function shouldShow() {
   try {
-    const lastShown = Number(window.localStorage.getItem(STORAGE_KEY) ?? 0);
-    return !lastShown || Date.now() - lastShown >= SHOW_INTERVAL_MS;
+    const last = window.localStorage.getItem(STORAGE_KEY);
+    if (!last) return true;
+    // Support legacy timestamp values from the previous 7-day logic
+    if (/^\d+$/.test(last)) {
+      const ts = Number(last);
+      return !ts || Date.now() - ts >= ONE_DAY_MS;
+    }
+    // New format: YYYY-M-D — only show if not already shown today
+    return last !== todayKey();
   } catch {
     return true;
   }
@@ -37,12 +50,15 @@ export function CommunityModal() {
     return () => window.clearTimeout(timer);
   }, []);
 
-  const close = () => setOpen(false);
+  const close = () => {
+    markShown();
+    setOpen(false);
+  };
 
   const openChannel = (url: string) => {
     markShown();
     window.open(url, '_blank', 'noopener,noreferrer');
-    close();
+    setOpen(false);
   };
 
   if (!open) return null;
