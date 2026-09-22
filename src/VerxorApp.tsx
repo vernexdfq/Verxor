@@ -21,6 +21,11 @@ const PROFILE_SUBVIEWS: ServiceView[] = [
   'help',
   'privacy',
   'community',
+  'edit-profile',
+  'referral',
+  'child-panel',
+  'api-keys',
+  'support-center',
 ];
 
 const services = [

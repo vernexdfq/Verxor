@@ -9,7 +9,10 @@ import {
   CreditCard,
   Eye,
   FileText,
+  Gift,
+  Globe2,
   History,
+  KeyRound,
   LockKeyhole,
   LogOut,
   MapPin,
@@ -412,119 +415,87 @@ export function NumbersPage({ openService }: { openService: (view: ServiceView) 
   );
 }
 
+/**
+ * Professional profile shell.
+ * Structure: Fleexa-style sections + Primex depth where specified.
+ * Colors: Verxor primary only. No delete account. Phone/email locked.
+ */
 export function ProfilePage({ openService }: { openService: (view: ServiceView) => void }) {
-  const [copied, setCopied] = useState(false);
-  const referralCode = 'VERXOR-DENNY';
-
-  const copyReferral = async () => {
-    try {
-      await navigator.clipboard.writeText(referralCode);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 1800);
-    } catch {
-      setCopied(false);
-    }
-  };
-
   return (
     <>
-      <section className="profile-summary" aria-label="Profile summary">
-        <div className="profile-avatar">V</div>
-        <div>
-          <p className="eyebrow">ACCOUNT</p>
-          <h1>Your profile</h1>
-          <p>
-            Member since 2026 · {wallet.regionLabel} · {wallet.code}
-          </p>
+      {/* Header card */}
+      <section className="profile-hero-card" aria-label="Profile summary">
+        <div className="profile-hero-inner">
+          <div className="profile-avatar-lg">V</div>
+          <div className="profile-hero-copy">
+            <strong>Destiny</strong>
+            <small>vernexdfq@gmail.com</small>
+          </div>
+          <button
+            type="button"
+            className="profile-open-btn"
+            onClick={() => openService('edit-profile')}
+          >
+            PROFILE <ArrowRight size={14} />
+          </button>
         </div>
       </section>
 
-      <ProfileGroup title="ACCOUNT INFORMATION">
-        <ProfileItem
-          icon={<UserRound size={19} />}
-          title="Personal information"
-          description="Name, username, phone and email"
-          onClick={() => openService('settings')}
-        />
-      </ProfileGroup>
+      {/* Refer & Earn */}
+      <button
+        type="button"
+        className="refer-earn-card"
+        onClick={() => openService('referral')}
+      >
+        <span className="refer-earn-icon">
+          <Gift size={20} />
+        </span>
+        <span className="refer-earn-copy">
+          <strong>Refer &amp; Earn</strong>
+          <small>Get 10% of every referral&apos;s first deposit</small>
+        </span>
+        <span className="refer-earn-cta">Invite</span>
+      </button>
 
-      <ProfileGroup title="PREFERENCES">
-        <ProfileItem
-          icon={<MapPin size={19} />}
-          title="Currency & Region"
-          description={`${wallet.code} · ${wallet.regionLabel}`}
-          onClick={() => openService('settings')}
-        />
+      {/* Account settings */}
+      <ProfileGroup title="ACCOUNT SETTINGS">
         <ProfileItem
           icon={<Bell size={19} />}
           title="Notifications"
-          description="Order, wallet and security alerts"
+          description="Push, Email, Alerts"
           onClick={() => openService('notifications-prefs')}
         />
-      </ProfileGroup>
-
-      <ProfileGroup title="SECURITY">
-        <ProfileItem
-          icon={<LockKeyhole size={19} />}
-          title="Security"
-          description="Password, biometrics and PIN"
-          onClick={() => openService('security')}
-        />
-        <ProfileItem
-          icon={<FileText size={19} />}
-          title="Privacy policy"
-          description="How we handle your data"
-          onClick={() => openService('privacy')}
-        />
-      </ProfileGroup>
-
-      <ProfileGroup title="SUPPORT">
         <ProfileItem
           icon={<ShieldCheck size={19} />}
-          title="Help Center"
-          description="Guides and common questions"
-          onClick={() => openService('help')}
+          title="Security"
+          description="Password, PIN, Biometrics, 2FA"
+          onClick={() => openService('security')}
+        />
+      </ProfileGroup>
+
+      {/* Management */}
+      <ProfileGroup title="MANAGEMENT">
+        <ProfileItem
+          icon={<Globe2 size={19} />}
+          title="Child Panel"
+          description="Run your own white-label site"
+          onClick={() => openService('child-panel')}
+        />
+        <ProfileItem
+          icon={<KeyRound size={19} />}
+          title="API Keys"
+          description="Manage API credentials & webhooks"
+          onClick={() => openService('api-keys')}
         />
         <ProfileItem
           icon={<MessageSquare size={19} />}
-          title="Contact support"
-          description="Telegram · WhatsApp · Email"
-          onClick={() => openService('feedback')}
-        />
-        <ProfileItem
-          icon={<MessageCircle size={19} />}
-          title="Send feedback"
-          description="Report a bug or suggest a feature"
-          onClick={() => openService('feedback')}
-        />
-        <ProfileItem
-          icon={<Send size={19} />}
-          title="Follow us"
-          description="Telegram, WhatsApp, Instagram, X and more"
-          onClick={() => openService('community')}
+          title="Support Center"
+          description="Help docs, tickets & channels"
+          onClick={() => openService('support-center')}
         />
       </ProfileGroup>
 
-      <section className="profile-group">
-        <h2>REFERRAL</h2>
-        <Card className="profile-referral-card">
-          <div className="referral-copy">
-            <span className="referral-label">REFERRAL CODE</span>
-            <strong>{referralCode}</strong>
-          </div>
-          <button
-            className="profile-copy-button"
-            onClick={copyReferral}
-            aria-label={copied ? 'Referral code copied' : 'Copy referral code'}
-          >
-            {copied ? <Check size={17} /> : <Copy size={17} />}
-            <span>{copied ? 'Copied' : 'Copy'}</span>
-          </button>
-        </Card>
-      </section>
-
       <section className="profile-group account-danger">
-        <h2>ACCOUNT</h2>
         <button type="button" className="logout-button">
           <LogOut size={18} /> Log out
         </button>
