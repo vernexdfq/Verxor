@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Megaphone, MessageCircle, Send, X } from 'lucide-react';
+import { SOCIAL } from '../lib/social';
 
-export const TELEGRAM_URL = 'https://t.me/VerxorOfficial';
-export const WHATSAPP_URL = 'https://whatsapp.com/channel/0029VbE6zLAEQIag3m2Lvf1H';
+export const TELEGRAM_URL = SOCIAL.telegramChannel;
+export const WHATSAPP_URL = SOCIAL.whatsappChannel;
 
 const STORAGE_KEY = 'verxor-community-prompt-last-shown';
 const SHOW_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -74,7 +75,9 @@ export function CommunityModal() {
           <MessageCircle size={18} />
           Join WhatsApp
         </button>
-        <button type="button" className="community-later" onClick={close}>Maybe later</button>
+        <button type="button" className="community-later" onClick={close}>
+          Maybe later
+        </button>
       </div>
     </div>
   );
