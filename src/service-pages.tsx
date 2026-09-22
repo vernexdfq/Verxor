@@ -1,9 +1,12 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import {
   ArrowLeft,
   ArrowRight,
   CheckCircle2,
   Clock3,
+  Eye,
+  EyeOff,
+  Facebook,
   Gift,
   Instagram,
   KeyRound,
@@ -11,7 +14,6 @@ import {
   MessageCircle,
   Package,
   Phone,
-  Search,
   Send,
   Users,
 } from 'lucide-react';
@@ -33,6 +35,9 @@ export type ServiceView =
   | 'affiliate'
   | 'alerts'
   | 'settings'
+  | 'security'
+  | 'notifications-prefs'
+  | 'community'
   | 'feedback'
   | 'help'
   | 'privacy';
@@ -154,19 +159,46 @@ function ToggleRow({
   );
 }
 
+function XIcon({ size = 17 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231 5.45-6.231Zm-1.161 17.52h1.833L7.084 4.126H5.117L17.083 19.77Z"
+        fill="currentColor"
+      />
+    </svg>
+  );
+}
+
+function TikTokIcon({ size = 17 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.83 2.83 0 0 1-2.79 2.81 2.83 2.83 0 0 1-2.81-2.81 2.83 2.83 0 0 1 2.81-2.81c.28 0 .56.04.83.11v-3.5a6.37 6.37 0 0 0-1.08-.09A6.26 6.26 0 0 0 3 16.4a6.26 6.26 0 0 0 6.26 6.26 6.26 6.26 0 0 0 6.26-6.26V8.9a8.2 8.2 0 0 0 4.77 1.52V6.97a4.85 4.85 0 0 1-.7-.28Z"
+        fill="currentColor"
+      />
+    </svg>
+  );
+}
+
 export function ServicePage({ view, onBack }: { view: Exclude<ServiceView, 'services'>; onBack: () => void }) {
   const [ordersEmail, setOrdersEmail] = useState(true);
   const [walletEmail, setWalletEmail] = useState(true);
   const [securityAlerts, setSecurityAlerts] = useState(true);
+  const [loginAlerts, setLoginAlerts] = useState(true);
   const [promoPush, setPromoPush] = useState(false);
+  const [biometric, setBiometric] = useState(false);
+  const [showPw, setShowPw] = useState(false);
+  const [currentPw, setCurrentPw] = useState('');
+  const [newPw, setNewPw] = useState('');
+  const [confirmPw, setConfirmPw] = useState('');
+  const [pwStatus, setPwStatus] = useState<'idle' | 'ok'>('idle');
   const [feedbackType, setFeedbackType] = useState('feature');
   const [feedbackSubject, setFeedbackSubject] = useState('');
   const [feedbackBody, setFeedbackBody] = useState('');
   const [feedbackSent, setFeedbackSent] = useState(false);
 
   if (view === 'virtual-numbers' || view === 'rental' || view === 'boost' || view === 'accounts') {
-    // Product surfaces live in dedicated modules (virtual-numbers-page, rental-page, product-pages).
-    // Keep thin stubs only if routed here by mistake.
     const titles: Record<string, { t: string; e: string; d: string }> = {
       'virtual-numbers': {
         t: 'Virtual Numbers',
@@ -228,13 +260,6 @@ export function ServicePage({ view, onBack }: { view: Exclude<ServiceView, 'serv
             <strong>₦0.00</strong>
           </div>
         </Card>
-        <Card className="info-card">
-          <CheckCircle2 size={18} />
-          <div>
-            <strong>Rewards</strong>
-            <p>Eligible rewards will be reflected here automatically.</p>
-          </div>
-        </Card>
       </ServiceLayout>
     );
   if (view === 'affiliate')
@@ -254,9 +279,9 @@ export function ServicePage({ view, onBack }: { view: Exclude<ServiceView, 'serv
   if (view === 'settings')
     return (
       <ServiceLayout
-        title="Account & Security"
+        title="Account"
         eyebrow="ACCOUNT SETTINGS"
-        description="Region is set from the phone you registered with. Security controls live here."
+        description="Region is set from the phone you registered with."
         onBack={onBack}
       >
         <Card className="settings-list">
@@ -269,15 +294,8 @@ export function ServicePage({ view, onBack }: { view: Exclude<ServiceView, 'serv
           </div>
           <div className="setting-row">
             <div>
-              <strong>Password</strong>
-              <small>Update your account password</small>
-            </div>
-            <ArrowRight size={17} />
-          </div>
-          <div className="setting-row">
-            <div>
-              <strong>Transaction PIN</strong>
-              <small>Required for sensitive wallet actions</small>
+              <strong>Personal information</strong>
+              <small>Name, username, phone and email</small>
             </div>
             <ArrowRight size={17} />
           </div>
@@ -289,12 +307,21 @@ export function ServicePage({ view, onBack }: { view: Exclude<ServiceView, 'serv
             <ArrowRight size={17} />
           </div>
         </Card>
+      </ServiceLayout>
+    );
 
-        <p className="settings-section-label">NOTIFICATION PREFERENCES</p>
+  if (view === 'notifications-prefs')
+    return (
+      <ServiceLayout
+        title="Notifications"
+        eyebrow="PREFERENCES"
+        description="Choose which emails and alerts you receive. Essential account messages always send."
+        onBack={onBack}
+      >
         <Card className="settings-list">
           <ToggleRow
-            title="Order updates"
-            description="Email when an order status changes"
+            title="Transaction emails"
+            description="Receipts and confirmations for purchases and payments"
             checked={ordersEmail}
             onChange={setOrdersEmail}
           />
@@ -305,28 +332,186 @@ export function ServicePage({ view, onBack }: { view: Exclude<ServiceView, 'serv
             onChange={setWalletEmail}
           />
           <ToggleRow
+            title="Login alerts"
+            description="Get notified every time you log into your account"
+            checked={loginAlerts}
+            onChange={setLoginAlerts}
+          />
+          <ToggleRow
             title="Security alerts"
-            description="Notify on new logins and password changes"
+            description="New device or password changes"
             checked={securityAlerts}
             onChange={setSecurityAlerts}
           />
           <ToggleRow
-            title="Promotions"
-            description="Occasional offers from Verxor"
+            title="Updates & announcements"
+            description="Product updates and important notices"
             checked={promoPush}
             onChange={setPromoPush}
           />
         </Card>
+        <p className="settings-footnote">You will always receive essential account-related emails regardless of these preferences.</p>
+      </ServiceLayout>
+    );
 
-        <p className="settings-section-label">BIOMETRICS</p>
+  if (view === 'security')
+    return (
+      <ServiceLayout
+        title="Security"
+        eyebrow="AUTHENTICATION"
+        description="Secure your account and transactions."
+        onBack={onBack}
+      >
+        <p className="settings-section-label">LOGIN PASSWORD</p>
+        <Card className="form-card">
+          <label htmlFor="current-pw">Current password</label>
+          <div className="pw-field">
+            <input
+              id="current-pw"
+              className="form-input"
+              type={showPw ? 'text' : 'password'}
+              value={currentPw}
+              onChange={(e) => setCurrentPw(e.target.value)}
+              placeholder="Current password"
+              autoComplete="current-password"
+            />
+            <button type="button" className="pw-toggle" onClick={() => setShowPw((v) => !v)} aria-label="Toggle visibility">
+              {showPw ? <EyeOff size={18} /> : <Eye size={18} />}
+            </button>
+          </div>
+          <label htmlFor="new-pw">New password</label>
+          <input
+            id="new-pw"
+            className="form-input"
+            type={showPw ? 'text' : 'password'}
+            value={newPw}
+            onChange={(e) => setNewPw(e.target.value)}
+            placeholder="New password"
+            autoComplete="new-password"
+          />
+          <label htmlFor="confirm-pw">Confirm new password</label>
+          <input
+            id="confirm-pw"
+            className="form-input"
+            type={showPw ? 'text' : 'password'}
+            value={confirmPw}
+            onChange={(e) => setConfirmPw(e.target.value)}
+            placeholder="Confirm new password"
+            autoComplete="new-password"
+          />
+          <p className="pw-hint">At least 6 characters</p>
+          <PrimaryButton
+            disabled={newPw.length < 6 || newPw !== confirmPw || !currentPw}
+            onClick={() => setPwStatus('ok')}
+          >
+            {pwStatus === 'ok' ? 'Password updated' : 'Update password'}
+          </PrimaryButton>
+        </Card>
+
+        <p className="settings-section-label">AUTHENTICATION</p>
         <Card className="settings-list">
+          <ToggleRow
+            title="Biometric login"
+            description="Enable quick login with Face ID or fingerprint on supported devices"
+            checked={biometric}
+            onChange={setBiometric}
+          />
           <div className="setting-row">
             <div>
-              <strong>Face ID / fingerprint</strong>
-              <small>Coming soon · unlock the app on supported devices</small>
+              <strong>Two-factor authentication</strong>
+              <small>Coming soon</small>
             </div>
+            <span className="soon-badge">SOON</span>
+          </div>
+          <div className="setting-row">
+            <div>
+              <strong>Transaction PIN</strong>
+              <small>Required for sensitive wallet actions</small>
+            </div>
+            <ArrowRight size={17} />
           </div>
         </Card>
+      </ServiceLayout>
+    );
+
+  if (view === 'community')
+    return (
+      <ServiceLayout
+        title="Follow us"
+        eyebrow="COMMUNITY"
+        description="Official Verxor channels for updates and support."
+        onBack={onBack}
+      >
+        <div className="support-channels">
+          <a href={SOCIAL.telegramChannel} target="_blank" rel="noopener noreferrer" className="support-channel">
+            <span className="support-channel-icon telegram">
+              <Send size={17} />
+            </span>
+            <div>
+              <strong>Telegram</strong>
+              <small>Announcements and updates</small>
+            </div>
+            <ArrowRight size={17} />
+          </a>
+          <a href={SOCIAL.whatsappChannel} target="_blank" rel="noopener noreferrer" className="support-channel">
+            <span className="support-channel-icon whatsapp">
+              <MessageCircle size={17} />
+            </span>
+            <div>
+              <strong>WhatsApp</strong>
+              <small>Official channel</small>
+            </div>
+            <ArrowRight size={17} />
+          </a>
+          {SOCIAL.instagram ? (
+            <a href={SOCIAL.instagram} target="_blank" rel="noopener noreferrer" className="support-channel">
+              <span className="support-channel-icon instagram">
+                <Instagram size={17} />
+              </span>
+              <div>
+                <strong>Instagram</strong>
+                <small>@verxorofficial</small>
+              </div>
+              <ArrowRight size={17} />
+            </a>
+          ) : null}
+          {SOCIAL.twitter ? (
+            <a href={SOCIAL.twitter} target="_blank" rel="noopener noreferrer" className="support-channel">
+              <span className="support-channel-icon x">
+                <XIcon size={17} />
+              </span>
+              <div>
+                <strong>X (Twitter)</strong>
+                <small>@VerxorOfficial</small>
+              </div>
+              <ArrowRight size={17} />
+            </a>
+          ) : null}
+          {SOCIAL.facebook ? (
+            <a href={SOCIAL.facebook} target="_blank" rel="noopener noreferrer" className="support-channel">
+              <span className="support-channel-icon facebook">
+                <Facebook size={17} />
+              </span>
+              <div>
+                <strong>Facebook</strong>
+                <small>Verxor official</small>
+              </div>
+              <ArrowRight size={17} />
+            </a>
+          ) : null}
+          {SOCIAL.tiktok ? (
+            <a href={SOCIAL.tiktok} target="_blank" rel="noopener noreferrer" className="support-channel">
+              <span className="support-channel-icon tiktok">
+                <TikTokIcon size={17} />
+              </span>
+              <div>
+                <strong>TikTok</strong>
+                <small>@verxorofficial</small>
+              </div>
+              <ArrowRight size={17} />
+            </a>
+          ) : null}
+        </div>
       </ServiceLayout>
     );
 
@@ -448,14 +633,14 @@ export function ServicePage({ view, onBack }: { view: Exclude<ServiceView, 'serv
           </p>
           <h3>Server 1 and Server 2</h3>
           <p>
-            Virtual numbers are grouped by server and price tier (Economy, Standard, Fast, Premium). Higher tiers
+            Virtual numbers are grouped by server and price tier (Economy, Fast, Standard, Premium). Higher tiers
             generally cost more and are stocked from stronger routes when available. No third-party platform is
             guaranteed to accept any number.
           </p>
           <h3>Account security</h3>
           <p>
-            Keep your password and PIN private. Turn on security alerts under Account & Security. Contact support if
-            you notice activity you do not recognize.
+            Keep your password and PIN private. Turn on security alerts under Notifications. Contact support if you
+            notice activity you do not recognize.
           </p>
           <h3>Need faster help?</h3>
           <p>Use Telegram or WhatsApp from Contact Support for the quickest response.</p>
