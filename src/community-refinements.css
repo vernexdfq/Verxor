@@ -96,6 +96,22 @@
   color: #16A34A;
   background: #F0FDF4;
 }
+.profile-item-icon-instagram {
+  color: #DB2777;
+  background: #FDF2F8;
+}
+.profile-item-icon-x {
+  color: #0F172A;
+  background: #F1F5F9;
+}
+.profile-item-icon-facebook {
+  color: #1D4ED8;
+  background: #EFF6FF;
+}
+.profile-item-icon-tiktok {
+  color: #0F172A;
+  background: #F8FAFC;
+}
 
 .profile-referral-card {
   min-height: 70px;
@@ -121,6 +137,84 @@
   font-weight: 700;
 }
 .profile-copy-button:hover { background: var(--primary-soft-strong); }
+
+/* Account settings toggles */
+.settings-section-label {
+  margin: 18px 1px 8px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 16px;
+  font-weight: 700;
+  letter-spacing: .08em;
+}
+.setting-row-toggle {
+  min-height: 64px;
+}
+.pref-toggle {
+  width: 46px;
+  height: 28px;
+  flex: 0 0 46px;
+  padding: 2px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: #E2E8F0;
+  position: relative;
+}
+.pref-toggle.on {
+  border-color: var(--primary);
+  background: var(--primary);
+}
+.pref-toggle-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, .15);
+  transition: transform .18s ease;
+}
+.pref-toggle.on .pref-toggle-knob {
+  transform: translateX(18px);
+}
+
+.form-select,
+.form-input {
+  width: 100%;
+  min-height: 44px;
+  margin-bottom: 12px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  color: var(--text);
+  background: var(--surface);
+  font-size: 13px;
+}
+.form-select:focus,
+.form-input:focus,
+.form-card textarea:focus {
+  outline: 0;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, .12);
+}
+.feedback-success {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  color: #15803D;
+}
+.feedback-success strong {
+  display: block;
+  color: var(--text);
+  font-size: 14px;
+}
+.feedback-success p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 18px;
+}
 
 /* Final Quick Actions geometry: compact, balanced and deliberately flat. */
 .quick-grid {
@@ -158,4 +252,5 @@
 
 @media (prefers-reduced-motion: reduce) {
   .community-btn { transition: none; }
+  .pref-toggle-knob { transition: none; }
 }
