@@ -2,19 +2,23 @@ import { useState, type ReactNode } from 'react';
 import {
   ArrowLeft,
   ArrowRight,
-  CheckCircle2,
+  Check,
   Clock3,
+  Copy,
   Eye,
   EyeOff,
   Facebook,
   Gift,
+  Globe2,
   Instagram,
   KeyRound,
+  LockKeyhole,
   Mail,
   MessageCircle,
   Package,
   Phone,
   Send,
+  ShieldCheck,
   Users,
 } from 'lucide-react';
 import { Card, PrimaryButton, SectionHeader } from './components/ui';
@@ -40,7 +44,12 @@ export type ServiceView =
   | 'community'
   | 'feedback'
   | 'help'
-  | 'privacy';
+  | 'privacy'
+  | 'edit-profile'
+  | 'referral'
+  | 'child-panel'
+  | 'api-keys'
+  | 'support-center';
 
 const catalog = [
   {
@@ -193,10 +202,33 @@ export function ServicePage({ view, onBack }: { view: Exclude<ServiceView, 'serv
   const [newPw, setNewPw] = useState('');
   const [confirmPw, setConfirmPw] = useState('');
   const [pwStatus, setPwStatus] = useState<'idle' | 'ok'>('idle');
-  const [feedbackType, setFeedbackType] = useState('feature');
+  const [pinStep, setPinStep] = useState<'idle' | 'auth' | 'set'>('idle');
+  const [pinAuthPw, setPinAuthPw] = useState('');
+  const [pinValue, setPinValue] = useState('');
+  const [pinConfirm, setPinConfirm] = useState('');
+  const [fullName, setFullName] = useState('Destiny');
+  const [username, setUsername] = useState('dennykay042');
+  const [profileSaved, setProfileSaved] = useState(false);
+  const [refCopied, setRefCopied] = useState<'code' | 'link' | null>(null);
+  const [webhookUrl, setWebhookUrl] = useState('');
+  const [webhookSaved, setWebhookSaved] = useState(false);
+  const [feedbackType, setFeedbackType] = useState('');
   const [feedbackSubject, setFeedbackSubject] = useState('');
   const [feedbackBody, setFeedbackBody] = useState('');
   const [feedbackSent, setFeedbackSent] = useState(false);
+
+  const referralCode = 'VERXOR-DENNY';
+  const referralLink = `https://verxor.com/register?ref=${referralCode}`;
+
+  const copyText = async (text: string, kind: 'code' | 'link') => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setRefCopied(kind);
+      window.setTimeout(() => setRefCopied(null), 1800);
+    } catch {
+      setRefCopied(null);
+    }
+  };
 
   if (view === 'virtual-numbers' || view === 'rental' || view === 'boost' || view === 'accounts') {
     const titles: Record<string, { t: string; e: string; d: string }> = {
@@ -267,49 +299,154 @@ export function ServicePage({ view, onBack }: { view: Exclude<ServiceView, 'serv
       <ServiceLayout title="Affiliate" eyebrow="REFERRALS" description="Share your referral link and track eligible rewards." onBack={onBack}>
         <Card className="referral-card">
           <small>Your referral link</small>
-          <strong>verxor.com/ref/your-link</strong>
-          <button type="button" className="copy-button">
-            Copy link
+          <strong>{referralLink}</strong>
+          <button type="button" className="copy-button" onClick={() => copyText(referralLink, 'link')}>
+            {refCopied === 'link' ? 'Copied' : 'Copy link'}
           </button>
         </Card>
       </ServiceLayout>
     );
   if (view === 'alerts') return <NotificationsPage onBack={onBack} />;
 
-  if (view === 'settings')
+  /* —— EDIT PROFILE —— */
+  if (view === 'edit-profile')
     return (
       <ServiceLayout
-        title="Account"
-        eyebrow="ACCOUNT SETTINGS"
-        description="Region is set from the phone you registered with."
+        title="Edit Profile"
+        eyebrow="ACCOUNT"
+        description="Update your personal information. Phone and email cannot be changed."
         onBack={onBack}
       >
-        <Card className="settings-list">
-          <div className="setting-row">
-            <div>
-              <strong>Currency & Region</strong>
-              <small>Set by registration phone · change via support if you move</small>
-            </div>
-            <ArrowRight size={17} />
-          </div>
-          <div className="setting-row">
-            <div>
-              <strong>Personal information</strong>
-              <small>Name, username, phone and email</small>
-            </div>
-            <ArrowRight size={17} />
-          </div>
-          <div className="setting-row">
-            <div>
-              <strong>Sessions</strong>
-              <small>Review devices signed in to your account</small>
-            </div>
-            <ArrowRight size={17} />
-          </div>
+        <Card className="form-card">
+          <label htmlFor="full-name">Full name</label>
+          <input
+            id="full-name"
+            className="form-input"
+            value={fullName}
+            onChange={(e) => {
+              setFullName(e.target.value);
+              setProfileSaved(false);
+            }}
+            placeholder="Full name"
+          />
+          <label htmlFor="username">Username</label>
+          <input
+            id="username"
+            className="form-input"
+            value={username}
+            onChange={(e) => {
+              setUsername(e.target.value.replace(/\s/g, ''));
+              setProfileSaved(false);
+            }}
+            placeholder="@username"
+          />
+          <label htmlFor="phone-locked">Phone number</label>
+          <input id="phone-locked" className="form-input locked" value="08141620644" readOnly disabled />
+          <p className="form-hint-locked">Cannot be changed · used for region and security</p>
+          <label htmlFor="email-locked">Email address</label>
+          <input id="email-locked" className="form-input locked" value="vernexdfq@gmail.com" readOnly disabled />
+          <p className="form-hint-locked">Cannot be changed</p>
+          <PrimaryButton
+            disabled={!fullName.trim() || !username.trim()}
+            onClick={() => setProfileSaved(true)}
+          >
+            {profileSaved ? (
+              <>
+                <Check size={18} /> Saved
+              </>
+            ) : (
+              'Save changes'
+            )}
+          </PrimaryButton>
         </Card>
       </ServiceLayout>
     );
 
+  /* —— REFERRAL PROGRAM —— */
+  if (view === 'referral')
+    return (
+      <ServiceLayout
+        title="Referral Program"
+        eyebrow="EARN 10%"
+        description="Earn 10% of each referral's first deposit, instantly — once per user."
+        onBack={onBack}
+      >
+        <div className="referral-stats-grid">
+          <div className="referral-stat">
+            <strong>1</strong>
+            <small>Total referrals</small>
+          </div>
+          <div className="referral-stat">
+            <strong>0</strong>
+            <small>Successful</small>
+          </div>
+          <div className="referral-stat">
+            <strong>1</strong>
+            <small>Pending</small>
+          </div>
+          <div className="referral-stat">
+            <strong>0</strong>
+            <small>Flagged</small>
+          </div>
+        </div>
+
+        <div className="referral-earnings">
+          <Gift size={22} color="#16a34a" />
+          <div>
+            <small>Total referral earnings</small>
+            <strong>₦0.00</strong>
+          </div>
+        </div>
+
+        <Card className="form-card">
+          <p className="settings-section-label" style={{ marginTop: 0 }}>
+            Your referral details
+          </p>
+          <div className="referral-detail-row">
+            <div>
+              <small style={{ color: 'var(--muted)', fontSize: 10 }}>CODE</small>
+              <code>{referralCode}</code>
+            </div>
+            <button type="button" className="copy-button" onClick={() => copyText(referralCode, 'code')}>
+              {refCopied === 'code' ? <Check size={14} /> : <Copy size={14} />}
+              {refCopied === 'code' ? 'Copied' : 'Copy'}
+            </button>
+          </div>
+          <div className="referral-detail-row">
+            <div style={{ minWidth: 0 }}>
+              <small style={{ color: 'var(--muted)', fontSize: 10 }}>LINK</small>
+              <code style={{ fontSize: 11 }}>{referralLink}</code>
+            </div>
+            <button type="button" className="copy-button" onClick={() => copyText(referralLink, 'link')}>
+              {refCopied === 'link' ? <Check size={14} /> : <Copy size={14} />}
+              {refCopied === 'link' ? 'Copied' : 'Copy'}
+            </button>
+          </div>
+          <p className="settings-footnote">
+            Rewards are credited instantly when your referred user makes their first successful deposit — 10% of that
+            deposit, once per user.
+          </p>
+        </Card>
+
+        <SectionHeader eyebrow="HISTORY" title="Referral history" />
+        <Card className="form-card">
+          <div className="referral-history-item">
+            <div>
+              <strong style={{ fontSize: 13 }}>dennybadmanvj</strong>
+              <small style={{ display: 'block', color: 'var(--muted)', fontSize: 10, marginTop: 2 }}>
+                dennygodzilla0@gmail.com · Joined 22/09/2026
+              </small>
+            </div>
+            <span className="referral-badge">PENDING</span>
+          </div>
+          <p className="settings-footnote" style={{ marginTop: 8 }}>
+            Awaiting first deposit
+          </p>
+        </Card>
+      </ServiceLayout>
+    );
+
+  /* —— NOTIFICATIONS PREFS —— */
   if (view === 'notifications-prefs')
     return (
       <ServiceLayout
@@ -350,10 +487,13 @@ export function ServicePage({ view, onBack }: { view: Exclude<ServiceView, 'serv
             onChange={setPromoPush}
           />
         </Card>
-        <p className="settings-footnote">You will always receive essential account-related emails regardless of these preferences.</p>
+        <p className="settings-footnote">
+          You will always receive essential account-related emails regardless of these preferences.
+        </p>
       </ServiceLayout>
     );
 
+  /* —— SECURITY —— */
   if (view === 'security')
     return (
       <ServiceLayout
@@ -408,11 +548,74 @@ export function ServicePage({ view, onBack }: { view: Exclude<ServiceView, 'serv
           </PrimaryButton>
         </Card>
 
+        <p className="settings-section-label">TRANSACTION PIN</p>
+        <Card className="form-card">
+          {pinStep === 'idle' && (
+            <>
+              <p style={{ margin: '0 0 12px', fontSize: 12, color: 'var(--muted)' }}>
+                4-digit PIN required for sensitive wallet actions. Enter your login password to set or change it.
+              </p>
+              <PrimaryButton onClick={() => setPinStep('auth')}>Set / change PIN</PrimaryButton>
+            </>
+          )}
+          {pinStep === 'auth' && (
+            <>
+              <label htmlFor="pin-auth">Account password</label>
+              <input
+                id="pin-auth"
+                className="form-input"
+                type="password"
+                value={pinAuthPw}
+                onChange={(e) => setPinAuthPw(e.target.value)}
+                placeholder="Enter your account password"
+              />
+              <PrimaryButton disabled={pinAuthPw.length < 4} onClick={() => setPinStep('set')}>
+                Continue
+              </PrimaryButton>
+            </>
+          )}
+          {pinStep === 'set' && (
+            <>
+              <label htmlFor="pin-new">New 4-digit PIN</label>
+              <input
+                id="pin-new"
+                className="form-input"
+                inputMode="numeric"
+                maxLength={4}
+                value={pinValue}
+                onChange={(e) => setPinValue(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                placeholder="••••"
+              />
+              <label htmlFor="pin-confirm">Confirm PIN</label>
+              <input
+                id="pin-confirm"
+                className="form-input"
+                inputMode="numeric"
+                maxLength={4}
+                value={pinConfirm}
+                onChange={(e) => setPinConfirm(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                placeholder="••••"
+              />
+              <PrimaryButton
+                disabled={pinValue.length !== 4 || pinValue !== pinConfirm}
+                onClick={() => {
+                  setPinStep('idle');
+                  setPinAuthPw('');
+                  setPinValue('');
+                  setPinConfirm('');
+                }}
+              >
+                Save PIN
+              </PrimaryButton>
+            </>
+          )}
+        </Card>
+
         <p className="settings-section-label">AUTHENTICATION</p>
         <Card className="settings-list">
           <ToggleRow
             title="Biometric login"
-            description="Enable quick login with Face ID or fingerprint on supported devices"
+            description="Face ID / Touch ID on supported devices"
             checked={biometric}
             onChange={setBiometric}
           />
@@ -423,10 +626,295 @@ export function ServicePage({ view, onBack }: { view: Exclude<ServiceView, 'serv
             </div>
             <span className="soon-badge">SOON</span>
           </div>
+          <button type="button" className="setting-row" onClick={() => {}} style={{ width: '100%', background: 'transparent', border: 0, borderBottom: '1px solid var(--border)', textAlign: 'left', cursor: 'pointer' }}>
+            <div>
+              <strong>Privacy policy</strong>
+              <small>How we handle your data</small>
+            </div>
+            <ArrowRight size={17} color="var(--faint)" />
+          </button>
+        </Card>
+        <p className="settings-footnote">
+          Open Privacy Policy from Support Center or ask support for the full legal document.
+        </p>
+      </ServiceLayout>
+    );
+
+  /* —— CHILD PANEL —— */
+  if (view === 'child-panel')
+    return (
+      <ServiceLayout
+        title="Child Panel"
+        eyebrow="WHITE-LABEL"
+        description="Run your own branded virtual-number and digital services site powered by Verxor."
+        onBack={onBack}
+      >
+        <Card className="info-card">
+          <Globe2 size={22} />
+          <div>
+            <strong>Own a site under your brand</strong>
+            <p>
+              White-label panel with your domain, pricing margins, and branding. Verxor handles routing, providers, and
+              infrastructure in the background. You set retail prices in your admin; wholesale rates come from Verxor API.
+            </p>
+          </div>
+        </Card>
+        <Card className="form-card">
+          <p style={{ margin: '0 0 12px', fontSize: 13, lineHeight: '20px' }}>
+            Child Panel is available for approved partners. Contact support to request access, discuss pricing, and get
+            your subdomain or custom domain connected.
+          </p>
+          <a href={SOCIAL.telegramSupport} target="_blank" rel="noopener noreferrer" className="primary-button" style={{ display: 'inline-flex', textDecoration: 'none' }}>
+            Chat on Telegram
+          </a>
+        </Card>
+      </ServiceLayout>
+    );
+
+  /* —— API KEYS —— */
+  if (view === 'api-keys')
+    return (
+      <ServiceLayout
+        title="API Keys"
+        eyebrow="DEVELOPER"
+        description="Integrate Verxor services into your own systems."
+        onBack={onBack}
+      >
+        <Card className="form-card">
+          <label htmlFor="webhook">Webhook URL</label>
+          <input
+            id="webhook"
+            className="form-input"
+            value={webhookUrl}
+            onChange={(e) => {
+              setWebhookUrl(e.target.value);
+              setWebhookSaved(false);
+            }}
+            placeholder="https://your-server.com/webhooks/verxor"
+          />
+          <PrimaryButton disabled={!webhookUrl.trim()} onClick={() => setWebhookSaved(true)}>
+            {webhookSaved ? 'Webhook saved' : 'Save webhook URL'}
+          </PrimaryButton>
+          <p className="settings-footnote">Receive real-time POST notifications for orders.</p>
+        </Card>
+
+        <p className="settings-section-label">Security best practices</p>
+        <Card className="legal-card">
+          <p>✓ Store the API key in a secure server-side environment variable. Never commit it to source control.</p>
+          <p>✓ Always send requests over HTTPS — never call the API from a public client without a server proxy.</p>
+          <p>✓ Rotate the key immediately if you suspect it has been exposed.</p>
+          <p>✓ Use the webhook URL to react to events instead of polling — it scales better.</p>
+        </Card>
+
+        <Card className="info-card">
+          <KeyRound size={20} />
+          <div>
+            <strong>Full API documentation</strong>
+            <p>Endpoints, parameters, error codes and examples will be published for approved API clients.</p>
+          </div>
+        </Card>
+      </ServiceLayout>
+    );
+
+  /* —— SUPPORT CENTER —— */
+  if (view === 'support-center')
+    return (
+      <ServiceLayout
+        title="Help & Support"
+        eyebrow="SUPPORT"
+        description="We are here to help you 24/7."
+        onBack={onBack}
+      >
+        <p className="settings-section-label" style={{ marginTop: 0 }}>
+          Support channels
+        </p>
+        <div className="support-channels">
+          <a href={SOCIAL.whatsappSupport} target="_blank" rel="noopener noreferrer" className="support-channel">
+            <span className="support-channel-icon whatsapp">
+              <MessageCircle size={17} />
+            </span>
+            <div>
+              <strong>WhatsApp Support</strong>
+              <small>Chat with us on WhatsApp</small>
+            </div>
+            <ArrowRight size={17} />
+          </a>
+          <a href={SOCIAL.telegramSupport} target="_blank" rel="noopener noreferrer" className="support-channel">
+            <span className="support-channel-icon telegram">
+              <Send size={17} />
+            </span>
+            <div>
+              <strong>Telegram Support</strong>
+              <small>Fastest response for order issues</small>
+            </div>
+            <ArrowRight size={17} />
+          </a>
+          <a href={SOCIAL.email} className="support-channel">
+            <span className="support-channel-icon email">
+              <Mail size={17} />
+            </span>
+            <div>
+              <strong>Email Support</strong>
+              <small>support@verxor.com</small>
+            </div>
+            <ArrowRight size={17} />
+          </a>
+        </div>
+
+        <p className="settings-section-label">Self service</p>
+        <div className="support-channels">
+          <button type="button" className="support-channel" onClick={() => {}} style={{ cursor: 'default' }}>
+            <span className="support-channel-icon" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>
+              <ShieldCheck size={17} />
+            </span>
+            <div>
+              <strong>Help Center & Guides</strong>
+              <small>Step-by-step guides to fund, buy numbers, and more</small>
+            </div>
+            <ArrowRight size={17} />
+          </button>
+        </div>
+
+        <p className="settings-section-label">Follow us</p>
+        <div className="support-channels">
+          {SOCIAL.instagram ? (
+            <a href={SOCIAL.instagram} target="_blank" rel="noopener noreferrer" className="support-channel">
+              <span className="support-channel-icon instagram">
+                <Instagram size={17} />
+              </span>
+              <div>
+                <strong>Instagram</strong>
+                <small>@verxorofficial</small>
+              </div>
+              <ArrowRight size={17} />
+            </a>
+          ) : null}
+          {SOCIAL.twitter ? (
+            <a href={SOCIAL.twitter} target="_blank" rel="noopener noreferrer" className="support-channel">
+              <span className="support-channel-icon x">
+                <XIcon size={17} />
+              </span>
+              <div>
+                <strong>X (Twitter)</strong>
+                <small>@VerxorOfficial</small>
+              </div>
+              <ArrowRight size={17} />
+            </a>
+          ) : null}
+          {SOCIAL.facebook ? (
+            <a href={SOCIAL.facebook} target="_blank" rel="noopener noreferrer" className="support-channel">
+              <span className="support-channel-icon facebook">
+                <Facebook size={17} />
+              </span>
+              <div>
+                <strong>Facebook</strong>
+                <small>Verxor official</small>
+              </div>
+              <ArrowRight size={17} />
+            </a>
+          ) : null}
+          {SOCIAL.tiktok ? (
+            <a href={SOCIAL.tiktok} target="_blank" rel="noopener noreferrer" className="support-channel">
+              <span className="support-channel-icon tiktok">
+                <TikTokIcon size={17} />
+              </span>
+              <div>
+                <strong>TikTok</strong>
+                <small>@verxorofficial</small>
+              </div>
+              <ArrowRight size={17} />
+            </a>
+          ) : null}
+          <a href={SOCIAL.telegramChannel} target="_blank" rel="noopener noreferrer" className="support-channel">
+            <span className="support-channel-icon telegram">
+              <Send size={17} />
+            </span>
+            <div>
+              <strong>Telegram channel</strong>
+              <small>Announcements and updates</small>
+            </div>
+            <ArrowRight size={17} />
+          </a>
+        </div>
+
+        <p className="settings-section-label">FAQs</p>
+        <Card className="legal-card">
+          <h3>How do I fund my wallet?</h3>
+          <p>
+            Go to Fund, enter the amount and complete payment. Your balance updates after confirmation. Methods depend on
+            the country of the phone you registered with.
+          </p>
+          <h3>What is Server 1 vs Server 2?</h3>
+          <p>
+            Virtual numbers are grouped by price and availability into Server 1 and Server 2 tiers (Economy, Fast,
+            Standard, Premium). Higher tiers generally offer stronger delivery for stricter platforms.
+          </p>
+          <h3>How does referral work?</h3>
+          <p>Share your code or link. You earn 10% of each referred user&apos;s first successful deposit, once per user.</p>
+        </Card>
+
+        <p className="settings-section-label">Feedback</p>
+        <Card className="form-card">
+          <label htmlFor="fb-type">Feedback type</label>
+          <select
+            id="fb-type"
+            className="form-input"
+            value={feedbackType}
+            onChange={(e) => setFeedbackType(e.target.value)}
+          >
+            <option value="">Choose one…</option>
+            <option value="feature">Feature suggestion</option>
+            <option value="bug">Bug / issue report</option>
+            <option value="poor">Poor experience</option>
+            <option value="like">What you like</option>
+            <option value="general">General suggestion</option>
+          </select>
+          <label htmlFor="fb-subject">Subject</label>
+          <input
+            id="fb-subject"
+            className="form-input"
+            value={feedbackSubject}
+            onChange={(e) => setFeedbackSubject(e.target.value)}
+            placeholder="Sum it up in a few words"
+          />
+          <label htmlFor="fb-body">Your message</label>
+          <textarea
+            id="fb-body"
+            rows={4}
+            value={feedbackBody}
+            onChange={(e) => setFeedbackBody(e.target.value)}
+            placeholder="Tell us as much detail as you'd like…"
+          />
+          <PrimaryButton
+            disabled={!feedbackType || !feedbackSubject.trim() || !feedbackBody.trim()}
+            onClick={() => setFeedbackSent(true)}
+          >
+            {feedbackSent ? 'Feedback sent' : 'Send feedback'}
+          </PrimaryButton>
+        </Card>
+      </ServiceLayout>
+    );
+
+  if (view === 'settings')
+    return (
+      <ServiceLayout
+        title="Account"
+        eyebrow="ACCOUNT SETTINGS"
+        description="Region is set from the phone you registered with."
+        onBack={onBack}
+      >
+        <Card className="settings-list">
           <div className="setting-row">
             <div>
-              <strong>Transaction PIN</strong>
-              <small>Required for sensitive wallet actions</small>
+              <strong>Currency & Region</strong>
+              <small>Set by registration phone · change via support if you move</small>
+            </div>
+            <ArrowRight size={17} />
+          </div>
+          <div className="setting-row">
+            <div>
+              <strong>Personal information</strong>
+              <small>Use Edit Profile from the profile header</small>
             </div>
             <ArrowRight size={17} />
           </div>
@@ -515,7 +1003,7 @@ export function ServicePage({ view, onBack }: { view: Exclude<ServiceView, 'serv
       </ServiceLayout>
     );
 
-  if (view === 'feedback')
+  if (view === 'feedback' || view === 'help')
     return (
       <ServiceLayout title="Contact Support" eyebrow="SUPPORT" description="Get help fast through the channels below." onBack={onBack}>
         <div className="support-channels">
@@ -550,101 +1038,6 @@ export function ServicePage({ view, onBack }: { view: Exclude<ServiceView, 'serv
             <ArrowRight size={17} />
           </a>
         </div>
-
-        <SectionHeader eyebrow="SELF SERVICE" title="Quick answers" />
-        <Card className="legal-card">
-          <h3>How do I fund my wallet?</h3>
-          <p>
-            Go to Fund, enter the amount and complete payment. Your balance updates after Flutterwave confirms. Methods
-            depend on the country of the phone you registered with (NGN for Nigeria, USD for most other regions).
-          </p>
-          <h3>Virtual Number vs Rent a Line</h3>
-          <p>
-            Virtual Numbers are for short OTP verification (Server 1 / Server 2 tiers by price and availability). Rent a
-            Line gives you a dedicated number for a selected period with SMS and voice where the provider supports it.
-          </p>
-          <h3>Number not receiving SMS?</h3>
-          <p>
-            Some platforms restrict certain routes. Check the tier label before buying and contact support with your
-            order ID if the order rules allow a replacement or refund.
-          </p>
-        </Card>
-
-        <SectionHeader eyebrow="FEEDBACK" title="Send feedback" />
-        <Card className="form-card">
-          {feedbackSent ? (
-            <div className="feedback-success">
-              <CheckCircle2 size={20} />
-              <div>
-                <strong>Thanks — we received it</strong>
-                <p>Our team reviews feedback regularly. For urgent order issues use Telegram or WhatsApp above.</p>
-              </div>
-            </div>
-          ) : (
-            <>
-              <label htmlFor="feedback-type">Type</label>
-              <select
-                id="feedback-type"
-                className="form-select"
-                value={feedbackType}
-                onChange={(e) => setFeedbackType(e.target.value)}
-              >
-                <option value="feature">Feature suggestion</option>
-                <option value="bug">Bug report</option>
-                <option value="billing">Billing / wallet</option>
-                <option value="other">Other</option>
-              </select>
-              <label htmlFor="feedback-subject">Subject</label>
-              <input
-                id="feedback-subject"
-                className="form-input"
-                value={feedbackSubject}
-                onChange={(e) => setFeedbackSubject(e.target.value)}
-                placeholder="Short summary"
-              />
-              <label htmlFor="feedback-body">Message</label>
-              <textarea
-                id="feedback-body"
-                rows={4}
-                value={feedbackBody}
-                onChange={(e) => setFeedbackBody(e.target.value)}
-                placeholder="Tell us what happened or what you need"
-              />
-              <PrimaryButton
-                disabled={!feedbackSubject.trim() || !feedbackBody.trim()}
-                onClick={() => setFeedbackSent(true)}
-              >
-                Send feedback
-              </PrimaryButton>
-            </>
-          )}
-        </Card>
-      </ServiceLayout>
-    );
-
-  if (view === 'help')
-    return (
-      <ServiceLayout title="Help Center" eyebrow="SUPPORT" description="Guides and answers for using Verxor." onBack={onBack}>
-        <Card className="legal-card">
-          <h3>Getting started</h3>
-          <p>
-            Fund your wallet, choose a service, select a country or product and confirm your order. Activity appears in
-            History.
-          </p>
-          <h3>Server 1 and Server 2</h3>
-          <p>
-            Virtual numbers are grouped by server and price tier (Economy, Fast, Standard, Premium). Higher tiers
-            generally cost more and are stocked from stronger routes when available. No third-party platform is
-            guaranteed to accept any number.
-          </p>
-          <h3>Account security</h3>
-          <p>
-            Keep your password and PIN private. Turn on security alerts under Notifications. Contact support if you
-            notice activity you do not recognize.
-          </p>
-          <h3>Need faster help?</h3>
-          <p>Use Telegram or WhatsApp from Contact Support for the quickest response.</p>
-        </Card>
       </ServiceLayout>
     );
 
@@ -654,8 +1047,8 @@ export function ServicePage({ view, onBack }: { view: Exclude<ServiceView, 'serv
         <Card className="legal-card">
           <h3>Information We Collect</h3>
           <p>
-            Account details (name, email, phone), payment and wallet activity, device and session data needed to keep
-            the service secure, and support messages you send us.
+            Account details (name, email, phone), payment and wallet activity, device and session data needed to keep the
+            service secure, and support messages you send us.
           </p>
           <h3>How We Use Information</h3>
           <p>
@@ -664,8 +1057,8 @@ export function ServicePage({ view, onBack }: { view: Exclude<ServiceView, 'serv
           </p>
           <h3>Data Protection</h3>
           <p>
-            We use industry-standard controls to protect your data. We do not sell personal information. Access is
-            limited to systems and people that need it to operate Verxor.
+            We use industry-standard controls to protect your data. We do not sell personal information. Access is limited
+            to systems and people that need it to operate Verxor.
           </p>
           <h3>Cookies</h3>
           <p>We use essential cookies for session and security. Optional analytics only run if you allow them.</p>
