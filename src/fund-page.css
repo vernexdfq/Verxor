@@ -78,13 +78,83 @@
   background: var(--primary);
   color: #fff;
 }
+
+/* Balance summary on Fund */
+.fund-summary {
+  margin-bottom: 12px;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+.fund-summary span {
+  display: block;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+.fund-summary strong {
+  display: block;
+  margin-top: 4px;
+  font-size: 22px;
+  letter-spacing: -0.03em;
+}
+.fund-summary svg { color: var(--primary); flex: none; }
 .fund-ready-note {
-  margin: 0;
+  margin: 10px 0 0;
   font-size: 11px;
   line-height: 16px;
   color: var(--muted);
-  text-align: center;
 }
-@media (max-width: 360px) {
-  .amount-options-4 { grid-template-columns: repeat(2, 1fr); }
+
+/* Numbers service choice cards */
+.number-choice-list {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.number-choice {
+  width: 100%;
+  min-height: 72px;
+  padding: 12px 14px;
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  text-align: left;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-xs);
+}
+.number-choice:hover {
+  border-color: var(--primary-soft-strong);
+  background: var(--primary-soft);
+}
+.number-choice-icon {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  color: var(--primary);
+  background: var(--primary-soft);
+}
+.number-choice strong {
+  display: block;
+  font-size: 14px;
+  line-height: 20px;
+}
+.number-choice small {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 16px;
 }
