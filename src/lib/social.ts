@@ -7,7 +7,7 @@ export const SOCIAL = {
   telegramChannel: 'https://t.me/VerxorOfficial',
   whatsappSupport: 'https://wa.me/2348141620644',
   whatsappChannel: 'https://whatsapp.com/channel/0029VbE6zLAEQIag3m2Lvf1H',
-  email: 'mailto:support@verxor.com',
+  email: 'support@verxor.com',
   /** Set real profiles when ready; empty string hides the row until set. */
   twitter: 'https://x.com/VerxorOfficial',
   instagram: 'https://instagram.com/verxorofficial',
