@@ -12,6 +12,17 @@ import { ActivityLogsPage } from './activity-logs';
 import { AdminPage } from './admin-page';
 import type { Page } from './types';
 
+/** Sub-views opened from Profile — Back must return to Profile, not Services. */
+const PROFILE_SUBVIEWS: ServiceView[] = [
+  'settings',
+  'security',
+  'notifications-prefs',
+  'feedback',
+  'help',
+  'privacy',
+  'community',
+];
+
 const services = [
   { title: 'Virtual Numbers', label: 'Instant OTP', description: 'Fast verification numbers for supported services.' },
   { title: 'Rent a Line', label: 'Dedicated rentals', description: 'Keep a private number for a selected rental period.' },
@@ -298,6 +309,15 @@ export function VerxorApp() {
   const [page, setPage] = useState<Page>('home');
   const [service, setService] = useState<ServiceView | null>(null);
 
+  const closeService = () => {
+    if (service && PROFILE_SUBVIEWS.includes(service)) {
+      setService(null);
+      setPage('profile');
+      return;
+    }
+    setService(null);
+  };
+
   if (view === 'admin') {
     return (
       <div className={dark ? 'app dark' : 'app'}>
@@ -320,13 +340,13 @@ export function VerxorApp() {
     service === 'services' ? (
       <ServicesPage open={setService} />
     ) : service === 'rental' ? (
-      <RentalPage onBack={() => setService('services')} />
+      <RentalPage onBack={closeService} />
     ) : service === 'virtual-numbers' ? (
-      <VirtualNumbersPage onBack={() => setService('services')} onOpenNotifications={() => setService('alerts')} />
+      <VirtualNumbersPage onBack={closeService} onOpenNotifications={() => setService('alerts')} />
     ) : service === 'accounts' ? (
-      <AccountsPage onBack={() => setService('services')} />
+      <AccountsPage onBack={closeService} />
     ) : service ? (
-      <ServicePage view={service} onBack={() => setService('services')} />
+      <ServicePage view={service} onBack={closeService} />
     ) : page === 'history' ? (
       <ActivityLogsPage />
     ) : (
