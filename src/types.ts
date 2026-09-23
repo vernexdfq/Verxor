@@ -1,4 +1,4 @@
-export type Page = 'home' | 'history' | 'fund' | 'numbers' | 'profile';
+export type Page = 'home' | 'history' | 'fund' | 'services' | 'profile';
 
 export type NavItem = {
   id: Page;

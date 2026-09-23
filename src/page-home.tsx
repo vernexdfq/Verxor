@@ -1,9 +1,92 @@
-import { ArrowRight, Clock3, Eye, History, Plus, Smartphone, UserRound, Zap } from 'lucide-react';
+import {
+  ArrowRight,
+  Clock3,
+  CreditCard,
+  Eye,
+  Gift,
+  History,
+  Phone,
+  Plus,
+  Smartphone,
+  UserRound,
+  Wifi,
+  Zap,
+} from 'lucide-react';
 import { Card, SectionHeader } from './components/ui';
 import type { Page } from './types';
 import type { ServiceView } from './service-pages';
 
 const wallet = { amount: '0.00', symbol: '₦', code: 'NGN' };
+
+const QUICK_ACTIONS: {
+  id: ServiceView | 'coming-data' | 'coming-airtime' | 'coming-gift' | 'coming-vcard';
+  title: string;
+  subtitle: string;
+  icon: typeof Smartphone;
+  tone: string;
+  service?: ServiceView;
+}[] = [
+  {
+    id: 'virtual-numbers',
+    title: 'Virtual Number',
+    subtitle: 'OTP codes',
+    icon: Smartphone,
+    tone: 'quick-icon-blue',
+    service: 'virtual-numbers',
+  },
+  {
+    id: 'rental',
+    title: 'Rent Number',
+    subtitle: 'Long-term',
+    icon: Clock3,
+    tone: 'quick-icon-cyan',
+    service: 'rental',
+  },
+  {
+    id: 'boost',
+    title: 'SMM Boost',
+    subtitle: 'Social growth',
+    icon: Zap,
+    tone: 'quick-icon-amber',
+    service: 'boost',
+  },
+  {
+    id: 'accounts',
+    title: 'Buy Accounts',
+    subtitle: 'Inventory',
+    icon: UserRound,
+    tone: 'quick-icon-violet',
+    service: 'accounts',
+  },
+  {
+    id: 'coming-data',
+    title: 'Data',
+    subtitle: 'Mobile data',
+    icon: Wifi,
+    tone: 'quick-icon-indigo',
+  },
+  {
+    id: 'coming-airtime',
+    title: 'Airtime',
+    subtitle: 'Top-up',
+    icon: Phone,
+    tone: 'quick-icon-sky',
+  },
+  {
+    id: 'coming-gift',
+    title: 'Gift Card',
+    subtitle: 'Trade cards',
+    icon: Gift,
+    tone: 'quick-icon-rose',
+  },
+  {
+    id: 'coming-vcard',
+    title: 'Virtual Card',
+    subtitle: 'Spend online',
+    icon: CreditCard,
+    tone: 'quick-icon-emerald',
+  },
+];
 
 export function HomePage({ go, openService }: { go: (page: Page) => void; openService: (view: ServiceView) => void }) {
   return (
@@ -33,45 +116,30 @@ export function HomePage({ go, openService }: { go: (page: Page) => void; openSe
           </button>
         </div>
       </Card>
-      <SectionHeader eyebrow="SERVICES" title="Quick actions" />
-      <div className="quick-grid">
-        <button className="quick-card" type="button" onClick={() => openService('virtual-numbers')}>
-          <span className="quick-icon quick-icon-blue">
-            <Smartphone size={21} />
-          </span>
-          <span className="quick-copy">
-            <strong>Virtual Numbers</strong>
-            <small>OTP verification</small>
-          </span>
-        </button>
-        <button className="quick-card" type="button" onClick={() => openService('rental')}>
-          <span className="quick-icon quick-icon-violet">
-            <Clock3 size={21} />
-          </span>
-          <span className="quick-copy">
-            <strong>Rent a Line</strong>
-            <small>Long-term numbers</small>
-          </span>
-        </button>
-        <button className="quick-card" type="button" onClick={() => openService('boost')}>
-          <span className="quick-icon quick-icon-amber">
-            <Zap size={21} />
-          </span>
-          <span className="quick-copy">
-            <strong>SMM Boost</strong>
-            <small>Social growth</small>
-          </span>
-        </button>
-        <button className="quick-card" type="button" onClick={() => openService('accounts')}>
-          <span className="quick-icon quick-icon-cyan">
-            <UserRound size={21} />
-          </span>
-          <span className="quick-copy">
-            <strong>Buy Accounts</strong>
-            <small>Available inventory</small>
-          </span>
-        </button>
+
+      <div className="quick-section">
+        <p className="quick-section-label">QUICK ACTIONS</p>
+        <div className="quick-grid quick-grid-8">
+          {QUICK_ACTIONS.map(({ id, title, subtitle, icon: Icon, tone, service }) => (
+            <button
+              key={id}
+              className="quick-tile"
+              type="button"
+              onClick={() => {
+                if (service) openService(service);
+              }}
+              aria-label={title}
+            >
+              <span className={`quick-icon ${tone}`}>
+                <Icon size={18} strokeWidth={1.9} />
+              </span>
+              <strong>{title}</strong>
+              <small>{subtitle}</small>
+            </button>
+          ))}
+        </div>
       </div>
+
       <SectionHeader
         eyebrow="ACTIVITY"
         title="Recent activity"

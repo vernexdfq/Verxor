@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Clock3, Home, Smartphone, UserRound, WalletCards } from 'lucide-react';
+import { Clock3, Home, LayoutGrid, UserRound, WalletCards } from 'lucide-react';
 import { CommunityModal } from './CommunityModal';
 import './shell-refinements.css';
 import type { Page } from '../types';
@@ -24,14 +24,13 @@ export function AppShell({
   onLogout: () => void;
   children: ReactNode;
 }) {
-  // Keep props for compatibility with VerxorApp; theme/bell removed from UI for now.
   void onToggleTheme;
   void onOpenService;
   void onLogout;
 
   const items: { id: Page; label: string; icon: typeof Home }[] = [
     { id: 'home', label: 'Home', icon: Home },
-    { id: 'numbers', label: 'Numbers', icon: Smartphone },
+    { id: 'services', label: 'Services', icon: LayoutGrid },
     { id: 'fund', label: 'Fund', icon: WalletCards },
     { id: 'history', label: 'History', icon: Clock3 },
     { id: 'profile', label: 'Profile', icon: UserRound },
@@ -60,9 +59,13 @@ export function AppShell({
                   <span aria-hidden="true">‹</span>
                   <strong>History</strong>
                 </button>
+              ) : page === 'services' ? (
+                <div className="topbar-greeting" aria-label="Services">
+                  <span>Services</span>
+                  <small>All products in one place</small>
+                </div>
               ) : null}
             </div>
-            {/* Theme toggle and notification bell intentionally removed for now */}
             <div className="topbar-actions" />
           </header>
         )}
