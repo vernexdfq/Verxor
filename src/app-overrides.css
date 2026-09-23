@@ -7,7 +7,7 @@
   --surface-muted: #1E293B;
 }
 
-/* —— Home topbar: logo + greeting + bell (Primex-style balance, Verxor colors) —— */
+/* —— Home topbar —— */
 .topbar-home {
   min-height: 64px;
   padding-top: 12px;
@@ -80,9 +80,9 @@
   border-color: var(--primary-soft-strong, #bfdbfe);
 }
 
-/* Wallet — keep Verxor navy colors; balanced spacing like reference */
+/* Wallet */
 .wallet-card {
-  margin-bottom: 18px;
+  margin-bottom: 20px;
   padding: 18px 16px 16px;
   border-radius: 20px;
   background: linear-gradient(145deg, #0f172a 0%, #1e293b 55%, #0f172a 100%);
@@ -170,12 +170,12 @@
   border: 1px solid rgba(255, 255, 255, 0.28);
 }
 
-/* 8-tile quick actions — keep Verxor layout */
+/* —— 8 quick actions: even 4×2, professional spacing —— */
 .quick-section {
-  margin: 2px 0 16px;
+  margin: 0 0 14px;
 }
 .quick-section-label {
-  margin: 0 0 10px;
+  margin: 0 0 12px;
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -185,21 +185,22 @@
 div.quick-grid-8 {
   display: grid !important;
   grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
-  gap: 8px !important;
-  grid-auto-rows: auto !important;
+  gap: 10px !important;
+  grid-auto-rows: 1fr !important;
 }
 button.quick-tile {
   width: 100%;
   min-width: 0;
-  padding: 12px 4px 10px;
+  min-height: 88px;
+  padding: 14px 6px 12px;
   display: flex !important;
   flex-direction: column !important;
   align-items: center;
-  justify-content: flex-start;
-  gap: 7px;
+  justify-content: center;
+  gap: 8px;
   text-align: center;
   border: 1px solid var(--border);
-  border-radius: 14px;
+  border-radius: 16px;
   background: var(--surface);
   color: var(--text);
   box-shadow: none;
@@ -209,23 +210,24 @@ button.quick-tile:hover {
   background: var(--primary-soft);
 }
 button.quick-tile .quick-icon {
-  width: 36px;
-  height: 36px;
-  border-radius: 11px;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
   display: grid;
   place-items: center;
   flex: none;
 }
 button.quick-tile .quick-icon svg {
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
 }
 button.quick-tile strong {
   display: block;
   font-size: 11px;
-  line-height: 13px;
+  line-height: 14px;
   font-weight: 700;
   max-width: 100%;
+  padding: 0 2px;
   word-break: break-word;
 }
 .quick-icon-blue { color: #2563eb; background: #eff6ff; }
@@ -238,10 +240,78 @@ button.quick-tile strong {
 .quick-icon-emerald { color: #059669; background: #ecfdf5; }
 
 @media (max-width: 380px) {
-  div.quick-grid-8 { gap: 6px !important; }
-  button.quick-tile { padding: 10px 2px 8px; border-radius: 12px; }
+  div.quick-grid-8 { gap: 8px !important; }
+  button.quick-tile {
+    min-height: 82px;
+    padding: 12px 4px 10px;
+    border-radius: 14px;
+    gap: 6px;
+  }
   button.quick-tile strong { font-size: 10px; line-height: 12px; }
-  button.quick-tile .quick-icon { width: 32px; height: 32px; }
+  button.quick-tile .quick-icon { width: 36px; height: 36px; }
+  button.quick-tile .quick-icon svg { width: 18px; height: 18px; }
+}
+
+/* —— Promo / ad strip (Vernex-style, under quick actions) —— */
+.home-promo {
+  margin: 0 0 20px;
+}
+.home-promo-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 14px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0f172a 100%);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.18);
+}
+.home-promo-copy {
+  min-width: 0;
+  flex: 1;
+}
+.home-promo-tag {
+  display: inline-block;
+  margin-bottom: 6px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  background: rgba(37, 99, 235, 0.35);
+  color: #93c5fd;
+}
+.home-promo-copy strong {
+  display: block;
+  font-size: 14px;
+  line-height: 19px;
+  font-weight: 700;
+}
+.home-promo-copy p {
+  margin: 4px 0 0;
+  font-size: 11px;
+  line-height: 15px;
+  opacity: 0.78;
+}
+.home-promo-cta {
+  flex: none;
+  min-height: 36px;
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 10px;
+  border: none;
+  background: #fff;
+  color: #0f172a;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.home-promo-cta:hover {
+  background: #f1f5f9;
 }
 
 .activity-empty {

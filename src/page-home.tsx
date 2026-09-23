@@ -86,6 +86,20 @@ export function HomePage({ go, openService }: { go: (page: Page) => void; openSe
         </div>
       </div>
 
+      {/* Promo / ad strip — Vernex-style slot under quick actions */}
+      <section className="home-promo" aria-label="Promotions">
+        <div className="home-promo-card">
+          <div className="home-promo-copy">
+            <span className="home-promo-tag">FEATURED</span>
+            <strong>Grow faster with SMM Boost</strong>
+            <p>Followers, likes and views — clear delivery tracking.</p>
+          </div>
+          <button type="button" className="home-promo-cta" onClick={() => openService('boost')}>
+            Boost now <ArrowRight size={14} />
+          </button>
+        </div>
+      </section>
+
       <SectionHeader
         eyebrow="ACTIVITY"
         title="Recent activity"
