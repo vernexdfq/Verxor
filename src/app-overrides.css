@@ -9,9 +9,9 @@
 
 /* —— Home top bar —— */
 .topbar-home {
-  min-height: 64px;
-  padding-top: 12px;
-  padding-bottom: 10px;
+  min-height: 70px;
+  padding-top: 10px;
+  padding-bottom: 12px;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -23,18 +23,19 @@
   min-width: 0;
 }
 .home-brand-mark {
-  width: 40px;
-  height: 40px;
+  width: 42px;
+  height: 42px;
   flex: none;
   display: grid;
   place-items: center;
-  border-radius: 12px;
-  background: linear-gradient(145deg, #1d4ed8 0%, #2563eb 100%);
-  color: #fff;
-  font-size: 17px;
-  font-weight: 800;
-  letter-spacing: -0.03em;
-  box-shadow: 0 6px 14px rgba(37, 99, 235, 0.22);
+  border-radius: 13px;
+  background: #f8fbff;
+  color: #1557d6;
+  border: 1px solid #d9e5f7;
+  font-size: 20px;
+  font-weight: 850;
+  letter-spacing: -0.06em;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
 }
 .topbar-greeting {
   display: flex;
@@ -82,19 +83,19 @@
 
 /* —— Wallet —— */
 .wallet-card {
-  margin-bottom: 20px;
-  padding: 18px 16px 16px;
+  margin-bottom: 22px;
+  padding: 20px 16px 16px;
   border-radius: 18px;
-  background: linear-gradient(160deg, #0b1f4d 0%, #123a7a 48%, #0f172a 100%);
+  background: #102f63;
   color: #fff;
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  box-shadow: 0 14px 32px rgba(15, 23, 42, 0.22);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 16px 30px rgba(15, 47, 99, 0.18);
 }
 .wallet-card-top {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.1em;
@@ -104,10 +105,11 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 10px;
+  padding: 5px 10px;
   border-radius: 999px;
-  background: rgba(34, 197, 94, 0.16);
-  color: #86efac;
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(52, 211, 153, 0.22);
+  color: #a7f3d0;
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0;
@@ -125,10 +127,10 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-bottom: 16px;
+  margin-bottom: 18px;
 }
 .wallet-amount-row strong {
-  font-size: 32px;
+  font-size: 34px;
   line-height: 1.05;
   font-weight: 800;
   letter-spacing: -0.035em;
@@ -309,69 +311,130 @@ button.quick-tile strong {
   }
 }
 
-/* —— Featured promo —— */
-.home-promo {
-  margin: 2px 0 20px;
+/* —— Featured promotion rail —— */
+.home-promo-rail {
+  display: flex;
+  gap: 12px;
+  margin: 2px 0 22px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  padding: 0 1px 2px;
+}
+.home-promo-rail::-webkit-scrollbar {
+  display: none;
 }
 .home-promo-card {
+  position: relative;
+  flex: 0 0 100%;
+  min-height: 164px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: stretch;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px;
+  overflow: hidden;
+  scroll-snap-align: start;
+  border-radius: 16px;
+  background: #102f63;
+  color: #fff;
+  border: 1px solid rgba(15, 47, 99, 0.12);
+  box-shadow: 0 10px 24px rgba(15, 47, 99, 0.14);
+}
+.home-promo-card::after {
+  content: '';
+  position: absolute;
+  right: -34px;
+  bottom: -46px;
+  width: 132px;
+  height: 132px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 50%;
+  pointer-events: none;
+}
+.home-promo-main {
+  min-width: 0;
+  max-width: 78%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+.home-promo-brand {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 14px;
-  padding: 18px 16px;
-  border-radius: 16px;
-  background: linear-gradient(135deg, #0b1f4d 0%, #1e3a5f 55%, #0f172a 100%);
+  gap: 8px;
+  margin-bottom: 11px;
+}
+.home-promo-mark {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  flex: none;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.13);
   color: #fff;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.16);
-}
-.home-promo-copy {
-  min-width: 0;
-  flex: 1;
-}
-.home-promo-tag {
-  display: inline-block;
-  margin-bottom: 8px;
-  padding: 3px 9px;
-  border-radius: 6px;
   font-size: 9px;
   font-weight: 800;
-  letter-spacing: 0.08em;
-  background: rgba(37, 99, 235, 0.4);
+  letter-spacing: 0.04em;
+}
+.home-promo-tag {
   color: #bfdbfe;
+  font-size: 9px;
+  line-height: 12px;
+  font-weight: 750;
+  letter-spacing: 0.09em;
 }
-.home-promo-copy strong {
+.home-promo-copy strong,
+.home-promo-card > .home-promo-main > strong {
   display: block;
-  font-size: 15px;
-  line-height: 20px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
+  font-size: 16px;
+  line-height: 21px;
+  font-weight: 750;
+  letter-spacing: -0.025em;
 }
-.home-promo-copy p {
-  margin: 5px 0 0;
+.home-promo-main p {
+  margin: 6px 0 12px;
   font-size: 12px;
-  line-height: 16px;
-  opacity: 0.78;
+  line-height: 17px;
+  color: rgba(255, 255, 255, 0.72);
 }
 .home-promo-cta {
-  flex: none;
-  min-height: 38px;
-  padding: 0 14px;
+  min-height: 34px;
+  padding: 0 12px;
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  border-radius: 999px;
-  border: none;
+  border-radius: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
   background: #fff;
-  color: #0b1f4d;
-  font-size: 12px;
-  font-weight: 700;
+  color: #102f63;
+  font-size: 11px;
+  font-weight: 750;
   white-space: nowrap;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
-  transition: transform 0.12s ease;
+  box-shadow: none;
+  transition: transform 0.12s ease, background 0.15s ease;
 }
 .home-promo-cta:active {
   transform: scale(0.97);
+}
+.home-promo-cta:hover {
+  background: #f8fafc;
+}
+.home-promo-icon {
+  width: 48px;
+  height: 48px;
+  flex: none;
+  align-self: flex-end;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #dbeafe;
 }
 
 /* —— Activity —— */
