@@ -7,6 +7,7 @@ import { HomePage, FundPage, ProfilePage } from './pages';
 import { ServicePage, ServicesPage, type ServiceView } from './service-pages';
 import { RentalPage } from './rental-page';
 import { AccountsPage } from './product-pages';
+import { BoostPage } from './boost-page';
 import { VirtualNumbersPage } from './virtual-numbers-page';
 import { ActivityLogsPage } from './activity-logs';
 import { AdminPage } from './admin-page';
@@ -293,7 +294,6 @@ export function VerxorApp() {
     );
   }
 
-  // Any open service: hide home greeting chrome (Primex-style service pages)
   const deepService = service !== null;
 
   const content =
@@ -305,6 +305,8 @@ export function VerxorApp() {
       <VirtualNumbersPage onBack={closeService} onOpenNotifications={() => setService('alerts')} />
     ) : service === 'accounts' ? (
       <AccountsPage onBack={closeService} />
+    ) : service === 'boost' ? (
+      <BoostPage onBack={closeService} />
     ) : service ? (
       <ServicePage view={service} onBack={closeService} />
     ) : page === 'history' ? (

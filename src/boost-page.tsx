@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import { ArrowLeft, Info, Rocket } from 'lucide-react';
 import { PrimaryButton } from './components/ui';
+import './service-flow.css';
 
 const CATEGORIES = [
   { id: 'instagram', label: 'Instagram' },
