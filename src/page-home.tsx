@@ -5,14 +5,12 @@ import {
   Eye,
   EyeOff,
   Gift,
-  Globe2,
   History,
   Phone,
   Plus,
   Smartphone,
   UserRound,
   Wifi,
-  ShieldCheck,
   Zap,
 } from 'lucide-react';
 import { useState } from 'react';
