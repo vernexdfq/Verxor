@@ -5,7 +5,7 @@ import './shell-refinements.css';
 import type { Page } from '../types';
 import type { ServiceView } from '../service-pages';
 
-function homeGreeting(name = 'Denny') {
+function homeGreeting(name: string) {
   const h = new Date().getHours();
   if (h < 12) return { line: `Good morning, ${name}`, emoji: '☀️' };
   if (h < 17) return { line: `Good afternoon, ${name}`, emoji: '🌤️' };
@@ -17,6 +17,7 @@ export function AppShell({
   dark,
   page,
   deepService = false,
+  userName = 'User',
   onNavigate,
   onToggleTheme,
   onOpenService,
@@ -26,6 +27,8 @@ export function AppShell({
   dark: boolean;
   page: Page;
   deepService?: boolean;
+  /** Display name from registration / profile */
+  userName?: string;
   onNavigate: (page: Page) => void;
   onToggleTheme: () => void;
   onOpenService: (view: ServiceView) => void;
@@ -43,7 +46,8 @@ export function AppShell({
     { id: 'profile', label: 'Profile', icon: UserRound },
   ];
 
-  const greet = homeGreeting();
+  const firstName = (userName || 'User').trim().split(/\s+/)[0] || 'User';
+  const greet = homeGreeting(firstName);
 
   return (
     <div className={`app ${dark ? 'dark' : ''}`}>
@@ -80,6 +84,16 @@ export function AppShell({
                   <span>Services</span>
                   <small>All products in one place</small>
                 </div>
+              ) : page === 'fund' ? (
+                <div className="topbar-greeting" aria-label="Fund">
+                  <span>Fund wallet</span>
+                  <small>Add money to your balance</small>
+                </div>
+              ) : page === 'profile' ? (
+                <div className="topbar-greeting" aria-label="Profile">
+                  <span>Profile</span>
+                  <small>Account & settings</small>
+                </div>
               ) : null}
             </div>
             {page === 'home' && (
@@ -113,7 +127,7 @@ export function AppShell({
             ))}
           </nav>
         )}
-        {page === 'home' && <CommunityModal />}
+        {page === 'home' && !deepService && <CommunityModal />}
       </div>
     </div>
   );

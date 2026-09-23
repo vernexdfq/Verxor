@@ -27,6 +27,9 @@ const PROFILE_SUBVIEWS: ServiceView[] = [
   'support-center',
 ];
 
+/** Placeholder until real auth — replace with registered user's name */
+const SESSION_USER = { name: 'Destiny' };
+
 const services = [
   { title: 'Virtual Numbers', label: 'Instant OTP', description: 'Fast verification numbers for supported services.' },
   { title: 'Rent a Line', label: 'Dedicated rentals', description: 'Keep a private number for a selected rental period.' },
@@ -290,7 +293,8 @@ export function VerxorApp() {
     );
   }
 
-  const deepService = service === 'rental' || service === 'virtual-numbers' || service === 'alerts';
+  // Any open service: hide home greeting chrome (Primex-style service pages)
+  const deepService = service !== null;
 
   const content =
     service === 'services' ? (
@@ -321,6 +325,7 @@ export function VerxorApp() {
       dark={dark}
       page={page}
       deepService={deepService}
+      userName={SESSION_USER.name}
       onNavigate={(next) => {
         setService(null);
         setPage(next);
