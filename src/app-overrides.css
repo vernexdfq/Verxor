@@ -50,7 +50,7 @@
   letter-spacing: -0.02em;
 }
 .topbar-greeting .greet-emoji {
-  display: none; /* cleaner, less “AI template” */
+  display: none;
 }
 .topbar-greeting small {
   font-size: 12px;
@@ -184,75 +184,80 @@
   transform: scale(0.98);
 }
 
-/* —— Quick actions —— */
+/* —— Quick actions — matched to Vernex sizing ——
+   Vernex: grid-cols-4 gap-3 (12px), p-3 (12px), rounded-[12px],
+   icon w-10 h-10, text 11px, bg #F8FAFC, no forced min-height */
 .quick-section {
   margin: 0 0 18px;
 }
 .quick-section-label {
   margin: 0 0 12px;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  color: #64748b;
   text-transform: uppercase;
 }
 div.quick-grid-8 {
   display: grid !important;
   grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
-  gap: 10px !important;
-  grid-auto-rows: 1fr !important;
+  gap: 12px !important; /* gap-3 */
+  grid-auto-rows: auto !important;
+  align-items: stretch !important;
 }
 button.quick-tile {
-  width: 100%;
-  min-width: 0;
-  min-height: 88px;
-  padding: 12px 4px 10px;
+  width: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  height: auto !important;
+  padding: 12px 6px !important; /* p-3 */
   display: flex !important;
   flex-direction: column !important;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  text-align: center;
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  background: var(--surface);
-  color: var(--text);
-  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.03);
-  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.12s ease;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 8px !important; /* gap-2 */
+  text-align: center !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 12px !important;
+  background: #f8fafc !important;
+  color: #0f172a !important;
+  box-shadow: none !important;
+  transition: border-color 0.15s ease, background 0.15s ease, transform 0.12s ease;
 }
 button.quick-tile:hover {
-  border-color: rgba(37, 99, 235, 0.35);
-  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.06);
-  transform: translateY(-1px);
+  border-color: rgba(24, 119, 242, 0.3) !important;
+  background: #fff !important;
+  transform: none;
+  box-shadow: none !important;
 }
 button.quick-tile:active {
   transform: scale(0.97);
 }
 button.quick-tile .quick-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 11px;
-  display: grid;
-  place-items: center;
-  flex: none;
+  width: 40px !important; /* w-10 */
+  height: 40px !important; /* h-10 */
+  border-radius: 10px !important;
+  display: grid !important;
+  place-items: center !important;
+  flex: none !important;
 }
 button.quick-tile .quick-icon svg {
-  width: 18px;
-  height: 18px;
+  width: 20px !important;
+  height: 20px !important;
 }
 button.quick-tile strong {
-  display: block;
-  font-size: 11px;
-  line-height: 14px;
-  font-weight: 600;
+  display: block !important;
+  font-size: 11px !important;
+  line-height: 1.25 !important;
+  font-weight: 500 !important;
   max-width: 100%;
   padding: 0 2px;
   word-break: break-word;
-  color: var(--text);
+  color: #0f172a !important;
 }
 .quick-icon-blue {
-  color: #2563eb;
-  background: #eff6ff;
+  color: #0284c7;
+  background: #f0f9ff;
 }
 .quick-icon-violet {
   color: #7c3aed;
@@ -271,12 +276,12 @@ button.quick-tile strong {
   background: #eef2ff;
 }
 .quick-icon-sky {
-  color: #0284c7;
-  background: #f0f9ff;
+  color: #2563eb;
+  background: #eff6ff;
 }
 .quick-icon-rose {
-  color: #e11d48;
-  background: #fff1f2;
+  color: #db2777;
+  background: #fdf2f8;
 }
 .quick-icon-emerald {
   color: #059669;
@@ -285,19 +290,22 @@ button.quick-tile strong {
 
 @media (max-width: 380px) {
   div.quick-grid-8 {
-    gap: 8px !important;
+    gap: 10px !important;
   }
   button.quick-tile {
-    min-height: 82px;
-    padding: 10px 3px 8px;
-    gap: 7px;
+    padding: 10px 4px !important;
+    gap: 6px !important;
   }
   button.quick-tile strong {
-    font-size: 10px;
+    font-size: 10px !important;
   }
   button.quick-tile .quick-icon {
-    width: 36px;
-    height: 36px;
+    width: 36px !important;
+    height: 36px !important;
+  }
+  button.quick-tile .quick-icon svg {
+    width: 18px !important;
+    height: 18px !important;
   }
 }
 
@@ -399,7 +407,7 @@ button.quick-tile strong {
   color: var(--muted);
 }
 
-/* Shared chrome (unchanged structure) */
+/* Shared chrome */
 .bottom-nav {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
