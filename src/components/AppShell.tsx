@@ -1,9 +1,17 @@
 import type { ReactNode } from 'react';
-import { Clock3, Home, LayoutGrid, UserRound, WalletCards } from 'lucide-react';
+import { Bell, Clock3, Home, LayoutGrid, UserRound, WalletCards } from 'lucide-react';
 import { CommunityModal } from './CommunityModal';
 import './shell-refinements.css';
 import type { Page } from '../types';
 import type { ServiceView } from '../service-pages';
+
+function homeGreeting(name = 'Denny') {
+  const h = new Date().getHours();
+  if (h < 12) return { line: `Good morning, ${name}`, emoji: '☀️' };
+  if (h < 17) return { line: `Good afternoon, ${name}`, emoji: '🌤️' };
+  if (h < 21) return { line: `Good evening, ${name}`, emoji: '🌙' };
+  return { line: `Good night, ${name}`, emoji: '🌙' };
+}
 
 export function AppShell({
   dark,
@@ -25,7 +33,6 @@ export function AppShell({
   children: ReactNode;
 }) {
   void onToggleTheme;
-  void onOpenService;
   void onLogout;
 
   const items: { id: Page; label: string; icon: typeof Home }[] = [
@@ -36,6 +43,8 @@ export function AppShell({
     { id: 'profile', label: 'Profile', icon: UserRound },
   ];
 
+  const greet = homeGreeting();
+
   return (
     <div className={`app ${dark ? 'dark' : ''}`}>
       <div className={`app-frame ${deepService ? 'deep-service' : ''}`}>
@@ -45,9 +54,16 @@ export function AppShell({
           >
             <div className="topbar-context">
               {page === 'home' ? (
-                <div className="topbar-greeting" aria-label="Welcome back">
-                  <span>Good morning, Denny</span>
-                  <small>Your Verxor dashboard</small>
+                <div className="home-hero-row">
+                  <div className="home-brand-mark" aria-hidden="true">
+                    V
+                  </div>
+                  <div className="topbar-greeting" aria-label="Welcome back">
+                    <span>
+                      {greet.line} <span className="greet-emoji">{greet.emoji}</span>
+                    </span>
+                    <small>Your Verxor dashboard</small>
+                  </div>
                 </div>
               ) : page === 'history' ? (
                 <button
@@ -66,7 +82,18 @@ export function AppShell({
                 </div>
               ) : null}
             </div>
-            <div className="topbar-actions" />
+            {page === 'home' && (
+              <div className="topbar-actions">
+                <button
+                  type="button"
+                  className="topbar-bell"
+                  aria-label="Notifications"
+                  onClick={() => onOpenService('alerts')}
+                >
+                  <Bell size={18} strokeWidth={2} />
+                </button>
+              </div>
+            )}
           </header>
         )}
         <main className="content">{children}</main>

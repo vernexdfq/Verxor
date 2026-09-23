@@ -7,15 +7,39 @@
   --surface-muted: #1E293B;
 }
 
+/* —— Home topbar: logo + greeting + bell (Primex-style balance, Verxor colors) —— */
 .topbar-home {
-  min-height: 58px;
-  padding-top: 10px;
-  padding-bottom: 8px;
+  min-height: 64px;
+  padding-top: 12px;
+  padding-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.home-hero-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.home-brand-mark {
+  width: 42px;
+  height: 42px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  background: #2563eb;
+  color: #fff;
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.28);
 }
 .topbar-greeting {
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: 2px;
   min-width: 0;
 }
 .topbar-greeting span {
@@ -24,16 +48,43 @@
   line-height: 20px;
   color: var(--text);
 }
+.topbar-greeting .greet-emoji {
+  font-weight: 400;
+  font-size: 14px;
+}
 .topbar-greeting small {
   font-size: 11px;
   line-height: 15px;
   color: var(--muted);
 }
+.topbar-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+}
+.topbar-bell {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-xs, 0 1px 2px rgba(15, 23, 42, 0.04));
+}
+.topbar-bell:hover {
+  background: var(--surface-muted);
+  border-color: var(--primary-soft-strong, #bfdbfe);
+}
 
+/* Wallet — keep Verxor navy colors; balanced spacing like reference */
 .wallet-card {
-  margin-bottom: 16px;
-  padding: 16px;
-  border-radius: 18px;
+  margin-bottom: 18px;
+  padding: 18px 16px 16px;
+  border-radius: 20px;
   background: linear-gradient(145deg, #0f172a 0%, #1e293b 55%, #0f172a 100%);
   color: #fff;
   border: none;
@@ -43,7 +94,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -72,33 +123,34 @@
 .wallet-amount-row {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-bottom: 14px;
+  gap: 12px;
+  margin-bottom: 16px;
 }
 .wallet-amount-row strong {
-  font-size: 32px;
-  line-height: 1.1;
+  font-size: 34px;
+  line-height: 1.05;
   font-weight: 800;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.03em;
 }
 .balance-visibility {
-  width: 34px;
-  height: 34px;
+  width: 36px;
+  height: 36px;
   display: grid;
   place-items: center;
-  border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  background: rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.1);
   color: #fff;
+  flex: none;
 }
 .wallet-actions {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 8px;
+  gap: 10px;
 }
 .wallet-primary,
 .wallet-secondary {
-  min-height: 42px;
+  min-height: 44px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -118,7 +170,7 @@
   border: 1px solid rgba(255, 255, 255, 0.28);
 }
 
-/* 8-tile quick actions — Vernex density */
+/* 8-tile quick actions — keep Verxor layout */
 .quick-section {
   margin: 2px 0 16px;
 }
