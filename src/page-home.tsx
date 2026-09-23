@@ -3,6 +3,7 @@ import {
   Clock3,
   CreditCard,
   Eye,
+  EyeOff,
   Gift,
   History,
   Phone,
@@ -12,6 +13,7 @@ import {
   Wifi,
   Zap,
 } from 'lucide-react';
+import { useState } from 'react';
 import { Card, SectionHeader } from './components/ui';
 import type { Page } from './types';
 import type { ServiceView } from './service-pages';
@@ -25,17 +27,54 @@ const QUICK_ACTIONS: {
   tone: string;
   service?: ServiceView;
 }[] = [
-  { id: 'virtual-numbers', title: 'Virtual Number', icon: Smartphone, tone: 'quick-icon-blue', service: 'virtual-numbers' },
-  { id: 'rental', title: 'Rent Number', icon: Clock3, tone: 'quick-icon-cyan', service: 'rental' },
-  { id: 'boost', title: 'SMM Boost', icon: Zap, tone: 'quick-icon-amber', service: 'boost' },
-  { id: 'accounts', title: 'Buy Accounts', icon: UserRound, tone: 'quick-icon-violet', service: 'accounts' },
+  {
+    id: 'virtual-numbers',
+    title: 'Virtual Number',
+    icon: Smartphone,
+    tone: 'quick-icon-blue',
+    service: 'virtual-numbers',
+  },
+  {
+    id: 'rental',
+    title: 'Rent Number',
+    icon: Clock3,
+    tone: 'quick-icon-cyan',
+    service: 'rental',
+  },
+  {
+    id: 'boost',
+    title: 'SMM Boost',
+    icon: Zap,
+    tone: 'quick-icon-amber',
+    service: 'boost',
+  },
+  {
+    id: 'accounts',
+    title: 'Buy Accounts',
+    icon: UserRound,
+    tone: 'quick-icon-violet',
+    service: 'accounts',
+  },
   { id: 'data', title: 'Data', icon: Wifi, tone: 'quick-icon-indigo' },
   { id: 'airtime', title: 'Airtime', icon: Phone, tone: 'quick-icon-sky' },
   { id: 'gift', title: 'Gift Card', icon: Gift, tone: 'quick-icon-rose' },
-  { id: 'vcard', title: 'Virtual Card', icon: CreditCard, tone: 'quick-icon-emerald' },
+  {
+    id: 'vcard',
+    title: 'Virtual Card',
+    icon: CreditCard,
+    tone: 'quick-icon-emerald',
+  },
 ];
 
-export function HomePage({ go, openService }: { go: (page: Page) => void; openService: (view: ServiceView) => void }) {
+export function HomePage({
+  go,
+  openService,
+}: {
+  go: (page: Page) => void;
+  openService: (view: ServiceView) => void;
+}) {
+  const [showBalance, setShowBalance] = useState(true);
+
   return (
     <>
       <Card className="wallet-card">
@@ -47,11 +86,22 @@ export function HomePage({ go, openService }: { go: (page: Page) => void; openSe
         </div>
         <div className="wallet-amount-row">
           <strong>
-            {wallet.symbol}
-            {wallet.amount}
+            {showBalance ? (
+              <>
+                {wallet.symbol}
+                {wallet.amount}
+              </>
+            ) : (
+              `${wallet.symbol}••••`
+            )}
           </strong>
-          <button className="balance-visibility" aria-label="Show balance" type="button">
-            <Eye size={18} />
+          <button
+            className="balance-visibility"
+            aria-label={showBalance ? 'Hide balance' : 'Show balance'}
+            type="button"
+            onClick={() => setShowBalance((v) => !v)}
+          >
+            {showBalance ? <Eye size={18} /> : <EyeOff size={18} />}
           </button>
         </div>
         <div className="wallet-actions">
@@ -86,15 +136,18 @@ export function HomePage({ go, openService }: { go: (page: Page) => void; openSe
         </div>
       </div>
 
-      {/* Promo / ad strip — Vernex-style slot under quick actions */}
       <section className="home-promo" aria-label="Promotions">
         <div className="home-promo-card">
           <div className="home-promo-copy">
             <span className="home-promo-tag">FEATURED</span>
             <strong>Grow faster with SMM Boost</strong>
-            <p>Followers, likes and views — clear delivery tracking.</p>
+            <p>Followers, likes and views with clear delivery tracking.</p>
           </div>
-          <button type="button" className="home-promo-cta" onClick={() => openService('boost')}>
+          <button
+            type="button"
+            className="home-promo-cta"
+            onClick={() => openService('boost')}
+          >
             Boost now <ArrowRight size={14} />
           </button>
         </div>
@@ -115,7 +168,7 @@ export function HomePage({ go, openService }: { go: (page: Page) => void; openSe
         </div>
         <div>
           <strong>No recent activity</strong>
-          <p>Your wallet activity and orders will appear here.</p>
+          <p>Wallet funding and orders will show up here.</p>
         </div>
       </Card>
     </>
