@@ -1,0 +1,166 @@
+/* Shared service flow chrome (Boost, future VTU, etc.) — Primex-clean */
+
+.service-flow {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-bottom: 24px;
+}
+
+.service-flow-top {
+  display: grid;
+  grid-template-columns: 40px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 2px;
+}
+
+.service-back {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  flex: none;
+}
+
+.service-back:hover {
+  background: var(--surface-muted, #f1f5f9);
+}
+
+.service-flow-title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  text-align: center;
+}
+
+.service-flow-balance {
+  font-size: 13px;
+  font-weight: 700;
+  color: #059669;
+  justify-self: end;
+}
+
+.service-hero {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px;
+  border-radius: 18px;
+  background: linear-gradient(145deg, #0f172a 0%, #1e3a5f 55%, #0f172a 100%);
+  color: #fff;
+}
+
+.service-hero-icon {
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.12);
+  flex: none;
+}
+
+.service-hero strong {
+  display: block;
+  font-size: 16px;
+  line-height: 22px;
+}
+
+.service-hero p {
+  margin: 4px 0 0;
+  font-size: 12px;
+  line-height: 17px;
+  opacity: 0.8;
+}
+
+.service-wallet-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  font-size: 12px;
+}
+
+.service-wallet-bar strong {
+  color: #059669;
+  font-size: 14px;
+}
+
+.service-tip {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: #eff6ff;
+  color: #1e40af;
+  font-size: 12px;
+  line-height: 17px;
+}
+
+.service-tip svg {
+  flex: none;
+  margin-top: 1px;
+}
+
+.service-tip p {
+  margin: 0;
+}
+
+.service-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.service-field > span {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.service-field select,
+.service-field input {
+  min-height: 46px;
+  padding: 0 14px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 14px;
+}
+
+.service-field select:disabled {
+  opacity: 0.55;
+}
+
+.service-field small {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.service-total {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px;
+  border-radius: 12px;
+  background: var(--surface-muted, #f1f5f9);
+  font-size: 13px;
+}
+
+.service-total strong {
+  font-size: 18px;
+  font-weight: 800;
+}

@@ -7,7 +7,6 @@
   --surface-muted: #1E293B;
 }
 
-/* —— Home topbar —— */
 .topbar-home {
   min-height: 64px;
   padding-top: 12px;
@@ -73,16 +72,13 @@
   border: 1px solid var(--border);
   background: var(--surface);
   color: var(--text);
-  box-shadow: var(--shadow-xs, 0 1px 2px rgba(15, 23, 42, 0.04));
 }
 .topbar-bell:hover {
   background: var(--surface-muted);
-  border-color: var(--primary-soft-strong, #bfdbfe);
 }
 
-/* Wallet */
 .wallet-card {
-  margin-bottom: 20px;
+  margin-bottom: 22px;
   padding: 18px 16px 16px;
   border-radius: 20px;
   background: linear-gradient(145deg, #0f172a 0%, #1e293b 55%, #0f172a 100%);
@@ -170,12 +166,12 @@
   border: 1px solid rgba(255, 255, 255, 0.28);
 }
 
-/* —— 8 quick actions: even 4×2, professional spacing —— */
+/* 8 tiles — relaxed Vernex spacing */
 .quick-section {
-  margin: 0 0 14px;
+  margin: 0 0 20px;
 }
 .quick-section-label {
-  margin: 0 0 12px;
+  margin: 0 0 14px;
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -185,19 +181,19 @@
 div.quick-grid-8 {
   display: grid !important;
   grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
-  gap: 10px !important;
+  gap: 12px !important;
   grid-auto-rows: 1fr !important;
 }
 button.quick-tile {
   width: 100%;
   min-width: 0;
-  min-height: 88px;
+  min-height: 92px;
   padding: 14px 6px 12px;
   display: flex !important;
   flex-direction: column !important;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 10px;
   text-align: center;
   border: 1px solid var(--border);
   border-radius: 16px;
@@ -210,8 +206,8 @@ button.quick-tile:hover {
   background: var(--primary-soft);
 }
 button.quick-tile .quick-icon {
-  width: 40px;
-  height: 40px;
+  width: 42px;
+  height: 42px;
   border-radius: 12px;
   display: grid;
   place-items: center;
@@ -240,21 +236,14 @@ button.quick-tile strong {
 .quick-icon-emerald { color: #059669; background: #ecfdf5; }
 
 @media (max-width: 380px) {
-  div.quick-grid-8 { gap: 8px !important; }
-  button.quick-tile {
-    min-height: 82px;
-    padding: 12px 4px 10px;
-    border-radius: 14px;
-    gap: 6px;
-  }
-  button.quick-tile strong { font-size: 10px; line-height: 12px; }
-  button.quick-tile .quick-icon { width: 36px; height: 36px; }
-  button.quick-tile .quick-icon svg { width: 18px; height: 18px; }
+  div.quick-grid-8 { gap: 10px !important; }
+  button.quick-tile { min-height: 86px; padding: 12px 4px 10px; gap: 8px; }
+  button.quick-tile strong { font-size: 10px; }
+  button.quick-tile .quick-icon { width: 38px; height: 38px; }
 }
 
-/* —— Promo / ad strip (Vernex-style, under quick actions) —— */
 .home-promo {
-  margin: 0 0 20px;
+  margin: 4px 0 22px;
 }
 .home-promo-card {
   display: flex;
@@ -268,10 +257,7 @@ button.quick-tile strong {
   border: 1px solid rgba(255, 255, 255, 0.06);
   box-shadow: 0 8px 20px rgba(15, 23, 42, 0.18);
 }
-.home-promo-copy {
-  min-width: 0;
-  flex: 1;
-}
+.home-promo-copy { min-width: 0; flex: 1; }
 .home-promo-tag {
   display: inline-block;
   margin-bottom: 6px;
@@ -310,9 +296,6 @@ button.quick-tile strong {
   font-weight: 700;
   white-space: nowrap;
 }
-.home-promo-cta:hover {
-  background: #f1f5f9;
-}
 
 .activity-empty {
   display: flex;
@@ -346,9 +329,9 @@ button.quick-tile strong {
 
 .app-frame.deep-service .bottom-nav { display: none; }
 .app-frame.deep-service .content {
-  padding-left: 0;
-  padding-right: 0;
-  padding-bottom: max(16px, env(safe-area-inset-bottom));
+  padding-left: 16px;
+  padding-right: 16px;
+  padding-bottom: max(20px, env(safe-area-inset-bottom));
 }
 
 @media (min-width: 700px) {
