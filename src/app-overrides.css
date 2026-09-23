@@ -7,7 +7,6 @@
   --surface-muted: #1E293B;
 }
 
-/* ── Home topbar greeting ── */
 .topbar-home {
   min-height: 58px;
   padding-top: 10px;
@@ -31,7 +30,6 @@
   color: var(--muted);
 }
 
-/* ── Wallet card ── */
 .wallet-card {
   margin-bottom: 16px;
   padding: 16px;
@@ -120,82 +118,9 @@
   border: 1px solid rgba(255, 255, 255, 0.28);
 }
 
-/* Legacy 2-col cards (kept for other pages) */
-.quick-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-  grid-auto-rows: 78px;
-}
-.quick-card {
-  width: 100%;
-  height: 100%;
-  min-width: 0;
-  min-height: 0;
-  padding: 10px 12px;
-  display: grid;
-  grid-template-columns: 34px minmax(0, 1fr);
-  align-items: center;
-  gap: 8px;
-  text-align: left;
-  border: 1px solid var(--border);
-  border-radius: 13px;
-  color: var(--text);
-  background: var(--surface);
-  box-shadow: none;
-}
-.quick-card:hover {
-  border-color: var(--primary-soft-strong);
-  background: var(--primary-soft);
-}
-.quick-icon {
-  width: 34px;
-  height: 34px;
-  display: grid;
-  place-items: center;
-  border-radius: 10px;
-  flex: none;
-}
-.quick-icon svg {
-  width: 19px;
-  height: 19px;
-}
-.quick-icon-blue {
-  color: #2563eb;
-  background: #eff6ff;
-}
-.quick-icon-violet {
-  color: #7c3aed;
-  background: #f5f3ff;
-}
-.quick-icon-amber {
-  color: #d97706;
-  background: #fffbeb;
-}
-.quick-icon-cyan {
-  color: #0891b2;
-  background: #ecfeff;
-}
-.quick-copy {
-  min-width: 0;
-}
-.quick-copy strong {
-  display: block;
-  font-size: 12px;
-  line-height: 17px;
-  font-weight: 700;
-}
-.quick-copy small {
-  display: block;
-  margin-top: 1px;
-  color: var(--muted);
-  font-size: 10px;
-  line-height: 14px;
-}
-
-/* —— Home quick actions: 8-tile Vernex-style grid —— */
+/* 8-tile quick actions — Vernex density */
 .quick-section {
-  margin: 4px 0 18px;
+  margin: 2px 0 16px;
 }
 .quick-section-label {
   margin: 0 0 10px;
@@ -205,21 +130,21 @@
   color: var(--muted);
   text-transform: uppercase;
 }
-.quick-grid-8 {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px;
-  grid-auto-rows: auto;
+div.quick-grid-8 {
+  display: grid !important;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  gap: 8px !important;
+  grid-auto-rows: auto !important;
 }
-.quick-tile {
+button.quick-tile {
   width: 100%;
   min-width: 0;
-  padding: 12px 6px 10px;
-  display: flex;
-  flex-direction: column;
+  padding: 12px 4px 10px;
+  display: flex !important;
+  flex-direction: column !important;
   align-items: center;
   justify-content: flex-start;
-  gap: 6px;
+  gap: 7px;
   text-align: center;
   border: 1px solid var(--border);
   border-radius: 14px;
@@ -227,67 +152,46 @@
   color: var(--text);
   box-shadow: none;
 }
-.quick-tile:hover {
+button.quick-tile:hover {
   border-color: var(--primary-soft-strong);
   background: var(--primary-soft);
 }
-.quick-tile .quick-icon {
+button.quick-tile .quick-icon {
   width: 36px;
   height: 36px;
   border-radius: 11px;
   display: grid;
   place-items: center;
+  flex: none;
 }
-.quick-tile .quick-icon svg {
+button.quick-tile .quick-icon svg {
   width: 18px;
   height: 18px;
 }
-.quick-tile strong {
+button.quick-tile strong {
   display: block;
   font-size: 11px;
-  line-height: 14px;
+  line-height: 13px;
   font-weight: 700;
   max-width: 100%;
+  word-break: break-word;
 }
-.quick-tile small {
-  display: none;
-}
-.quick-icon-indigo {
-  color: #4f46e5;
-  background: #eef2ff;
-}
-.quick-icon-sky {
-  color: #0284c7;
-  background: #f0f9ff;
-}
-.quick-icon-rose {
-  color: #e11d48;
-  background: #fff1f2;
-}
-.quick-icon-emerald {
-  color: #059669;
-  background: #ecfdf5;
-}
+.quick-icon-blue { color: #2563eb; background: #eff6ff; }
+.quick-icon-violet { color: #7c3aed; background: #f5f3ff; }
+.quick-icon-amber { color: #d97706; background: #fffbeb; }
+.quick-icon-cyan { color: #0891b2; background: #ecfeff; }
+.quick-icon-indigo { color: #4f46e5; background: #eef2ff; }
+.quick-icon-sky { color: #0284c7; background: #f0f9ff; }
+.quick-icon-rose { color: #e11d48; background: #fff1f2; }
+.quick-icon-emerald { color: #059669; background: #ecfdf5; }
 
 @media (max-width: 380px) {
-  .quick-grid-8 {
-    gap: 6px;
-  }
-  .quick-tile {
-    padding: 10px 4px 8px;
-    border-radius: 12px;
-  }
-  .quick-tile strong {
-    font-size: 10px;
-    line-height: 13px;
-  }
-  .quick-tile .quick-icon {
-    width: 32px;
-    height: 32px;
-  }
+  div.quick-grid-8 { gap: 6px !important; }
+  button.quick-tile { padding: 10px 2px 8px; border-radius: 12px; }
+  button.quick-tile strong { font-size: 10px; line-height: 12px; }
+  button.quick-tile .quick-icon { width: 32px; height: 32px; }
 }
 
-/* Activity empty */
 .activity-empty {
   display: flex;
   align-items: flex-start;
@@ -304,17 +208,9 @@
   color: var(--muted);
   flex: none;
 }
-.activity-empty strong {
-  display: block;
-  font-size: 13px;
-}
-.activity-empty p {
-  margin: 2px 0 0;
-  font-size: 12px;
-  color: var(--muted);
-}
+.activity-empty strong { display: block; font-size: 13px; }
+.activity-empty p { margin: 2px 0 0; font-size: 12px; color: var(--muted); }
 
-/* Bottom nav spacing */
 .bottom-nav {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
@@ -324,13 +220,9 @@
   min-width: 0;
   padding: 8px 2px 10px;
 }
-.nav-item small {
-  font-size: 10px;
-}
+.nav-item small { font-size: 10px; }
 
-.app-frame.deep-service .bottom-nav {
-  display: none;
-}
+.app-frame.deep-service .bottom-nav { display: none; }
 .app-frame.deep-service .content {
   padding-left: 0;
   padding-right: 0;

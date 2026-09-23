@@ -19,73 +19,20 @@ import type { ServiceView } from './service-pages';
 const wallet = { amount: '0.00', symbol: '₦', code: 'NGN' };
 
 const QUICK_ACTIONS: {
-  id: ServiceView | 'coming-data' | 'coming-airtime' | 'coming-gift' | 'coming-vcard';
+  id: string;
   title: string;
-  subtitle: string;
   icon: typeof Smartphone;
   tone: string;
   service?: ServiceView;
 }[] = [
-  {
-    id: 'virtual-numbers',
-    title: 'Virtual Number',
-    subtitle: 'OTP codes',
-    icon: Smartphone,
-    tone: 'quick-icon-blue',
-    service: 'virtual-numbers',
-  },
-  {
-    id: 'rental',
-    title: 'Rent Number',
-    subtitle: 'Long-term',
-    icon: Clock3,
-    tone: 'quick-icon-cyan',
-    service: 'rental',
-  },
-  {
-    id: 'boost',
-    title: 'SMM Boost',
-    subtitle: 'Social growth',
-    icon: Zap,
-    tone: 'quick-icon-amber',
-    service: 'boost',
-  },
-  {
-    id: 'accounts',
-    title: 'Buy Accounts',
-    subtitle: 'Inventory',
-    icon: UserRound,
-    tone: 'quick-icon-violet',
-    service: 'accounts',
-  },
-  {
-    id: 'coming-data',
-    title: 'Data',
-    subtitle: 'Mobile data',
-    icon: Wifi,
-    tone: 'quick-icon-indigo',
-  },
-  {
-    id: 'coming-airtime',
-    title: 'Airtime',
-    subtitle: 'Top-up',
-    icon: Phone,
-    tone: 'quick-icon-sky',
-  },
-  {
-    id: 'coming-gift',
-    title: 'Gift Card',
-    subtitle: 'Trade cards',
-    icon: Gift,
-    tone: 'quick-icon-rose',
-  },
-  {
-    id: 'coming-vcard',
-    title: 'Virtual Card',
-    subtitle: 'Spend online',
-    icon: CreditCard,
-    tone: 'quick-icon-emerald',
-  },
+  { id: 'virtual-numbers', title: 'Virtual Number', icon: Smartphone, tone: 'quick-icon-blue', service: 'virtual-numbers' },
+  { id: 'rental', title: 'Rent Number', icon: Clock3, tone: 'quick-icon-cyan', service: 'rental' },
+  { id: 'boost', title: 'SMM Boost', icon: Zap, tone: 'quick-icon-amber', service: 'boost' },
+  { id: 'accounts', title: 'Buy Accounts', icon: UserRound, tone: 'quick-icon-violet', service: 'accounts' },
+  { id: 'data', title: 'Data', icon: Wifi, tone: 'quick-icon-indigo' },
+  { id: 'airtime', title: 'Airtime', icon: Phone, tone: 'quick-icon-sky' },
+  { id: 'gift', title: 'Gift Card', icon: Gift, tone: 'quick-icon-rose' },
+  { id: 'vcard', title: 'Virtual Card', icon: CreditCard, tone: 'quick-icon-emerald' },
 ];
 
 export function HomePage({ go, openService }: { go: (page: Page) => void; openService: (view: ServiceView) => void }) {
@@ -119,8 +66,8 @@ export function HomePage({ go, openService }: { go: (page: Page) => void; openSe
 
       <div className="quick-section">
         <p className="quick-section-label">QUICK ACTIONS</p>
-        <div className="quick-grid quick-grid-8">
-          {QUICK_ACTIONS.map(({ id, title, subtitle, icon: Icon, tone, service }) => (
+        <div className="quick-grid-8">
+          {QUICK_ACTIONS.map(({ id, title, icon: Icon, tone, service }) => (
             <button
               key={id}
               className="quick-tile"
@@ -134,7 +81,6 @@ export function HomePage({ go, openService }: { go: (page: Page) => void; openSe
                 <Icon size={18} strokeWidth={1.9} />
               </span>
               <strong>{title}</strong>
-              <small>{subtitle}</small>
             </button>
           ))}
         </div>
