@@ -5,12 +5,14 @@ import {
   Eye,
   EyeOff,
   Gift,
+  Globe2,
   History,
   Phone,
   Plus,
   Smartphone,
   UserRound,
   Wifi,
+  ShieldCheck,
   Zap,
 } from 'lucide-react';
 import { useState } from 'react';
@@ -65,6 +67,39 @@ const QUICK_ACTIONS: {
     tone: 'quick-icon-emerald',
   },
 ];
+
+const HOME_PROMOS = [
+  {
+    id: 'numbers',
+    eyebrow: 'VIRTUAL NUMBERS',
+    title: 'Get a verification number when you need one.',
+    detail: 'Browse supported pools and place an order from your Verxor wallet.',
+    action: 'Explore numbers',
+    service: 'virtual-numbers' as ServiceView,
+    icon: Smartphone,
+    mark: 'VN',
+  },
+  {
+    id: 'rental',
+    eyebrow: 'RENT A LINE',
+    title: 'Keep a dedicated line for longer workflows.',
+    detail: 'Choose a rental period and manage the line from one dashboard.',
+    action: 'View rentals',
+    service: 'rental' as ServiceView,
+    icon: Phone,
+    mark: 'RL',
+  },
+  {
+    id: 'growth',
+    eyebrow: 'SMM BOOST',
+    title: 'Run social growth orders with clear tracking.',
+    detail: 'Choose a service, submit an order and follow its delivery status.',
+    action: 'Open SMM',
+    service: 'boost' as ServiceView,
+    icon: Zap,
+    mark: 'SM',
+  },
+] as const;
 
 export function HomePage({
   go,
@@ -136,21 +171,29 @@ export function HomePage({
         </div>
       </div>
 
-      <section className="home-promo" aria-label="Promotions">
-        <div className="home-promo-card">
-          <div className="home-promo-copy">
-            <span className="home-promo-tag">FEATURED</span>
-            <strong>Grow faster with SMM Boost</strong>
-            <p>Followers, likes and views with clear delivery tracking.</p>
-          </div>
-          <button
-            type="button"
-            className="home-promo-cta"
-            onClick={() => openService('boost')}
-          >
-            Boost now <ArrowRight size={14} />
-          </button>
-        </div>
+      <section className="home-promo-rail" aria-label="Featured services">
+        {HOME_PROMOS.map(({ id, eyebrow, title, detail, action, service, icon: Icon, mark }) => (
+          <article className="home-promo-card" key={id}>
+            <div className="home-promo-main">
+              <div className="home-promo-brand">
+                <span className="home-promo-mark">{mark}</span>
+                <span className="home-promo-tag">{eyebrow}</span>
+              </div>
+              <strong>{title}</strong>
+              <p>{detail}</p>
+              <button
+                type="button"
+                className="home-promo-cta"
+                onClick={() => openService(service)}
+              >
+                {action} <ArrowRight size={14} />
+              </button>
+            </div>
+            <div className="home-promo-icon" aria-hidden="true">
+              <Icon size={24} strokeWidth={1.8} />
+            </div>
+          </article>
+        ))}
       </section>
 
       <SectionHeader
