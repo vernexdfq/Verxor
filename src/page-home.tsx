@@ -11,9 +11,10 @@ import {
   UserRound,
   Wifi,
   Zap,
+  ArrowRight,
 } from 'lucide-react';
 import { useState } from 'react';
-import { Card } from './components/ui';
+import { Card, SectionHeader } from './components/ui';
 import { PromoCarousel, type PromoBanner } from './components/PromoCarousel';
 import './components/PromoCarousel.css';
 import type { Page } from './types';
