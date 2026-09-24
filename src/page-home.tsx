@@ -1,5 +1,4 @@
 import {
-  ArrowRight,
   Clock3,
   CreditCard,
   Eye,
@@ -14,7 +13,9 @@ import {
   Zap,
 } from 'lucide-react';
 import { useState } from 'react';
-import { Card, SectionHeader } from './components/ui';
+import { Card } from './components/ui';
+import { PromoCarousel, type PromoBanner } from './components/PromoCarousel';
+import './components/PromoCarousel.css';
 import type { Page } from './types';
 import type { ServiceView } from './service-pages';
 
@@ -66,38 +67,16 @@ const QUICK_ACTIONS: {
   },
 ];
 
-const HOME_PROMOS = [
-  {
-    id: 'numbers',
-    eyebrow: 'VIRTUAL NUMBERS',
-    title: 'Get a verification number when you need one.',
-    detail: 'Browse supported pools and place an order from your Verxor wallet.',
-    action: 'Explore numbers',
-    service: 'virtual-numbers' as ServiceView,
-    icon: Smartphone,
-    mark: 'VN',
-  },
-  {
-    id: 'rental',
-    eyebrow: 'RENT A LINE',
-    title: 'Keep a dedicated line for longer workflows.',
-    detail: 'Choose a rental period and manage the line from one dashboard.',
-    action: 'View rentals',
-    service: 'rental' as ServiceView,
-    icon: Phone,
-    mark: 'RL',
-  },
-  {
-    id: 'growth',
-    eyebrow: 'SMM BOOST',
-    title: 'Run social growth orders with clear tracking.',
-    detail: 'Choose a service, submit an order and follow its delivery status.',
-    action: 'Open SMM',
-    service: 'boost' as ServiceView,
-    icon: Zap,
-    mark: 'SM',
-  },
-] as const;
+const HOME_PROMOS: PromoBanner[] = [
+  { id: 'virtual-numbers', title: 'Virtual Numbers', image: '/banners/virtual-numbers.svg', destination: '/services/virtual-numbers', action: 'Order Now' },
+  { id: 'boost-account', title: 'Boost Account', image: '/banners/boost-account.svg', destination: '/services/boost', action: 'Boost Now' },
+  { id: 'buy-logs', title: 'Buy Logs', image: '/banners/buy-logs.svg', destination: '/services/buy-logs', action: 'Browse Logs' },
+  { id: 'rent-number', title: 'Rent a Number', image: '/banners/rent-number.svg', destination: '/services/rent-number', action: 'Open Hub' },
+  { id: 'data-bundles', title: 'Data Bundles', image: '/banners/data-bundles.svg', destination: '/services/data', action: 'Buy Data' },
+  { id: 'airtime-topup', title: 'Airtime Top-up', image: '/banners/airtime-topup.svg', destination: '/services/airtime', action: 'Buy Airtime' },
+  { id: 'gift-cards', title: 'Gift Cards', image: '/banners/gift-cards.svg', destination: '/services/gift-card', action: 'Sell Now' },
+  { id: 'virtual-card', title: 'Virtual Card', image: '/banners/virtual-card.svg', destination: '/services/virtual-card', action: 'Get Card' },
+];
 
 export function HomePage({
   go,
@@ -169,30 +148,16 @@ export function HomePage({
         </div>
       </div>
 
-      <section className="home-promo-rail" aria-label="Featured services">
-        {HOME_PROMOS.map(({ id, eyebrow, title, detail, action, service, icon: Icon, mark }) => (
-          <article className="home-promo-card" key={id}>
-            <div className="home-promo-main">
-              <div className="home-promo-brand">
-                <span className="home-promo-mark">{mark}</span>
-                <span className="home-promo-tag">{eyebrow}</span>
-              </div>
-              <strong>{title}</strong>
-              <p>{detail}</p>
-              <button
-                type="button"
-                className="home-promo-cta"
-                onClick={() => openService(service)}
-              >
-                {action} <ArrowRight size={14} />
-              </button>
-            </div>
-            <div className="home-promo-icon" aria-hidden="true">
-              <Icon size={24} strokeWidth={1.8} />
-            </div>
-          </article>
-        ))}
-      </section>
+      <PromoCarousel
+        items={HOME_PROMOS}
+        label="Verxor featured services"
+        onSelect={(item) => {
+          if (item.id === 'virtual-numbers') openService('virtual-numbers');
+          else if (item.id === 'boost-account') openService('boost');
+          else if (item.id === 'rent-number') openService('rental');
+          else go('services');
+        }}
+      />
 
       <SectionHeader
         eyebrow="ACTIVITY"
