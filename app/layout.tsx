@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import '../src/styles.css';
 import '../src/landing.css';
 import '../src/app-overrides.css';
+import '../src/tailwind.css';
 import '../src/community-refinements.css';
 import '../src/fund-page.css';
 import '../src/service-pages.css';
