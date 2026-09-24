@@ -43,12 +43,12 @@
   display: grid;
   place-items: center;
   border-radius: 12px;
-  background: #2563eb;
+  background: #0F172A;
   color: #fff;
   font-size: 17px;
   font-weight: 800;
   letter-spacing: -0.03em;
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.28);
+  box-shadow: 0 5px 14px rgba(15, 23, 42, 0.16);
   overflow: hidden;
 }
 .home-brand-mark img {
@@ -64,9 +64,9 @@
 }
 .topbar-greeting span {
   font-size: 15px;
-  font-weight: 700;
+  font-weight: 500;
   line-height: 20px;
-  color: var(--vx-ink);
+  color: #1e293b;
   letter-spacing: -0.02em;
 }
 .topbar-greeting .greet-emoji {
@@ -76,8 +76,8 @@
 .topbar-greeting small {
   font-size: 11px;
   line-height: 15px;
-  color: var(--vx-muted);
-  font-weight: 500;
+  color: #94a3b8;
+  font-weight: 400;
 }
 .topbar-actions {
   margin-left: auto;
@@ -92,9 +92,10 @@
   height: 40px;
   display: grid;
   place-items: center;
-  border-radius: 12px;
-  border: 1px solid var(--vx-border);
-  background: var(--vx-surface);
+  border-radius: 16px;
+  border: 1px solid #f1f5f9;
+  background: #ffffff;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
   color: var(--vx-ink);
 }
 .topbar-bell .bell-dot {
