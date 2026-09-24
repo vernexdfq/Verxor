@@ -28,7 +28,6 @@ const PROFILE_SUBVIEWS: ServiceView[] = [
   'support-center',
 ];
 
-/** Placeholder until real auth — replace with registered user's name */
 const SESSION_USER = { name: 'Destiny' };
 
 const services = [
@@ -298,7 +297,7 @@ export function VerxorApp() {
 
   const content =
     service === 'services' ? (
-      <ServicesPage open={setService} />
+      <ServicesPage open={setService} onBack={() => { setService(null); setPage('home'); }} />
     ) : service === 'rental' ? (
       <RentalPage onBack={closeService} />
     ) : service === 'virtual-numbers' ? (
@@ -312,12 +311,12 @@ export function VerxorApp() {
     ) : page === 'history' ? (
       <ActivityLogsPage />
     ) : page === 'services' ? (
-      <ServicesPage open={setService} />
+      <ServicesPage open={setService} onBack={() => { setService(null); setPage('home'); }} />
     ) : (
       {
         home: <HomePage go={setPage} openService={setService} />,
         fund: <FundPage />,
-        services: <ServicesPage open={setService} />,
+        services: <ServicesPage open={setService} onBack={() => { setService(null); setPage('home'); }} />,
         profile: <ProfilePage openService={setService} />,
       }[page]
     );
