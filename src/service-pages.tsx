@@ -22,6 +22,8 @@ import {
 } from 'lucide-react';
 import { Card, PrimaryButton, SectionHeader } from './components/ui';
 import './service-pages.css';
+import { PromoCarousel, type PromoBanner } from './components/PromoCarousel';
+import './components/PromoCarousel.css';
 import { NotificationsPage } from './notifications-page';
 import { SOCIAL } from './lib/social';
 
@@ -119,9 +121,26 @@ function EmptyOrders({ icon, title, text }: { icon: ReactNode; title: string; te
   );
 }
 
+const FEATURED_BANNERS: PromoBanner[] = [
+  { id: 'virtual-numbers', title: 'Virtual Numbers', image: '/banners/virtual-numbers.svg', destination: '/services/virtual-numbers', action: 'Order Now' },
+  { id: 'boost-account', title: 'Boost Account', image: '/banners/boost-account.svg', destination: '/services/boost', action: 'Boost Now' },
+  { id: 'rent-number', title: 'Rent a Number', image: '/banners/rent-number.svg', destination: '/services/rent-number', action: 'Open Hub' },
+  { id: 'virtual-card', title: 'Virtual Card', image: '/banners/virtual-card.svg', destination: '/services/virtual-card', action: 'Get Card' },
+];
+
 export function ServicesPage({ open }: { open: (view: ServiceView) => void }) {
   return (
     <>
+      <PromoCarousel
+        items={FEATURED_BANNERS}
+        label="Featured Verxor services"
+        onSelect={(item) => {
+          if (item.id === 'virtual-numbers') open('virtual-numbers');
+          else if (item.id === 'boost-account') open('boost');
+          else if (item.id === 'rent-number') open('rental');
+          else open('services');
+        }}
+      />
       <section className="page-intro">
         <p className="eyebrow">VERXOR SERVICES</p>
         <h1>Services</h1>
