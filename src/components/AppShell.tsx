@@ -47,11 +47,12 @@ export function AppShell({
   const firstName = (userName || 'User').trim().split(/\s+/)[0] || 'User';
   const initial = firstName.charAt(0).toUpperCase();
   const greet = homeGreeting(firstName);
+  const hideTopbar = deepService || page === 'services';
 
   return (
     <div className={`app ${dark ? 'dark' : ''}`}>
       <div className={`app-frame ${deepService ? 'deep-service' : ''}`}>
-        {!deepService && (
+        {!hideTopbar && (
           <header
             className={`topbar ${page === 'home' ? 'topbar-home' : ''} ${page === 'profile' ? 'topbar-profile' : ''}`}
           >
@@ -78,11 +79,6 @@ export function AppShell({
                   <span aria-hidden="true">‹</span>
                   <strong>History</strong>
                 </button>
-              ) : page === 'services' ? (
-                <div className="topbar-greeting" aria-label="Services">
-                  <span>Services</span>
-                  <small>All products in one place</small>
-                </div>
               ) : page === 'fund' ? (
                 <div className="topbar-greeting" aria-label="Fund">
                   <span>Fund wallet</span>
