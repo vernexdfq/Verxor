@@ -1,6 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowRight } from 'lucide-react';
-
 export type PromoBanner = {
   id: string;
   title: string;
@@ -73,10 +71,6 @@ export function PromoCarousel({
           >
             <img src={item.image} alt="" width="1200" height="480" loading="lazy" />
             <img className="promo-carousel-logo" src="/brand/verxor-logo.svg" alt="Verxor" width="34" height="34" />
-            <span className="promo-carousel-hit">
-              <span>{item.action}</span>
-              <ArrowRight size={14} />
-            </span>
           </button>
         ))}
       </div>
