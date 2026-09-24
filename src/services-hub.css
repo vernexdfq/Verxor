@@ -1,10 +1,8 @@
-/* All Services hub — matches Verxor design reference */
-
 .svc-hub {
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  padding-bottom: 8px;
+  gap: 16px;
+  padding-bottom: 12px;
   min-height: 100%;
   background: transparent;
 }
@@ -21,31 +19,53 @@
   height: 40px;
   display: grid;
   place-items: center;
-  border-radius: 12px;
+  border-radius: 14px;
   border: 1px solid #e2e8f0;
   background: #fff;
   color: #0f172a;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+}
+
+.svc-hub-heading {
+  min-width: 0;
+  text-align: center;
 }
 
 .svc-hub-title {
   margin: 0;
-  text-align: center;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 800;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.04em;
   color: #0f172a;
-  text-transform: uppercase;
+}
+
+.svc-hub-heading p {
+  margin: 3px 0 0;
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+.svc-hub-sticky {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 4px 0 10px;
+  background: #f8fafc;
 }
 
 .svc-hub-search {
   position: relative;
   display: flex;
   align-items: center;
-  height: 44px;
-  padding: 0 12px 0 40px;
-  border-radius: 12px;
+  min-height: 46px;
+  padding: 0 12px 0 42px;
+  border-radius: 15px;
   border: 1px solid #e2e8f0;
   background: #fff;
+  box-shadow: 0 3px 12px rgba(15, 23, 42, 0.04);
 }
 
 .svc-hub-search:focus-within {
@@ -55,7 +75,7 @@
 
 .svc-hub-search-icon {
   position: absolute;
-  left: 12px;
+  left: 13px;
   color: #94a3b8;
   pointer-events: none;
 }
@@ -75,12 +95,12 @@
 }
 
 .svc-hub-clear {
-  width: 28px;
-  height: 28px;
+  width: 30px;
+  height: 30px;
   display: grid;
   place-items: center;
   border: 0;
-  border-radius: 8px;
+  border-radius: 9px;
   background: #f1f5f9;
   color: #64748b;
   flex: none;
@@ -90,7 +110,7 @@
   display: flex;
   gap: 8px;
   overflow-x: auto;
-  padding-bottom: 2px;
+  padding: 0 1px 2px;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
 }
@@ -113,28 +133,56 @@
 }
 
 .svc-hub-pills .pill.active {
-  background: #0f172a;
-  border-color: #0f172a;
+  background: #2563eb;
+  border-color: #2563eb;
   color: #fff;
 }
 
 .svc-hub-group {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 11px;
+}
+
+.svc-hub-group-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .svc-hub-group-title {
-  margin: 4px 0 0;
-  font-size: 11px;
+  margin: 0;
+  font-size: 12px;
   font-weight: 800;
   letter-spacing: 0.06em;
+  color: #0f172a;
+}
+
+.svc-hub-group-heading p {
+  margin: 4px 0 0;
+  font-size: 11px;
+  line-height: 15px;
   color: #64748b;
+}
+
+.svc-hub-group-heading > span {
+  flex: none;
+  min-width: 26px;
+  height: 26px;
+  padding: 0 7px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: #eaf2ff;
+  color: #2563eb;
+  font-size: 11px;
+  font-weight: 800;
 }
 
 .svc-hub-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
 }
 
@@ -144,58 +192,76 @@
   flex-direction: column;
   align-items: flex-start;
   gap: 10px;
-  min-height: 100px;
-  padding: 14px 12px 12px;
+  min-width: 0;
+  min-height: 158px;
+  padding: 15px;
   text-align: left;
-  border-radius: 16px;
+  border-radius: 18px;
   border: 1px solid #e2e8f0;
   background: #fff;
   color: #0f172a;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
-  transition: border-color 0.15s ease, transform 0.15s ease;
-}
-
-.svc-hub-card:active {
-  transform: scale(0.98);
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.045);
+  cursor: pointer;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
 }
 
 .svc-hub-card:hover {
   border-color: #cbd5e1;
+  box-shadow: 0 7px 18px rgba(15, 23, 42, 0.08);
 }
 
 .svc-hub-icon {
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
+  width: 48px;
+  height: 48px;
+  border-radius: 15px;
   display: grid;
   place-items: center;
   flex: none;
 }
 
-.svc-hub-card-label {
-  font-size: 12px;
+.svc-hub-card-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding-right: 18px;
+}
+
+.svc-hub-card-copy strong {
+  font-size: 13px;
+  line-height: 17px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.svc-hub-card-copy small {
+  font-size: 10.5px;
   line-height: 15px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  padding-right: 12px;
+  color: #64748b;
 }
 
 .svc-hub-card-arrow {
   position: absolute;
-  right: 10px;
-  bottom: 12px;
-  color: #94a3b8;
+  right: 12px;
+  bottom: 13px;
+  width: 27px;
+  height: 27px;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  background: #f8fafc;
+  color: #2563eb;
 }
 
-.svc-blue { color: #2563eb; background: rgba(37, 99, 235, 0.1); }
-.svc-purple { color: #8b5cf6; background: rgba(139, 92, 246, 0.1); }
+.svc-blue { color: #2563eb; background: rgba(37, 99, 235, 0.10); }
+.svc-purple { color: #8b5cf6; background: rgba(139, 92, 246, 0.10); }
 .svc-amber { color: #d97706; background: rgba(245, 158, 11, 0.12); }
 .svc-emerald { color: #059669; background: rgba(16, 185, 129, 0.12); }
 .svc-sky { color: #0284c7; background: rgba(14, 165, 233, 0.12); }
 .svc-teal { color: #0d9488; background: rgba(13, 148, 136, 0.12); }
 .svc-indigo { color: #4f46e5; background: rgba(99, 102, 241, 0.12); }
 .svc-cyan { color: #0891b2; background: rgba(6, 182, 212, 0.12); }
-.svc-rose { color: #e11d48; background: rgba(244, 63, 94, 0.1); }
+.svc-rose { color: #e11d48; background: rgba(244, 63, 94, 0.10); }
 .svc-yellow { color: #ca8a04; background: rgba(234, 179, 8, 0.14); }
 .svc-green { color: #059669; background: rgba(16, 185, 129, 0.12); }
 .svc-slate { color: #0f172a; background: rgba(15, 23, 42, 0.08); }
@@ -203,39 +269,55 @@
 .svc-orange { color: #ea580c; background: rgba(249, 115, 22, 0.12); }
 
 .svc-hub-empty {
-  margin-top: 24px;
-  padding: 28px 16px;
+  margin-top: 14px;
+  padding: 30px 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   text-align: center;
-  border-radius: 16px;
-  border: 1px dashed #e2e8f0;
+  border-radius: 18px;
+  border: 1px dashed #cbd5e1;
   background: #fff;
+  color: #94a3b8;
 }
 
 .svc-hub-empty strong {
-  display: block;
+  margin-top: 8px;
   font-size: 15px;
   color: #0f172a;
 }
 
 .svc-hub-empty p {
-  margin: 6px 0 0;
-  font-size: 13px;
+  margin: 6px 0 12px;
+  font-size: 12px;
   color: #64748b;
 }
 
-@media (max-width: 360px) {
+.svc-hub-reset {
+  height: 34px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 10px;
+  background: #2563eb;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+@media (min-width: 700px) {
   .svc-hub-grid {
-    gap: 8px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
+}
+
+@media (max-width: 360px) {
   .svc-hub-card {
-    min-height: 94px;
-    padding: 12px 10px 10px;
+    min-height: 150px;
+    padding: 13px;
   }
+
   .svc-hub-icon {
-    width: 40px;
-    height: 40px;
-  }
-  .svc-hub-card-label {
-    font-size: 11px;
+    width: 46px;
+    height: 46px;
   }
 }
