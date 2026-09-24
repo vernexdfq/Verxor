@@ -15,14 +15,13 @@ import {
   Smartphone,
   Wifi,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Card, SectionHeader } from './components/ui';
 import type { Page } from './types';
 import type { ServiceView } from './service-pages';
 
 const wallet = { amount: '7,570.00', symbol: '₦' };
 
-/** Order matches design reference: row1 verification/growth, row2 telecom/finance */
 const QUICK_ACTIONS: {
   id: string;
   title: string;
@@ -40,29 +39,16 @@ const QUICK_ACTIONS: {
   { id: 'vcard', title: 'Virtual Card', icon: CreditCard, tone: 'qa-slate' },
 ];
 
-const PROMOS = [
-  {
-    id: 'data',
-    eyebrow: 'CHEAPEST DATA RATES',
-    title: 'SME/CG at ₦210/GB',
-    cta: 'Buy Data Now',
-    service: undefined as ServiceView | undefined,
-    page: undefined as Page | undefined,
-  },
-  {
-    id: 'numbers',
-    eyebrow: 'INSTANT NUMBERS',
-    title: 'USA & UK lines ready now',
-    cta: 'Get Number',
-    service: 'virtual-numbers' as ServiceView,
-  },
-  {
-    id: 'boost',
-    eyebrow: 'SOCIAL GROWTH',
-    title: 'Boost Instagram & TikTok',
-    cta: 'Boost Page',
-    service: 'boost' as ServiceView,
-  },
+const PROMOS: {
+  id: string;
+  eyebrow: string;
+  title: string;
+  cta: string;
+  service?: ServiceView;
+}[] = [
+  { id: 'data', eyebrow: 'CHEAPEST DATA RATES', title: 'SME/CG at ₦210/GB', cta: 'Buy Data Now' },
+  { id: 'numbers', eyebrow: 'INSTANT NUMBERS', title: 'USA & UK lines ready now', cta: 'Get Number', service: 'virtual-numbers' },
+  { id: 'boost', eyebrow: 'SOCIAL GROWTH', title: 'Boost Instagram & TikTok', cta: 'Boost Page', service: 'boost' },
 ];
 
 export function HomePage({
@@ -75,57 +61,17 @@ export function HomePage({
   const [showBalance, setShowBalance] = useState(true);
   const [promoIndex, setPromoIndex] = useState(0);
 
-  // Auto-rotate promos every 4s
-  useState(() => {
-    if (typeof window === 'undefined') return;
-  });
-
-  // Simple interval via effect-like pattern without extra import issues — use client effect
-  if (typeof window !== 'undefined') {
-    // interval set in useEffect below
-  }
-
-  return (
-    <HomeInner
-      go={go}
-      openService={openService}
-      showBalance={showBalance}
-      setShowBalance={setShowBalance}
-      promoIndex={promoIndex}
-      setPromoIndex={setPromoIndex}
-    />
-  );
-}
-
-function HomeInner({
-  go,
-  openService,
-  showBalance,
-  setShowBalance,
-  promoIndex,
-  setPromoIndex,
-}: {
-  go: (page: Page) => void;
-  openService: (view: ServiceView) => void;
-  showBalance: boolean;
-  setShowBalance: (fn: (v: boolean) => boolean) => void;
-  promoIndex: number;
-  setPromoIndex: (fn: (v: number) => number) => void;
-}) {
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  const { useEffect } = require('react') as typeof import('react');
   useEffect(() => {
     const t = setInterval(() => {
       setPromoIndex((i) => (i + 1) % PROMOS.length);
     }, 4000);
     return () => clearInterval(t);
-  }, [setPromoIndex]);
+  }, []);
 
   const promo = PROMOS[promoIndex];
 
   return (
     <>
-      {/* Wallet hero — #0F172A */}
       <section className="vx-wallet" aria-label="Available balance">
         <div className="vx-wallet-top">
           <span className="vx-wallet-label">AVAILABLE BALANCE</span>
@@ -163,7 +109,6 @@ function HomeInner({
         </div>
       </section>
 
-      {/* Quick actions 4×2 */}
       <section className="vx-quick" aria-label="Quick actions">
         <p className="vx-section-label">QUICK ACTIONS</p>
         <div className="vx-quick-grid">
@@ -186,7 +131,6 @@ function HomeInner({
         </div>
       </section>
 
-      {/* Promo carousel */}
       <section className="vx-promo" aria-label="Promotions">
         <div className="vx-promo-card">
           <div className="vx-promo-copy">
@@ -211,13 +155,12 @@ function HomeInner({
               role="tab"
               aria-selected={i === promoIndex}
               className={i === promoIndex ? 'dot active' : 'dot'}
-              onClick={() => setPromoIndex(() => i)}
+              onClick={() => setPromoIndex(i)}
             />
           ))}
         </div>
       </section>
 
-      {/* Recent activity */}
       <SectionHeader
         eyebrow="ACTIVITY"
         title="Recent activity"

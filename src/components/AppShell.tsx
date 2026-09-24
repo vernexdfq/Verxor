@@ -8,9 +8,8 @@ import type { ServiceView } from '../service-pages';
 function homeGreeting(name: string) {
   const h = new Date().getHours();
   if (h < 12) return { line: `Good morning, ${name}`, emoji: '☀️' };
-  if (h < 17) return { line: `Good afternoon, ${name}`, emoji: '🌤️' };
-  if (h < 21) return { line: `Good evening, ${name}`, emoji: '🌙' };
-  return { line: `Good night, ${name}`, emoji: '🌙' };
+  if (h < 17) return { line: `Good afternoon, ${name}`, emoji: '⛅' };
+  return { line: `Good evening, ${name}`, emoji: '🌙' };
 }
 
 export function AppShell({
@@ -27,7 +26,6 @@ export function AppShell({
   dark: boolean;
   page: Page;
   deepService?: boolean;
-  /** Display name from registration / profile */
   userName?: string;
   onNavigate: (page: Page) => void;
   onToggleTheme: () => void;
@@ -47,6 +45,7 @@ export function AppShell({
   ];
 
   const firstName = (userName || 'User').trim().split(/\s+/)[0] || 'User';
+  const initial = firstName.charAt(0).toUpperCase();
   const greet = homeGreeting(firstName);
 
   return (
@@ -59,14 +58,14 @@ export function AppShell({
             <div className="topbar-context">
               {page === 'home' ? (
                 <div className="home-hero-row">
-                  <div className="home-brand-mark">
-                    <img src="/brand/verxor-logo.svg" alt="Verxor" />
+                  <div className="home-brand-mark" aria-hidden="true">
+                    V
                   </div>
                   <div className="topbar-greeting" aria-label="Welcome back">
                     <span>
                       {greet.line} <span className="greet-emoji">{greet.emoji}</span>
                     </span>
-                    <small>Your Verxor dashboard</small>
+                    <small>Your Verxor Dashboard</small>
                   </div>
                 </div>
               ) : page === 'history' ? (
@@ -105,6 +104,15 @@ export function AppShell({
                   onClick={() => onOpenService('alerts')}
                 >
                   <Bell size={18} strokeWidth={2} />
+                  <span className="bell-dot" aria-hidden="true" />
+                </button>
+                <button
+                  type="button"
+                  className="topbar-avatar"
+                  aria-label="Profile"
+                  onClick={() => onNavigate('profile')}
+                >
+                  {initial}
                 </button>
               </div>
             )}
