@@ -26,6 +26,7 @@ import { PromoCarousel, type PromoBanner } from './components/PromoCarousel';
 import './components/PromoCarousel.css';
 import { NotificationsPage } from './notifications-page';
 import { SOCIAL } from './lib/social';
+import { ServicesHub } from './services-hub';
 
 export type ServiceView =
   | 'services'
@@ -50,38 +51,17 @@ export type ServiceView =
   | 'referral'
   | 'child-panel'
   | 'api-keys'
-  | 'support-center';
-
-const catalog = [
-  {
-    id: 'virtual-numbers' as const,
-    title: 'Virtual Numbers',
-    eyebrow: 'OTP VERIFICATION',
-    description: 'Choose a country and service, then review available numbers.',
-    icon: Phone,
-  },
-  {
-    id: 'rental' as const,
-    title: 'Rent a Line',
-    eyebrow: 'DEDICATED LINE',
-    description: 'Choose a private number and the rental period you need.',
-    icon: Clock3,
-  },
-  {
-    id: 'boost' as const,
-    title: 'SMM Boost',
-    eyebrow: 'SOCIAL GROWTH',
-    description: 'Browse growth services with clear order tracking.',
-    icon: Instagram,
-  },
-  {
-    id: 'accounts' as const,
-    title: 'Buy Accounts',
-    eyebrow: 'ACCOUNT INVENTORY',
-    description: 'Review available inventory and delivery information.',
-    icon: Users,
-  },
-];
+  | 'support-center'
+  | 'data'
+  | 'airtime'
+  | 'esim'
+  | 'proxies'
+  | 'tv-cable'
+  | 'electricity'
+  | 'exam-pin'
+  | 'virtual-card'
+  | 'gift-card'
+  | 'bet-wallet';
 
 function ServiceLayout({
   title,
@@ -121,48 +101,8 @@ function EmptyOrders({ icon, title, text }: { icon: ReactNode; title: string; te
   );
 }
 
-const FEATURED_BANNERS: PromoBanner[] = [
-  { id: 'virtual-numbers', title: 'Virtual Numbers', image: '/banners/virtual-numbers.svg', destination: '/services/virtual-numbers', action: 'Order Now' },
-  { id: 'boost-account', title: 'Boost Account', image: '/banners/boost-account.svg', destination: '/services/boost', action: 'Boost Now' },
-  { id: 'rent-number', title: 'Rent a Number', image: '/banners/rent-number.svg', destination: '/services/rent-number', action: 'Open Hub' },
-  { id: 'virtual-card', title: 'Virtual Card', image: '/banners/virtual-card.svg', destination: '/services/virtual-card', action: 'Get Card' },
-];
-
-export function ServicesPage({ open }: { open: (view: ServiceView) => void }) {
-  return (
-    <>
-      <PromoCarousel
-        items={FEATURED_BANNERS}
-        label="Featured Verxor services"
-        onSelect={(item) => {
-          if (item.id === 'virtual-numbers') open('virtual-numbers');
-          else if (item.id === 'boost-account') open('boost');
-          else if (item.id === 'rent-number') open('rental');
-          else open('services');
-        }}
-      />
-      <section className="page-intro">
-        <p className="eyebrow">VERXOR SERVICES</p>
-        <h1>Services</h1>
-        <p>Choose a service to get started.</p>
-      </section>
-      <div className="service-stack">
-        {catalog.map(({ id, title, eyebrow, description, icon: Icon }) => (
-          <button className="product-card" key={id} onClick={() => open(id)} type="button">
-            <span className="product-icon">
-              <Icon size={20} />
-            </span>
-            <span>
-              <em>{eyebrow}</em>
-              <strong>{title}</strong>
-              <small>{description}</small>
-            </span>
-            <ArrowRight size={17} />
-          </button>
-        ))}
-      </div>
-    </>
-  );
+export function ServicesPage({ open, onBack }: { open: (view: ServiceView) => void; onBack?: () => void }) {
+  return <ServicesHub open={open} onBack={onBack} />;
 }
 
 export function ServicePage({ view, onBack }: { view: Exclude<ServiceView, 'services'>; onBack: () => void }) {
