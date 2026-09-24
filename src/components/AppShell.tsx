@@ -45,7 +45,6 @@ export function AppShell({
   ];
 
   const firstName = (userName || 'User').trim().split(/\s+/)[0] || 'User';
-  const initial = firstName.charAt(0).toUpperCase();
   const greet = homeGreeting(firstName);
   const hideTopbar = deepService || page === 'services';
 
@@ -53,14 +52,12 @@ export function AppShell({
     <div className={`app ${dark ? 'dark' : ''}`}>
       <div className={`app-frame ${deepService ? 'deep-service' : ''}`}>
         {!hideTopbar && (
-          <header
-            className={`topbar ${page === 'home' ? 'topbar-home' : ''} ${page === 'profile' ? 'topbar-profile' : ''}`}
-          >
+          <header className={`topbar ${page === 'home' ? 'topbar-home' : ''} ${page === 'profile' ? 'topbar-profile' : ''}`}>
             <div className="topbar-context">
               {page === 'home' ? (
                 <div className="home-hero-row">
                   <div className="home-brand-mark" aria-hidden="true">
-                    V
+                    <img src="/brand/verxor-logo.svg" alt="" />
                   </div>
                   <div className="topbar-greeting" aria-label="Welcome back">
                     <span>
@@ -70,12 +67,7 @@ export function AppShell({
                   </div>
                 </div>
               ) : page === 'history' ? (
-                <button
-                  className="inner-page-title"
-                  onClick={() => onNavigate('home')}
-                  aria-label="Back to home"
-                  type="button"
-                >
+                <button className="inner-page-title" onClick={() => onNavigate('home')} aria-label="Back to home" type="button">
                   <span aria-hidden="true">‹</span>
                   <strong>History</strong>
                 </button>
@@ -91,46 +83,31 @@ export function AppShell({
                 </div>
               ) : null}
             </div>
+
             {page === 'home' && (
               <div className="topbar-actions">
-                <button
-                  type="button"
-                  className="topbar-bell"
-                  aria-label="Notifications"
-                  onClick={() => onOpenService('alerts')}
-                >
+                <button type="button" className="topbar-bell" aria-label="Notifications" onClick={() => onOpenService('alerts')}>
                   <Bell size={18} strokeWidth={2} />
                   <span className="bell-dot" aria-hidden="true" />
-                </button>
-                <button
-                  type="button"
-                  className="topbar-avatar"
-                  aria-label="Profile"
-                  onClick={() => onNavigate('profile')}
-                >
-                  {initial}
                 </button>
               </div>
             )}
           </header>
         )}
+
         <main className="content">{children}</main>
+
         {!deepService && (
           <nav className="bottom-nav" aria-label="Primary navigation">
             {items.map(({ id, label, icon: Icon }) => (
-              <button
-                key={id}
-                type="button"
-                className={`nav-item ${page === id ? 'active' : ''}`}
-                onClick={() => onNavigate(id)}
-                aria-current={page === id ? 'page' : undefined}
-              >
+              <button key={id} type="button" className={`nav-item ${page === id ? 'active' : ''}`} onClick={() => onNavigate(id)} aria-current={page === id ? 'page' : undefined}>
                 <Icon size={19} strokeWidth={page === id ? 2.25 : 1.9} />
                 <small>{label}</small>
               </button>
             ))}
           </nav>
         )}
+
         {page === 'home' && !deepService && <CommunityModal />}
       </div>
     </div>
