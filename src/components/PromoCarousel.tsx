@@ -72,6 +72,7 @@ export function PromoCarousel({
             aria-label={item.title}
           >
             <img src={item.image} alt="" width="1200" height="480" loading="lazy" />
+            <img className="promo-carousel-logo" src="/brand/verxor-logo.svg" alt="Verxor" width="34" height="34" />
             <span className="promo-carousel-hit">
               <span>{item.action}</span>
               <ArrowRight size={14} />
