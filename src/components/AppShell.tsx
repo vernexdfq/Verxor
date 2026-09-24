@@ -59,8 +59,8 @@ export function AppShell({
             <div className="topbar-context">
               {page === 'home' ? (
                 <div className="home-hero-row">
-                  <div className="home-brand-mark" aria-hidden="true">
-                    V
+                  <div className="home-brand-mark">
+                    <img src="/brand/verxor-logo.svg" alt="Verxor" />
                   </div>
                   <div className="topbar-greeting" aria-label="Welcome back">
                     <span>
