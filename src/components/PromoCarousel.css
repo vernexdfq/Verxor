@@ -36,18 +36,6 @@
   border-radius: 16px;
   box-shadow: 0 12px 26px rgba(15, 47, 99, 0.13);
 }
-.promo-carousel-logo {
-  position: absolute;
-  top: 14px;
-  right: 14px;
-  width: 34px;
-  height: 34px;
-  padding: 4px;
-  box-sizing: border-box;
-  border-radius: 10px;
-  background: rgba(255,255,255,.94);
-  box-shadow: 0 4px 12px rgba(15,23,42,.12);
-}
 .promo-carousel-dots {
   display: flex;
   justify-content: center;
