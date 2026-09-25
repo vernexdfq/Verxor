@@ -2,9 +2,12 @@ node_modules
 .next
 out
 dist
+.open-next
+.wrangler
 .env
 .env.local
 .env.*.local
 .DS_Store
 *.log
 .vercel
+cloudflare-env.d.ts
