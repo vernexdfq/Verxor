@@ -45,7 +45,6 @@ export function AppShell({
   ];
 
   const firstName = (userName || 'User').trim().split(/\s+/)[0] || 'User';
-  const initial = firstName.charAt(0).toUpperCase();
   const greet = homeGreeting(firstName);
   const hideTopbar = deepService || page === 'services';
 
@@ -101,14 +100,6 @@ export function AppShell({
                 >
                   <Bell size={18} strokeWidth={2} />
                   <span className="bell-dot" aria-hidden="true" />
-                </button>
-                <button
-                  type="button"
-                  className="topbar-avatar"
-                  aria-label="Profile"
-                  onClick={() => onNavigate('profile')}
-                >
-                  {initial}
                 </button>
               </div>
             )}
