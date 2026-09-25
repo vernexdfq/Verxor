@@ -1,3 +1,5 @@
+'use client';
+
 import type { ReactNode } from 'react';
 import {
   ArrowRight,
@@ -8,87 +10,94 @@ import {
   LogOut,
   MessageSquare,
   ShieldCheck,
+  UserRound,
 } from 'lucide-react';
-import { Card } from './components/ui';
 import type { ServiceView } from './service-pages';
+import './profile-page.css';
 
 export function ProfilePage({ openService }: { openService: (view: ServiceView) => void }) {
   return (
-    <>
-      <section className="profile-hero-card" aria-label="Profile summary">
-        <div className="profile-hero-inner">
-          <div className="profile-avatar-lg">V</div>
-          <div className="profile-hero-copy">
-            <strong>Destiny</strong>
-            <small>vernexdfq@gmail.com</small>
-          </div>
-          <button type="button" className="profile-open-btn" onClick={() => openService('edit-profile')}>
-            PROFILE <ArrowRight size={14} />
-          </button>
+    <div className="prof-page">
+      <section className="prof-hero" aria-label="Profile summary">
+        <div className="prof-avatar" aria-hidden>
+          D
         </div>
+        <div className="prof-hero-text">
+          <strong>Destiny</strong>
+          <span>vernexdfq@gmail.com</span>
+        </div>
+        <button
+          type="button"
+          className="prof-edit-btn"
+          onClick={() => openService('edit-profile')}
+        >
+          <UserRound size={14} />
+          Edit
+        </button>
       </section>
 
-      <button type="button" className="refer-earn-card" onClick={() => openService('referral')}>
-        <span className="refer-earn-icon">
+      <button type="button" className="prof-refer" onClick={() => openService('referral')}>
+        <span className="prof-refer-icon">
           <Gift size={20} />
         </span>
-        <span className="refer-earn-copy">
+        <span className="prof-refer-copy">
           <strong>Refer &amp; Earn</strong>
           <small>Get 10% of every referral&apos;s first deposit</small>
         </span>
-        <span className="refer-earn-cta">Invite</span>
+        <span className="prof-refer-cta">
+          Invite <ArrowRight size={14} />
+        </span>
       </button>
 
       <ProfileGroup title="ACCOUNT SETTINGS">
         <ProfileItem
-          icon={<Bell size={19} />}
+          icon={<Bell size={18} />}
           title="Notifications"
-          description="Push, Email, Alerts"
+          description="Push, email & alerts"
           onClick={() => openService('notifications-prefs')}
         />
         <ProfileItem
-          icon={<ShieldCheck size={19} />}
+          icon={<ShieldCheck size={18} />}
           title="Security"
-          description="Password, PIN, Biometrics, 2FA"
+          description="Password, PIN & 2FA"
           onClick={() => openService('security')}
         />
       </ProfileGroup>
 
       <ProfileGroup title="MANAGEMENT">
         <ProfileItem
-          icon={<Globe2 size={19} />}
+          icon={<Globe2 size={18} />}
           title="Child Panel"
           description="Run your own white-label site"
           onClick={() => openService('child-panel')}
         />
         <ProfileItem
-          icon={<KeyRound size={19} />}
+          icon={<KeyRound size={18} />}
           title="API Keys"
-          description="Manage API credentials & webhooks"
+          description="Credentials & webhooks"
           onClick={() => openService('api-keys')}
         />
         <ProfileItem
-          icon={<MessageSquare size={19} />}
+          icon={<MessageSquare size={18} />}
           title="Support Center"
-          description="Help docs, tickets & channels"
+          description="Help, tickets & channels"
           onClick={() => openService('support-center')}
         />
       </ProfileGroup>
 
-      <section className="profile-group account-danger">
-        <button type="button" className="logout-button">
-          <LogOut size={18} /> Log out
-        </button>
-      </section>
-    </>
+      <button type="button" className="prof-logout">
+        <LogOut size={18} />
+        Log out
+      </button>
+    </div>
   );
 }
 
 function ProfileGroup({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <section className="profile-group">
-      <h2>{title}</h2>
-      <Card className="profile-list">{children}</Card>
+    <section className="prof-group">
+      <h2 className="prof-group-title">{title}</h2>
+      <div className="prof-list">{children}</div>
     </section>
   );
 }
@@ -104,21 +113,14 @@ function ProfileItem({
   description: string;
   onClick?: () => void;
 }) {
-  const content = (
-    <>
-      <span className="profile-item-icon">{icon}</span>
-      <span>
+  return (
+    <button type="button" className="prof-item" onClick={onClick}>
+      <span className="prof-item-icon">{icon}</span>
+      <span className="prof-item-copy">
         <strong>{title}</strong>
         <small>{description}</small>
       </span>
-      {onClick ? <ArrowRight size={17} /> : null}
-    </>
-  );
-  return onClick ? (
-    <button type="button" className="profile-item" onClick={onClick}>
-      {content}
+      <ArrowRight size={16} className="prof-item-arrow" />
     </button>
-  ) : (
-    <div className="profile-item">{content}</div>
   );
 }
