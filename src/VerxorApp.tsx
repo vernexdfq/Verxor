@@ -3,13 +3,12 @@
 import { useState } from 'react';
 import { ArrowRight, Check, Globe2, Menu, ShieldCheck, X, Zap } from 'lucide-react';
 import { AppShell } from './components/AppShell';
-import { HomePage, FundPage, ProfilePage } from './pages';
+import { HomePage, FundPage, HistoryPage, ProfilePage } from './pages';
 import { ServicePage, ServicesPage, type ServiceView } from './service-pages';
 import { RentalPage } from './rental-page';
 import { AccountsPage } from './product-pages';
 import { BoostPage } from './boost-page';
 import { VirtualNumbersPage } from './virtual-numbers-page';
-import { ActivityLogsPage } from './activity-logs';
 import { AdminPage } from './admin-page';
 import type { Page } from './types';
 
@@ -121,161 +120,156 @@ function Landing({ enter, openAdmin }: { enter: () => void; openAdmin: () => voi
               Your second number <span>anywhere in the world.</span>
             </h1>
             <p>
-              Verify accounts, rent dedicated numbers, grow your social presence and manage your digital services from
-              one reliable platform.
+              Verify accounts, rent dedicated numbers, grow your social presence and manage your digital services from one
+              reliable platform.
             </p>
             <div className="hero-actions">
               <button type="button" className="landing-cta" onClick={enter}>
                 Get a number now <ArrowRight size={18} />
               </button>
-              <a className="secondary-link" href="#services">Explore services</a>
+              <a href="#services" className="text-link">
+                Explore services
+              </a>
             </div>
-            <div className="trust-row">
-              <span><ShieldCheck size={16} /> Secure checkout</span>
-              <span><Zap size={16} /> Fast delivery</span>
-              <span><Globe2 size={16} /> Global coverage</span>
+            <div className="hero-trust">
+              <span>
+                <ShieldCheck size={15} /> Secure checkout
+              </span>
+              <span>
+                <Zap size={15} /> Fast delivery
+              </span>
+              <span>
+                <Globe2 size={15} /> Global coverage
+              </span>
             </div>
           </div>
-          <div className="hero-preview">
-            <div className="preview-header">
+          <div className="hero-panel">
+            <div className="hero-panel-head">
               <div>
-                <span>VERXOR</span>
+                <small>VERXOR</small>
                 <strong>Digital services</strong>
               </div>
-              <span className="preview-status">LIVE</span>
+              <span className="live-chip">LIVE</span>
             </div>
-            <div className="preview-balance">
-              <small>Wallet balance</small>
+            <div className="hero-balance">
+              <span>Wallet balance</span>
               <strong>0.00</strong>
             </div>
-            <div className="preview-grid">
-              <div>
-                <span className="preview-icon blue">#</span>
-                <strong>OTP numbers</strong>
-                <small>Instant verification</small>
-              </div>
-              <div>
-                <span className="preview-icon navy">◉</span>
-                <strong>Rent a line</strong>
-                <small>Dedicated numbers</small>
-              </div>
-              <div>
-                <span className="preview-icon blue">↗</span>
-                <strong>Social growth</strong>
-                <small>Track every order</small>
-              </div>
-              <div>
-                <span className="preview-icon navy">✓</span>
-                <strong>Accounts</strong>
-                <small>Ready when you are</small>
-              </div>
+            <div className="hero-service-grid">
+              {services.map((item) => (
+                <div key={item.title} className="hero-service-card">
+                  <span className="hero-service-icon">
+                    {item.title.startsWith('Virtual') ? '#' : item.title.startsWith('Rent') ? '◉' : item.title.startsWith('SMM') ? '↑' : 'A'}
+                  </span>
+                  <strong>
+                    {item.title === 'Virtual Numbers'
+                      ? 'OTP numbers'
+                      : item.title === 'Rent a Line'
+                        ? 'Rent a line'
+                        : item.title === 'SMM Boost'
+                          ? 'SMM boost'
+                          : 'Buy accounts'}
+                  </strong>
+                  <small>{item.label}</small>
+                </div>
+              ))}
             </div>
           </div>
         </section>
-        <section className="stats-strip">
-          <div><strong>50+</strong><span>Countries</span></div>
-          <div><strong>200K+</strong><span>Numbers delivered</span></div>
-          <div><strong>24/7</strong><span>Platform access</span></div>
-          <div><strong>Live</strong><span>Inventory updates</span></div>
-        </section>
+
         <section id="services" className="landing-section">
-          <div className="section-intro">
-            <span>Services</span>
-            <h2>One toolkit. Every essential service.</h2>
-            <p>Everything is organized around a simple wallet-first experience, so you can find what you need without navigating a maze.</p>
+          <div className="section-head">
+            <p className="eyebrow">SERVICES</p>
+            <h2>Everything you need in one place</h2>
           </div>
           <div className="service-grid">
-            {services.map((service, i) => (
-              <button type="button" className="service-card" key={service.title} onClick={enter}>
-                <div className={`service-number n${i + 1}`}>0{i + 1}</div>
-                <div>
-                  <span className="service-label">{service.label}</span>
-                  <h3>{service.title}</h3>
-                  <p>{service.description}</p>
-                  <span className="service-link">Open service <ArrowRight size={15} /></span>
-                </div>
-              </button>
+            {services.map((item) => (
+              <article key={item.title} className="service-card">
+                <h3>{item.title}</h3>
+                <p>{item.description}</p>
+                <span>{item.label}</span>
+              </article>
             ))}
           </div>
         </section>
-        <section id="coverage" className="coverage-section">
-          <div className="landing-section coverage-inner">
-            <div className="section-intro">
-              <span>Coverage</span>
-              <h2>Global numbers, clearly presented.</h2>
-              <p>Browse supported markets and check current availability inside your account.</p>
-            </div>
-            <div className="country-grid">
-              {countries.map(([flag, name]) => (
-                <button type="button" key={name} onClick={enter}>
-                  <span>{flag}</span>
-                  <strong>{name}</strong>
-                  <ArrowRight size={15} />
-                </button>
-              ))}
-            </div>
+
+        <section id="coverage" className="landing-section muted">
+          <div className="section-head">
+            <p className="eyebrow">COVERAGE</p>
+            <h2>Numbers across major markets</h2>
+          </div>
+          <div className="country-grid">
+            {countries.map(([flag, name]) => (
+              <div key={name} className="country-chip">
+                <span>{flag}</span>
+                <strong>{name}</strong>
+              </div>
+            ))}
           </div>
         </section>
+
         <section id="pricing" className="landing-section">
-          <div className="pricing-panel">
-            <div>
-              <span>Simple funding</span>
-              <h2>Pay only for what you use.</h2>
-              <p>Fund your wallet, choose a service and keep every payment and order visible in one activity trail.</p>
+          <div className="section-head">
+            <p className="eyebrow">PRICING</p>
+            <h2>Pay only for what you use</h2>
+            <p>Transparent wallet-based pricing. Fund once, use across numbers, rentals, boosts and more.</p>
+          </div>
+          <div className="pricing-row">
+            <div className="price-card">
+              <Check size={18} />
+              <strong>Wallet first</strong>
+              <p>One balance for every service.</p>
             </div>
-            <div className="pricing-points">
-              {['Wallet-first payments', 'Clear service pricing', 'Fast automated delivery', 'Referral rewards'].map((item) => (
-                <div key={item}><Check size={17} />{item}</div>
-              ))}
+            <div className="price-card">
+              <Check size={18} />
+              <strong>Live inventory</strong>
+              <p>See available stock before you buy.</p>
             </div>
-            <button type="button" className="landing-cta" onClick={enter}>
-              Create a free account <ArrowRight size={18} />
-            </button>
+            <div className="price-card">
+              <Check size={18} />
+              <strong>Clear status</strong>
+              <p>Track each order from payment to delivery.</p>
+            </div>
           </div>
         </section>
-        <section id="faq" className="landing-section faq-section">
-          <div className="section-intro centered">
-            <span>Support</span>
-            <h2>Questions, answered.</h2>
+
+        <section id="faq" className="landing-section muted">
+          <div className="section-head">
+            <p className="eyebrow">FAQ</p>
+            <h2>Common questions</h2>
           </div>
           <div className="faq-list">
             {faqs.map(([q, a]) => (
-              <details key={q}>
-                <summary>{q}<span>+</span></summary>
+              <details key={q} className="faq-item">
+                <summary>{q}</summary>
                 <p>{a}</p>
               </details>
             ))}
           </div>
         </section>
+
+        <section className="landing-cta-band">
+          <h2>Ready when you are</h2>
+          <p>Create an account, fund your wallet, and start ordering in minutes.</p>
+          <button type="button" className="landing-cta" onClick={enter}>
+            Get started <ArrowRight size={18} />
+          </button>
+          <button type="button" className="text-link admin-entry" onClick={openAdmin}>
+            Panel admin
+          </button>
+        </section>
       </main>
-      <footer className="landing-footer">
-        <div className="footer-brand">
-          <span className="wordmark-mark">V</span>
-          <strong>Verxor.com</strong>
-        </div>
-        <div className="footer-meta">
-          <span>© {new Date().getFullYear()} Verxor.com — Your complete digital ecosystem</span>
-          <button type="button" className="footer-ops" onClick={openAdmin} title="Platform operator">Ops</button>
-        </div>
-      </footer>
     </div>
   );
 }
 
 export function VerxorApp() {
-  const [dark, setDark] = useState(false);
   const [view, setView] = useState<'landing' | 'app' | 'admin'>('landing');
   const [page, setPage] = useState<Page>('home');
   const [service, setService] = useState<ServiceView | null>(null);
+  const [dark, setDark] = useState(false);
 
-  const closeService = () => {
-    if (service && PROFILE_SUBVIEWS.includes(service)) {
-      setService(null);
-      setPage('profile');
-      return;
-    }
-    setService(null);
-  };
+  const closeService = () => setService(null);
 
   if (view === 'admin') {
     return (
@@ -309,7 +303,7 @@ export function VerxorApp() {
     ) : service ? (
       <ServicePage view={service} onBack={closeService} />
     ) : page === 'history' ? (
-      <ActivityLogsPage />
+      <HistoryPage />
     ) : page === 'services' ? (
       <ServicesPage open={setService} onBack={() => { setService(null); setPage('home'); }} />
     ) : (
