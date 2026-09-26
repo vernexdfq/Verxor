@@ -293,7 +293,7 @@ export function VerxorApp() {
     service === 'services' ? (
       <ServicesPage open={setService} onBack={() => { setService(null); setPage('home'); }} />
     ) : service === 'rental' ? (
-      <RentalPage onBack={closeService} />
+      <RentalPage onBack={closeService} onOpenEsim={() => setService('esim')} />
     ) : service === 'virtual-numbers' ? (
       <VirtualNumbersPage onBack={closeService} onOpenNotifications={() => setService('alerts')} />
     ) : service === 'accounts' ? (
