@@ -1,103 +1,163 @@
-/* Profile — clean fintech layout */
+/* Profile / Settings — matches reference mock */
 
 .prof-page {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
   max-width: 480px;
   margin: 0 auto;
-  padding-bottom: 16px;
+  padding-bottom: 20px;
 }
 
-/* Hero identity card */
+.prof-page-head {
+  margin-bottom: 2px;
+}
+
+.prof-page-head h1 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: #0f172a;
+  line-height: 1.2;
+}
+
+.prof-page-head p {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: #475569;
+  font-weight: 500;
+}
+
+/* —— Hero (deep slate) —— */
 .prof-hero {
   display: flex;
   align-items: center;
-  gap: 14px;
+  justify-content: space-between;
+  gap: 12px;
   padding: 16px;
   border-radius: 18px;
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 60%, #0f172a 100%);
+  color: #fff;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.28);
+}
+
+.prof-hero-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  flex: 1;
+}
+
+.prof-avatar-wrap {
+  position: relative;
+  flex: none;
 }
 
 .prof-avatar {
-  width: 52px;
-  height: 52px;
-  flex: none;
+  width: 56px;
+  height: 56px;
   display: grid;
   place-items: center;
-  border-radius: 16px;
-  background: #2563eb;
+  border-radius: 999px;
+  background: linear-gradient(145deg, #3b82f6, #1d4ed8);
   color: #fff;
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 800;
-  letter-spacing: -0.02em;
+  border: 2px solid rgba(255, 255, 255, 0.25);
 }
 
-.prof-hero-text {
-  flex: 1;
-  min-width: 0;
+.prof-pro-badge {
+  position: absolute;
+  left: 50%;
+  bottom: -4px;
+  transform: translateX(-50%);
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: #f59e0b;
+  color: #0f172a;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  line-height: 14px;
+  border: 1.5px solid #0f172a;
+}
+
+.prof-hero-meta {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  min-width: 0;
 }
 
-.prof-hero-text strong {
+.prof-name {
   font-size: 16px;
   font-weight: 800;
-  color: #0f172a;
   letter-spacing: -0.02em;
+  color: #fff;
 }
 
-.prof-hero-text span {
-  font-size: 12px;
-  color: #64748b;
+.prof-email {
+  font-size: 11px;
+  color: #94a3b8;
   font-weight: 500;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.prof-edit-btn {
+.prof-role,
+.prof-since {
+  font-size: 11px;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.prof-edit-pill {
   flex: none;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 2px;
   height: 34px;
   padding: 0 12px;
-  border-radius: 10px;
-  border: 1px solid #e2e8f0;
-  background: #f8fafc;
-  color: #0f172a;
-  font-size: 12px;
-  font-weight: 700;
+  border-radius: 999px;
+  border: none;
+  background: #2563eb;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
 }
 
-/* Refer & Earn */
+.prof-edit-pill:active {
+  background: #1d4ed8;
+}
+
+/* —— Refer & Earn —— */
 .prof-refer {
   display: flex;
   align-items: center;
   gap: 12px;
   width: 100%;
-  padding: 14px 14px;
+  padding: 14px;
   text-align: left;
-  border: none;
   border-radius: 16px;
-  background: linear-gradient(135deg, #0b132b 0%, #1e293b 100%);
-  color: #fff;
-  box-shadow: 0 8px 20px rgba(11, 19, 43, 0.22);
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
 }
 
 .prof-refer-icon {
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   flex: none;
   display: grid;
   place-items: center;
   border-radius: 12px;
-  background: rgba(37, 99, 235, 0.35);
-  color: #93c5fd;
+  background: #ecfdf5;
+  color: #059669;
 }
 
 .prof-refer-copy {
@@ -111,30 +171,31 @@
 .prof-refer-copy strong {
   font-size: 14px;
   font-weight: 800;
+  color: #0f172a;
 }
 
 .prof-refer-copy small {
   font-size: 11px;
   line-height: 14px;
-  color: #94a3b8;
+  color: #475569;
   font-weight: 500;
 }
 
 .prof-refer-cta {
   flex: none;
+  height: 34px;
+  padding: 0 16px;
   display: inline-flex;
   align-items: center;
-  gap: 2px;
-  height: 32px;
-  padding: 0 12px;
-  border-radius: 999px;
-  background: #2563eb;
+  justify-content: center;
+  border-radius: 10px;
+  background: #10b981;
   color: #fff;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 700;
 }
 
-/* Groups */
+/* —— Groups —— */
 .prof-group {
   display: flex;
   flex-direction: column;
@@ -142,11 +203,11 @@
 }
 
 .prof-group-title {
-  margin: 0;
+  margin: 4px 0 0;
   font-size: 11px;
   font-weight: 800;
-  letter-spacing: 0.08em;
-  color: #94a3b8;
+  letter-spacing: 0.07em;
+  color: #64748b;
 }
 
 .prof-list {
@@ -164,7 +225,7 @@
   align-items: center;
   gap: 12px;
   width: 100%;
-  padding: 14px 14px;
+  padding: 13px 14px;
   text-align: left;
   border: none;
   border-bottom: 1px solid #f1f5f9;
@@ -187,8 +248,43 @@
   display: grid;
   place-items: center;
   border-radius: 12px;
+}
+
+.tone-blue {
   background: #eff6ff;
   color: #2563eb;
+}
+.tone-purple {
+  background: #f5f3ff;
+  color: #7c3aed;
+}
+.tone-green {
+  background: #ecfdf5;
+  color: #059669;
+}
+.tone-slate {
+  background: #f1f5f9;
+  color: #475569;
+}
+.tone-violet {
+  background: #f5f3ff;
+  color: #7c3aed;
+}
+.tone-amber {
+  background: #fffbeb;
+  color: #d97706;
+}
+.tone-sky {
+  background: #f0f9ff;
+  color: #0284c7;
+}
+.tone-teal {
+  background: #f0fdfa;
+  color: #0d9488;
+}
+.tone-rose {
+  background: #fff1f2;
+  color: #e11d48;
 }
 
 .prof-item-copy {
@@ -207,8 +303,9 @@
 
 .prof-item-copy small {
   font-size: 12px;
-  color: #64748b;
+  color: #475569;
   font-weight: 500;
+  line-height: 15px;
 }
 
 .prof-item-arrow {
@@ -216,7 +313,7 @@
   color: #cbd5e1;
 }
 
-/* Logout */
+/* —— Log out —— */
 .prof-logout {
   display: flex;
   align-items: center;
@@ -224,6 +321,7 @@
   gap: 8px;
   width: 100%;
   min-height: 48px;
+  margin-top: 4px;
   border-radius: 14px;
   border: 1px solid #fecdd3;
   background: #fff1f2;
@@ -234,4 +332,16 @@
 
 .prof-logout:active {
   background: #ffe4e6;
+  transform: scale(0.98);
+}
+
+@media (max-width: 360px) {
+  .prof-hero {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .prof-edit-pill {
+    align-self: stretch;
+    justify-content: center;
+  }
 }
