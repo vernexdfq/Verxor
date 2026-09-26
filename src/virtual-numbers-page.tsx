@@ -1,8 +1,19 @@
-import { useMemo, useState } from 'react';
-import { ArrowLeft, Bell, ChevronRight, Globe2, Search, Smartphone, WalletCards, X } from 'lucide-react';
-import { Card } from './components/ui';
+'use client';
+
+import { useEffect, useMemo, useState } from 'react';
+import {
+  ArrowLeft,
+  ChevronRight,
+  Database,
+  Globe2,
+  Info,
+  Radio,
+  Search,
+  WalletCards,
+  X,
+  Zap,
+} from 'lucide-react';
 import './virtual-numbers-page.css';
-import './virtual-numbers-refinements.css';
 
 type PoolId =
   | 'usa-economy'
@@ -14,12 +25,16 @@ type PoolId =
   | 'worldwide-fast'
   | 'worldwide-premium';
 
+type Tier = 'ECO' | 'STD' | 'FAST' | 'PREMIUM';
+
 type Pool = {
   id: PoolId;
   title: string;
   server: 1 | 2;
   location: 'USA' | 'Worldwide';
   hint: string;
+  tier: Tier;
+  fromNgn: number;
 };
 
 type Country = {
@@ -44,22 +59,82 @@ type Service = {
   name: string;
 };
 
-/**
- * Column tags only: Server 1 / Server 2 (no VoIP claims on OTP).
- * Rows keep price tiers: Economy · Standard · Fast · Premium.
- */
 const SERVER1_POOLS: Pool[] = [
-  { id: 'usa-economy', title: 'USA · Economy', server: 1, location: 'USA', hint: 'Available numbers' },
-  { id: 'usa-standard', title: 'USA · Standard', server: 1, location: 'USA', hint: 'Available numbers' },
-  { id: 'worldwide-economy', title: 'Worldwide · Economy', server: 1, location: 'Worldwide', hint: 'Available numbers' },
-  { id: 'worldwide-standard', title: 'Worldwide · Standard', server: 1, location: 'Worldwide', hint: 'Available numbers' },
+  {
+    id: 'usa-economy',
+    title: 'USA · Economy',
+    server: 1,
+    location: 'USA',
+    hint: 'Low cost (VoIP/Non-VoIP mix)',
+    tier: 'ECO',
+    fromNgn: 150,
+  },
+  {
+    id: 'usa-standard',
+    title: 'USA · Standard',
+    server: 1,
+    location: 'USA',
+    hint: 'Reliable speed for standard apps',
+    tier: 'STD',
+    fromNgn: 380,
+  },
+  {
+    id: 'worldwide-economy',
+    title: 'Worldwide · Economy',
+    server: 1,
+    location: 'Worldwide',
+    hint: 'Global coverage (VoIP/Non-VoIP mix)',
+    tier: 'ECO',
+    fromNgn: 280,
+  },
+  {
+    id: 'worldwide-standard',
+    title: 'Worldwide · Standard',
+    server: 1,
+    location: 'Worldwide',
+    hint: 'Standard global delivery',
+    tier: 'STD',
+    fromNgn: 450,
+  },
 ];
 
 const SERVER2_POOLS: Pool[] = [
-  { id: 'usa-fast', title: 'USA · Fast', server: 2, location: 'USA', hint: 'From price' },
-  { id: 'usa-premium', title: 'USA · Premium', server: 2, location: 'USA', hint: 'From price' },
-  { id: 'worldwide-fast', title: 'Worldwide · Fast', server: 2, location: 'Worldwide', hint: 'From price' },
-  { id: 'worldwide-premium', title: 'Worldwide · Premium', server: 2, location: 'Worldwide', hint: 'From price' },
+  {
+    id: 'usa-fast',
+    title: 'USA · Fast',
+    server: 2,
+    location: 'USA',
+    hint: 'High OTP Success (Non-VoIP)',
+    tier: 'FAST',
+    fromNgn: 620,
+  },
+  {
+    id: 'usa-premium',
+    title: 'USA · Premium',
+    server: 2,
+    location: 'USA',
+    hint: 'Maximum reliability & instant delivery',
+    tier: 'PREMIUM',
+    fromNgn: 990,
+  },
+  {
+    id: 'worldwide-fast',
+    title: 'Worldwide · Fast',
+    server: 2,
+    location: 'Worldwide',
+    hint: 'Fast global delivery',
+    tier: 'FAST',
+    fromNgn: 750,
+  },
+  {
+    id: 'worldwide-premium',
+    title: 'Worldwide · Premium',
+    server: 2,
+    location: 'Worldwide',
+    hint: 'Premium routes & highest success',
+    tier: 'PREMIUM',
+    fromNgn: 1100,
+  },
 ];
 
 const WORLDWIDE_COUNTRIES: Country[] = [
@@ -94,7 +169,37 @@ const SERVICES: Service[] = [
   { id: 'paypal', name: 'PayPal' },
 ];
 
+const PROMO_SLIDES = [
+  {
+    id: 'web',
+    title: 'Do you need a custom website or mobile app?',
+    subtitle: 'Get a website today!',
+    cta: 'Get Started →',
+  },
+  {
+    id: 'panel',
+    title: 'Own a Whitelabel Reseller Panel',
+    subtitle: 'Powered by Verxor — sell numbers under your brand.',
+    cta: 'Own a Panel →',
+  },
+];
+
 type Step = 'pools' | 'country' | 'services';
+
+function formatNgn(n: number) {
+  return `₦${n.toLocaleString('en-NG')}`;
+}
+
+const DEMO_ACTIVE: CustomerNumberOrder[] = [
+  {
+    id: 'demo-1',
+    number: '+1 (415) •••-4821',
+    service: 'WhatsApp',
+    poolTitle: 'USA · Premium',
+    status: 'waiting',
+    createdAt: new Date().toISOString(),
+  },
+];
 
 export function VirtualNumbersPage({
   onBack,
@@ -110,6 +215,17 @@ export function VirtualNumbersPage({
   const [selectedCountry, setSelectedCountry] = useState<Country | null>(null);
   const [countryQuery, setCountryQuery] = useState('');
   const [serviceQuery, setServiceQuery] = useState('');
+  const [promoIndex, setPromoIndex] = useState(0);
+  const [balance] = useState(7570);
+
+  const activeOrders = orders.length > 0 ? orders : DEMO_ACTIVE;
+
+  useEffect(() => {
+    const t = setInterval(() => {
+      setPromoIndex((i) => (i + 1) % PROMO_SLIDES.length);
+    }, 4500);
+    return () => clearInterval(t);
+  }, []);
 
   const filteredCountries = useMemo(() => {
     const q = countryQuery.trim().toLowerCase();
@@ -155,225 +271,217 @@ export function VirtualNumbersPage({
     setStep('pools');
   };
 
+  const promo = PROMO_SLIDES[promoIndex];
+
   return (
     <div className="vn-page">
       <header className="vn-topbar">
         <button type="button" className="vn-back" onClick={handleBack} aria-label="Back">
-          <ArrowLeft size={19} aria-hidden="true" />
+          <ArrowLeft size={18} strokeWidth={2.2} />
         </button>
-        <h1>Virtual Numbers</h1>
-        <div className="vn-top-actions">
-          <button type="button" className="vn-wallet-pill" aria-label="Wallet balance">
-            <WalletCards size={15} aria-hidden="true" />
-            <span>$0.00</span>
-          </button>
-          <button type="button" className="vn-notification" aria-label="Notifications" onClick={onOpenNotifications}>
-            <Bell size={18} aria-hidden="true" />
-          </button>
+        <div className="vn-topbar-copy">
+          <strong>Virtual Numbers (OTP)</strong>
+          <small>Get verified with global numbers</small>
         </div>
+        <button type="button" className="vn-balance" aria-label="Wallet balance">
+          <WalletCards size={14} />
+          <span>{formatNgn(balance)}</span>
+        </button>
       </header>
 
       {step === 'pools' && (
         <>
-          <section className="vn-intro">
-            <h2>Virtual Numbers</h2>
-            <p>Choose a number based on compatibility, speed and price.</p>
-          </section>
+          <div className="vn-info-banner">
+            <Info size={15} strokeWidth={2.2} />
+            <span>Choose a server route based on compatibility, speed, and pricing.</span>
+          </div>
 
-          <section className="vn-pool-grid" aria-label="Number pools">
-            <div className="vn-pool-column">
-              <span className="vn-type-tag">Server 1</span>
-              <div className="vn-pool-list">
-                {SERVER1_POOLS.map((pool) => (
-                  <PoolCard key={pool.id} pool={pool} onSelect={selectPool} />
-                ))}
-              </div>
+          <section className="vn-server-block" aria-labelledby="vn-s1">
+            <div className="vn-server-head">
+              <Database size={16} className="vn-server-icon" />
+              <h2 id="vn-s1">Server 1 — Economy &amp; Standard Routes</h2>
             </div>
-            <div className="vn-pool-column">
-              <span className="vn-type-tag">Server 2</span>
-              <div className="vn-pool-list">
-                {SERVER2_POOLS.map((pool) => (
-                  <PoolCard key={pool.id} pool={pool} onSelect={selectPool} />
-                ))}
-              </div>
+            <div className="vn-card-grid">
+              {SERVER1_POOLS.map((pool) => (
+                <PoolCard key={pool.id} pool={pool} onSelect={selectPool} />
+              ))}
             </div>
           </section>
 
-          <section className="vn-orders-section" aria-labelledby="vn-orders-title">
-            <div className="vn-orders-head">
-              <div>
-                <span className="vn-section-label">YOUR ACTIVITY</span>
-                <h3 id="vn-orders-title">Your numbers & orders</h3>
-              </div>
-              <span>{orders.length}</span>
+          <section className="vn-server-block" aria-labelledby="vn-s2">
+            <div className="vn-server-head">
+              <Zap size={16} className="vn-server-icon vn-server-icon-zap" />
+              <h2 id="vn-s2">Server 2 — High Speed &amp; Non-VoIP Routes</h2>
             </div>
+            <div className="vn-card-grid">
+              {SERVER2_POOLS.map((pool) => (
+                <PoolCard key={pool.id} pool={pool} onSelect={selectPool} />
+              ))}
+            </div>
+          </section>
 
-            {orders.length === 0 ? (
-              <Card className="vn-orders-empty">
-                <span className="vn-orders-empty-icon">
-                  <Smartphone size={18} />
-                </span>
-                <div>
-                  <strong>No numbers purchased yet</strong>
-                  <p>Purchased numbers, OTP status and order details will appear here.</p>
-                </div>
-              </Card>
-            ) : (
-              <div className="vn-order-list">
-                {orders.map((order) => (
-                  <article className="vn-order-row" key={order.id}>
-                    <div className="vn-order-number">
-                      <strong>{order.number}</strong>
-                      <small>
-                        {order.service} · {order.poolTitle}
-                      </small>
-                      <span>
-                        {order.createdAt} · {order.id}
-                      </span>
-                    </div>
-                    <div className="vn-order-status">
-                      <span className={`vn-status-pill ${order.status}`}>
-                        {order.status === 'received' ? 'OTP received' : order.status}
-                      </span>
-                      {order.otp && <strong>OTP {order.otp}</strong>}
-                    </div>
-                  </article>
-                ))}
+          <section className="vn-promo" aria-label="Promotions">
+            <div className="vn-promo-slide">
+              <div className="vn-promo-copy">
+                <strong>{promo.title}</strong>
+                <span>{promo.subtitle}</span>
               </div>
-            )}
+              <button type="button" className="vn-promo-cta">
+                {promo.cta}
+              </button>
+            </div>
+            <div className="vn-promo-dots" role="tablist">
+              {PROMO_SLIDES.map((s, i) => (
+                <button
+                  key={s.id}
+                  type="button"
+                  className={`vn-dot ${i === promoIndex ? 'active' : ''}`}
+                  aria-label={`Slide ${i + 1}`}
+                  onClick={() => setPromoIndex(i)}
+                />
+              ))}
+            </div>
+          </section>
+
+          <section className="vn-active" aria-labelledby="vn-active-title">
+            <div className="vn-active-head">
+              <Radio size={16} className="vn-active-icon" />
+              <h3 id="vn-active-title">Your Active Numbers &amp; OTP Inboxes</h3>
+            </div>
+            <div className="vn-active-list">
+              {activeOrders.map((order) => (
+                <article key={order.id} className="vn-active-row">
+                  <span className="vn-active-app" aria-hidden>
+                    {order.service.slice(0, 1)}
+                  </span>
+                  <div className="vn-active-meta">
+                    <strong>{order.number}</strong>
+                    <small>
+                      <span className="vn-pulse" />
+                      {order.status === 'waiting'
+                        ? 'Pending SMS'
+                        : order.status === 'received'
+                          ? `OTP ${order.otp ?? 'ready'}`
+                          : order.status}
+                      {order.service ? ` · ${order.service}` : ''}
+                    </small>
+                  </div>
+                  <button type="button" className="vn-inbox-btn">
+                    View Inbox <ChevronRight size={14} />
+                  </button>
+                </article>
+              ))}
+            </div>
           </section>
         </>
       )}
 
       {step === 'country' && selectedPool && (
-        <>
-          <section className="vn-intro compact">
-            <p className="vn-eyebrow">
-              Server {selectedPool.server} · {selectedPool.title}
-            </p>
-            <h2>Choose a country</h2>
-            <p>Select the country for this number pool.</p>
-          </section>
-          <div className="vn-search-wrap">
-            <div className="vn-search">
-              <Search size={17} aria-hidden="true" />
-              <input
-                value={countryQuery}
-                onChange={(event) => setCountryQuery(event.target.value)}
-                placeholder="Search country"
-                aria-label="Search country"
-              />
-              {countryQuery && (
-                <button type="button" className="vn-clear" onClick={() => setCountryQuery('')} aria-label="Clear search">
-                  <X size={15} />
-                </button>
-              )}
-            </div>
+        <section className="vn-step">
+          <div className="vn-step-head">
+            <h2>Select country</h2>
+            <p>{selectedPool.title} · Worldwide pool</p>
           </div>
-          <div className="vn-service-section">
-            <span className="vn-section-label">{countryQuery ? 'Results' : 'Countries'}</span>
-            <div className="vn-service-list">
-              {filteredCountries.map((country) => (
-                <button
-                  key={country.code}
-                  type="button"
-                  className="vn-service-row"
-                  onClick={() => {
-                    setSelectedCountry(country);
-                    setServiceQuery('');
-                    setStep('services');
-                  }}
-                >
-                  <span className="vn-service-icon vn-flag-icon" aria-hidden="true">
-                    {country.flag}
-                  </span>
-                  <span className="vn-service-copy">
-                    <strong>{country.name}</strong>
-                    <small>{country.dial}</small>
-                  </span>
-                  <ChevronRight size={16} aria-hidden="true" />
-                </button>
-              ))}
-              {!filteredCountries.length && (
-                <Card className="vn-empty">
-                  <Search size={18} />
-                  <strong>No country found</strong>
-                  <p>Try another search.</p>
-                </Card>
-              )}
-            </div>
+          <label className="vn-search">
+            <Search size={16} />
+            <input
+              value={countryQuery}
+              onChange={(e) => setCountryQuery(e.target.value)}
+              placeholder="Search country"
+              autoComplete="off"
+            />
+            {countryQuery ? (
+              <button type="button" className="vn-clear" onClick={() => setCountryQuery('')} aria-label="Clear">
+                <X size={14} />
+              </button>
+            ) : null}
+          </label>
+          <div className="vn-list">
+            {filteredCountries.map((country) => (
+              <button
+                key={country.code}
+                type="button"
+                className="vn-list-item"
+                onClick={() => {
+                  setSelectedCountry(country);
+                  setStep('services');
+                }}
+              >
+                <span className="vn-flag">{country.flag}</span>
+                <span className="vn-list-copy">
+                  <strong>{country.name}</strong>
+                  <small>{country.dial}</small>
+                </span>
+                <ChevronRight size={16} className="vn-chevron" />
+              </button>
+            ))}
           </div>
-        </>
+        </section>
       )}
 
       {step === 'services' && selectedPool && selectedCountry && (
-        <>
-          <section className="vn-intro compact">
-            <p className="vn-eyebrow">
-              Server {selectedPool.server} · {selectedPool.title} · {selectedCountry.flag} {selectedCountry.name}
+        <section className="vn-step">
+          <div className="vn-step-head">
+            <h2>Select service</h2>
+            <p>
+              {selectedCountry.flag} {selectedCountry.name} · {selectedPool.title}
             </p>
-            <h2>Choose a service</h2>
-            <p>Available services will use live provider inventory and Verxor pricing.</p>
-          </section>
-
-          <div className="vn-search-wrap">
-            <div className="vn-search">
-              <Search size={17} aria-hidden="true" />
-              <input
-                value={serviceQuery}
-                onChange={(event) => setServiceQuery(event.target.value)}
-                placeholder="Search service"
-                aria-label="Search service"
-              />
-              {serviceQuery && (
-                <button type="button" className="vn-clear" onClick={() => setServiceQuery('')} aria-label="Clear search">
-                  <X size={15} />
-                </button>
-              )}
-            </div>
           </div>
-
-          <div className="vn-service-section">
-            <span className="vn-section-label">{serviceQuery ? 'Results' : 'Services'}</span>
-            <div className="vn-service-list">
-              {filteredServices.map((service) => (
-                <button key={service.id} type="button" className="vn-service-row vn-service-row-disabled" disabled>
-                  <span className="vn-service-icon">
-                    <Smartphone size={18} aria-hidden="true" />
-                  </span>
-                  <span className="vn-service-copy">
-                    <strong>{service.name}</strong>
-                    <small>Live provider availability coming next</small>
-                  </span>
-                  <span className="vn-service-price">Unavailable</span>
-                </button>
-              ))}
-            </div>
-            <Card className="vn-provider-note">
-              <strong>Live inventory is not connected yet</strong>
-              <p>
-                Provider adapters supply the real catalog. Backend assigns tiers by cost bands. Numbers above your max
-                cost are filtered out.
-              </p>
-            </Card>
+          <label className="vn-search">
+            <Search size={16} />
+            <input
+              value={serviceQuery}
+              onChange={(e) => setServiceQuery(e.target.value)}
+              placeholder="Search WhatsApp, Telegram…"
+              autoComplete="off"
+            />
+            {serviceQuery ? (
+              <button type="button" className="vn-clear" onClick={() => setServiceQuery('')} aria-label="Clear">
+                <X size={14} />
+              </button>
+            ) : null}
+          </label>
+          <div className="vn-list">
+            {filteredServices.map((service) => (
+              <button
+                key={service.id}
+                type="button"
+                className="vn-list-item"
+                onClick={() => {
+                  void onOpenNotifications;
+                  void service;
+                }}
+              >
+                <span className="vn-service-icon">{service.name.slice(0, 1)}</span>
+                <span className="vn-list-copy">
+                  <strong>{service.name}</strong>
+                  <small>From {formatNgn(selectedPool.fromNgn)} / OTP</small>
+                </span>
+                <ChevronRight size={16} className="vn-chevron" />
+              </button>
+            ))}
           </div>
-        </>
+        </section>
       )}
     </div>
   );
 }
 
-function PoolCard({ pool, onSelect }: { pool: Pool; onSelect: (pool: Pool) => void }) {
+function PoolCard({ pool, onSelect }: { pool: Pool; onSelect: (p: Pool) => void }) {
+  const isUsa = pool.location === 'USA';
   return (
-    <button type="button" className="vn-pool-choice" onClick={() => onSelect(pool)} aria-label={`Select ${pool.title}`}>
-      <span className="vn-pool-icon" aria-hidden="true">
-        {pool.location === 'USA' ? <span className="vn-flag">🇺🇸</span> : <Globe2 size={18} />}
+    <button type="button" className="vn-pool-card" onClick={() => onSelect(pool)}>
+      <div className="vn-pool-card-top">
+        <span className={`vn-pool-mark ${isUsa ? 'usa' : 'world'}`}>
+          {isUsa ? '🇺🇸' : <Globe2 size={16} />}
+        </span>
+        <span className={`vn-tier-badge tier-${pool.tier.toLowerCase()}`}>{pool.tier}</span>
+      </div>
+      <strong className="vn-pool-title">{pool.title}</strong>
+      <small className="vn-pool-hint">{pool.hint}</small>
+      <span className={`vn-price-pill tier-${pool.tier.toLowerCase()}`}>
+        From {formatNgn(pool.fromNgn)} / OTP
       </span>
-      <span className="vn-pool-copy">
-        <strong>{pool.title}</strong>
-        <small>{pool.hint}</small>
-      </span>
-      <ChevronRight className="vn-pool-chevron" size={16} aria-hidden="true" />
     </button>
   );
 }
