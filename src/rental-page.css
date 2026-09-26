@@ -142,22 +142,29 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  margin-bottom: 4px;
 }
 
 .rl-row-actions {
   display: flex;
-  gap: 2px;
+  gap: 4px;
 }
 
 .rl-row-actions button {
   width: 36px;
   height: 36px;
-  border: 0;
+  border: none;
   background: transparent;
-  color: var(--primary);
-  display: grid;
-  place-items: center;
+  color: #64748b;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
+}
+
+.rl-row-actions button:active {
+  background: #f1f5f9;
 }
 
 .rl-empty {
@@ -307,6 +314,11 @@
   box-shadow: 0 0 0 2px var(--primary-soft-strong);
 }
 
+/* —— Calls history (Call.com visual parity) —— */
+.rl-body-calls {
+  padding-top: 8px;
+}
+
 .rl-history-list {
   list-style: none;
   margin: 0;
@@ -314,29 +326,105 @@
 }
 
 .rl-history-list li {
-  display: grid;
-  grid-template-columns: 40px minmax(0, 1fr) auto;
-  gap: 12px;
+  display: flex;
   align-items: center;
+  gap: 12px;
   padding: 12px 0;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid #f1f5f9;
+  min-height: 64px;
+}
+
+.rl-history-list li:last-child {
+  border-bottom: none;
+}
+
+.rl-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  font-weight: 600;
+  color: #475569;
+  background: #e2e8f0;
+  flex-shrink: 0;
+}
+
+.rl-avatar.av-purple {
+  background: #e0e7ff;
+  color: #4f46e5;
+}
+
+.rl-avatar.av-grey {
+  background: #e2e8f0;
+  color: #64748b;
+}
+
+.rl-avatar.av-green {
+  background: #d1fae5;
+  color: #059669;
+}
+
+.rl-avatar.av-pink {
+  background: #fce7f3;
+  color: #db2777;
+}
+
+.rl-avatar.av-red {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.rl-hist-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .rl-hist-body strong {
-  display: block;
-  font-size: 14px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #0f172a;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rl-hist-body strong.missed {
+  color: #dc2626;
 }
 
 .rl-hist-body small {
-  display: block;
-  margin-top: 2px;
-  color: var(--muted);
+  font-size: 12.5px;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rl-history-list li.inactive .rl-hist-body small {
+  color: #f87171;
+}
+
+.rl-kind {
   font-size: 12px;
+  margin-right: 2px;
 }
 
 .rl-hist-date {
-  font-size: 12px;
-  color: var(--muted);
+  font-size: 12.5px;
+  color: #94a3b8;
+  flex-shrink: 0;
+  align-self: flex-start;
+  padding-top: 2px;
 }
 
 .rl-contact-list {
@@ -351,22 +439,6 @@
   gap: 12px;
   padding: 12px 0;
   border-bottom: 1px solid var(--border);
-}
-
-.rl-avatar {
-  width: 44px;
-  height: 44px;
-  border-radius: 10px;
-  display: grid;
-  place-items: center;
-  background: var(--primary-soft);
-  color: var(--primary);
-  font-weight: 700;
-}
-
-.rl-avatar.soft {
-  background: var(--surface-muted, #f1f5f9);
-  color: var(--muted);
 }
 
 .rl-call-mini {
@@ -701,7 +773,6 @@
   font-size: 11px;
 }
 
-/* Bottom tabs — 5 items Call.com style */
 .rl-tabs {
   position: fixed;
   z-index: 50;
