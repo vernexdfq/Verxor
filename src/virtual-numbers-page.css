@@ -499,11 +499,35 @@
   display: grid;
   place-items: center;
   border-radius: 12px;
-  background: #eff6ff;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
   color: #2563eb;
   font-weight: 800;
   font-size: 14px;
 }
+
+.vn-service-icon svg {
+  display: block;
+}
+
+.vn-service-letter {
+  font-weight: 800;
+  font-size: 14px;
+  color: #2563eb;
+}
+
+.brand-whatsapp { background: #ecfdf5; border-color: #a7f3d0; }
+.brand-telegram { background: #eff9ff; border-color: #bae6fd; }
+.brand-instagram { background: #fdf2f8; border-color: #fbcfe8; }
+.brand-google { background: #fff; }
+.brand-facebook { background: #eff6ff; border-color: #bfdbfe; }
+.brand-tiktok { background: #f8fafc; }
+.brand-twitter { background: #f8fafc; }
+.brand-discord { background: #eef2ff; border-color: #c7d2fe; }
+.brand-microsoft { background: #fff; }
+.brand-amazon { background: #fff7ed; border-color: #fed7aa; }
+.brand-apple { background: #f8fafc; }
+.brand-paypal { background: #eff6ff; border-color: #bfdbfe; }
 
 .vn-list-copy {
   flex: 1;
