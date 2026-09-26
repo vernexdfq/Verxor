@@ -52,9 +52,7 @@ export function AppShell({
     <div className={`app ${dark ? 'dark' : ''}`}>
       <div className={`app-frame ${deepService ? 'deep-service' : ''}`}>
         {!hideTopbar && (
-          <header
-            className={`topbar ${page === 'home' ? 'topbar-home' : ''} ${page === 'profile' ? 'topbar-profile' : ''}`}
-          >
+          <header className={`topbar ${page === 'home' ? 'topbar-home' : ''}`}>
             <div className="topbar-context">
               {page === 'home' ? (
                 <div className="home-hero-row">
