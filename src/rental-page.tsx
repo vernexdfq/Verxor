@@ -1,59 +1,48 @@
 /**
- * Verxor Rent-a-Number — Grade-1 fintech rental hub
- *
- * Architecture (locked):
- * - Lives inside Verxor AppShell (no second bottom nav)
- * - Internal tabs: My Numbers | Messages
- * - Buy flow: Country → Region → Number → Period → Confirm (Wallet)
- * - Periods: 30 / 90 / 365 days with Save 15% / Save 30%
- * - Grace: 7 days after expiry, then auto-release
- * - Mock state isolated in rental-hooks (wipe DEMO seeds for production)
- * - eSIM links to existing service; voice/keypad Phase 2
+ * Rent a Line — Full Call.com-style workspace (Verxor brand, wallet-only).
+ * Bottom tabs: Calls · Messages · Numbers · Wallet · Settings
+ * Buy: Country → Region → Number → Period → Confirm
+ * Number settings: Renew · Rename · DND · Voicemail · Forwarding · Transfer · Delete
+ * Travel Data / eSIM: Coming soon / link
+ * Locked: 30/90/365 days, NGN wallet pricing
  */
-'use client';
-
 import { useMemo, useState, type ReactNode } from 'react';
 import {
   ArrowLeft,
-  BellOff,
+  ArrowRightLeft,
+  Bell,
   Check,
+  ChevronDown,
   ChevronRight,
-  Clock3,
+  Clock,
   Copy,
-  Globe2,
-  Mail,
+  Delete,
+  Filter,
+  Grid3X3,
+  Hash,
+  HelpCircle,
+  LogOut,
   MessageSquare,
+  Mic,
+  MoreVertical,
   Phone,
   PhoneForwarded,
   Plus,
   Search,
+  Settings as SettingsIcon,
   Shield,
-  Smartphone,
+  ShieldAlert,
   Trash2,
-  WalletCards,
+  UserRound,
+  Users,
+  Wallet,
   X,
 } from 'lucide-react';
 import './rental-page.css';
-import {
-  COUNTRIES,
-  GRACE_DAYS,
-  PERIODS,
-  REGIONS,
-  daysLeft,
-  formatExp,
-  formatNgn,
-  makeAvail,
-  priceOf,
-  type AvailNumber,
-  type Country,
-  type Period,
-  type Region,
-  type RentedLine,
-  type NumberStatus,
-} from './rental-data';
-import { useRentedNumbers, useSMSInbox } from './rental-hooks';
 
-type Tab = 'numbers' | 'messages';
+type MainTab = 'calls' | 'messages' | 'numbers' | 'wallet' | 'settings';
+type CallSub = 'history' | 'contacts' | 'keypad';
+type NumbersSub = 'phone' | 'esim';
 type View =
   | 'main'
   | 'buy-country'
@@ -61,10 +50,131 @@ type View =
   | 'buy-numbers'
   | 'buy-period'
   | 'buy-confirm'
-  | 'line-detail'
+  | 'line-settings'
   | 'line-renew'
   | 'line-rename'
-  | 'line-forwarding';
+  | 'line-dnd'
+  | 'line-voicemail'
+  | 'line-forwarding'
+  | 'line-transfer';
+
+type Country = {
+  code: string;
+  name: string;
+  dial: string;
+  flag: string;
+  type: 'VoIP' | 'Non-VoIP';
+  fromPrice: number;
+};
+
+type Region = { id: string; name: string; area: string; city: string };
+type AvailNumber = { id: string; e164: string; display: string };
+type Period = { id: string; label: string; months: number; days?: number; priceMul: number; saveLabel?: string };
+
+type Line = {
+  id: string;
+  label: string;
+  number: string;
+  flag: string;
+  country: string;
+  countryCode: string;
+  type: 'VoIP' | 'Non-VoIP';
+  expiresAt: string;
+  dnd: boolean;
+  voicemail: boolean;
+  leaveMessage: boolean;
+  smsToEmail: boolean;
+  smsToMobile: boolean;
+  callToPhone: boolean;
+  forwardTarget: string;
+};
+
+const KEYS: { digit: string; letters: string }[] = [
+  { digit: '1', letters: '' },
+  { digit: '2', letters: 'ABC' },
+  { digit: '3', letters: 'DEF' },
+  { digit: '4', letters: 'GHI' },
+  { digit: '5', letters: 'JKL' },
+  { digit: '6', letters: 'MNO' },
+  { digit: '7', letters: 'PQRS' },
+  { digit: '8', letters: 'TUV' },
+  { digit: '9', letters: 'WXYZ' },
+  { digit: '*', letters: '' },
+  { digit: '0', letters: '+' },
+  { digit: '#', letters: '' },
+];
+
+const COUNTRIES: Country[] = [
+  { code: 'US', name: 'United States', dial: '+1', flag: '🇺🇸', type: 'Non-VoIP', fromPrice: 6990 },
+  { code: 'CA', name: 'Canada', dial: '+1', flag: '🇨🇦', type: 'VoIP', fromPrice: 6490 },
+  { code: 'GB', name: 'United Kingdom', dial: '+44', flag: '🇬🇧', type: 'Non-VoIP', fromPrice: 7990 },
+  { code: 'PR', name: 'Puerto Rico', dial: '+1', flag: '🇵🇷', type: 'Non-VoIP', fromPrice: 6990 },
+  { code: 'FI', name: 'Finland', dial: '+358', flag: '🇫🇮', type: 'VoIP', fromPrice: 7490 },
+  { code: 'DE', name: 'Germany', dial: '+49', flag: '🇩🇪', type: 'Non-VoIP', fromPrice: 8490 },
+  { code: 'NL', name: 'Netherlands', dial: '+31', flag: '🇳🇱', type: 'Non-VoIP', fromPrice: 7990 },
+  { code: 'AU', name: 'Australia', dial: '+61', flag: '🇦🇺', type: 'VoIP', fromPrice: 8990 },
+  { code: 'FR', name: 'France', dial: '+33', flag: '🇫🇷', type: 'VoIP', fromPrice: 7990 },
+  { code: 'IN', name: 'India', dial: '+91', flag: '🇮🇳', type: 'VoIP', fromPrice: 3990 },
+  { code: 'NG', name: 'Nigeria', dial: '+234', flag: '🇳🇬', type: 'VoIP', fromPrice: 4490 },
+];
+
+const REGIONS: Record<string, Region[]> = {
+  US: [
+    { id: 'us-ny-212', name: 'New York', area: '212', city: 'New York' },
+    { id: 'us-ca-415', name: 'California', area: '415', city: 'San Francisco' },
+    { id: 'us-ca-213', name: 'California', area: '213', city: 'Los Angeles' },
+    { id: 'us-tx-214', name: 'Texas', area: '214', city: 'Dallas' },
+    { id: 'us-fl-305', name: 'Florida', area: '305', city: 'Miami' },
+    { id: 'us-il-312', name: 'Illinois', area: '312', city: 'Chicago' },
+  ],
+  CA: [
+    { id: 'ca-on-416', name: 'Ontario', area: '416', city: 'Toronto' },
+    { id: 'ca-qc-514', name: 'Quebec', area: '514', city: 'Montreal' },
+    { id: 'ca-bc-604', name: 'British Columbia', area: '604', city: 'Vancouver' },
+  ],
+  GB: [
+    { id: 'gb-ldn-20', name: 'London', area: '20', city: 'London' },
+    { id: 'gb-man-161', name: 'Manchester', area: '161', city: 'Manchester' },
+  ],
+  PR: [{ id: 'pr-787', name: 'Puerto Rico', area: '787', city: 'San Juan' }],
+};
+
+const PERIODS: Period[] = [
+  { id: '1m', label: '1 Month', months: 1, days: 30, priceMul: 1 },
+  { id: '3m', label: '3 Months', months: 3, days: 90, priceMul: 2.55, saveLabel: 'Save 15%' },
+  { id: '12m', label: '12 Months', months: 12, days: 365, priceMul: 8.4, saveLabel: 'Save 30%' },
+];
+
+const DEMO_HISTORY = [
+  { id: '1', name: '+1 860 724 2481', sub: 'Voicemail · Line', date: '15/07/26', kind: 'vm' as const },
+  { id: '2', name: '+1 860 724 2481', sub: 'Outgoing · United States', date: '15/07/26', kind: 'out' as const },
+  { id: '3', name: 'Dennykay', sub: 'Outgoing · Nigeria', date: '08/07/26', kind: 'out' as const },
+];
+
+const money = (ngn: number) => `₦${Math.round(ngn).toLocaleString('en-NG')}`;
+
+function formatExp(iso: string) {
+  try {
+    return new Date(iso).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+  } catch {
+    return iso;
+  }
+}
+
+function makeAvail(country: Country, region: Region): AvailNumber[] {
+  const base = Number(region.area) || 200;
+  return Array.from({ length: 12 }, (_, i) => {
+    const mid = String(100 + ((base * 7 + i * 13) % 900)).padStart(3, '0');
+    const last = String(1000 + ((base * 11 + i * 17) % 9000)).padStart(4, '0');
+    const local = `${region.area}${mid}${last}`;
+    const e164 = `${country.dial}${local}`;
+    return {
+      id: `${region.id}-${i}`,
+      e164,
+      display: `${country.dial} ${region.area} ${mid} ${last}`,
+    };
+  });
+}
 
 function Empty({
   icon,
@@ -87,23 +197,20 @@ function Empty({
   );
 }
 
-export function RentalPage({
-  onBack,
-  onOpenEsim,
-  walletBalance = 7570,
-}: {
-  onBack: () => void;
-  onOpenEsim?: () => void;
-  walletBalance?: number;
-}) {
-  const { active, grace, add, patch, remove } = useRentedNumbers();
-  const { forLine, markRead } = useSMSInbox();
-
-  const [tab, setTab] = useState<Tab>('numbers');
+export function RentalPage({ onBack }: { onBack: () => void }) {
   const [view, setView] = useState<View>('main');
-  const [activeLine, setActiveLine] = useState<RentedLine | null>(null);
-  const [selectedThread, setSelectedThread] = useState<import('./rental-data').SmsThread | null>(null);
-  const [msgFilter, setMsgFilter] = useState<string>('all');
+  const [tab, setTab] = useState<MainTab>('numbers');
+  const [callSub, setCallSub] = useState<CallSub>('history');
+  const [numSub, setNumSub] = useState<NumbersSub>('phone');
+  const [lines, setLines] = useState<Line[]>([]);
+  const [active, setActive] = useState<Line | null>(null);
+  const [fromLine, setFromLine] = useState<Line | null>(null);
+
+  const [dial, setDial] = useState('');
+  const [dialCountry, setDialCountry] = useState<Country>(COUNTRIES[0]);
+  const [contactQ, setContactQ] = useState('');
+  const [msgQ, setMsgQ] = useState('');
+  const [favHint, setFavHint] = useState(true);
 
   const [buyCountry, setBuyCountry] = useState<Country | null>(null);
   const [buyRegion, setBuyRegion] = useState<Region | null>(null);
@@ -111,14 +218,12 @@ export function RentalPage({
   const [buyPeriod, setBuyPeriod] = useState<Period | null>(null);
   const [countryQ, setCountryQ] = useState('');
   const [regionQ, setRegionQ] = useState('');
-  const [renameVal, setRenameVal] = useState('');
-  const [copied, setCopied] = useState(false);
-  const [toast, setToast] = useState<string | null>(null);
 
-  const showToast = (msg: string) => {
-    setToast(msg);
-    window.setTimeout(() => setToast(null), 2200);
-  };
+  const [renameVal, setRenameVal] = useState('');
+  const [transferVal, setTransferVal] = useState('');
+  const [copied, setCopied] = useState(false);
+  const [showFromSheet, setShowFromSheet] = useState(false);
+  const [showDialCountry, setShowDialCountry] = useState(false);
 
   const filteredCountries = useMemo(() => {
     const q = countryQ.trim().toLowerCase();
@@ -133,16 +238,9 @@ export function RentalPage({
 
   const regionsForBuy = useMemo(() => {
     if (!buyCountry) return [];
-    const list =
-      REGIONS[buyCountry.code] ??
-      [
-        {
-          id: `${buyCountry.code}-main`,
-          name: buyCountry.name,
-          area: buyCountry.dial.replace('+', ''),
-          city: 'National',
-        },
-      ];
+    const list = REGIONS[buyCountry.code] ?? [
+      { id: `${buyCountry.code}-main`, name: buyCountry.name, area: buyCountry.dial.replace('+', ''), city: 'National' },
+    ];
     const q = regionQ.trim().toLowerCase();
     if (!q) return list;
     return list.filter(
@@ -158,6 +256,18 @@ export function RentalPage({
     return makeAvail(buyCountry, buyRegion);
   }, [buyCountry, buyRegion]);
 
+  const contacts = useMemo(() => {
+    const q = contactQ.trim().toLowerCase();
+    return lines.filter(
+      (l) =>
+        !q ||
+        l.label.toLowerCase().includes(q) ||
+        l.number.replace(/\s/g, '').includes(q.replace(/\s/g, '')),
+    );
+  }, [lines, contactQ]);
+
+  const priceOf = (c: Country, p: Period) => Math.round(c.fromPrice * p.priceMul);
+
   const openBuy = () => {
     setBuyCountry(null);
     setBuyRegion(null);
@@ -171,63 +281,69 @@ export function RentalPage({
   const confirmBuy = () => {
     if (!buyCountry || !buyNumber || !buyPeriod) return;
     const exp = new Date();
-    exp.setDate(exp.getDate() + buyPeriod.days);
-    const line: RentedLine = {
+    exp.setMonth(exp.getMonth() + buyPeriod.months);
+    const line: Line = {
       id: `RL-${Date.now().toString(36).toUpperCase()}`,
       label: `${buyCountry.name} line`,
-      e164: buyNumber.e164,
-      display: buyNumber.display,
+      number: buyNumber.display,
       flag: buyCountry.flag,
       country: buyCountry.name,
       countryCode: buyCountry.code,
       type: buyCountry.type,
-      provider: 'signalwire',
       expiresAt: exp.toISOString(),
-      status: 'active',
       dnd: false,
+      voicemail: true,
+      leaveMessage: true,
       smsToEmail: false,
       smsToMobile: false,
-      forwardEmail: '',
-      forwardMobile: '',
+      callToPhone: false,
+      forwardTarget: '',
     };
-    add(line);
-    setActiveLine(line);
+    setLines((p) => [line, ...p]);
+    setActive(line);
+    setFromLine(line);
     setTab('numbers');
-    setView('line-detail');
-    showToast('Number rented successfully');
+    setNumSub('phone');
+    setView('line-settings');
   };
 
-  const openLine = (line: RentedLine) => {
-    setActiveLine(line);
+  const openLine = (line: Line) => {
+    setActive(line);
     setRenameVal(line.label);
-    setView('line-detail');
+    setTransferVal(line.forwardTarget);
+    setView('line-settings');
   };
 
-  const renewLine = (p: Period) => {
-    if (!activeLine) return;
-    const base = new Date(activeLine.expiresAt);
+  const patchLine = (patch: Partial<Line>) => {
+    if (!active) return;
+    const next = { ...active, ...patch };
+    setActive(next);
+    setLines((p) => p.map((l) => (l.id === next.id ? next : l)));
+    if (fromLine?.id === next.id) setFromLine(next);
+  };
+
+  const renew = (p: Period) => {
+    if (!active) return;
+    const base = new Date(active.expiresAt);
     const from = base.getTime() > Date.now() ? base : new Date();
-    from.setDate(from.getDate() + p.days);
-    const next = { expiresAt: from.toISOString(), status: 'active' as NumberStatus };
-    patch(activeLine.id, next);
-    setActiveLine({ ...activeLine, ...next });
-    setView('line-detail');
-    showToast(`Renewed for ${p.label}`);
+    from.setMonth(from.getMonth() + p.months);
+    patchLine({ expiresAt: from.toISOString() });
+    setView('line-settings');
   };
 
-  const releaseLine = () => {
-    if (!activeLine) return;
-    remove(activeLine.id);
-    setActiveLine(null);
+  const release = () => {
+    if (!active) return;
+    setLines((p) => p.filter((l) => l.id !== active.id));
+    if (fromLine?.id === active.id) setFromLine(null);
+    setActive(null);
     setView('main');
     setTab('numbers');
-    showToast('Number released');
   };
 
   const copyNum = async () => {
-    if (!activeLine) return;
+    if (!active) return;
     try {
-      await navigator.clipboard.writeText(activeLine.e164);
+      await navigator.clipboard.writeText(active.number.replace(/\s/g, ''));
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1600);
     } catch {
@@ -236,56 +352,63 @@ export function RentalPage({
   };
 
   const headerBack = () => {
-    if (view === 'main') {
-      if (selectedThread) {
-        setSelectedThread(null);
-        return;
-      }
-      onBack();
-      return;
-    }
-    if (view === 'buy-country') setView('main');
+    if (view === 'main') onBack();
+    else if (view === 'buy-country') setView('main');
     else if (view === 'buy-region') setView('buy-country');
     else if (view === 'buy-numbers') setView('buy-region');
     else if (view === 'buy-period') setView('buy-numbers');
     else if (view === 'buy-confirm') setView('buy-period');
-    else if (view === 'line-detail') {
-      setActiveLine(null);
+    else if (view === 'line-settings') {
       setView('main');
       setTab('numbers');
-    } else if (view === 'line-renew' || view === 'line-rename' || view === 'line-forwarding') {
-      setView('line-detail');
+    } else if (
+      view === 'line-renew' ||
+      view === 'line-rename' ||
+      view === 'line-dnd' ||
+      view === 'line-voicemail' ||
+      view === 'line-forwarding' ||
+      view === 'line-transfer'
+    ) {
+      setView('line-settings');
     }
   };
 
   const title =
     view === 'main'
-      ? selectedThread
-        ? selectedThread.from
+      ? tab === 'calls'
+        ? 'Calls'
         : tab === 'messages'
           ? 'Messages'
-          : 'My Numbers'
+          : tab === 'numbers'
+            ? 'Phone numbers'
+            : tab === 'wallet'
+              ? 'Wallet'
+              : 'Settings'
       : view === 'buy-country'
         ? 'Select country'
         : view === 'buy-region'
-          ? 'Choose area'
+          ? 'Choose a number'
           : view === 'buy-numbers'
             ? 'Choose a number'
             : view === 'buy-period'
               ? 'Rental period'
               : view === 'buy-confirm'
-                ? 'Confirm rental'
-                : view === 'line-detail'
-                  ? 'Line settings'
+                ? 'Confirm'
+                : view === 'line-settings'
+                  ? 'Settings'
                   : view === 'line-renew'
                     ? 'Renew'
                     : view === 'line-rename'
-                      ? 'Rename'
-                      : view === 'line-forwarding'
-                        ? 'Forwarding'
-                        : 'Rent a Number';
-
-  const msgThreads = forLine(msgFilter);
+                      ? 'Rename profile'
+                      : view === 'line-dnd'
+                        ? 'Do not disturb'
+                        : view === 'line-voicemail'
+                          ? 'Voicemail settings'
+                          : view === 'line-forwarding'
+                            ? 'Forwarding'
+                            : view === 'line-transfer'
+                              ? 'Transfer number'
+                              : 'Rent a Line';
 
   return (
     <div className="rl-page">
@@ -295,183 +418,249 @@ export function RentalPage({
         </button>
         <h1>{title}</h1>
         <div className="rl-header-right">
-          {view === 'main' && !selectedThread && (
-            <button type="button" className="rl-balance" aria-label="Wallet">
-              <WalletCards size={14} />
-              <span>{formatNgn(walletBalance)}</span>
+          {view === 'main' && (tab === 'calls' || tab === 'numbers') && (
+            <button type="button" className="rl-icon primary" onClick={openBuy} aria-label="Rent number">
+              <Plus size={22} strokeWidth={2.2} />
             </button>
           )}
-          {view !== 'main' && <span className="rl-spacer" />}
+          {view === 'main' && tab === 'messages' && (
+            <button type="button" className="rl-icon primary" aria-label="New message">
+              <MessageSquare size={20} />
+            </button>
+          )}
+          {(view === 'line-dnd' || view === 'line-voicemail') && (
+            <button type="button" className="rl-text-btn" onClick={() => setView('line-settings')}>
+              Save
+            </button>
+          )}
+          {view !== 'main' && view !== 'line-dnd' && view !== 'line-voicemail' && <span className="rl-spacer" />}
         </div>
       </header>
 
-      {view === 'main' && !selectedThread && (
+      {view === 'main' && (
         <>
-          <div className="rl-seg" role="tablist">
-            <button type="button" role="tab" className={tab === 'numbers' ? 'active' : ''} onClick={() => setTab('numbers')}>
-              My Numbers
-            </button>
-            <button type="button" role="tab" className={tab === 'messages' ? 'active' : ''} onClick={() => setTab('messages')}>
-              Messages
-              {msgThreads.some((t) => t.unread) ? <span className="rl-badge" /> : null}
-            </button>
-          </div>
-
-          {tab === 'numbers' && (
+          {tab === 'calls' && callSub === 'history' && (
             <section className="rl-body">
-              <button type="button" className="rl-esim-banner" onClick={() => onOpenEsim?.()}>
-                <Globe2 size={18} />
-                <div>
-                  <strong>Travel Data · eSIM</strong>
-                  <small>Buy data plans — opens Verxor eSIM</small>
+              <h3 className="rl-section-title">Favorites</h3>
+              {favHint && (
+                <div className="rl-hint-card">
+                  <span>☆</span>
+                  <p>
+                    Adding contacts as favorite will make them appear here.{' '}
+                    <button type="button" className="rl-link">learn more</button>
+                  </p>
+                  <button type="button" onClick={() => setFavHint(false)} aria-label="Dismiss">×</button>
                 </div>
-                <ChevronRight size={18} />
-              </button>
-
+              )}
               <div className="rl-row-head">
-                <h3 className="rl-section-title">Active lines</h3>
-                <button type="button" className="rl-pill-sm" onClick={openBuy}>
-                  <Plus size={16} strokeWidth={2.4} /> Rent new
-                </button>
+                <h3 className="rl-section-title">Recents</h3>
+                <div className="rl-row-actions">
+                  <button type="button" aria-label="Filter"><Filter size={18} /></button>
+                  <button type="button" aria-label="More"><MoreVertical size={18} /></button>
+                </div>
               </div>
-
-              {active.length === 0 && grace.length === 0 ? (
+              {lines.length === 0 ? (
                 <Empty
-                  icon={<Smartphone size={40} strokeWidth={1.25} />}
-                  title="No rented numbers yet"
-                  text="Rent a dedicated line for long-term SMS. Pay with your Verxor wallet."
-                  action={
-                    <button type="button" className="rl-pill" onClick={openBuy}>
-                      Rent a number
-                    </button>
-                  }
+                  icon={<Clock size={40} strokeWidth={1.25} />}
+                  title="No call history"
+                  text="Rent a number, then outbound and inbound calls appear here."
+                  action={<button type="button" className="rl-pill" onClick={openBuy}>Rent a number</button>}
                 />
               ) : (
-                <ul className="rl-number-cards">
-                  {active.map((line) => {
-                    const d = daysLeft(line.expiresAt);
-                    return (
-                      <li key={line.id}>
-                        <button type="button" className="rl-number-card" onClick={() => openLine(line)}>
-                          <div className="rl-number-card-top">
-                            <span className="rl-exp-badge good">{d > 0 ? `Expires in ${d}d` : 'Expires today'}</span>
-                            <ChevronRight size={16} />
-                          </div>
-                          <div className="rl-number-card-main">
-                            <span className="rl-flag">{line.flag}</span>
-                            <div>
-                              <strong>{line.display}</strong>
-                              <small>{line.label} · {line.type}</small>
-                            </div>
-                          </div>
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
-
-              {grace.length > 0 && (
-                <>
-                  <h3 className="rl-section-title" style={{ marginTop: 8 }}>Expired · Grace period</h3>
-                  <p className="rl-lead">You have {GRACE_DAYS} days after expiry to renew before the number is released.</p>
-                  <ul className="rl-number-cards">
-                    {grace.map((line) => (
-                      <li key={line.id}>
-                        <button type="button" className="rl-number-card grace" onClick={() => openLine(line)}>
-                          <div className="rl-number-card-top">
-                            <span className="rl-exp-badge warn">Grace · renew now</span>
-                            <ChevronRight size={16} />
-                          </div>
-                          <div className="rl-number-card-main">
-                            <span className="rl-flag">{line.flag}</span>
-                            <div>
-                              <strong>{line.display}</strong>
-                              <small>Expired {formatExp(line.expiresAt)} · {line.label}</small>
-                            </div>
-                          </div>
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                </>
-              )}
-
-              <div className="rl-notice">
-                <Shield size={14} />
-                <span>Phase 1: inbound SMS + forwarding. Live voice calling arrives in a later release after provider verification.</span>
-              </div>
-            </section>
-          )}
-
-          {tab === 'messages' && (
-            <section className="rl-body">
-              <div className="rl-filter-row">
-                <select className="rl-select" value={msgFilter} onChange={(e) => setMsgFilter(e.target.value)} aria-label="Filter by number">
-                  <option value="all">All numbers</option>
-                  {[...active, ...grace].map((l) => (
-                    <option key={l.id} value={l.id}>{l.display}</option>
-                  ))}
-                </select>
-              </div>
-              {msgThreads.length === 0 ? (
-                <Empty icon={<MessageSquare size={40} strokeWidth={1.25} />} title="No messages yet" text="Inbound SMS to your rented lines will appear here automatically." />
-              ) : (
-                <ul className="rl-msg-list">
-                  {msgThreads.map((t) => (
-                    <li key={t.id}>
-                      <button type="button" className={`rl-msg-row ${t.unread ? 'unread' : ''}`} onClick={() => { markRead(t.id); setSelectedThread(t); }}>
-                        <div className="rl-avatar soft">{t.from.charAt(0)}</div>
-                        <div className="rl-msg-body">
-                          <strong>{t.from}</strong>
-                          <small>{t.preview}</small>
-                        </div>
-                        <span className="rl-msg-time">{new Date(t.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                      </button>
+                <ul className="rl-history-list">
+                  {DEMO_HISTORY.map((h) => (
+                    <li key={h.id}>
+                      <div className="rl-avatar soft">{h.name.charAt(0)}</div>
+                      <div className="rl-hist-body">
+                        <strong>{h.name}</strong>
+                        <small>{h.kind === 'vm' ? '∞ ' : '↗ '}{h.sub}</small>
+                      </div>
+                      <span className="rl-hist-date">{h.date}</span>
                     </li>
                   ))}
                 </ul>
               )}
             </section>
           )}
-        </>
-      )}
 
-      {view === 'main' && selectedThread && (
-        <section className="rl-body rl-thread">
-          <div className="rl-bubble-wrap">
-            <div className="rl-bubble">
-              <p>{selectedThread.body}</p>
-              <small>{new Date(selectedThread.at).toLocaleString()}</small>
+          {tab === 'calls' && callSub === 'contacts' && (
+            <section className="rl-body">
+              <div className="rl-search">
+                <Search size={16} />
+                <input value={contactQ} onChange={(e) => setContactQ(e.target.value)} placeholder="Search contacts" />
+              </div>
+              {contacts.length === 0 ? (
+                <Empty icon={<Users size={40} strokeWidth={1.25} />} title="No contacts" text="Your rented lines appear here as contacts." />
+              ) : (
+                <ul className="rl-contact-list">
+                  {contacts.map((l) => (
+                    <li key={l.id}>
+                      <div className="rl-avatar">{l.label.charAt(0)}</div>
+                      <div className="rl-hist-body" style={{ flex: 1 }}>
+                        <strong>{l.label}</strong>
+                        <small>{l.number}</small>
+                      </div>
+                      <button type="button" className="rl-call-mini" aria-label="Call"><Phone size={18} /></button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+          )}
+
+          {tab === 'calls' && callSub === 'keypad' && (
+            <section className="rl-keypad">
+              <button type="button" className="rl-from-pill" onClick={() => setShowFromSheet(true)}>
+                {fromLine ? fromLine.number : 'Select line'} <ChevronDown size={14} />
+              </button>
+              <div className="rl-dial-display">
+                <button type="button" onClick={() => setShowDialCountry(true)}>
+                  {dialCountry.flag} {dialCountry.dial} <ChevronDown size={14} />
+                </button>
+                <span>{dial || ' '}</span>
+              </div>
+              <div className="rl-dial-grid">
+                {KEYS.map((k) => (
+                  <button key={k.digit} type="button" onClick={() => setDial((d) => d + k.digit)}>
+                    <strong>{k.digit}</strong>
+                    <small>{k.letters}</small>
+                  </button>
+                ))}
+              </div>
+              <div className="rl-dial-actions">
+                <span />
+                <button type="button" className="rl-call-btn" aria-label="Call"><Phone size={28} /></button>
+                <button type="button" className="rl-del-btn" aria-label="Delete" onClick={() => setDial((d) => d.slice(0, -1))}>
+                  <Delete size={22} />
+                </button>
+              </div>
+              <button type="button" className="rl-browse" onClick={openBuy}>
+                <Hash size={16} /> Get a number
+              </button>
+            </section>
+          )}
+
+          {tab === 'calls' && (
+            <div className="rl-call-subnav">
+              <button type="button" className={callSub === 'history' ? 'active' : ''} onClick={() => setCallSub('history')}>
+                <Clock size={16} /> History
+              </button>
+              <button type="button" className={callSub === 'contacts' ? 'active' : ''} onClick={() => setCallSub('contacts')}>
+                <Users size={16} /> Contacts
+              </button>
+              <button type="button" className={callSub === 'keypad' ? 'active' : ''} onClick={() => setCallSub('keypad')}>
+                <Grid3X3 size={16} /> Keypad
+              </button>
             </div>
-          </div>
-          <button type="button" className="rl-pill full" onClick={async () => {
-            const code = selectedThread.body.match(/\b\d{3}[-\s]?\d{3}\b|\b\d{4,8}\b/)?.[0];
-            if (code) {
-              try { await navigator.clipboard.writeText(code.replace(/\s|-/g, '')); showToast('Code copied'); }
-              catch { showToast('Could not copy'); }
-            } else showToast('No code found in message');
-          }}>
-            <Copy size={16} /> Copy verification code
-          </button>
-          <p className="rl-foot">Outbound SMS reply comes in a later phase when provider billing is ready.</p>
-        </section>
+          )}
+
+          {tab === 'messages' && (
+            <section className="rl-body">
+              <div className="rl-search">
+                <Search size={16} />
+                <input value={msgQ} onChange={(e) => setMsgQ(e.target.value)} placeholder="Search messages" />
+              </div>
+              <Empty
+                icon={<MessageSquare size={40} strokeWidth={1.25} />}
+                title="No messages"
+                text="Inbound SMS to your rented lines will appear here."
+                action={<button type="button" className="rl-pill" onClick={openBuy}>Rent a number</button>}
+              />
+            </section>
+          )}
+
+          {tab === 'numbers' && (
+            <section className="rl-body">
+              <div className="rl-seg">
+                <button type="button" className={numSub === 'phone' ? 'active' : ''} onClick={() => setNumSub('phone')}>Phone numbers</button>
+                <button type="button" className={numSub === 'esim' ? 'active' : ''} onClick={() => setNumSub('esim')}>Travel Data</button>
+              </div>
+              {numSub === 'phone' && (
+                <>
+                  {lines.length === 0 ? (
+                    <Empty
+                      icon={<Phone size={40} strokeWidth={1.25} />}
+                      title="No numbers yet"
+                      text="Rent a dedicated line for SMS and calls where supported."
+                      action={<button type="button" className="rl-pill" onClick={openBuy}>Rent a number</button>}
+                    />
+                  ) : (
+                    <ul className="rl-number-cards">
+                      {lines.map((line) => (
+                        <li key={line.id}>
+                          <button type="button" className="rl-number-card" onClick={() => openLine(line)}>
+                            <div className="rl-number-card-top">
+                              <span className="rl-exp-badge">Expires {formatExp(line.expiresAt)}</span>
+                              <ChevronRight size={16} />
+                            </div>
+                            <div className="rl-number-card-main">
+                              <span className="rl-flag">{line.flag}</span>
+                              <div>
+                                <strong>{line.number}</strong>
+                                <small>{line.label} · {line.type}</small>
+                              </div>
+                            </div>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  <div className="rl-biz-block">
+                    <h4>BUSINESS NUMBERS</h4>
+                    <div className="rl-biz-empty"><Users size={18} /><p>Assign lines to team members (coming soon).</p></div>
+                  </div>
+                </>
+              )}
+              {numSub === 'esim' && (
+                <Empty icon={<Shield size={40} strokeWidth={1.25} />} title="Travel Data · eSIM" text="Open Verxor eSIM plans from Services. This tab will deep-link there." />
+              )}
+            </section>
+          )}
+
+          {tab === 'wallet' && (
+            <section className="rl-body">
+              <div className="rl-wallet-card">
+                <small>Verxor Wallet</small>
+                <strong>₦7,570.00</strong>
+                <button type="button" className="rl-wallet-fund" onClick={onBack}>+ Fund wallet</button>
+              </div>
+              <p className="rl-wallet-note">Rentals and SMS fees debit this balance. No separate Call credit.</p>
+              <p className="rl-muted-center">No recent charges</p>
+            </section>
+          )}
+
+          {tab === 'settings' && (
+            <section className="rl-body">
+              <div className="rl-settings-menu">
+                <button type="button" className="rl-set-row"><UserRound size={18} /><div><strong>Account</strong><small>Profile & security</small></div><ChevronRight size={16} /></button>
+                <button type="button" className="rl-set-row"><Bell size={18} /><div><strong>Notifications</strong><small>SMS & expiry alerts</small></div><ChevronRight size={16} /></button>
+                <button type="button" className="rl-set-row"><HelpCircle size={18} /><div><strong>Help</strong><small>FAQ & support</small></div><ChevronRight size={16} /></button>
+                <button type="button" className="rl-set-row danger" onClick={onBack}><LogOut size={18} /><div><strong>Exit Rent a Line</strong><small>Back to Verxor</small></div></button>
+              </div>
+              <p className="rl-version">Verxor Rent · v1</p>
+            </section>
+          )}
+
+          <nav className="rl-tabs" aria-label="Rent workspace">
+            <button type="button" className={tab === 'calls' ? 'active' : ''} onClick={() => setTab('calls')}><Phone size={20} />Calls</button>
+            <button type="button" className={tab === 'messages' ? 'active' : ''} onClick={() => setTab('messages')}><MessageSquare size={20} />Messages</button>
+            <button type="button" className={tab === 'numbers' ? 'active' : ''} onClick={() => setTab('numbers')}><Hash size={20} />Numbers</button>
+            <button type="button" className={tab === 'wallet' ? 'active' : ''} onClick={() => setTab('wallet')}><Wallet size={20} />Wallet</button>
+            <button type="button" className={tab === 'settings' ? 'active' : ''} onClick={() => setTab('settings')}><SettingsIcon size={20} />Settings</button>
+          </nav>
+        </>
       )}
 
       {view === 'buy-country' && (
         <section className="rl-body">
-          <p className="rl-lead">Pick a country. Availability and type (VoIP / Non-VoIP) depend on live inventory.</p>
-          <div className="rl-search">
-            <Search size={16} />
-            <input value={countryQ} onChange={(e) => setCountryQ(e.target.value)} placeholder="Search country" autoComplete="off" />
-            {countryQ ? (<button type="button" className="rl-clear" onClick={() => setCountryQ('')} aria-label="Clear"><X size={14} /></button>) : null}
-          </div>
+          <p className="rl-lead">Choose a country for your dedicated line.</p>
+          <div className="rl-search"><Search size={16} /><input value={countryQ} onChange={(e) => setCountryQ(e.target.value)} placeholder="Search country" /></div>
           <div className="rl-country-list">
             {filteredCountries.map((c) => (
-              <button key={c.code} type="button" className="rl-country-row" onClick={() => { setBuyCountry(c); setBuyRegion(null); setRegionQ(''); setView('buy-region'); }}>
+              <button key={c.code} type="button" className="rl-country-row" onClick={() => { setBuyCountry(c); setView('buy-region'); }}>
                 <span className="rl-flag">{c.flag}</span>
                 <div><strong>{c.name}</strong><small>{c.dial} · {c.type}</small></div>
-                <span className="rl-price">From {formatNgn(c.fromNgn)}</span>
+                <span className="rl-price">From {money(c.fromPrice)}</span>
                 <ChevronRight size={16} />
               </button>
             ))}
@@ -486,13 +675,10 @@ export function RentalPage({
             <div><strong>{buyCountry.name}</strong><small>{buyCountry.type}</small></div>
             <button type="button" className="rl-change" onClick={() => setView('buy-country')}>Change</button>
           </div>
-          <div className="rl-search">
-            <Search size={16} />
-            <input value={regionQ} onChange={(e) => setRegionQ(e.target.value)} placeholder="Search city or area code" autoComplete="off" />
-          </div>
+          <div className="rl-search"><Search size={16} /><input value={regionQ} onChange={(e) => setRegionQ(e.target.value)} placeholder="City or area code" /></div>
           <div className="rl-country-list">
             {regionsForBuy.map((r) => (
-              <button key={r.id} type="button" className="rl-country-row" onClick={() => { setBuyRegion(r); setBuyNumber(null); setView('buy-numbers'); }}>
+              <button key={r.id} type="button" className="rl-country-row" onClick={() => { setBuyRegion(r); setView('buy-numbers'); }}>
                 <div className="rl-region-meta"><strong>{r.city}, {r.name}</strong><small>Area {r.area}</small></div>
                 <span className="rl-area-code">{r.area}</span>
                 <ChevronRight size={16} />
@@ -509,7 +695,6 @@ export function RentalPage({
             <div><strong>{buyRegion.city} · {buyRegion.area}</strong><small>{buyCountry.name}</small></div>
             <button type="button" className="rl-change" onClick={() => setView('buy-region')}>Change</button>
           </div>
-          <p className="rl-lead">Select an available number. Tags reflect provider capabilities.</p>
           <div className="rl-country-list">
             {availNumbers.map((n) => (
               <button key={n.id} type="button" className="rl-num-pick" onClick={() => { setBuyNumber(n); setView('buy-period'); }}>
@@ -528,19 +713,17 @@ export function RentalPage({
             <div><strong>{buyNumber.display}</strong><small>{buyCountry.name}</small></div>
             <button type="button" className="rl-change" onClick={() => setView('buy-numbers')}>Change</button>
           </div>
-          <p className="rl-lead">Longer periods unlock discounts. All payments use your Verxor wallet.</p>
           <div className="rl-duration-list">
-            {PERIODS.map((p) => {
-              const total = priceOf(buyCountry, p);
-              return (
-                <button key={p.id} type="button" className={`rl-duration-row ${buyPeriod?.id === p.id ? 'selected' : ''}`} onClick={() => setBuyPeriod(p)}>
-                  <div><strong>{p.label}</strong><small>{p.days} days{p.saveLabel ? ` · ${p.saveLabel}` : ''}</small></div>
-                  <span className="rl-price">{formatNgn(total)}</span>
-                </button>
-              );
-            })}
+            {PERIODS.map((p) => (
+              <button type="button" key={p.id} className="rl-duration-row" onClick={() => { setBuyPeriod(p); setView('buy-confirm'); }}>
+                <span>
+                  <strong>{p.label}</strong>
+                  <small>{p.days ? `${p.days} days` : ''}{p.saveLabel ? ` · ${p.saveLabel}` : ''} · Voice + SMS where supported</small>
+                </span>
+                <span className="rl-price">{money(priceOf(buyCountry, p))}<ChevronRight size={16} /></span>
+              </button>
+            ))}
           </div>
-          <button type="button" className="rl-pill full" disabled={!buyPeriod} onClick={() => buyPeriod && setView('buy-confirm')}>Continue</button>
         </section>
       )}
 
@@ -549,75 +732,44 @@ export function RentalPage({
           <div className="rl-confirm-card">
             <div><span>Number</span><strong>{buyNumber.display}</strong></div>
             <div><span>Country</span><strong>{buyCountry.flag} {buyCountry.name}</strong></div>
-            <div><span>Type</span><strong>{buyCountry.type}</strong></div>
             <div><span>Period</span><strong>{buyPeriod.label}{buyPeriod.saveLabel ? ` (${buyPeriod.saveLabel})` : ''}</strong></div>
-            <div className="total"><span>Total</span><strong>{formatNgn(priceOf(buyCountry, buyPeriod))}</strong></div>
+            <div className="total"><span>Total</span><strong>{money(priceOf(buyCountry, buyPeriod))}</strong></div>
           </div>
-          <ul className="rl-checklist">
-            <li><Check size={14} /> Inbound SMS included</li>
-            <li><Check size={14} /> SMS → email / mobile forwarding</li>
-            <li><Check size={14} /> {GRACE_DAYS}-day grace period after expiry</li>
-            <li><Check size={14} /> Paid from Verxor wallet</li>
-          </ul>
-          <button type="button" className="rl-pill full" onClick={confirmBuy}>Pay {formatNgn(priceOf(buyCountry, buyPeriod))} with Wallet</button>
-          <p className="rl-foot">Instant provisioning. Number appears under My Numbers right away.</p>
+          <button type="button" className="rl-pill full" onClick={confirmBuy}>Pay with Verxor Wallet</button>
+          <p className="rl-foot">Instant provisioning · 7-day grace after expiry</p>
         </section>
       )}
 
-      {view === 'line-detail' && activeLine && (
+      {view === 'line-settings' && active && (
         <section className="rl-body">
           <div className="rl-detail-head">
-            <span className="rl-flag lg">{activeLine.flag}</span>
-            <strong>{activeLine.display}</strong>
-            <p>{activeLine.label} · {activeLine.type}</p>
-            <button type="button" className="rl-copy" onClick={copyNum}><Copy size={14} />{copied ? 'Copied' : 'Copy number'}</button>
-          </div>
-          <div className="rl-status-row">
-            <span className={`rl-status-pill ${activeLine.status}`}>
-              {activeLine.status === 'active'
-                ? `Active · expires ${formatExp(activeLine.expiresAt)}`
-                : activeLine.status === 'grace'
-                  ? `Grace · expired ${formatExp(activeLine.expiresAt)}`
-                  : 'Expired'}
-            </span>
+            <span className="rl-flag">{active.flag}</span>
+            <strong>{active.number}</strong>
+            <p>{active.label} · {active.type}</p>
+            <button type="button" className="rl-copy" onClick={copyNum}><Copy size={14} />{copied ? 'Copied' : 'Copy'}</button>
           </div>
           <div className="rl-settings-menu">
-            <button type="button" className="rl-set-row" onClick={() => setView('line-renew')}>
-              <Clock3 size={18} /><div><strong>Renew</strong><small>Extend 1, 3 or 12 months</small></div><ChevronRight size={16} />
-            </button>
-            <button type="button" className="rl-set-row" onClick={() => { setRenameVal(activeLine.label); setView('line-rename'); }}>
-              <Phone size={18} /><div><strong>Rename</strong><small>{activeLine.label}</small></div><ChevronRight size={16} />
-            </button>
-            <div className="rl-set-row static">
-              <BellOff size={18} />
-              <div><strong>Do not disturb</strong><small>Mute alerts for this line</small></div>
-              <button type="button" className={`rl-switch ${activeLine.dnd ? 'on' : ''}`} aria-label="Toggle DND" onClick={() => {
-                const next = !activeLine.dnd;
-                patch(activeLine.id, { dnd: next });
-                setActiveLine({ ...activeLine, dnd: next });
-              }} />
-            </div>
-            <button type="button" className="rl-set-row" onClick={() => setView('line-forwarding')}>
-              <PhoneForwarded size={18} /><div><strong>Forwarding</strong><small>SMS → email or mobile</small></div><ChevronRight size={16} />
-            </button>
-            <button type="button" className="rl-set-row danger" onClick={releaseLine}>
-              <Trash2 size={18} /><div><strong>Release number</strong><small>Ends rental. Grace rules still apply if already expired.</small></div>
-            </button>
+            <button type="button" className="rl-set-row" onClick={() => setView('line-renew')}><Clock size={18} /><div><strong>Renew</strong><small>Expires {formatExp(active.expiresAt)}</small></div><ChevronRight size={16} /></button>
+            <button type="button" className="rl-set-row" onClick={() => { setRenameVal(active.label); setView('line-rename'); }}><UserRound size={18} /><div><strong>Rename</strong><small>{active.label}</small></div><ChevronRight size={16} /></button>
+            <button type="button" className="rl-set-row" onClick={() => setView('line-dnd')}><Bell size={18} /><div><strong>Do not disturb</strong><small>{active.dnd ? 'On' : 'Off'}</small></div><ChevronRight size={16} /></button>
+            <button type="button" className="rl-set-row" onClick={() => setView('line-voicemail')}><Mic size={18} /><div><strong>Voicemail</strong><small>{active.voicemail ? 'Enabled' : 'Off'}</small></div><ChevronRight size={16} /></button>
+            <button type="button" className="rl-set-row" onClick={() => setView('line-forwarding')}><PhoneForwarded size={18} /><div><strong>Forwarding</strong><small>SMS & calls</small></div><ChevronRight size={16} /></button>
+            <button type="button" className="rl-set-row" onClick={() => setView('line-transfer')}><ArrowRightLeft size={18} /><div><strong>Transfer</strong><small>To another Verxor user</small></div><ChevronRight size={16} /></button>
+            <button type="button" className="rl-set-row danger" onClick={release}><Trash2 size={18} /><div><strong>Delete number</strong><small>Release this line</small></div></button>
           </div>
         </section>
       )}
 
-      {view === 'line-renew' && activeLine && (
+      {view === 'line-renew' && active && (
         <section className="rl-body">
-          <p className="rl-lead">Current expiry: {formatExp(activeLine.expiresAt)}. Renewal extends from the later of now or current expiry.</p>
+          <p className="rl-lead">Current expiry: {formatExp(active.expiresAt)}</p>
           <div className="rl-duration-list">
             {PERIODS.map((p) => {
-              const country = COUNTRIES.find((c) => c.code === activeLine.countryCode);
-              const total = country ? priceOf(country, p) : 0;
+              const c = COUNTRIES.find((x) => x.code === active.countryCode);
               return (
-                <button key={p.id} type="button" className="rl-duration-row" onClick={() => renewLine(p)}>
-                  <div><strong>{p.label}</strong><small>{p.days} days{p.saveLabel ? ` · ${p.saveLabel}` : ''}</small></div>
-                  <span className="rl-price">{formatNgn(total)}</span>
+                <button key={p.id} type="button" className="rl-duration-row" onClick={() => renew(p)}>
+                  <span><strong>{p.label}</strong><small>{p.saveLabel || 'Standard'}</small></span>
+                  <span className="rl-price">{c ? money(priceOf(c, p)) : '—'}</span>
                 </button>
               );
             })}
@@ -625,58 +777,103 @@ export function RentalPage({
         </section>
       )}
 
-      {view === 'line-rename' && activeLine && (
+      {view === 'line-rename' && active && (
         <section className="rl-body">
-          <label className="rl-field-label" htmlFor="rl-rename">Profile label</label>
-          <input id="rl-rename" className="rl-rename-input" value={renameVal} onChange={(e) => setRenameVal(e.target.value)} placeholder="e.g. WhatsApp Business" maxLength={40} />
-          <button type="button" className="rl-pill full" onClick={() => {
-            const label = renameVal.trim() || activeLine.label;
-            patch(activeLine.id, { label });
-            setActiveLine({ ...activeLine, label });
-            setView('line-detail');
-            showToast('Label updated');
-          }}>Save</button>
+          <label className="rl-field-label">Profile name</label>
+          <input className="rl-rename-input" value={renameVal} onChange={(e) => setRenameVal(e.target.value)} maxLength={40} />
+          <button type="button" className="rl-pill full" onClick={() => { patchLine({ label: renameVal.trim() || active.label }); setView('line-settings'); }}>Save</button>
         </section>
       )}
 
-      {view === 'line-forwarding' && activeLine && (
+      {view === 'line-dnd' && active && (
         <section className="rl-body">
           <div className="rl-toggle-card">
-            <div className="rl-fwd-label"><Mail size={16} /><span>SMS → Email</span></div>
-            <button type="button" className={`rl-switch ${activeLine.smsToEmail ? 'on' : ''}`} onClick={() => {
-              const next = !activeLine.smsToEmail;
-              patch(activeLine.id, { smsToEmail: next });
-              setActiveLine({ ...activeLine, smsToEmail: next });
-            }} />
+            <span>Do not disturb</span>
+            <button type="button" className={`rl-switch ${active.dnd ? 'on' : ''}`} onClick={() => patchLine({ dnd: !active.dnd })} />
           </div>
-          {activeLine.smsToEmail && (
-            <input className="rl-rename-input" type="email" placeholder="you@email.com" value={activeLine.forwardEmail} onChange={(e) => {
-              const forwardEmail = e.target.value;
-              patch(activeLine.id, { forwardEmail });
-              setActiveLine({ ...activeLine, forwardEmail });
-            }} />
-          )}
-          <div className="rl-toggle-card">
-            <div className="rl-fwd-label"><Smartphone size={16} /><span>SMS → Mobile</span></div>
-            <button type="button" className={`rl-switch ${activeLine.smsToMobile ? 'on' : ''}`} onClick={() => {
-              const next = !activeLine.smsToMobile;
-              patch(activeLine.id, { smsToMobile: next });
-              setActiveLine({ ...activeLine, smsToMobile: next });
-            }} />
-          </div>
-          {activeLine.smsToMobile && (
-            <input className="rl-rename-input" type="tel" placeholder="+234..." value={activeLine.forwardMobile} onChange={(e) => {
-              const forwardMobile = e.target.value;
-              patch(activeLine.id, { forwardMobile });
-              setActiveLine({ ...activeLine, forwardMobile });
-            }} />
-          )}
-          <p className="rl-foot">Call forwarding and outbound SMS arrive when voice phase is enabled.</p>
-          <button type="button" className="rl-pill full" onClick={() => setView('line-detail')}>Done</button>
+          <p className="rl-lead">When on, inbound call/SMS alerts for this line are muted.</p>
         </section>
       )}
 
-      {toast && (<div className="rl-toast" role="status">{toast}</div>)}
+      {view === 'line-voicemail' && active && (
+        <section className="rl-body">
+          <div className="rl-toggle-card">
+            <span>Voicemail</span>
+            <button type="button" className={`rl-switch ${active.voicemail ? 'on' : ''}`} onClick={() => patchLine({ voicemail: !active.voicemail })} />
+          </div>
+          <div className="rl-toggle-card">
+            <span>Leave message after beep</span>
+            <button type="button" className={`rl-switch ${active.leaveMessage ? 'on' : ''}`} onClick={() => patchLine({ leaveMessage: !active.leaveMessage })} />
+          </div>
+          <p className="rl-lead">Custom greetings come in a later release.</p>
+        </section>
+      )}
+
+      {view === 'line-forwarding' && active && (
+        <section className="rl-body">
+          <div className="rl-toggle-card">
+            <span>SMS → Email</span>
+            <button type="button" className={`rl-switch ${active.smsToEmail ? 'on' : ''}`} onClick={() => patchLine({ smsToEmail: !active.smsToEmail })} />
+          </div>
+          <div className="rl-toggle-card">
+            <span>SMS → Mobile</span>
+            <button type="button" className={`rl-switch ${active.smsToMobile ? 'on' : ''}`} onClick={() => patchLine({ smsToMobile: !active.smsToMobile })} />
+          </div>
+          <div className="rl-toggle-card">
+            <span>Call → Phone</span>
+            <button type="button" className={`rl-switch ${active.callToPhone ? 'on' : ''}`} onClick={() => patchLine({ callToPhone: !active.callToPhone })} />
+          </div>
+          <label className="rl-field-label">Forward target</label>
+          <input className="rl-rename-input" value={active.forwardTarget} onChange={(e) => patchLine({ forwardTarget: e.target.value })} placeholder="Email or +phone" />
+          <button type="button" className="rl-pill full" onClick={() => setView('line-settings')}>Done</button>
+        </section>
+      )}
+
+      {view === 'line-transfer' && active && (
+        <section className="rl-body">
+          <p className="rl-lead">Transfer this number to another Verxor user ID.</p>
+          <label className="rl-field-label">Recipient user ID</label>
+          <input className="rl-rename-input" value={transferVal} onChange={(e) => setTransferVal(e.target.value)} placeholder="user_…" />
+          <button type="button" className="rl-pill full" onClick={() => setView('line-settings')}>Request transfer</button>
+          <p className="rl-foot">Provider must support ownership transfer. Coming with SignalWire wiring.</p>
+        </section>
+      )}
+
+      {showFromSheet && (
+        <div className="rl-sheet-layer">
+          <button type="button" className="rl-sheet-bg" onClick={() => setShowFromSheet(false)} aria-label="Close" />
+          <div className="rl-sheet">
+            <div className="rl-sheet-head"><strong>Call from</strong><button type="button" onClick={() => setShowFromSheet(false)}><X size={18} /></button></div>
+            <div className="rl-body">
+              {lines.length === 0 ? <p className="rl-muted-center">Rent a number first</p> : lines.map((l) => (
+                <button key={l.id} type="button" className="rl-country-row" onClick={() => { setFromLine(l); setShowFromSheet(false); }}>
+                  <span className="rl-flag">{l.flag}</span>
+                  <div><strong>{l.number}</strong><small>{l.label}</small></div>
+                  {fromLine?.id === l.id && <Check size={18} />}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showDialCountry && (
+        <div className="rl-sheet-layer">
+          <button type="button" className="rl-sheet-bg" onClick={() => setShowDialCountry(false)} aria-label="Close" />
+          <div className="rl-sheet">
+            <div className="rl-sheet-head"><strong>Country code</strong><button type="button" onClick={() => setShowDialCountry(false)}><X size={18} /></button></div>
+            <div className="rl-body" style={{ maxHeight: '50vh', overflow: 'auto' }}>
+              {COUNTRIES.map((c) => (
+                <button key={c.code} type="button" className="rl-country-row" onClick={() => { setDialCountry(c); setShowDialCountry(false); }}>
+                  <span className="rl-flag">{c.flag}</span>
+                  <div><strong>{c.name}</strong><small>{c.dial}</small></div>
+                  {dialCountry.code === c.code && <Check size={18} />}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
