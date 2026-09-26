@@ -3,7 +3,7 @@
  * Bottom tabs: Calls · Messages · Numbers · Wallet · Settings
  * Buy: Country → Region → Number → Period → Confirm
  * Number settings: Renew · Rename · DND · Voicemail · Forwarding · Transfer · Delete
- * Travel Data / eSIM: Coming soon / link
+ * Travel Data / eSIM: deep-link via onOpenEsim
  * Locked: 30/90/365 days, NGN wallet pricing
  */
 import { useMemo, useState, type ReactNode } from 'react';
@@ -31,7 +31,6 @@ import {
   Search,
   Settings as SettingsIcon,
   Shield,
-  ShieldAlert,
   Trash2,
   UserRound,
   Users,
@@ -197,7 +196,13 @@ function Empty({
   );
 }
 
-export function RentalPage({ onBack }: { onBack: () => void }) {
+export function RentalPage({
+  onBack,
+  onOpenEsim,
+}: {
+  onBack: () => void;
+  onOpenEsim?: () => void;
+}) {
   const [view, setView] = useState<View>('main');
   const [tab, setTab] = useState<MainTab>('numbers');
   const [callSub, setCallSub] = useState<CallSub>('history');
@@ -612,7 +617,18 @@ export function RentalPage({ onBack }: { onBack: () => void }) {
                 </>
               )}
               {numSub === 'esim' && (
-                <Empty icon={<Shield size={40} strokeWidth={1.25} />} title="Travel Data · eSIM" text="Open Verxor eSIM plans from Services. This tab will deep-link there." />
+                <Empty
+                  icon={<Shield size={40} strokeWidth={1.25} />}
+                  title="Travel Data · eSIM"
+                  text="Buy data plans on Verxor eSIM — same inventory as Services → eSIM."
+                  action={
+                    onOpenEsim ? (
+                      <button type="button" className="rl-pill" onClick={onOpenEsim}>
+                        Open eSIM
+                      </button>
+                    ) : undefined
+                  }
+                />
               )}
             </section>
           )}
