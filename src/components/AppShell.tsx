@@ -46,7 +46,7 @@ export function AppShell({
 
   const firstName = (userName || 'User').trim().split(/\s+/)[0] || 'User';
   const greet = homeGreeting(firstName);
-  const hideTopbar = deepService || page === 'services';
+  const hideTopbar = deepService || page === 'services' || page === 'profile';
 
   return (
     <div className={`app ${dark ? 'dark' : ''}`}>
@@ -82,11 +82,6 @@ export function AppShell({
                 <div className="topbar-greeting" aria-label="Fund">
                   <span>Fund wallet</span>
                   <small>Add money to your balance</small>
-                </div>
-              ) : page === 'profile' ? (
-                <div className="topbar-greeting" aria-label="Profile">
-                  <span>Profile</span>
-                  <small>Account & settings</small>
                 </div>
               ) : null}
             </div>
