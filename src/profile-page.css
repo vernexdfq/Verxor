@@ -29,7 +29,6 @@
   font-weight: 500;
 }
 
-/* —— Hero (deep slate) —— */
 .prof-hero {
   display: flex;
   align-items: center;
@@ -135,7 +134,6 @@
   background: #1d4ed8;
 }
 
-/* —— Refer & Earn —— */
 .prof-refer {
   display: flex;
   align-items: center;
@@ -195,7 +193,6 @@
   font-weight: 700;
 }
 
-/* —— Groups —— */
 .prof-group {
   display: flex;
   flex-direction: column;
@@ -313,7 +310,6 @@
   color: #cbd5e1;
 }
 
-/* —— Log out —— */
 .prof-logout {
   display: flex;
   align-items: center;

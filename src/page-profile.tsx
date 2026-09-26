@@ -34,7 +34,6 @@ export function ProfilePage({ openService }: { openService: (view: ServiceView) 
         <p>Manage your account, security &amp; tenancy</p>
       </header>
 
-      {/* Hero */}
       <section className="prof-hero" aria-label="Profile summary">
         <div className="prof-hero-left">
           <div className="prof-avatar-wrap">
@@ -59,7 +58,6 @@ export function ProfilePage({ openService }: { openService: (view: ServiceView) 
         </button>
       </section>
 
-      {/* Refer & Earn */}
       <button type="button" className="prof-refer" onClick={() => openService('referral')}>
         <span className="prof-refer-icon">
           <Gift size={20} strokeWidth={1.9} />
@@ -71,7 +69,6 @@ export function ProfilePage({ openService }: { openService: (view: ServiceView) 
         <span className="prof-refer-cta">Invite</span>
       </button>
 
-      {/* Account & Security */}
       <ProfileGroup title="ACCOUNT & SECURITY">
         <ProfileItem
           icon={<Bell size={18} />}
@@ -103,7 +100,6 @@ export function ProfilePage({ openService }: { openService: (view: ServiceView) 
         />
       </ProfileGroup>
 
-      {/* Management & Developer */}
       <ProfileGroup title="MANAGEMENT & DEVELOPER">
         <ProfileItem
           icon={<Globe2 size={18} />}
