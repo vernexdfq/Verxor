@@ -20,8 +20,6 @@ import {
 } from 'lucide-react';
 import './boost-page.css';
 
-/* --- Types --- */
-
 type PlatformId =
   | 'tiktok'
   | 'instagram'
@@ -266,7 +264,7 @@ const CATEGORY_CHIPS: { id: PlatformId; label: string }[] = [
 const WALLET_BALANCE = 0.27;
 
 function money(n: number) {
-  return 'NGN ' + n.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return '\u20a6' + n.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 function formatQty(n: number) {
@@ -574,7 +572,7 @@ export function BoostPage({ onBack }: { onBack: () => void }) {
         <span className="boost-label">Category</span>
         <button
           type="button"
-          className={`boost-select ${categoryId ? 'has-value' : ''}`}
+          className={categoryId ? 'boost-select has-value' : 'boost-select'}
           onClick={() => setCatOpen(true)}
         >
           {categoryId && categoryChip ? (
@@ -595,7 +593,7 @@ export function BoostPage({ onBack }: { onBack: () => void }) {
         <span className="boost-label">Service</span>
         <button
           type="button"
-          className={`boost-select ${selected ? 'has-value' : ''}`}
+          className={selected ? 'boost-select has-value' : 'boost-select'}
           onClick={() => categoryId && setSvcOpen(true)}
           disabled={!categoryId}
         >
@@ -617,7 +615,7 @@ export function BoostPage({ onBack }: { onBack: () => void }) {
 
       <label className="boost-field">
         <span className="boost-label">Target Link</span>
-        <div className={`boost-input-wrap ${linkMismatch ? 'is-error' : ''}`}>
+        <div className={linkMismatch ? 'boost-input-wrap is-error' : 'boost-input-wrap'}>
           <Link2 size={16} className="boost-input-icon" aria-hidden />
           <input
             type="url"
@@ -640,7 +638,7 @@ export function BoostPage({ onBack }: { onBack: () => void }) {
 
       <label className="boost-field">
         <span className="boost-label">Quantity</span>
-        <div className={`boost-input-wrap ${qtyOutOfRange ? 'is-error' : ''`}>
+        <div className={qtyOutOfRange ? 'boost-input-wrap is-error' : 'boost-input-wrap'}>
           <Hash size={16} className="boost-input-icon" aria-hidden />
           <input
             type="number"
@@ -652,14 +650,14 @@ export function BoostPage({ onBack }: { onBack: () => void }) {
             onChange={(e) => setQty(e.target.value)}
           />
         </div>
-        {qtyOutOfRange && selected && (
+        {qtyOutOfRange && selected ? (
           <p className="boost-field-error" role="alert">
             Quantity must be between {formatQty(selected.min)} and {formatQty(selected.max)}.
           </p>
-        )}
+        ) : null}
       </label>
 
-      {selected && (
+      {selected ? (
         <div className="boost-metrics" aria-label="Service metrics">
           <div className="boost-metric">
             <span className="boost-metric-icon">
@@ -685,18 +683,18 @@ export function BoostPage({ onBack }: { onBack: () => void }) {
             </div>
           </div>
         </div>
-      )}
+      ) : null}
 
-      {selected && total > 0 && (
-        <div className={`boost-total ${insufficient ? 'is-insufficient' : ''}`}>
+      {selected && total > 0 ? (
+        <div className={insufficient ? 'boost-total is-insufficient' : 'boost-total'}>
           <div className="boost-total-main">
             <span className="boost-total-label">Total Cost (for {formatQty(qtyNum)})</span>
             <strong className="boost-total-amount">{money(total)}</strong>
-            {insufficient && (
+            {insufficient ? (
               <p className="boost-total-warn" role="alert">
                 <AlertTriangle size={14} /> Insufficient wallet balance
               </p>
-            )}
+            ) : null}
             <p className="boost-total-wallet">
               Wallet Balance: <span>{money(WALLET_BALANCE)}</span>
             </p>
@@ -705,7 +703,7 @@ export function BoostPage({ onBack }: { onBack: () => void }) {
             <Wallet size={48} strokeWidth={1.2} />
           </div>
         </div>
-      )}
+      ) : null}
 
       <button
         type="button"
@@ -773,7 +771,7 @@ export function BoostPage({ onBack }: { onBack: () => void }) {
                           : order.targetUrl}
                       </button>
                     </div>
-                    <span className={`boost-status ${meta.className}`}>{meta.label}</span>
+                    <span className={'boost-status ' + meta.className}>{meta.label}</span>
                   </div>
                   <div className="boost-order-foot">
                     <span>
@@ -796,11 +794,11 @@ export function BoostPage({ onBack }: { onBack: () => void }) {
         )}
       </section>
 
-      {toast && (
+      {toast ? (
         <div className="boost-toast" role="status">
           <Check size={16} /> {toast}
         </div>
-      )}
+      ) : null}
 
       <BottomSheet open={catOpen} title="Select category" onClose={() => setCatOpen(false)}>
         <div className="boost-sheet-search">
@@ -822,20 +820,20 @@ export function BoostPage({ onBack }: { onBack: () => void }) {
             <li key={c.id}>
               <button
                 type="button"
-                className={`boost-sheet-item ${categoryId === c.id ? 'active' : ''}`}
+                className={categoryId === c.id ? 'boost-sheet-item active' : 'boost-sheet-item'}
                 onClick={() => selectCategory(c.id)}
               >
                 <span className="boost-sheet-item-mark">
                   <PlatformMark platform={c.id} size={22} />
                 </span>
                 <span className="boost-sheet-item-text">{c.label}</span>
-                {categoryId === c.id && <Check size={18} className="boost-sheet-check" />}
+                {categoryId === c.id ? <Check size={18} className="boost-sheet-check" /> : null}
               </button>
             </li>
           ))}
-          {filteredCats.length === 0 && (
+          {filteredCats.length === 0 ? (
             <li className="boost-sheet-empty">No platforms match "{catQuery}".</li>
-          )}
+          ) : null}
         </ul>
       </BottomSheet>
 
@@ -859,7 +857,11 @@ export function BoostPage({ onBack }: { onBack: () => void }) {
             <li key={s.id}>
               <button
                 type="button"
-                className={`boost-sheet-item boost-sheet-item-svc ${serviceId === s.id ? 'active' : ''}`}
+                className={
+                  serviceId === s.id
+                    ? 'boost-sheet-item boost-sheet-item-svc active'
+                    : 'boost-sheet-item boost-sheet-item-svc'
+                }
                 onClick={() => selectService(s.id)}
               >
                 <span className="boost-sheet-item-mark">
@@ -871,13 +873,13 @@ export function BoostPage({ onBack }: { onBack: () => void }) {
                     {money(s.ratePer1000)} / 1,000 · Min {formatQty(s.min)} - Max {formatQty(s.max)}
                   </span>
                 </span>
-                {serviceId === s.id && <Check size={18} className="boost-sheet-check" />}
+                {serviceId === s.id ? <Check size={18} className="boost-sheet-check" /> : null}
               </button>
             </li>
           ))}
-          {filteredSvcs.length === 0 && (
+          {filteredSvcs.length === 0 ? (
             <li className="boost-sheet-empty">No services match "{svcQuery}".</li>
-          )}
+          ) : null}
         </ul>
       </BottomSheet>
     </div>
