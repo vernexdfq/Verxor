@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, useCallback, useEffect } from 'react';
+import { useMemo, useState, useCallback, useEffect, type ReactNode } from 'react';
 import {
   ArrowLeft,
   BarChart3,
@@ -338,8 +338,11 @@ function PlatformMark({ platform, size = 22 }: { platform: PlatformId; size?: nu
           <path d="M12 2L3 7v10l9 5 9-5V7l-9-5zm0 2.2l6.5 3.6v1.4L12 12.8 5.5 9.2V7.8L12 4.2zM5 11.1l6 3.3v5.1l-6-3.3v-5.1zm8 8.4v-5.1l6-3.3v5.1l-6 3.3z" />
         </svg>
       );
-    default:
-      return <span className="boost-mark-fallback">{platform.slice(0, 1).toUpperCase()}</span>;
+    default: {
+      // Exhaustive PlatformId — fallback keeps future ids safe without never.slice
+      const label = String(platform ?? '?');
+      return <span className="boost-mark-fallback">{label.slice(0, 1).toUpperCase()}</span>;
+    }
   }
 }
 
@@ -354,7 +357,7 @@ function BottomSheet({
   open: boolean;
   title: string;
   onClose: () => void;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   useEffect(() => {
     if (!open) return;
@@ -558,7 +561,7 @@ export function BoostPage({ onBack }: { onBack: () => void }) {
         </div>
         <div className="boost-hero-copy">
           <strong>Boost Your Account</strong>
-          <p>Get followers, likes, views &amp; more instantly</p>
+          <p>Get followers, likes, views & more instantly</p>
         </div>
         <div className="boost-hero-icons" aria-hidden>
           <span className="boost-hero-social">
@@ -658,7 +661,7 @@ export function BoostPage({ onBack }: { onBack: () => void }) {
       {/* Quantity */}
       <label className="boost-field">
         <span className="boost-label">Quantity</span>
-        <div className={`boost-input-wrap ${qtyOutOfRange ? 'is-error' : ''}`}>
+        <div className={`boost-input-wrap ${qtyOutOfRange ? 'is-error' : ''`}>
           <Hash size={16} className="boost-input-icon" aria-hidden />
           <input
             type="number"
