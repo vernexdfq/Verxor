@@ -86,7 +86,6 @@ function ProviderLogo({ id, size = 'md' }: { id: ProviderId; size?: 'sm' | 'md' 
   );
 }
 
-/** 3D-style TV graphic matching the reference mockup */
 function HeroTvArt() {
   return (
     <svg className="tv-hero-art" width="132" height="110" viewBox="0 0 132 110" fill="none" aria-hidden>
@@ -260,8 +259,11 @@ export function TvPage({ onBack }: { onBack: () => void }) {
         <button
           type="button"
           className="tv-verify-btn"
-          disabled={verifying || smartcard.replace(/\D/g, '').length < 10}
-          onClick={handleVerify}
+          aria-disabled={verifying || smartcard.replace(/\D/g, '').length < 10}
+          onClick={() => {
+            if (verifying || smartcard.replace(/\D/g, '').length < 10) return;
+            handleVerify();
+          }}
         >
           {verifying ? 'Verifying\u2026' : 'Verify Smartcard'}
         </button>
@@ -313,8 +315,11 @@ export function TvPage({ onBack }: { onBack: () => void }) {
         <button
           type="button"
           className="tv-pay-btn"
-          disabled={!canPay}
-          onClick={handlePay}
+          aria-disabled={!canPay}
+          onClick={() => {
+            if (!canPay) return;
+            handlePay();
+          }}
         >
           <CreditCard size={18} strokeWidth={2.2} />
           {paying ? 'Processing\u2026' : 'Pay TV Subscription'}
