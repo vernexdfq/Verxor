@@ -10,6 +10,7 @@ import { AccountsPage } from './product-pages';
 import { BoostPage } from './boost-page';
 import { AirtimePage } from './airtime-page';
 import { DataPage } from './data-page';
+import { GiftCardPage } from './giftcard-page';
 import { VirtualNumbersPage } from './virtual-numbers-page';
 import { AdminPage } from './admin-page';
 import type { Page } from './types';
@@ -306,6 +307,8 @@ export function VerxorApp() {
       <AirtimePage onBack={closeService} />
     ) : service === 'data' ? (
       <DataPage onBack={closeService} />
+    ) : service === 'gift-card' ? (
+      <GiftCardPage onBack={closeService} />
     ) : service ? (
       <ServicePage view={service} onBack={closeService} />
     ) : page === 'history' ? (
