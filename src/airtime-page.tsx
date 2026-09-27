@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, useCallback, useEffect } from 'react';
+import { useMemo, useState, useCallback } from 'react';
 import {
   ArrowLeft,
   Check,
@@ -30,30 +30,62 @@ const NETWORKS: Network[] = [
 
 const QUICK_AMOUNTS = [100, 200, 500, 1000, 2000, 5000];
 
+/** Session user phone (profile). Replace with auth context when wired. */
 const MY_NUMBER = '08141620644';
 const WALLET_BALANCE = 7570;
 
-/** Nigerian mobile prefix → network (common ranges) */
-function detectNetwork(raw: string): NetworkId | null {
-  const digits = raw.replace(/\D/g, '');
-  let n = digits;
-  if (n.startsWith('234') && n.length >= 13) n = '0' + n.slice(3);
-  if (n.length < 4) return null;
-  const p4 = n.slice(0, 4);
+/** Complete Nigerian mobile prefixes (incl. newer 091x series). */
+const NIGERIAN_PREFIXES: Record<NetworkId, string[]> = {
+  mtn: [
+    '0803',
+    '0806',
+    '0810',
+    '0813',
+    '0814',
+    '0816',
+    '0903',
+    '0906',
+    '0913',
+    '0916',
+    '0703',
+    '0706',
+  ],
+  airtel: [
+    '0802',
+    '0808',
+    '0812',
+    '0701',
+    '0708',
+    '0901',
+    '0902',
+    '0904',
+    '0907',
+    '0911',
+    '0912',
+  ],
+  glo: ['0805', '0807', '0811', '0815', '0905', '0915', '0705'],
+  '9mobile': ['0809', '0817', '0818', '0908', '0909'],
+};
 
-  // MTN
-  if (/^(0703|0706|0803|0806|0810|0813|0814|0816|0903|0906|0913|0916)/.test(p4)) return 'mtn';
-  // Airtel
-  if (/^(0701|0708|0802|0808|0812|0901|0902|0904|0907|0912)/.test(p4)) return 'airtel';
-  // Glo
-  if (/^(0705|0805|0807|0811|0815|0905|0915)/.test(p4)) return 'glo';
-  // 9mobile
-  if (/^(0809|0817|0818|0908|0909)/.test(p4)) return '9mobile';
+function detectNetwork(raw: string): NetworkId | null {
+  let clean = raw.replace(/\D/g, '');
+  if (clean.startsWith('234') && clean.length >= 13) {
+    clean = '0' + clean.slice(3);
+  }
+  if (clean.length < 4) return null;
+  const prefix = clean.slice(0, 4);
+  for (const id of Object.keys(NIGERIAN_PREFIXES) as NetworkId[]) {
+    if (NIGERIAN_PREFIXES[id].includes(prefix)) return id;
+  }
   return null;
 }
 
-function formatPhoneDisplay(raw: string) {
-  return raw.replace(/\D/g, '').slice(0, 11);
+function normalizePhone(raw: string) {
+  let clean = raw.replace(/\D/g, '');
+  if (clean.startsWith('234') && clean.length >= 13) {
+    clean = '0' + clean.slice(3);
+  }
+  return clean.slice(0, 11);
 }
 
 function money(n: number) {
@@ -147,7 +179,7 @@ export function AirtimePage({ onBack }: { onBack: () => void }) {
     return Number.isFinite(n) && n > 0 ? n : 0;
   }, [amountStr]);
 
-  const phoneDigits = formatPhoneDisplay(phone);
+  const phoneDigits = normalizePhone(phone);
   const phoneValid = /^0[7-9]\d{9}$/.test(phoneDigits);
 
   const insufficient = amount > 0 && amount > WALLET_BALANCE;
@@ -158,30 +190,29 @@ export function AirtimePage({ onBack }: { onBack: () => void }) {
     window.setTimeout(() => setToast(null), 2800);
   }, []);
 
-  useEffect(() => {
-    if (phoneDigits.length < 4) {
+  /** Single path: set phone digits + auto-select network when prefix matches. */
+  const applyPhone = useCallback((raw: string) => {
+    const cleaned = normalizePhone(raw);
+    setPhone(cleaned);
+    if (cleaned.length < 4) {
       setAutoDetected(false);
       return;
     }
-    const detected = detectNetwork(phoneDigits);
+    const detected = detectNetwork(cleaned);
     if (detected) {
       setNetworkId(detected);
       setAutoDetected(true);
+    } else {
+      setAutoDetected(false);
     }
-  }, [phoneDigits]);
+  }, []);
 
   const handlePhoneChange = (v: string) => {
-    const cleaned = v.replace(/[^\d+]/g, '');
-    setPhone(cleaned);
+    applyPhone(v);
   };
 
   const handleUseMyNumber = () => {
-    setPhone(MY_NUMBER);
-    const d = detectNetwork(MY_NUMBER);
-    if (d) {
-      setNetworkId(d);
-      setAutoDetected(true);
-    }
+    applyPhone(MY_NUMBER);
   };
 
   const handleQuickAmount = (n: number) => {
