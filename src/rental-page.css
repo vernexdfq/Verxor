@@ -189,57 +189,57 @@
 
 .rl-keypad {
   display: flex; flex-direction: column; align-items: center;
-  padding-top: 8px; padding-bottom: 72px;
+  padding-top: 4px; padding-bottom: 100px;
 }
 .rl-from-pill {
-  display: inline-flex; align-items: center; gap: 5px; margin-bottom: 14px;
+  display: inline-flex; align-items: center; gap: 4px; margin-bottom: 8px;
   border: 1px solid var(--border); border-radius: 10px; background: var(--surface);
-  padding: 7px 13px; color: var(--text); font-size: 14px; font-weight: 600; cursor: pointer;
+  padding: 5px 11px; color: var(--text); font-size: 13px; font-weight: 600; cursor: pointer;
 }
 .rl-dial-display {
-  display: flex; align-items: center; justify-content: center; gap: 10px;
-  min-height: 50px; width: 100%; border-bottom: 1px solid var(--border);
-  font-size: 27px; font-weight: 300; letter-spacing: 0.03em;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  min-height: 40px; width: 100%; border-bottom: 1px solid var(--border);
+  font-size: 22px; font-weight: 300; letter-spacing: 0.02em;
 }
 .rl-dial-display button {
-  display: flex; align-items: center; gap: 4px; border: 0; background: transparent;
-  color: var(--text); font-size: 21px; cursor: pointer;
+  display: flex; align-items: center; gap: 3px; border: 0; background: transparent;
+  color: var(--text); font-size: 17px; cursor: pointer;
 }
 .rl-dial-grid {
-  width: min(100%, 300px); margin: 18px auto 0;
-  display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px 20px;
+  width: min(100%, 260px); margin: 10px auto 0;
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px 14px;
 }
 .rl-dial-grid button {
-  height: 72px; width: 72px; margin: auto; border: 0; border-radius: 50%;
+  height: 54px; width: 54px; margin: auto; border: 0; border-radius: 50%;
   background: #e8eaed; color: var(--text);
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   cursor: pointer; transition: background 0.12s ease;
 }
 .rl-dial-grid button:active { background: #d0d3d8; }
-.rl-dial-grid button strong { font-size: 30px; line-height: 32px; font-weight: 400; }
+.rl-dial-grid button strong { font-size: 22px; line-height: 24px; font-weight: 400; }
 .rl-dial-grid button small {
-  height: 11px; font-size: 9px; line-height: 11px; font-weight: 600;
-  letter-spacing: 0.12em; color: #5f6368;
+  height: 10px; font-size: 8px; line-height: 10px; font-weight: 600;
+  letter-spacing: 0.1em; color: #5f6368;
 }
 .rl-dial-actions {
-  width: min(100%, 300px); display: grid; grid-template-columns: 1fr 72px 1fr;
-  align-items: center; justify-items: center; margin-top: 22px;
+  width: min(100%, 260px); display: grid; grid-template-columns: 1fr 56px 1fr;
+  align-items: center; justify-items: center; margin-top: 12px;
 }
 .rl-call-btn {
-  width: 72px; height: 72px; border: 0; border-radius: 50%;
+  width: 56px; height: 56px; border: 0; border-radius: 50%;
   display: grid; place-items: center; background: #34c759; color: #fff;
-  cursor: pointer; box-shadow: 0 6px 18px rgba(52, 199, 89, 0.35);
+  cursor: pointer; box-shadow: 0 4px 14px rgba(52, 199, 89, 0.32);
 }
 .rl-call-btn:active { background: #2db84d; }
 .rl-del-btn {
-  width: 48px; height: 48px; border: 0; background: transparent;
+  width: 40px; height: 40px; border: 0; background: transparent;
   color: var(--muted); display: grid; place-items: center; cursor: pointer;
 }
 .rl-browse {
-  display: inline-flex; align-items: center; gap: 6px; margin-top: 16px;
+  display: inline-flex; align-items: center; gap: 5px; margin-top: 10px;
   border: 1px solid var(--primary-soft-strong); border-radius: 10px;
   background: var(--primary-soft); color: var(--primary);
-  padding: 10px 14px; font-size: 13px; font-weight: 700; cursor: pointer;
+  padding: 7px 12px; font-size: 12px; font-weight: 700; cursor: pointer;
 }
 
 .rl-call-subnav {
