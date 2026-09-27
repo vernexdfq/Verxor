@@ -62,52 +62,63 @@ function money(n: number) {
   return '\u20a6' + n.toLocaleString('en-NG');
 }
 
-function ProviderLogo({ id, compact = false }: { id: ProviderId; compact?: boolean }) {
+function ProviderLogo({ id, size = 'md' }: { id: ProviderId; size?: 'sm' | 'md' }) {
+  const cls = size === 'sm' ? 'tv-brand compact' : 'tv-brand';
   if (id === 'gotv') {
     return (
-      <span className={`tv-brand-logo gotv ${compact ? 'compact' : ''}`} aria-hidden>
-        <span className="tv-brand-gotv">
-          <span className="g">GO</span>
-          <span className="t">tv</span>
-        </span>
+      <span className={cls} aria-hidden>
+        <span className="gotv-go">GO</span>
+        <span className="gotv-tv">tv</span>
       </span>
     );
   }
   if (id === 'dstv') {
     return (
-      <span className={`tv-brand-logo dstv ${compact ? 'compact' : ''}`} aria-hidden>
-        <span className="tv-brand-dstv">DStv</span>
+      <span className={`${cls} dstv`} aria-hidden>
+        DStv
       </span>
     );
   }
   return (
-    <span className={`tv-brand-logo startimes ${compact ? 'compact' : ''}`} aria-hidden>
-      <span className="tv-brand-st">StarTimes</span>
+    <span className={`${cls} startimes`} aria-hidden>
+      StarTimes
     </span>
   );
 }
 
+/** 3D-style TV graphic matching the reference mockup */
 function HeroTvArt() {
   return (
-    <svg className="tv-hero-art" width="120" height="100" viewBox="0 0 120 100" fill="none" aria-hidden>
+    <svg className="tv-hero-art" width="132" height="110" viewBox="0 0 132 110" fill="none" aria-hidden>
       <defs>
-        <linearGradient id="tvGlow" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#818CF8" stopOpacity="0.9" />
-          <stop offset="100%" stopColor="#4F46E5" stopOpacity="0.4" />
+        <linearGradient id="tvBody" x1="20" y1="10" x2="110" y2="90" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#818CF8" />
+          <stop offset="0.45" stopColor="#6366F1" />
+          <stop offset="1" stopColor="#4338CA" />
         </linearGradient>
-        <linearGradient id="tvScreen" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#6366F1" />
-          <stop offset="100%" stopColor="#312E81" />
+        <linearGradient id="tvFace" x1="36" y1="22" x2="100" y2="72" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#4F46E5" />
+          <stop offset="1" stopColor="#312E81" />
         </linearGradient>
+        <radialGradient id="tvBloom" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(88 48) rotate(90) scale(48 40)">
+          <stop stopColor="#A5B4FC" stopOpacity="0.55" />
+          <stop offset="1" stopColor="#4F46E5" stopOpacity="0" />
+        </radialGradient>
       </defs>
-      <ellipse cx="78" cy="88" rx="32" ry="6" fill="#1E1B4B" opacity="0.35" />
-      <rect x="28" y="18" width="72" height="52" rx="8" fill="url(#tvGlow)" opacity="0.25" />
-      <rect x="34" y="22" width="64" height="46" rx="6" fill="url(#tvScreen)" stroke="#A5B4FC" strokeWidth="1.5" />
-      <rect x="40" y="28" width="52" height="34" rx="3" fill="#1E1B4B" opacity="0.55" />
-      <circle cx="66" cy="45" r="12" fill="#4F46E5" opacity="0.85" />
-      <path d="M63 39.5v11l10-5.5-10-5.5z" fill="#fff" />
-      <rect x="58" y="68" width="16" height="4" rx="1" fill="#6366F1" opacity="0.7" />
-      <rect x="52" y="72" width="28" height="3" rx="1" fill="#4338CA" opacity="0.5" />
+      <ellipse cx="88" cy="96" rx="36" ry="7" fill="#1E1B4B" opacity="0.4" />
+      <ellipse cx="88" cy="52" rx="48" ry="40" fill="url(#tvBloom)" />
+      <path
+        d="M38 20c0-3.3 2.7-6 6-6h58c3.3 0 6 2.7 6 6v48c0 3.3-2.7 6-6 6H44c-3.3 0-6-2.7-6-6V20z"
+        fill="url(#tvBody)"
+        opacity="0.35"
+      />
+      <rect x="34" y="18" width="72" height="54" rx="8" fill="url(#tvBody)" stroke="#C7D2FE" strokeWidth="1.2" />
+      <rect x="40" y="24" width="60" height="42" rx="4" fill="url(#tvFace)" />
+      <circle cx="70" cy="45" r="13" fill="#4338CA" opacity="0.9" />
+      <circle cx="70" cy="45" r="13" stroke="#E0E7FF" strokeWidth="1.2" opacity="0.7" />
+      <path d="M66.5 38.5v13l11-6.5-11-6.5z" fill="#fff" />
+      <rect x="62" y="72" width="16" height="5" rx="1.5" fill="#6366F1" opacity="0.85" />
+      <rect x="52" y="77" width="36" height="4" rx="2" fill="#4338CA" opacity="0.55" />
     </svg>
   );
 }
@@ -193,14 +204,9 @@ export function TvPage({ onBack }: { onBack: () => void }) {
       </section>
 
       <section className="tv-card">
-        <div className="tv-card-head">
-          <div className="tv-card-icon">
-            <Tv size={16} strokeWidth={2.2} />
-          </div>
-          <div>
-            <h3>TV Provider</h3>
-            <p>Choose your cable provider</p>
-          </div>
+        <div className="tv-section-label">
+          <h3>TV Provider</h3>
+          <p>Choose your cable provider</p>
         </div>
         <button
           type="button"
@@ -211,29 +217,21 @@ export function TvPage({ onBack }: { onBack: () => void }) {
         >
           <span className="tv-provider-left">
             <span className="tv-provider-mark">
-              <Tv size={15} />
+              <Tv size={16} strokeWidth={2.2} />
             </span>
-            <span>
-              <strong>{providerLabel}</strong>
-              <small>Cable service provider</small>
-            </span>
+            <strong>{providerLabel}</strong>
           </span>
           <ChevronDown size={18} className="tv-chevron" />
         </button>
       </section>
 
       <section className="tv-card">
-        <div className="tv-card-head">
-          <div className="tv-card-icon shield">
-            <Check size={15} strokeWidth={2.5} />
-          </div>
-          <div>
-            <h3>Smartcard Verification</h3>
-            <p>Verify customer before payment</p>
-          </div>
+        <div className="tv-section-label">
+          <h3>Smartcard Verification</h3>
+          <p>Verify customer before payment</p>
         </div>
         <div className="tv-input-wrap">
-          <CreditCard size={16} className="tv-input-icon" aria-hidden />
+          <CreditCard size={17} className="tv-input-icon" aria-hidden />
           <input
             type="text"
             inputMode="numeric"
@@ -299,7 +297,7 @@ export function TvPage({ onBack }: { onBack: () => void }) {
                 <span className={active ? 'tv-radio on' : 'tv-radio'} aria-hidden>
                   {active ? <Check size={11} strokeWidth={3} /> : null}
                 </span>
-                <ProviderLogo id={provider} compact />
+                <ProviderLogo id={provider} size="sm" />
                 <strong className="tv-pkg-name">{pkg.name}</strong>
                 <span className="tv-pkg-price">{money(pkg.price)}</span>
                 <span className="tv-pkg-valid">{pkg.validity}</span>
@@ -319,11 +317,7 @@ export function TvPage({ onBack }: { onBack: () => void }) {
           onClick={handlePay}
         >
           <CreditCard size={18} strokeWidth={2.2} />
-          {paying
-            ? 'Processing\u2026'
-            : selected
-              ? `Pay ${money(selected.price)}`
-              : 'Pay TV Subscription'}
+          {paying ? 'Processing\u2026' : 'Pay TV Subscription'}
         </button>
       </div>
 
