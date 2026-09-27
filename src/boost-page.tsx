@@ -61,193 +61,33 @@ type BoostOrder = {
 };
 
 const CATEGORIES: Category[] = [
-  {
-    id: 'tiktok',
-    label: 'TikTok',
-    placeholder: 'https://www.tiktok.com/@username',
-    linkHint: 'Paste your TikTok profile or video link',
-    urlPattern: /tiktok\.com/i,
-  },
-  {
-    id: 'instagram',
-    label: 'Instagram',
-    placeholder: 'https://www.instagram.com/p/yourpost/',
-    linkHint: 'Paste your Instagram post or profile link',
-    urlPattern: /instagram\.com/i,
-  },
-  {
-    id: 'youtube',
-    label: 'YouTube',
-    placeholder: 'https://www.youtube.com/watch?v=',
-    linkHint: 'Paste your YouTube video or channel link',
-    urlPattern: /(youtube\.com|youtu\.be)/i,
-  },
-  {
-    id: 'facebook',
-    label: 'Facebook',
-    placeholder: 'https://www.facebook.com/',
-    linkHint: 'Paste your Facebook page or post link',
-    urlPattern: /facebook\.com/i,
-  },
-  {
-    id: 'x',
-    label: 'X (Twitter)',
-    placeholder: 'https://x.com/username',
-    linkHint: 'Paste your X profile or post link',
-    urlPattern: /(x\.com|twitter\.com)/i,
-  },
-  {
-    id: 'telegram',
-    label: 'Telegram',
-    placeholder: 'https://t.me/channel',
-    linkHint: 'Paste your Telegram channel or post link',
-    urlPattern: /t\.me/i,
-  },
-  {
-    id: 'spotify',
-    label: 'Spotify',
-    placeholder: 'https://open.spotify.com/',
-    linkHint: 'Paste your Spotify track or playlist link',
-    urlPattern: /spotify\.com/i,
-  },
-  {
-    id: 'audiomack',
-    label: 'Audiomack',
-    placeholder: 'https://audiomack.com/',
-    linkHint: 'Paste your Audiomack track or profile link',
-    urlPattern: /audiomack\.com/i,
-  },
+  { id: 'tiktok', label: 'TikTok', placeholder: 'https://www.tiktok.com/@username', linkHint: 'Paste your TikTok profile or video link', urlPattern: /tiktok\.com/i },
+  { id: 'instagram', label: 'Instagram', placeholder: 'https://www.instagram.com/p/yourpost/', linkHint: 'Paste your Instagram post or profile link', urlPattern: /instagram\.com/i },
+  { id: 'youtube', label: 'YouTube', placeholder: 'https://www.youtube.com/watch?v=', linkHint: 'Paste your YouTube video or channel link', urlPattern: /(youtube\.com|youtu\.be)/i },
+  { id: 'facebook', label: 'Facebook', placeholder: 'https://www.facebook.com/', linkHint: 'Paste your Facebook page or post link', urlPattern: /facebook\.com/i },
+  { id: 'x', label: 'X (Twitter)', placeholder: 'https://x.com/username', linkHint: 'Paste your X profile or post link', urlPattern: /(x\.com|twitter\.com)/i },
+  { id: 'telegram', label: 'Telegram', placeholder: 'https://t.me/channel', linkHint: 'Paste your Telegram channel or post link', urlPattern: /t\.me/i },
+  { id: 'spotify', label: 'Spotify', placeholder: 'https://open.spotify.com/', linkHint: 'Paste your Spotify track or playlist link', urlPattern: /spotify\.com/i },
+  { id: 'audiomack', label: 'Audiomack', placeholder: 'https://audiomack.com/', linkHint: 'Paste your Audiomack track or profile link', urlPattern: /audiomack\.com/i },
 ];
 
 const SERVICES: BoostService[] = [
-  {
-    id: 'tt-followers-guaranteed',
-    platform: 'tiktok',
-    title: 'TikTok Followers [Max 10M] [LQ Profile] [Refill: 10D] [Instant Start] 200K/Day',
-    ratePer1000: 4858.67,
-    min: 10,
-    max: 1_000_000,
-  },
-  {
-    id: 'tt-followers-hq',
-    platform: 'tiktok',
-    title: 'TikTok Followers [HQ] [Refill: 30D] [Max 500K] 50K/Day',
-    ratePer1000: 8200,
-    min: 50,
-    max: 500_000,
-  },
-  {
-    id: 'tt-likes',
-    platform: 'tiktok',
-    title: 'TikTok Likes [Instant] [Max 5M] [No Refill] 500K/Day',
-    ratePer1000: 1100,
-    min: 50,
-    max: 5_000_000,
-  },
-  {
-    id: 'tt-views',
-    platform: 'tiktok',
-    title: 'TikTok Views [Real] [Max 10M] [Instant Start] 1M/Day',
-    ratePer1000: 250,
-    min: 500,
-    max: 10_000_000,
-  },
-  {
-    id: 'ig-followers',
-    platform: 'instagram',
-    title: 'Instagram Followers [Max 50K] [Refill: 30D] [HQ] 10K/Day',
-    ratePer1000: 2500,
-    min: 100,
-    max: 50_000,
-  },
-  {
-    id: 'ig-likes',
-    platform: 'instagram',
-    title: 'Instagram Likes [Instant] [Max 100K] [No Drop] 50K/Day',
-    ratePer1000: 800,
-    min: 50,
-    max: 100_000,
-  },
-  {
-    id: 'ig-views',
-    platform: 'instagram',
-    title: 'Instagram Views / Reels [Max 500K] [Instant] 100K/Day',
-    ratePer1000: 300,
-    min: 100,
-    max: 500_000,
-  },
-  {
-    id: 'yt-subs',
-    platform: 'youtube',
-    title: 'YouTube Subscribers [Refill: 30D] [Max 10K] [HQ]',
-    ratePer1000: 12000,
-    min: 50,
-    max: 10_000,
-  },
-  {
-    id: 'yt-views',
-    platform: 'youtube',
-    title: 'YouTube Views [Retention 60%] [Max 100K] [Speed 20K/Day]',
-    ratePer1000: 1500,
-    min: 100,
-    max: 100_000,
-  },
-  {
-    id: 'fb-page-likes',
-    platform: 'facebook',
-    title: 'Facebook Page Likes [Max 20K] [Refill: 15D]',
-    ratePer1000: 4000,
-    min: 50,
-    max: 20_000,
-  },
-  {
-    id: 'fb-followers',
-    platform: 'facebook',
-    title: 'Facebook Followers [Max 20K] [Instant Start]',
-    ratePer1000: 4500,
-    min: 50,
-    max: 20_000,
-  },
-  {
-    id: 'x-followers',
-    platform: 'x',
-    title: 'X Followers [Max 20K] [Refill: 30D] [HQ]',
-    ratePer1000: 5000,
-    min: 50,
-    max: 20_000,
-  },
-  {
-    id: 'x-likes',
-    platform: 'x',
-    title: 'X Likes [Instant] [Max 50K]',
-    ratePer1000: 1200,
-    min: 50,
-    max: 50_000,
-  },
-  {
-    id: 'tg-members',
-    platform: 'telegram',
-    title: 'Telegram Channel Members [Max 50K] [Real]',
-    ratePer1000: 3500,
-    min: 100,
-    max: 50_000,
-  },
-  {
-    id: 'spotify-plays',
-    platform: 'spotify',
-    title: 'Spotify Plays [Max 1M] [Premium Accounts]',
-    ratePer1000: 1800,
-    min: 500,
-    max: 1_000_000,
-  },
-  {
-    id: 'audiomack-plays',
-    platform: 'audiomack',
-    title: 'Audiomack Plays [Max 500K] [Real]',
-    ratePer1000: 900,
-    min: 100,
-    max: 500_000,
-  },
+  { id: 'tt-followers-guaranteed', platform: 'tiktok', title: 'TikTok Followers [Max 10M] [LQ Profile] [Refill: 10D] [Instant Start] 200K/Day', ratePer1000: 4858.67, min: 10, max: 1_000_000 },
+  { id: 'tt-followers-hq', platform: 'tiktok', title: 'TikTok Followers [HQ] [Refill: 30D] [Max 500K] 50K/Day', ratePer1000: 8200, min: 50, max: 500_000 },
+  { id: 'tt-likes', platform: 'tiktok', title: 'TikTok Likes [Instant] [Max 5M] [No Refill] 500K/Day', ratePer1000: 1100, min: 50, max: 5_000_000 },
+  { id: 'tt-views', platform: 'tiktok', title: 'TikTok Views [Real] [Max 10M] [Instant Start] 1M/Day', ratePer1000: 250, min: 500, max: 10_000_000 },
+  { id: 'ig-followers', platform: 'instagram', title: 'Instagram Followers [Max 50K] [Refill: 30D] [HQ] 10K/Day', ratePer1000: 2500, min: 100, max: 50_000 },
+  { id: 'ig-likes', platform: 'instagram', title: 'Instagram Likes [Instant] [Max 100K] [No Drop] 50K/Day', ratePer1000: 800, min: 50, max: 100_000 },
+  { id: 'ig-views', platform: 'instagram', title: 'Instagram Views / Reels [Max 500K] [Instant] 100K/Day', ratePer1000: 300, min: 100, max: 500_000 },
+  { id: 'yt-subs', platform: 'youtube', title: 'YouTube Subscribers [Refill: 30D] [Max 10K] [HQ]', ratePer1000: 12000, min: 50, max: 10_000 },
+  { id: 'yt-views', platform: 'youtube', title: 'YouTube Views [Retention 60%] [Max 100K] [Speed 20K/Day]', ratePer1000: 1500, min: 100, max: 100_000 },
+  { id: 'fb-page-likes', platform: 'facebook', title: 'Facebook Page Likes [Max 20K] [Refill: 15D]', ratePer1000: 4000, min: 50, max: 20_000 },
+  { id: 'fb-followers', platform: 'facebook', title: 'Facebook Followers [Max 20K] [Instant Start]', ratePer1000: 4500, min: 50, max: 20_000 },
+  { id: 'x-followers', platform: 'x', title: 'X Followers [Max 20K] [Refill: 30D] [HQ]', ratePer1000: 5000, min: 50, max: 20_000 },
+  { id: 'x-likes', platform: 'x', title: 'X Likes [Instant] [Max 50K]', ratePer1000: 1200, min: 50, max: 50_000 },
+  { id: 'tg-members', platform: 'telegram', title: 'Telegram Channel Members [Max 50K] [Real]', ratePer1000: 3500, min: 100, max: 50_000 },
+  { id: 'spotify-plays', platform: 'spotify', title: 'Spotify Plays [Max 1M] [Premium Accounts]', ratePer1000: 1800, min: 500, max: 1_000_000 },
+  { id: 'audiomack-plays', platform: 'audiomack', title: 'Audiomack Plays [Max 500K] [Real]', ratePer1000: 900, min: 100, max: 500_000 },
 ];
 
 const CATEGORY_CHIPS: { id: PlatformId; label: string }[] = [
@@ -484,7 +324,7 @@ export function BoostPage({ onBack }: { onBack: () => void }) {
     showToast('Order placed successfully');
   };
 
-  const handleFundWallet = () => {
+  const handleFundWallet = async () => {
     showToast('Opening Fund Wallet...');
   };
 
@@ -500,7 +340,7 @@ export function BoostPage({ onBack }: { onBack: () => void }) {
     (!insufficient && (!formReady || !!qtyOutOfRange || linkMismatch));
 
   let ctaLabel = 'Place Order';
-  let ctaAction = handlePlaceOrder;
+  let ctaAction: () => void | Promise<void> = handlePlaceOrder;
   let ctaClass = 'boost-cta';
 
   if (insufficient && formReady) {
@@ -546,15 +386,9 @@ export function BoostPage({ onBack }: { onBack: () => void }) {
           <p>Get followers, likes, views and more instantly</p>
         </div>
         <div className="boost-hero-icons" aria-hidden>
-          <span className="boost-hero-social">
-            <PlatformMark platform="tiktok" size={14} />
-          </span>
-          <span className="boost-hero-social">
-            <PlatformMark platform="instagram" size={14} />
-          </span>
-          <span className="boost-hero-social">
-            <PlatformMark platform="youtube" size={14} />
-          </span>
+          <span className="boost-hero-social"><PlatformMark platform="tiktok" size={14} /></span>
+          <span className="boost-hero-social"><PlatformMark platform="instagram" size={14} /></span>
+          <span className="boost-hero-social"><PlatformMark platform="youtube" size={14} /></span>
         </div>
       </section>
 
@@ -563,23 +397,16 @@ export function BoostPage({ onBack }: { onBack: () => void }) {
           <Info size={15} strokeWidth={2.4} />
         </span>
         <p>
-          <strong>Quick Tip:</strong> Select a category, choose your service, then enter your link and
-          quantity.
+          <strong>Quick Tip:</strong> Select a category, choose your service, then enter your link and quantity.
         </p>
       </div>
 
       <label className="boost-field">
         <span className="boost-label">Category</span>
-        <button
-          type="button"
-          className={categoryId ? 'boost-select has-value' : 'boost-select'}
-          onClick={() => setCatOpen(true)}
-        >
+        <button type="button" className={categoryId ? 'boost-select has-value' : 'boost-select'} onClick={() => setCatOpen(true)}>
           {categoryId && categoryChip ? (
             <>
-              <span className="boost-select-mark">
-                <PlatformMark platform={categoryId} size={20} />
-              </span>
+              <span className="boost-select-mark"><PlatformMark platform={categoryId} size={20} /></span>
               <span className="boost-select-text">{categoryChip.label}</span>
             </>
           ) : (
@@ -591,23 +418,14 @@ export function BoostPage({ onBack }: { onBack: () => void }) {
 
       <label className="boost-field">
         <span className="boost-label">Service</span>
-        <button
-          type="button"
-          className={selected ? 'boost-select has-value' : 'boost-select'}
-          onClick={() => categoryId && setSvcOpen(true)}
-          disabled={!categoryId}
-        >
+        <button type="button" className={selected ? 'boost-select has-value' : 'boost-select'} onClick={() => categoryId && setSvcOpen(true)} disabled={!categoryId}>
           {selected ? (
             <>
-              <span className="boost-select-mark">
-                <PlatformMark platform={selected.platform} size={20} />
-              </span>
+              <span className="boost-select-mark"><PlatformMark platform={selected.platform} size={20} /></span>
               <span className="boost-select-text boost-select-text-full">{selected.title}</span>
             </>
           ) : (
-            <span className="boost-select-placeholder">
-              {categoryId ? 'Select a service' : 'Select category first'}
-            </span>
+            <span className="boost-select-placeholder">{categoryId ? 'Select a service' : 'Select category first'}</span>
           )}
           <ChevronDown size={18} className="boost-select-chevron" />
         </button>
@@ -617,19 +435,11 @@ export function BoostPage({ onBack }: { onBack: () => void }) {
         <span className="boost-label">Target Link</span>
         <div className={linkMismatch ? 'boost-input-wrap is-error' : 'boost-input-wrap'}>
           <Link2 size={16} className="boost-input-icon" aria-hidden />
-          <input
-            type="url"
-            inputMode="url"
-            autoComplete="off"
-            placeholder={category?.placeholder ?? 'https://...'}
-            value={link}
-            onChange={(e) => setLink(e.target.value)}
-          />
+          <input type="url" inputMode="url" autoComplete="off" placeholder={category?.placeholder ?? 'https://...'} value={link} onChange={(e) => setLink(e.target.value)} />
         </div>
         {linkMismatch ? (
           <p className="boost-field-error" role="alert">
-            <AlertTriangle size={13} /> Link mismatch: You selected a {category?.label} service, but
-            entered a different platform link. Please verify before placing the order.
+            <AlertTriangle size={13} /> Link mismatch: You selected a {category?.label} service, but entered a different platform link. Please verify before placing the order.
           </p>
         ) : (
           <small className="boost-field-hint">{category?.linkHint ?? 'Paste your post or profile link'}</small>
@@ -640,15 +450,7 @@ export function BoostPage({ onBack }: { onBack: () => void }) {
         <span className="boost-label">Quantity</span>
         <div className={qtyOutOfRange ? 'boost-input-wrap is-error' : 'boost-input-wrap'}>
           <Hash size={16} className="boost-input-icon" aria-hidden />
-          <input
-            type="number"
-            inputMode="numeric"
-            min={selected?.min ?? 1}
-            max={selected?.max}
-            placeholder={selected ? formatQty(selected.min) + ' - ' + formatQty(selected.max) : 'Enter quantity'}
-            value={qty}
-            onChange={(e) => setQty(e.target.value)}
-          />
+          <input type="number" inputMode="numeric" min={selected?.min ?? 1} max={selected?.max} placeholder={selected ? formatQty(selected.min) + ' - ' + formatQty(selected.max) : 'Enter quantity'} value={qty} onChange={(e) => setQty(e.target.value)} />
         </div>
         {qtyOutOfRange && selected ? (
           <p className="boost-field-error" role="alert">
@@ -660,9 +462,7 @@ export function BoostPage({ onBack }: { onBack: () => void }) {
       {selected ? (
         <div className="boost-metrics" aria-label="Service metrics">
           <div className="boost-metric">
-            <span className="boost-metric-icon">
-              <Coins size={16} />
-            </span>
+            <span className="boost-metric-icon"><Coins size={16} /></span>
             <div>
               <span className="boost-metric-label">Rate per 1000</span>
               <strong>{money(selected.ratePer1000)}</strong>
@@ -671,14 +471,10 @@ export function BoostPage({ onBack }: { onBack: () => void }) {
           </div>
           <div className="boost-metric-divider" aria-hidden />
           <div className="boost-metric">
-            <span className="boost-metric-icon">
-              <BarChart3 size={16} />
-            </span>
+            <span className="boost-metric-icon"><BarChart3 size={16} /></span>
             <div>
               <span className="boost-metric-label">Min / Max</span>
-              <strong>
-                {formatQty(selected.min)} - {formatQty(selected.max)}
-              </strong>
+              <strong>{formatQty(selected.min)} - {formatQty(selected.max)}</strong>
               <small>Per order limits</small>
             </div>
           </div>
@@ -705,33 +501,18 @@ export function BoostPage({ onBack }: { onBack: () => void }) {
         </div>
       ) : null}
 
-      <button
-        type="button"
-        className={ctaClass}
-        disabled={ctaDisabled && !(insufficient && formReady)}
-        onClick={ctaAction}
-      >
+      <button type="button" className={ctaClass} disabled={ctaDisabled && !(insufficient && formReady)} onClick={ctaAction}>
         {insufficient && formReady ? (
-          <>
-            <Wallet size={18} /> {ctaLabel}
-          </>
+          <><Wallet size={18} /> {ctaLabel}</>
         ) : (
-          <>
-            <Rocket size={18} /> {ctaLabel}
-          </>
+          <><Rocket size={18} /> {ctaLabel}</>
         )}
       </button>
 
       <section className="boost-orders" aria-labelledby="boost-orders-title">
         <div className="boost-orders-head">
           <h2 id="boost-orders-title">My Orders</h2>
-          <button
-            type="button"
-            className="boost-refresh"
-            onClick={handleRefresh}
-            disabled={refreshing}
-            aria-label="Refresh orders"
-          >
+          <button type="button" className="boost-refresh" onClick={handleRefresh} disabled={refreshing} aria-label="Refresh orders">
             <RefreshCw size={14} className={refreshing ? 'spin' : ''} />
             Refresh
           </button>
@@ -752,9 +533,7 @@ export function BoostPage({ onBack }: { onBack: () => void }) {
               return (
                 <li key={order.id} className="boost-order-card">
                   <div className="boost-order-top">
-                    <span className="boost-order-mark">
-                      <PlatformMark platform={order.platform} size={18} />
-                    </span>
+                    <span className="boost-order-mark"><PlatformMark platform={order.platform} size={18} /></span>
                     <div className="boost-order-meta">
                       <strong className="boost-order-title">{order.serviceTitle}</strong>
                       <button
@@ -766,25 +545,16 @@ export function BoostPage({ onBack }: { onBack: () => void }) {
                           showToast('Link copied');
                         }}
                       >
-                        {order.targetUrl.length > 42
-                          ? order.targetUrl.slice(0, 40) + '...'
-                          : order.targetUrl}
+                        {order.targetUrl.length > 42 ? order.targetUrl.slice(0, 40) + '...' : order.targetUrl}
                       </button>
                     </div>
                     <span className={'boost-status ' + meta.className}>{meta.label}</span>
                   </div>
                   <div className="boost-order-foot">
-                    <span>
-                      Qty {formatQty(order.quantity)} · {money(order.amount)}
-                    </span>
+                    <span>Qty {formatQty(order.quantity)} · {money(order.amount)}</span>
                     <span>
                       {order.id} ·{' '}
-                      {new Date(order.createdAt).toLocaleString('en-NG', {
-                        month: 'short',
-                        day: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
+                      {new Date(order.createdAt).toLocaleString('en-NG', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                     </span>
                   </div>
                 </li>
@@ -803,53 +573,31 @@ export function BoostPage({ onBack }: { onBack: () => void }) {
       <BottomSheet open={catOpen} title="Select category" onClose={() => setCatOpen(false)}>
         <div className="boost-sheet-search">
           <Search size={16} />
-          <input
-            value={catQuery}
-            onChange={(e) => setCatQuery(e.target.value)}
-            placeholder="Search platforms..."
-            autoFocus
-          />
+          <input value={catQuery} onChange={(e) => setCatQuery(e.target.value)} placeholder="Search platforms..." autoFocus />
           {catQuery ? (
-            <button type="button" onClick={() => setCatQuery('')} aria-label="Clear">
-              <X size={14} />
-            </button>
+            <button type="button" onClick={() => setCatQuery('')} aria-label="Clear"><X size={14} /></button>
           ) : null}
         </div>
         <ul className="boost-sheet-list">
           {filteredCats.map((c) => (
             <li key={c.id}>
-              <button
-                type="button"
-                className={categoryId === c.id ? 'boost-sheet-item active' : 'boost-sheet-item'}
-                onClick={() => selectCategory(c.id)}
-              >
-                <span className="boost-sheet-item-mark">
-                  <PlatformMark platform={c.id} size={22} />
-                </span>
+              <button type="button" className={categoryId === c.id ? 'boost-sheet-item active' : 'boost-sheet-item'} onClick={() => selectCategory(c.id)}>
+                <span className="boost-sheet-item-mark"><PlatformMark platform={c.id} size={22} /></span>
                 <span className="boost-sheet-item-text">{c.label}</span>
                 {categoryId === c.id ? <Check size={18} className="boost-sheet-check" /> : null}
               </button>
             </li>
           ))}
-          {filteredCats.length === 0 ? (
-            <li className="boost-sheet-empty">No platforms match "{catQuery}".</li>
-          ) : null}
+          {filteredCats.length === 0 ? <li className="boost-sheet-empty">No platforms match "{catQuery}".</li> : null}
         </ul>
       </BottomSheet>
 
       <BottomSheet open={svcOpen} title="Select service" onClose={() => setSvcOpen(false)}>
         <div className="boost-sheet-search">
           <Search size={16} />
-          <input
-            value={svcQuery}
-            onChange={(e) => setSvcQuery(e.target.value)}
-            placeholder="Search services..."
-            autoFocus
-          />
+          <input value={svcQuery} onChange={(e) => setSvcQuery(e.target.value)} placeholder="Search services..." autoFocus />
           {svcQuery ? (
-            <button type="button" onClick={() => setSvcQuery('')} aria-label="Clear">
-              <X size={14} />
-            </button>
+            <button type="button" onClick={() => setSvcQuery('')} aria-label="Clear"><X size={14} /></button>
           ) : null}
         </div>
         <ul className="boost-sheet-list">
@@ -857,29 +605,19 @@ export function BoostPage({ onBack }: { onBack: () => void }) {
             <li key={s.id}>
               <button
                 type="button"
-                className={
-                  serviceId === s.id
-                    ? 'boost-sheet-item boost-sheet-item-svc active'
-                    : 'boost-sheet-item boost-sheet-item-svc'
-                }
+                className={serviceId === s.id ? 'boost-sheet-item boost-sheet-item-svc active' : 'boost-sheet-item boost-sheet-item-svc'}
                 onClick={() => selectService(s.id)}
               >
-                <span className="boost-sheet-item-mark">
-                  <PlatformMark platform={s.platform} size={22} />
-                </span>
+                <span className="boost-sheet-item-mark"><PlatformMark platform={s.platform} size={22} /></span>
                 <span className="boost-sheet-item-body">
                   <span className="boost-sheet-item-title">{s.title}</span>
-                  <span className="boost-sheet-item-sub">
-                    {money(s.ratePer1000)} / 1,000 · Min {formatQty(s.min)} - Max {formatQty(s.max)}
-                  </span>
+                  <span className="boost-sheet-item-sub">{money(s.ratePer1000)} / 1,000 · Min {formatQty(s.min)} - Max {formatQty(s.max)}</span>
                 </span>
                 {serviceId === s.id ? <Check size={18} className="boost-sheet-check" /> : null}
               </button>
             </li>
           ))}
-          {filteredSvcs.length === 0 ? (
-            <li className="boost-sheet-empty">No services match "{svcQuery}".</li>
-          ) : null}
+          {filteredSvcs.length === 0 ? <li className="boost-sheet-empty">No services match "{svcQuery}".</li> : null}
         </ul>
       </BottomSheet>
     </div>
