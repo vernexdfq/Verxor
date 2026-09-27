@@ -8,6 +8,7 @@ import { ServicePage, ServicesPage, type ServiceView } from './service-pages';
 import { RentalPage } from './rental-page';
 import { AccountsPage } from './product-pages';
 import { BoostPage } from './boost-page';
+import { AirtimePage } from './airtime-page';
 import { VirtualNumbersPage } from './virtual-numbers-page';
 import { AdminPage } from './admin-page';
 import type { Page } from './types';
@@ -300,6 +301,8 @@ export function VerxorApp() {
       <AccountsPage onBack={closeService} />
     ) : service === 'boost' ? (
       <BoostPage onBack={closeService} />
+    ) : service === 'airtime' ? (
+      <AirtimePage onBack={closeService} />
     ) : service ? (
       <ServicePage view={service} onBack={closeService} />
     ) : page === 'history' ? (
