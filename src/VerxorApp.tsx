@@ -11,6 +11,7 @@ import { BoostPage } from './boost-page';
 import { AirtimePage } from './airtime-page';
 import { DataPage } from './data-page';
 import { GiftCardPage } from './giftcard-page';
+import { TvPage } from './tv-page';
 import { VirtualNumbersPage } from './virtual-numbers-page';
 import { AdminPage } from './admin-page';
 import type { Page } from './types';
@@ -39,18 +40,18 @@ const services = [
   { title: 'Buy Accounts', label: 'Premium accounts', description: 'Browse available inventory and delivery information.' },
 ];
 const countries = [
-  ['🇺🇸', 'United States'],
-  ['🇬🇧', 'United Kingdom'],
-  ['🇨🇦', 'Canada'],
-  ['🇫🇷', 'France'],
-  ['🇩🇪', 'Germany'],
-  ['🇪🇸', 'Spain'],
-  ['🇮🇹', 'Italy'],
-  ['🇳🇱', 'Netherlands'],
-  ['🇦🇺', 'Australia'],
-  ['🇮🇳', 'India'],
-  ['🇿🇦', 'South Africa'],
-  ['🇧🇷', 'Brazil'],
+  ['\u{1F1FA}\u{1F1F8}', 'United States'],
+  ['\u{1F1EC}\u{1F1E7}', 'United Kingdom'],
+  ['\u{1F1E8}\u{1F1E6}', 'Canada'],
+  ['\u{1F1EB}\u{1F1F7}', 'France'],
+  ['\u{1F1E9}\u{1F1EA}', 'Germany'],
+  ['\u{1F1EA}\u{1F1F8}', 'Spain'],
+  ['\u{1F1EE}\u{1F1F9}', 'Italy'],
+  ['\u{1F1F3}\u{1F1F1}', 'Netherlands'],
+  ['\u{1F1E6}\u{1F1FA}', 'Australia'],
+  ['\u{1F1EE}\u{1F1F3}', 'India'],
+  ['\u{1F1FF}\u{1F1E6}', 'South Africa'],
+  ['\u{1F1E7}\u{1F1F7}', 'Brazil'],
 ];
 const faqs = [
   [
@@ -162,7 +163,7 @@ function Landing({ enter, openAdmin }: { enter: () => void; openAdmin: () => voi
               {services.map((item) => (
                 <div key={item.title} className="hero-service-card">
                   <span className="hero-service-icon">
-                    {item.title.startsWith('Virtual') ? '#' : item.title.startsWith('Rent') ? '◉' : item.title.startsWith('SMM') ? '↑' : 'A'}
+                    {item.title.startsWith('Virtual') ? '#' : item.title.startsWith('Rent') ? '\u25C9' : item.title.startsWith('SMM') ? '\u2191' : 'A'}
                   </span>
                   <strong>
                     {item.title === 'Virtual Numbers'
@@ -309,6 +310,8 @@ export function VerxorApp() {
       <DataPage onBack={closeService} />
     ) : service === 'gift-card' ? (
       <GiftCardPage onBack={closeService} />
+    ) : service === 'tv-cable' ? (
+      <TvPage onBack={closeService} />
     ) : service ? (
       <ServicePage view={service} onBack={closeService} />
     ) : page === 'history' ? (
