@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 import './boost-page.css';
 
-/* ─── Types ─── */
+/* --- Types --- */
 
 type PlatformId =
   | 'tiktok'
@@ -61,8 +61,6 @@ type BoostOrder = {
   status: OrderStatus;
   createdAt: string;
 };
-
-/* ─── Catalog (structured for API swap) ─── */
 
 const CATEGORIES: Category[] = [
   {
@@ -254,7 +252,6 @@ const SERVICES: BoostService[] = [
   },
 ];
 
-/* Category chips shown in selectors (group label per platform) */
 const CATEGORY_CHIPS: { id: PlatformId; label: string }[] = [
   { id: 'tiktok', label: 'TikTok Followers [Guaranteed]' },
   { id: 'instagram', label: 'Instagram Growth' },
@@ -269,14 +266,12 @@ const CATEGORY_CHIPS: { id: PlatformId; label: string }[] = [
 const WALLET_BALANCE = 0.27;
 
 function money(n: number) {
-  return `₦${n.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  return 'NGN ' + n.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 function formatQty(n: number) {
   return n.toLocaleString('en-NG');
 }
-
-/* ─── Platform brand mark ─── */
 
 function PlatformMark({ platform, size = 22 }: { platform: PlatformId; size?: number }) {
   const s = { width: size, height: size, viewBox: '0 0 24 24', 'aria-hidden': true as const };
@@ -339,14 +334,11 @@ function PlatformMark({ platform, size = 22 }: { platform: PlatformId; size?: nu
         </svg>
       );
     default: {
-      // Exhaustive PlatformId — fallback keeps future ids safe without never.slice
       const label = String(platform ?? '?');
       return <span className="boost-mark-fallback">{label.slice(0, 1).toUpperCase()}</span>;
     }
   }
 }
-
-/* ─── Bottom sheet ─── */
 
 function BottomSheet({
   open,
@@ -391,8 +383,6 @@ function BottomSheet({
   );
 }
 
-/* ─── Status pill ─── */
-
 const STATUS_META: Record<OrderStatus, { label: string; className: string }> = {
   pending: { label: 'Pending', className: 'st-pending' },
   processing: { label: 'In Progress', className: 'st-processing' },
@@ -400,8 +390,6 @@ const STATUS_META: Record<OrderStatus, { label: string; className: string }> = {
   partial: { label: 'Partial', className: 'st-partial' },
   canceled: { label: 'Canceled', className: 'st-canceled' },
 };
-
-/* ─── Main page ─── */
 
 export function BoostPage({ onBack }: { onBack: () => void }) {
   const [categoryId, setCategoryId] = useState<PlatformId | ''>('');
@@ -480,10 +468,9 @@ export function BoostPage({ onBack }: { onBack: () => void }) {
   const handlePlaceOrder = async () => {
     if (!formReady || !selected || insufficient) return;
     setSubmitting(true);
-    // Mock order placement — real POST /api/orders/boost later
     await new Promise((r) => setTimeout(r, 900));
     const order: BoostOrder = {
-      id: `BX-${Date.now().toString(36).toUpperCase()}`,
+      id: 'BX-' + Date.now().toString(36).toUpperCase(),
       serviceTitle: selected.title,
       platform: selected.platform,
       targetUrl: link.trim(),
@@ -500,8 +487,7 @@ export function BoostPage({ onBack }: { onBack: () => void }) {
   };
 
   const handleFundWallet = () => {
-    showToast('Opening Fund Wallet…');
-    // Wire to fund modal / route when available
+    showToast('Opening Fund Wallet...');
   };
 
   const handleRefresh = async () => {
@@ -534,15 +520,14 @@ export function BoostPage({ onBack }: { onBack: () => void }) {
   } else if (qtyOutOfRange && selected) {
     ctaLabel =
       qtyNum < selected.min
-        ? `Minimum is ${formatQty(selected.min)}`
-        : `Maximum is ${formatQty(selected.max)}`;
+        ? 'Minimum is ' + formatQty(selected.min)
+        : 'Maximum is ' + formatQty(selected.max);
   } else if (submitting) {
-    ctaLabel = 'Placing order…';
+    ctaLabel = 'Placing order...';
   }
 
   return (
     <div className="boost-page">
-      {/* Top bar */}
       <header className="boost-topbar">
         <button type="button" className="boost-back" onClick={onBack} aria-label="Back">
           <ArrowLeft size={18} strokeWidth={2.2} />
@@ -554,14 +539,13 @@ export function BoostPage({ onBack }: { onBack: () => void }) {
         </span>
       </header>
 
-      {/* Hero */}
       <section className="boost-hero" aria-label="Boost Your Account">
         <div className="boost-hero-icon" aria-hidden>
           <Rocket size={26} strokeWidth={1.8} />
         </div>
         <div className="boost-hero-copy">
           <strong>Boost Your Account</strong>
-          <p>Get followers, likes, views & more instantly</p>
+          <p>Get followers, likes, views and more instantly</p>
         </div>
         <div className="boost-hero-icons" aria-hidden>
           <span className="boost-hero-social">
@@ -576,7 +560,6 @@ export function BoostPage({ onBack }: { onBack: () => void }) {
         </div>
       </section>
 
-      {/* Quick tip */}
       <div className="boost-tip">
         <span className="boost-tip-icon" aria-hidden>
           <Info size={15} strokeWidth={2.4} />
@@ -587,7 +570,6 @@ export function BoostPage({ onBack }: { onBack: () => void }) {
         </p>
       </div>
 
-      {/* Category */}
       <label className="boost-field">
         <span className="boost-label">Category</span>
         <button
@@ -609,7 +591,6 @@ export function BoostPage({ onBack }: { onBack: () => void }) {
         </button>
       </label>
 
-      {/* Service */}
       <label className="boost-field">
         <span className="boost-label">Service</span>
         <button
@@ -634,7 +615,6 @@ export function BoostPage({ onBack }: { onBack: () => void }) {
         </button>
       </label>
 
-      {/* Target link */}
       <label className="boost-field">
         <span className="boost-label">Target Link</span>
         <div className={`boost-input-wrap ${linkMismatch ? 'is-error' : ''}`}>
@@ -643,7 +623,7 @@ export function BoostPage({ onBack }: { onBack: () => void }) {
             type="url"
             inputMode="url"
             autoComplete="off"
-            placeholder={category?.placeholder ?? 'https://…'}
+            placeholder={category?.placeholder ?? 'https://...'}
             value={link}
             onChange={(e) => setLink(e.target.value)}
           />
@@ -658,7 +638,6 @@ export function BoostPage({ onBack }: { onBack: () => void }) {
         )}
       </label>
 
-      {/* Quantity */}
       <label className="boost-field">
         <span className="boost-label">Quantity</span>
         <div className={`boost-input-wrap ${qtyOutOfRange ? 'is-error' : ''`}>
@@ -668,7 +647,7 @@ export function BoostPage({ onBack }: { onBack: () => void }) {
             inputMode="numeric"
             min={selected?.min ?? 1}
             max={selected?.max}
-            placeholder={selected ? `${formatQty(selected.min)} – ${formatQty(selected.max)}` : 'Enter quantity'}
+            placeholder={selected ? formatQty(selected.min) + ' - ' + formatQty(selected.max) : 'Enter quantity'}
             value={qty}
             onChange={(e) => setQty(e.target.value)}
           />
@@ -680,7 +659,6 @@ export function BoostPage({ onBack }: { onBack: () => void }) {
         )}
       </label>
 
-      {/* Metrics */}
       {selected && (
         <div className="boost-metrics" aria-label="Service metrics">
           <div className="boost-metric">
@@ -701,7 +679,7 @@ export function BoostPage({ onBack }: { onBack: () => void }) {
             <div>
               <span className="boost-metric-label">Min / Max</span>
               <strong>
-                {formatQty(selected.min)} – {formatQty(selected.max)}
+                {formatQty(selected.min)} - {formatQty(selected.max)}
               </strong>
               <small>Per order limits</small>
             </div>
@@ -709,7 +687,6 @@ export function BoostPage({ onBack }: { onBack: () => void }) {
         </div>
       )}
 
-      {/* Total cost banner */}
       {selected && total > 0 && (
         <div className={`boost-total ${insufficient ? 'is-insufficient' : ''}`}>
           <div className="boost-total-main">
@@ -730,7 +707,6 @@ export function BoostPage({ onBack }: { onBack: () => void }) {
         </div>
       )}
 
-      {/* CTA */}
       <button
         type="button"
         className={ctaClass}
@@ -748,7 +724,6 @@ export function BoostPage({ onBack }: { onBack: () => void }) {
         )}
       </button>
 
-      {/* My Orders */}
       <section className="boost-orders" aria-labelledby="boost-orders-title">
         <div className="boost-orders-head">
           <h2 id="boost-orders-title">My Orders</h2>
@@ -794,7 +769,7 @@ export function BoostPage({ onBack }: { onBack: () => void }) {
                         }}
                       >
                         {order.targetUrl.length > 42
-                          ? `${order.targetUrl.slice(0, 40)}…`
+                          ? order.targetUrl.slice(0, 40) + '...'
                           : order.targetUrl}
                       </button>
                     </div>
@@ -821,21 +796,19 @@ export function BoostPage({ onBack }: { onBack: () => void }) {
         )}
       </section>
 
-      {/* Toast */}
       {toast && (
         <div className="boost-toast" role="status">
           <Check size={16} /> {toast}
         </div>
       )}
 
-      {/* Category sheet */}
       <BottomSheet open={catOpen} title="Select category" onClose={() => setCatOpen(false)}>
         <div className="boost-sheet-search">
           <Search size={16} />
           <input
             value={catQuery}
             onChange={(e) => setCatQuery(e.target.value)}
-            placeholder="Search platforms…"
+            placeholder="Search platforms..."
             autoFocus
           />
           {catQuery ? (
@@ -861,19 +834,18 @@ export function BoostPage({ onBack }: { onBack: () => void }) {
             </li>
           ))}
           {filteredCats.length === 0 && (
-            <li className="boost-sheet-empty">No platforms match “{catQuery}”.</li>
+            <li className="boost-sheet-empty">No platforms match "{catQuery}".</li>
           )}
         </ul>
       </BottomSheet>
 
-      {/* Service sheet */}
       <BottomSheet open={svcOpen} title="Select service" onClose={() => setSvcOpen(false)}>
         <div className="boost-sheet-search">
           <Search size={16} />
           <input
             value={svcQuery}
             onChange={(e) => setSvcQuery(e.target.value)}
-            placeholder="Search services…"
+            placeholder="Search services..."
             autoFocus
           />
           {svcQuery ? (
@@ -896,7 +868,7 @@ export function BoostPage({ onBack }: { onBack: () => void }) {
                 <span className="boost-sheet-item-body">
                   <span className="boost-sheet-item-title">{s.title}</span>
                   <span className="boost-sheet-item-sub">
-                    {money(s.ratePer1000)} / 1,000 · Min {formatQty(s.min)} – Max {formatQty(s.max)}
+                    {money(s.ratePer1000)} / 1,000 · Min {formatQty(s.min)} - Max {formatQty(s.max)}
                   </span>
                 </span>
                 {serviceId === s.id && <Check size={18} className="boost-sheet-check" />}
@@ -904,7 +876,7 @@ export function BoostPage({ onBack }: { onBack: () => void }) {
             </li>
           ))}
           {filteredSvcs.length === 0 && (
-            <li className="boost-sheet-empty">No services match “{svcQuery}”.</li>
+            <li className="boost-sheet-empty">No services match "{svcQuery}".</li>
           )}
         </ul>
       </BottomSheet>
