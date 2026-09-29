@@ -1,10 +1,9 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ArrowLeft,
   ArrowRight,
-  CheckCircle2,
   ChevronRight,
   Clock3,
   Gift,
@@ -14,209 +13,192 @@ import {
 } from 'lucide-react';
 import './giftcard-page.css';
 
-type GiftCardCurrency = 'ALL' | 'USD' | 'CAD' | 'AUD' | 'EUR' | 'GBP' | 'SGD';
+type Currency = 'ALL' | 'USD' | 'CAD' | 'AUD' | 'EUR' | 'GBP' | 'SGD';
 
-type GiftCardBrand = {
+type Card = {
   id: string;
   name: string;
   rate: string;
-  currency: Exclude<GiftCardCurrency, 'ALL'>;
-  logo: 'apple' | 'steam' | 'razer' | 'xbox' | 'google' | 'sephora' | 'playstation' | 'amazon';
+  currency: Exclude<Currency, 'ALL'>;
+  mark: string;
+  kind: string;
   popular?: boolean;
 };
 
-type Promo = {
-  id: string;
-  eyebrow: string;
-  title: string;
-  description: string;
-  badge: string;
-  tone: 'blue' | 'indigo' | 'sky';
-};
-
-const PROMOS: Promo[] = [
-  {
-    id: 'bonus',
-    eyebrow: 'LIMITED TIME BONUS',
-    title: 'Get 5% Bonus on Every Trade!',
-    description: 'Trade selected gift cards today and enjoy an instant bonus.',
-    badge: '5% BONUS',
-    tone: 'blue',
-  },
-  {
-    id: 'rates',
-    eyebrow: 'LIVE RATES',
-    title: 'Trade at today’s active rates',
-    description: 'Check the latest available payout rate before you sell.',
-    badge: 'LIVE',
-    tone: 'indigo',
-  },
-  {
-    id: 'fast',
-    eyebrow: 'FAST SETTLEMENT',
-    title: 'Sell. Get verified. Get paid.',
-    description: 'Submit your gift card and track the trade from Verxor.',
-    badge: 'FAST',
-    tone: 'sky',
-  },
+const currencies: Array<{ id: Currency; flag?: string }> = [
+  { id: 'ALL' },
+  { id: 'USD', flag: '🇺🇸' },
+  { id: 'CAD', flag: '🇨🇦' },
+  { id: 'AUD', flag: '🇦🇺' },
+  { id: 'EUR', flag: '🇪🇺' },
+  { id: 'GBP', flag: '🇬🇧' },
+  { id: 'SGD', flag: '🇸🇬' },
 ];
 
-const CURRENCIES: Array<{ id: GiftCardCurrency; label: string; flag?: string }> = [
-  { id: 'ALL', label: 'All' },
-  { id: 'USD', label: 'USD', flag: '🇺🇸' },
-  { id: 'CAD', label: 'CAD', flag: '🇨🇦' },
-  { id: 'AUD', label: 'AUD', flag: '🇦🇺' },
-  { id: 'EUR', label: 'EUR', flag: '🇪🇺' },
-  { id: 'GBP', label: 'GBP', flag: '🇬🇧' },
-  { id: 'SGD', label: 'SGD', flag: '🇸🇬' },
+const cards: Card[] = [
+  { id: 'apple', name: 'iTunes / Apple', rate: '₦1,333.15', currency: 'USD', mark: '', kind: 'apple', popular: true },
+  { id: 'steam', name: 'Steam', rate: '₦1,281.88', currency: 'USD', mark: '◉', kind: 'steam', popular: true },
+  { id: 'razer', name: 'Razer Gold', rate: '₦1,154.71', currency: 'USD', mark: 'Z', kind: 'razer' },
+  { id: 'xbox', name: 'Xbox', rate: '₦1,281.88', currency: 'USD', mark: 'X', kind: 'xbox' },
+  { id: 'google', name: 'Google Play', rate: '₦1,175.22', currency: 'USD', mark: '▶', kind: 'google' },
+  { id: 'sephora', name: 'Sephora', rate: '₦1,117.80', currency: 'USD', mark: 'SEPHORA', kind: 'sephora' },
+  { id: 'playstation', name: 'PlayStation', rate: '₦1,247.50', currency: 'USD', mark: 'PS', kind: 'playstation' },
+  { id: 'amazon', name: 'Amazon', rate: '₦1,210.36', currency: 'USD', mark: 'amazon', kind: 'amazon' },
 ];
 
-const GIFT_CARDS: GiftCardBrand[] = [
-  { id: 'apple', name: 'iTunes / Apple', rate: '₦1,333.15', currency: 'USD', logo: 'apple', popular: true },
-  { id: 'steam', name: 'Steam', rate: '₦1,281.88', currency: 'USD', logo: 'steam', popular: true },
-  { id: 'razer', name: 'Razer Gold', rate: '₦1,154.71', currency: 'USD', logo: 'razer' },
-  { id: 'xbox', name: 'Xbox', rate: '₦1,281.88', currency: 'USD', logo: 'xbox' },
-  { id: 'google', name: 'Google Play', rate: '₦1,175.22', currency: 'USD', logo: 'google' },
-  { id: 'sephora', name: 'Sephora', rate: '₦1,117.80', currency: 'USD', logo: 'sephora' },
-  { id: 'playstation', name: 'PlayStation', rate: '₦1,247.50', currency: 'USD', logo: 'playstation' },
-  { id: 'amazon', name: 'Amazon', rate: '₦1,210.36', currency: 'USD', logo: 'amazon' },
+const trades = [
+  { initial: 'J', line: 'j***N traded Steam AUD 85*3', amount: '₦175,207.95', time: '5 mins ago' },
+  { initial: 'K', line: 'k***8 traded Apple $50', amount: '₦58,746.20', time: '8 mins ago' },
+  { initial: 'A', line: 'a***1 traded Google Play $80', amount: '₦96,320.11', time: '11 mins ago' },
 ];
 
-const LIVE_TRADES = [
-  { initial: 'J', text: 'j***N traded Steam AUD 85*3', amount: '₦175,207.95', time: '5 mins ago' },
-  { initial: 'K', text: 'k***8 traded Apple $50', amount: '₦58,746.20', time: '8 mins ago' },
-  { initial: 'A', text: 'a***1 traded Google Play $80', amount: '₦96,320.11', time: '11 mins ago' },
+const promos = [
+  { id: 1, title: 'Get 5% Bonus on Every Trade!', body: 'Trade selected gift cards today and enjoy an instant bonus.' },
+  { id: 2, title: 'Trade at Today’s Live Rates', body: 'Check the latest available payout rate before you sell.' },
+  { id: 3, title: 'Sell Your Gift Card Today', body: 'Submit your card and track the trade from Verxor.' },
 ];
 
-function BrandLogo({ type }: { type: GiftCardBrand['logo'] }) {
-  if (type === 'apple') return <div className="gc-brand-logo gc-brand-apple" aria-label="Apple"></div>;
-  if (type === 'steam') return <div className="gc-brand-logo gc-brand-steam" aria-label="Steam">◉</div>;
-  if (type === 'razer') return <div className="gc-brand-logo gc-brand-razer" aria-label="Razer Gold"><strong>R</strong><small>RAZER<br />GOLD</small></div>;
-  if (type === 'xbox') return <div className="gc-brand-logo gc-brand-xbox" aria-label="Xbox"><strong>⌁</strong></div>;
-  if (type === 'google') return <div className="gc-brand-logo gc-brand-google" aria-label="Google Play">▶</div>;
-  if (type === 'sephora') return <div className="gc-brand-logo gc-brand-sephora" aria-label="Sephora">SEPHORA</div>;
-  if (type === 'playstation') return <div className="gc-brand-logo gc-brand-playstation" aria-label="PlayStation"><strong>PS</strong></div>;
-  return <div className="gc-brand-logo gc-brand-amazon" aria-label="Amazon"><strong>amazon</strong><span>⌣</span></div>;
+function CardMark({ card }: { card: Card }) {
+  return <div className={'gc-mark gc-mark-' + card.kind} aria-label={card.name}>{card.mark}</div>;
 }
 
 export function GiftCardPage({ onBack }: { onBack?: () => void }) {
-  const [currency, setCurrency] = useState<GiftCardCurrency>('ALL');
-  const [promoIndex, setPromoIndex] = useState(0);
+  const [currency, setCurrency] = useState<Currency>('ALL');
+  const [promo, setPromo] = useState(0);
 
   useEffect(() => {
-    const timer = window.setInterval(() => setPromoIndex((current) => (current + 1) % PROMOS.length), 5000);
-    return () => window.clearInterval(timer);
+    const id = window.setInterval(() => setPromo((value) => (value + 1) % promos.length), 5000);
+    return () => window.clearInterval(id);
   }, []);
 
-  const promo = PROMOS[promoIndex];
-
-  const visibleCards = useMemo(
-    () => currency === 'ALL' ? GIFT_CARDS : GIFT_CARDS.filter((card) => card.currency === currency),
-    [currency],
-  );
+  const visibleCards = currency === 'ALL'
+    ? cards
+    : cards.filter((card) => card.currency === currency);
 
   return (
-    <div className="gc-shell">
-      <main className="gc-canvas">
-        <header className="gc-topbar">
-          <button type="button" className="gc-back" onClick={onBack} aria-label="Back to Verxor dashboard">
-            <ArrowLeft size={21} strokeWidth={2.2} />
+    <div className="gc-page">
+      <main className="gc-content">
+        <header className="gc-header">
+          <button className="gc-back" type="button" onClick={onBack} aria-label="Back to Verxor dashboard">
+            <ArrowLeft size={22} />
           </button>
           <h1>Gift Card Trade</h1>
         </header>
 
-        <section className="gc-promo" aria-label="Gift card promotion">
-          <div className={'gc-promo-card gc-promo-' + promo.tone}>
+        <section className="gc-primary-actions" aria-label="Gift card actions">
+          <button type="button" className="gc-withdraw" aria-label="Open gift card wallet and withdrawal">
+            <Wallet size={21} />
+            <span>Withdraw</span>
+            <ChevronRight size={18} />
+          </button>
+          <button type="button" className="gc-sale">
+            <Tag size={21} />
+            <span>Sell Now</span>
+            <ChevronRight size={18} />
+          </button>
+        </section>
+
+        <section className="gc-promo-wrap" aria-label="Gift card promotions">
+          <article className="gc-promo">
             <div className="gc-promo-copy">
-              <span className="gc-promo-eyebrow"><Gift size={13} />{promo.eyebrow}</span>
-              <h2>{promo.title}</h2>
-              <p>{promo.description}</p>
-              <button type="button" className="gc-promo-cta">View Details <ArrowRight size={14} /></button>
+              <span className="gc-eyebrow"><Gift size={14} /> LIMITED TIME BONUS</span>
+              <h2>{promos[promo].title}</h2>
+              <p>{promos[promo].body}</p>
+              <button type="button">View Details <ArrowRight size={15} /></button>
             </div>
             <div className="gc-promo-art" aria-hidden="true">
-              <div className="gc-art-card gc-art-apple"></div>
-              <div className="gc-art-card gc-art-google">▶</div>
-              <div className="gc-art-card gc-art-steam">◉</div>
-              <span className="gc-bonus-badge">{promo.badge}</span>
+              <div className="gc-art gc-art-one"></div>
+              <div className="gc-art gc-art-two">▶</div>
+              <div className="gc-art gc-art-three">◉</div>
+              <strong>5%<small>BONUS</small></strong>
             </div>
-          </div>
-          <div className="gc-promo-dots" aria-label="Promotion slides">
-            {PROMOS.map((item, index) => (
-              <button key={item.id} type="button" aria-label={'Show ' + item.title} aria-current={index === promoIndex} className={index === promoIndex ? 'is-active' : ''} onClick={() => setPromoIndex(index)} />
+          </article>
+          <div className="gc-dots">
+            {promos.map((item, index) => (
+              <button
+                key={item.id}
+                type="button"
+                className={index === promo ? 'active' : ''}
+                aria-label={'Promotion ' + (index + 1)}
+                onClick={() => setPromo(index)}
+              />
             ))}
           </div>
         </section>
 
-        <section className="gc-live-trades" aria-label="Live completed trades">
-          <div className="gc-live-head">
-            <div><span className="gc-live-dot" /><strong>Live Completed Trades</strong></div>
-            <button type="button">View All <ArrowRight size={13} /></button>
+        <section className="gc-live" aria-label="Live completed trades">
+          <div className="gc-live-header">
+            <strong><i />Live Completed Trades</strong>
+            <button type="button">View All <ArrowRight size={14} /></button>
           </div>
-          <div className="gc-live-scroll">
-            {LIVE_TRADES.map((trade) => (
-              <article className="gc-live-item" key={trade.text}>
-                <span className="gc-live-avatar">{trade.initial}</span>
-                <div><strong>{trade.text}</strong><span>{trade.amount} <small>{trade.time}</small></span></div>
+          <div className="gc-live-track">
+            {trades.map((trade) => (
+              <article className="gc-trade" key={trade.line}>
+                <span>{trade.initial}</span>
+                <div>
+                  <strong>{trade.line}</strong>
+                  <p>{trade.amount} <small>{trade.time}</small></p>
+                </div>
               </article>
             ))}
           </div>
         </section>
 
-        <section className="gc-actions" aria-label="Gift card actions">
-          <button type="button" className="gc-action gc-action-withdraw" aria-label="Withdraw from gift card wallet">
-            <span className="gc-action-icon"><Wallet size={21} /></span>
-            <span><strong>Withdraw</strong><small>Get your funds to your bank</small></span>
-            <ChevronRight size={19} />
-          </button>
-          <button type="button" className="gc-action gc-action-sell" aria-label="Sell gift card">
-            <span className="gc-action-icon"><Tag size={21} /></span>
-            <span><strong>Sale Now</strong><small>Sell your gift cards instantly</small></span>
-            <ChevronRight size={19} />
-          </button>
-        </section>
-
-        <section className="gc-currency-section" aria-label="Gift card currencies">
-          <div className="gc-currency-scroll">
-            {CURRENCIES.map((item) => (
-              <button type="button" key={item.id} className={currency === item.id ? 'gc-currency is-active' : 'gc-currency'} onClick={() => setCurrency(item.id)}>
-                {item.flag ? <span>{item.flag}</span> : null}{item.label}
+        <section className="gc-currencies" aria-label="Gift card currencies">
+          <div className="gc-currency-track">
+            {currencies.map((item) => (
+              <button
+                type="button"
+                key={item.id}
+                className={currency === item.id ? 'active' : ''}
+                onClick={() => setCurrency(item.id)}
+              >
+                {item.flag && <span>{item.flag}</span>}
+                {item.id === 'ALL' ? 'All' : item.id}
               </button>
             ))}
           </div>
         </section>
 
-        <section className="gc-catalog" aria-label="Popular gift cards">
-          <div className="gc-section-heading">
+        <section className="gc-catalog">
+          <div className="gc-heading">
             <h2>Popular Gift Cards</h2>
-            <button type="button">View All <ArrowRight size={13} /></button>
+            <button type="button">View All <ArrowRight size={14} /></button>
           </div>
+
           <div className="gc-grid">
-            {visibleCards.map((brand) => (
-              <article className="gc-card" key={brand.id}>
-                <div className="gc-card-logo-wrap">
-                  <BrandLogo type={brand.logo} />
-                  {brand.popular ? <span className="gc-popular">Popular</span> : null}
+            {visibleCards.map((card) => (
+              <article className="gc-card" key={card.id}>
+                <div className="gc-card-image">
+                  <CardMark card={card} />
+                  {card.popular && <span>Popular</span>}
                 </div>
-                <div className="gc-card-info">
-                  <strong>{brand.name}</strong>
-                  <span>$1 = {brand.rate}</span>
+                <div className="gc-card-details">
+                  <strong>{card.name}</strong>
+                  <p>$1 = {card.rate}</p>
                 </div>
-                <button type="button" className="gc-sell">Sell <ArrowRight size={13} /></button>
+                <button className="gc-card-sell" type="button">
+                  Sell <ArrowRight size={13} />
+                </button>
               </article>
             ))}
           </div>
-          {visibleCards.length === 0 ? (
-            <div className="gc-no-results">
-              <CheckCircle2 size={20} /><strong>No gift cards available for {currency}</strong><p>Choose another currency to view available brands.</p>
-            </div>
-          ) : null}
         </section>
       </main>
 
-      <nav className="gc-nav" aria-label="Gift card navigation">
-        <button type="button" className="is-active" aria-current="page"><LayoutGrid size={22} /><span>Trade</span></button>
-        <button type="button" aria-label="History — next build step"><Clock3 size={22} /><span>History</span></button>
-        <button type="button" aria-label="Wallet — next build step"><Wallet size={22} /><span>Wallet</span></button>
+      <nav className="gc-bottom-nav" aria-label="Gift card navigation">
+        <button className="active" type="button" aria-current="page">
+          <LayoutGrid size={22} />
+          <span>Trade</span>
+        </button>
+        <button type="button">
+          <Clock3 size={22} />
+          <span>History</span>
+        </button>
+        <button type="button">
+          <Wallet size={22} />
+          <span>Wallet</span>
+        </button>
       </nav>
     </div>
   );
