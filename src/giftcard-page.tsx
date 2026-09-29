@@ -58,7 +58,7 @@ const promos = [
   },
   {
     id: 2,
-    title: 'Trade at Today’s Live Rates',
+    title: 'Trade at Today\'s Live Rates',
     body: 'Check the latest available payout rate before you sell your gift card.',
   },
   {
@@ -508,9 +508,30 @@ export function GiftCardPage({ onBack }: { onBack?: () => void }) {
         className="fixed bottom-0 left-0 right-0 z-50 mx-auto flex max-w-md items-center justify-around border-t border-[#E2E8F0] bg-white/95 px-6 py-2.5 backdrop-blur-md"
         aria-label="Gift card navigation"
       >
-        <button className="relative flex flex-col items-center gap-1 text-[11px] font-bold text-[#1769df]" type="button" aria-current="page">
+        <button
+          className="relative flex flex-col items-center gap-1 text-[11px] font-bold text-[#1769df]"
+          type="button"
+          aria-current="page"
+        >
           <span className="absolute -top-2.5 h-0.5 w-8 rounded-full bg-[#1769df]" />
           <LayoutGrid size={22} />
           <span>Trade</span>
         </button>
-        <button className="flex flex-col items-center gap-1 text-[11p
+        <button
+          className="flex flex-col items-center gap-1 text-[11px] font-medium text-[#94A3B8]"
+          type="button"
+        >
+          <Clock3 size={22} />
+          <span>History</span>
+        </button>
+        <button
+          className="flex flex-col items-center gap-1 text-[11px] font-medium text-[#94A3B8]"
+          type="button"
+        >
+          <Wallet size={22} />
+          <span>Wallet</span>
+        </button>
+      </nav>
+    </div>
+  );
+}
