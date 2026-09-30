@@ -181,7 +181,7 @@ function AppleGlyph() {
   );
 }
 
-function BrandMark({ kind, size = 'md' }: { kind: BrandId; size?: 'sm' | 'md' }) {
+function BrandMark({ kind, size = 'md' }: { kind: BrandId; size?: 'sm' | 'md' | 'lg' }) {
   const cls = `gc-brand-mark gc-brand-${size} gc-mark-${kind}`;
   switch (kind) {
     case 'apple':
@@ -442,7 +442,7 @@ export function GiftCardPage({ onBack }: { onBack?: () => void }) {
               </button>
               <h1>Gift Card Trade</h1>
               {cartCount > 0 && (
-                <span className="gc-cart-pill" type="button">
+                <span className="gc-cart-pill">
                   <ShoppingCart size={14} /> {cartCount}
                 </span>
               )}
