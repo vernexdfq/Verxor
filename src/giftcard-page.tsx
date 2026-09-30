@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useRef, useState } from 'react';
+import type { ReactNode } from 'react';
 import {
   ArrowLeft,
   ArrowRight,
@@ -128,7 +129,7 @@ function BrandLogo({ id, large = false }: { id: BrandId; large?: boolean }) {
   return <span className={\`\${common} gc-logo-amazon\`}><b>amazon</b><i /></span>;
 }
 
-function PageHeader({ title, onBack, right }: { title: string; onBack: () => void; right?: React.ReactNode }) {
+function PageHeader({ title, onBack, right }: { title: string; onBack: () => void; right?: ReactNode }) {
   return (
     <header className="gc-page-header">
       <button className="gc-icon-button" type="button" onClick={onBack} aria-label="Back"><ArrowLeft size={20} /></button>
@@ -408,7 +409,6 @@ function WalletPage({ go, balanceHidden, setBalanceHidden, savedBank, setSavedBa
           {activityItems.length ? activityItems.slice(0, 4).map((tx) => <div className="gc-activity-card" key={tx.id}><span className="gc-activity-icon">{tx.brand ? <BrandLogo id={tx.brand} /> : <Landmark size={18} />}</span><div><b>{tx.title}</b><small>{tx.date}</small></div><strong className={tx.amount >= 0 ? 'positive' : 'negative'}>{tx.amount >= 0 ? '+' : '-'}{money(tx.amount)}</strong><ChevronRight size={18} /></div>) : <p className="gc-empty-inline">No activity in this filter.</p>}
         </div>
       </section>
-      <BottomNav active="wallet" go={go} />
     </div>
   );
 }
@@ -454,7 +454,6 @@ function HistoryPage({ go, transactions }: { go: (view: View) => void; transacti
       <PageHeader title="History" onBack={() => go('trade')} />
       <div className="gc-history-tabs">{(['All', 'Pending', 'Success', 'Rejected'] as const).map((item) => <button className={filter === item ? 'active' : ''} key={item} type="button" onClick={() => setFilter(item)}>{item.toUpperCase()}</button>)}</div>
       {items.length ? <div className="gc-history-list">{items.map((tx) => <article className="gc-history-card" key={tx.id}><span>{tx.brand ? <BrandLogo id={tx.brand} /> : <Landmark size={19} />}</span><div><b>{tx.title}</b><small>{tx.date}</small></div><div><strong className={tx.amount >= 0 ? 'positive' : 'negative'}>{tx.amount >= 0 ? '+' : '-'}{money(tx.amount)}</strong><em className={\`status-\${tx.status.toLowerCase()}\`}>{tx.status}</em></div><ChevronRight size={18} /></article>)}</div> : <div className="gc-empty"><div className="gc-empty-art"><ClipboardCheck size={100} strokeWidth={1.4} /><span><Check size={25} /></span></div><h2>Start your first trade</h2><p>Sell a gift card today and get your first-trade bonus.</p><button type="button" onClick={() => go('sell')}><Tag size={18} />Sell Gift Card <ArrowRight size={18} /></button></div>}
-      <BottomNav active="history" go={go} />
     </div>
   );
 }
