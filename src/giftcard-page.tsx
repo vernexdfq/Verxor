@@ -181,11 +181,11 @@ export function GiftCardPage({ onBack }: { onBack?: () => void }) {
 
         <section className="gc-primary-actions" aria-label="Gift card actions">
           <button type="button" className="gc-withdraw">
-            <Wallet size={20} />
+            <Wallet size={18} />
             <span>Withdraw</span>
           </button>
           <button type="button" className="gc-sale">
-            <Tag size={20} />
+            <Tag size={18} />
             <span>Sell Now</span>
           </button>
         </section>
@@ -194,7 +194,7 @@ export function GiftCardPage({ onBack }: { onBack?: () => void }) {
           <article className="gc-promo">
             <div className="gc-promo-copy">
               <span className="gc-eyebrow">
-                <Gift size={14} /> LIMITED TIME BONUS
+                <Gift size={13} /> LIMITED TIME BONUS
               </span>
               <h2>{promos[promo].title}</h2>
               <p>{promos[promo].body}</p>
@@ -230,7 +230,7 @@ export function GiftCardPage({ onBack }: { onBack?: () => void }) {
               <i /> Live Completed Trades
             </strong>
             <button type="button">
-              View All <ArrowRight size={14} />
+              View All <ArrowRight size={13} />
             </button>
           </div>
           <div className="gc-live-track">
@@ -268,26 +268,24 @@ export function GiftCardPage({ onBack }: { onBack?: () => void }) {
           <div className="gc-heading">
             <h2>Popular Gift Cards</h2>
             <button type="button">
-              View All <ArrowRight size={14} />
+              View All <ArrowRight size={13} />
             </button>
           </div>
 
           <div className="gc-grid">
             {visibleCards.map((card) => (
               <article className="gc-card" key={card.id}>
-                <div className="gc-card-image">
-                  <div className={`gc-mark gc-mark-${card.kind}`} aria-label={card.name}>
-                    <BrandMark kind={card.kind} />
-                  </div>
-                  {card.popular && <span>Popular</span>}
+                {card.popular && <span className="gc-popular">Popular</span>}
+                <div className={`gc-mark gc-mark-${card.kind}`} aria-label={card.name}>
+                  <BrandMark kind={card.kind} />
                 </div>
-                <div className="gc-card-details">
+                <div className="gc-card-body">
                   <strong>{card.name}</strong>
                   <p>$1 = {card.rate}</p>
+                  <button className="gc-card-sell" type="button">
+                    Sell <ArrowRight size={12} />
+                  </button>
                 </div>
-                <button className="gc-card-sell" type="button">
-                  Sell <ArrowRight size={13} />
-                </button>
               </article>
             ))}
           </div>
@@ -296,15 +294,15 @@ export function GiftCardPage({ onBack }: { onBack?: () => void }) {
 
       <nav className="gc-bottom-nav" aria-label="Gift card navigation">
         <button className="active" type="button" aria-current="page">
-          <Tag size={22} />
+          <Tag size={20} />
           <span>Trade</span>
         </button>
         <button type="button">
-          <Clock3 size={22} />
+          <Clock3 size={20} />
           <span>History</span>
         </button>
         <button type="button">
-          <Wallet size={22} />
+          <Wallet size={20} />
           <span>Wallet</span>
         </button>
       </nav>

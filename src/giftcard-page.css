@@ -1,40 +1,51 @@
-/* Gift Card Trade — arranged for Verxor (no Tailwind). Matches mockup. */
+/* Gift Card Trade — responsive polish only. No redesign. */
 .gc-page {
   min-height: 100dvh;
+  width: 100%;
+  max-width: 100vw;
   background: #F8FAFC;
   color: #0F172A;
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
-}
-
-.gc-content {
-  width: min(100%, 28rem);
-  min-height: 100dvh;
-  margin: 0 auto;
-  padding: 0.85rem 1rem 7.2rem;
   box-sizing: border-box;
 }
 
+.gc-page *,
+.gc-page *::before,
+.gc-page *::after {
+  box-sizing: border-box;
+}
+
+.gc-content {
+  width: 100%;
+  max-width: 28rem;
+  min-height: 100dvh;
+  margin: 0 auto;
+  padding: 0.75rem 1.15rem 6.75rem;
+}
+
+/* —— Header —— */
 .gc-header {
-  height: 3.15rem;
+  height: 2.85rem;
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  margin-bottom: 0.75rem;
+  gap: 0.7rem;
+  margin-bottom: 0.65rem;
 }
 
 .gc-header h1 {
   margin: 0;
-  font-size: 1.2rem;
+  font-size: 1.15rem;
   font-weight: 800;
   letter-spacing: -0.03em;
-  color: #0F172A;
+  color: #0b214d;
+  line-height: 1.2;
 }
 
 .gc-back {
-  width: 2.55rem;
-  height: 2.55rem;
+  width: 2.75rem;
+  height: 2.75rem;
   display: grid;
   place-items: center;
   flex: 0 0 auto;
@@ -42,145 +53,148 @@
   border-radius: 999px;
   background: #FFFFFF;
   color: #0F172A;
-  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05);
   cursor: pointer;
 }
 
+/* —— Actions —— */
 .gc-primary-actions {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 0.65rem;
-  margin-bottom: 0.85rem;
+  gap: 0.55rem;
+  margin-bottom: 0.7rem;
 }
 
 .gc-primary-actions button {
-  height: 3.15rem;
+  height: 3.35rem;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.45rem;
-  border-radius: 0.9rem;
-  font-size: 0.9rem;
+  gap: 0.4rem;
+  border-radius: 0.85rem;
+  font-size: 0.88rem;
   font-weight: 800;
   cursor: pointer;
 }
 
 .gc-withdraw {
-  border: 1.5px solid #BFDBFE;
+  border: 1.5px solid #c5d9f0;
   background: #FFFFFF;
-  color: #2563EB;
+  color: #1160d9;
 }
 
 .gc-sale {
   border: 0;
   background: linear-gradient(90deg, #0864e8, #1476f0);
   color: #FFFFFF;
-  box-shadow: 0 8px 18px rgba(9, 103, 232, 0.18);
+  box-shadow: 0 6px 14px rgba(9, 103, 232, 0.16);
 }
 
+/* —— Promo —— */
 .gc-promo-wrap {
-  margin-bottom: 0.85rem;
+  margin-bottom: 0.55rem;
 }
 
 .gc-promo {
   position: relative;
-  min-height: 11.2rem;
+  min-height: 10.4rem;
+  max-height: 11.2rem;
   display: flex;
   align-items: center;
   overflow: hidden;
-  border-radius: 1.15rem;
+  border-radius: 1.1rem;
   background: linear-gradient(110deg, #0764e9 0%, #0d72f0 48%, #9ac9ff 100%);
   color: #FFFFFF;
-  box-shadow: 0 12px 28px rgba(20, 96, 189, 0.14);
+  box-shadow: 0 10px 24px rgba(20, 96, 189, 0.12);
 }
 
 .gc-promo-copy {
   position: relative;
   z-index: 3;
-  width: 58%;
-  padding: 1rem 0 1rem 1.05rem;
+  width: 56%;
+  max-width: 56%;
+  padding: 0.9rem 0 0.9rem 0.95rem;
 }
 
 .gc-eyebrow {
   display: inline-flex;
   align-items: center;
-  gap: 0.3rem;
-  padding: 0.32rem 0.6rem;
+  gap: 0.25rem;
+  padding: 0.28rem 0.55rem;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.95);
   color: #0759ca;
-  font-size: 0.58rem;
+  font-size: 0.55rem;
   font-weight: 800;
-  letter-spacing: 0.02em;
 }
 
 .gc-promo h2 {
-  max-width: 14rem;
-  margin: 0.55rem 0 0.3rem;
-  font-size: 1.28rem;
-  line-height: 1.08;
+  max-width: 12.5rem;
+  margin: 0.45rem 0 0.25rem;
+  font-size: 1.15rem;
+  line-height: 1.1;
   letter-spacing: -0.03em;
   font-weight: 850;
 }
 
 .gc-promo p {
-  max-width: 13rem;
+  max-width: 12rem;
   margin: 0;
   color: rgba(255, 255, 255, 0.92);
-  font-size: 0.7rem;
-  line-height: 1.4;
+  font-size: 0.65rem;
+  line-height: 1.35;
 }
 
 .gc-promo-copy button {
-  margin-top: 0.7rem;
+  margin-top: 0.55rem;
   display: inline-flex;
   align-items: center;
-  gap: 0.3rem;
-  padding: 0.5rem 0.85rem;
+  gap: 0.25rem;
+  padding: 0.42rem 0.75rem;
   border: 0;
   border-radius: 999px;
   background: #FFFFFF;
   color: #075bd4;
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   font-weight: 800;
   cursor: pointer;
-  box-shadow: 0 6px 14px rgba(0, 42, 120, 0.14);
 }
 
 .gc-promo-art {
   position: absolute;
   z-index: 1;
-  right: 0.15rem;
+  right: 0;
   top: 0;
-  width: 44%;
+  width: 46%;
   height: 100%;
   pointer-events: none;
+  overflow: hidden;
 }
 
 .gc-art {
   position: absolute;
-  width: 3.6rem;
-  height: 4.6rem;
+  width: 3.1rem;
+  height: 4rem;
   display: grid;
   place-items: center;
-  border-radius: 0.7rem;
+  border-radius: 0.6rem;
   border: 1px solid rgba(255, 255, 255, 0.35);
-  box-shadow: 0 10px 18px rgba(15, 23, 42, 0.16);
-  font-size: 1.6rem;
+  box-shadow: 0 8px 14px rgba(15, 23, 42, 0.14);
+  font-size: 1.35rem;
   font-weight: 800;
 }
 
 .gc-art-one {
-  top: 1.35rem;
-  left: 0.1rem;
+  top: 1.2rem;
+  left: 0.15rem;
   background: linear-gradient(145deg, #ffffff, #d9e5f5);
   color: #0F172A;
   transform: rotate(-12deg);
 }
 
 .gc-art-two {
-  top: 1.7rem;
-  left: 1.7rem;
+  top: 1.5rem;
+  left: 1.5rem;
   z-index: 2;
   background: linear-gradient(145deg, #0F172A, #334155);
   color: #FFFFFF;
@@ -188,8 +202,8 @@
 }
 
 .gc-art-three {
-  top: 1.9rem;
-  left: 3.2rem;
+  top: 1.7rem;
+  left: 2.85rem;
   background: linear-gradient(145deg, #173f62, #06182b);
   color: #FFFFFF;
   transform: rotate(14deg);
@@ -198,38 +212,38 @@
 .gc-promo-art > strong {
   position: absolute;
   z-index: 4;
-  top: 0.4rem;
-  right: 0.15rem;
-  width: 3.4rem;
-  height: 3.4rem;
+  top: 0.35rem;
+  right: 0.35rem;
+  width: 2.85rem;
+  height: 2.85rem;
   display: grid;
   place-content: center;
   text-align: center;
   border-radius: 50%;
   background: linear-gradient(145deg, #1688ff, #0756ca);
-  border: 3px solid rgba(255, 255, 255, 0.8);
-  box-shadow: 0 8px 16px rgba(15, 23, 42, 0.18);
-  font-size: 0.85rem;
+  border: 2.5px solid rgba(255, 255, 255, 0.85);
+  box-shadow: 0 6px 12px rgba(15, 23, 42, 0.16);
+  font-size: 0.72rem;
   line-height: 0.95;
 }
 
 .gc-promo-art > strong small {
   display: block;
-  font-size: 0.45rem;
-  margin-top: 0.12rem;
+  font-size: 0.4rem;
+  margin-top: 0.08rem;
   letter-spacing: 0.04em;
 }
 
 .gc-dots {
   display: flex;
   justify-content: center;
-  gap: 0.35rem;
-  padding-top: 0.5rem;
+  gap: 0.3rem;
+  padding-top: 0.35rem;
 }
 
 .gc-dots button {
-  width: 0.38rem;
-  height: 0.38rem;
+  width: 0.35rem;
+  height: 0.35rem;
   padding: 0;
   border: 0;
   border-radius: 999px;
@@ -238,53 +252,54 @@
 }
 
 .gc-dots button.active {
-  width: 0.9rem;
+  width: 0.8rem;
   background: #1769df;
 }
 
+/* —— Live trades —— */
 .gc-live {
-  margin-bottom: 0.85rem;
+  margin-bottom: 0.65rem;
   overflow: hidden;
   border: 1px solid #E2E8F0;
-  border-radius: 1rem;
+  border-radius: 0.95rem;
   background: #FFFFFF;
-  box-shadow: 0 3px 12px rgba(15, 23, 42, 0.04);
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.035);
 }
 
 .gc-live-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0.7rem 0.8rem 0.55rem;
+  padding: 0.55rem 0.75rem;
 }
 
 .gc-live-header strong {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
-  font-size: 0.78rem;
+  gap: 0.35rem;
+  font-size: 0.74rem;
   font-weight: 800;
   color: #0F172A;
 }
 
 .gc-live-header i {
-  width: 0.5rem;
-  height: 0.5rem;
+  width: 0.45rem;
+  height: 0.45rem;
   display: block;
   border-radius: 50%;
   background: #12aa65;
-  box-shadow: 0 0 0 3px rgba(18, 170, 101, 0.12);
+  box-shadow: 0 0 0 3px rgba(18, 170, 101, 0.1);
 }
 
 .gc-live-header button,
 .gc-heading button {
   display: inline-flex;
   align-items: center;
-  gap: 0.2rem;
+  gap: 0.15rem;
   border: 0;
   background: transparent;
   color: #075dce;
-  font-size: 0.7rem;
+  font-size: 0.68rem;
   font-weight: 700;
   cursor: pointer;
 }
@@ -292,6 +307,7 @@
 .gc-live-track {
   display: flex;
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
   border-top: 1px solid #edf2f8;
 }
@@ -302,17 +318,19 @@
 }
 
 .gc-trade {
-  min-width: 13rem;
+  min-width: 12.2rem;
+  max-width: 13.5rem;
   display: flex;
   align-items: center;
-  gap: 0.55rem;
-  padding: 0.55rem 0.85rem 0.75rem;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem 0.65rem;
   border-right: 1px solid #dce6f0;
+  flex: 0 0 auto;
 }
 
 .gc-trade > span {
-  width: 2rem;
-  height: 2rem;
+  width: 1.85rem;
+  height: 1.85rem;
   display: grid;
   place-items: center;
   flex: 0 0 auto;
@@ -320,7 +338,7 @@
   background: #edf5ff;
   border: 1px solid #d3e3f6;
   color: #12386f;
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   font-weight: 800;
 }
 
@@ -332,81 +350,85 @@
 }
 
 .gc-trade strong {
-  max-width: 9.5rem;
+  max-width: 9rem;
   overflow: hidden;
   text-overflow: ellipsis;
-  font-size: 0.65rem;
+  font-size: 0.62rem;
   font-weight: 600;
   color: #50627a;
 }
 
 .gc-trade p {
-  margin-top: 0.2rem;
+  margin-top: 0.15rem;
   color: #14985c;
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   font-weight: 800;
 }
 
 .gc-trade small {
-  margin-left: 0.35rem;
+  margin-left: 0.3rem;
   color: #74859a;
   font-weight: 500;
-  font-size: 0.65rem;
+  font-size: 0.6rem;
 }
 
+/* —— Currency pills —— */
 .gc-currencies {
-  margin-bottom: 0.75rem;
+  margin-bottom: 0.65rem;
+  max-width: 100%;
+  overflow: hidden;
 }
 
 .gc-currency-track {
   display: flex;
-  gap: 0.45rem;
+  gap: 0.5rem;
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
-  padding-bottom: 0.15rem;
+  padding-bottom: 0.1rem;
 }
 
 .gc-currency-track button {
-  min-width: 3.6rem;
-  height: 2.55rem;
+  min-width: 3.35rem;
+  height: 2.4rem;
   flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.3rem;
-  padding: 0 0.85rem;
+  gap: 0.28rem;
+  padding: 0 0.75rem;
   border: 1px solid #e0e8f2;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.9);
   color: #64748a;
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   font-weight: 700;
   cursor: pointer;
-  box-shadow: 0 2px 8px rgba(31, 73, 120, 0.04);
 }
 
 .gc-currency-track button.active {
   border-color: #0767e9;
   background: linear-gradient(145deg, #0868e8, #1475ee);
   color: #FFFFFF;
-  box-shadow: 0 6px 14px rgba(11, 102, 231, 0.18);
+  box-shadow: 0 5px 12px rgba(11, 102, 231, 0.16);
 }
 
 .gc-currency-track button span {
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   line-height: 1;
 }
 
+/* —— Catalog —— */
 .gc-heading {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin: 0.2rem 0 0.7rem;
+  margin: 0.1rem 0 0.6rem;
 }
 
 .gc-heading h2 {
   margin: 0;
-  font-size: 1.05rem;
+  font-size: 1rem;
   font-weight: 850;
   letter-spacing: -0.02em;
   color: #0b214d;
@@ -414,146 +436,138 @@
 
 .gc-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.7rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
 }
 
+/* Card: logo LEFT + body RIGHT (matches reference) */
 .gc-card {
+  position: relative;
   min-width: 0;
   display: flex;
-  flex-direction: column;
-  padding: 0.6rem;
+  flex-direction: row;
+  align-items: stretch;
+  gap: 0.5rem;
+  padding: 0.55rem;
   border: 1px solid #e2eaf3;
-  border-radius: 1rem;
+  border-radius: 0.95rem;
   background: #FFFFFF;
-  box-shadow: 0 3px 12px rgba(35, 75, 120, 0.06);
+  box-shadow: 0 2px 10px rgba(35, 75, 120, 0.05);
 }
 
-.gc-card-image {
-  position: relative;
-  margin-bottom: 0.5rem;
+.gc-popular {
+  position: absolute;
+  top: 0.35rem;
+  right: 0.35rem;
+  z-index: 2;
+  padding: 0.18rem 0.4rem;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #0869e8, #1779ef);
+  color: #FFFFFF;
+  font-size: 0.5rem;
+  font-weight: 800;
+  line-height: 1;
 }
 
-/* Compact brand tiles — never full-screen logos */
 .gc-mark {
-  height: 4.4rem;
+  width: 3.15rem;
+  height: 3.15rem;
+  flex: 0 0 3.15rem;
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  border-radius: 0.75rem;
+  border-radius: 0.7rem;
   border: 1px solid #E2E8F0;
 }
 
 .gc-svg {
-  width: 2.1rem;
-  height: 2.1rem;
-  max-width: 55%;
-  max-height: 55%;
+  width: 1.65rem;
+  height: 1.65rem;
+  max-width: 1.85rem;
+  max-height: 1.85rem;
   display: block;
+  flex-shrink: 0;
 }
 
 .gc-text-logo {
-  font-size: 0.62rem;
+  font-size: 0.48rem;
   font-weight: 700;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.1em;
   color: #FFFFFF;
+  text-align: center;
+  line-height: 1.1;
+  padding: 0 0.15rem;
 }
 
 .gc-text-logo.gc-amazon {
   letter-spacing: -0.02em;
-  font-size: 0.85rem;
-  color: #FFFFFF;
+  font-size: 0.7rem;
 }
 
-.gc-mark-apple {
-  background: linear-gradient(145deg, #151515, #292929);
-  color: #FFFFFF;
+.gc-mark-apple { background: linear-gradient(145deg, #151515, #292929); color: #FFFFFF; }
+.gc-mark-steam { background: radial-gradient(circle at 32% 28%, #1E3A5F, #0F172A); color: #FFFFFF; }
+.gc-mark-razer { background: #111827; }
+.gc-mark-xbox { background: linear-gradient(145deg, #12a744, #078132); color: #16A34A; }
+.gc-mark-google { background: linear-gradient(145deg, #101010, #171717); }
+.gc-mark-sephora { background: #111111; }
+.gc-mark-playstation { background: linear-gradient(145deg, #0871d5, #06469c); }
+.gc-mark-amazon { background: linear-gradient(145deg, #171717, #222222); }
+
+.gc-card-body {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding-right: 0.1rem;
+  padding-top: 0.15rem;
 }
 
-.gc-mark-steam {
-  background: radial-gradient(circle at 32% 28%, #1E3A5F, #0F172A);
-  color: #FFFFFF;
-}
-
-.gc-mark-razer {
-  background: #111827;
-}
-
-.gc-mark-xbox {
-  background: linear-gradient(145deg, #12a744, #078132);
-  color: #16A34A;
-}
-
-.gc-mark-google {
-  background: linear-gradient(145deg, #101010, #171717);
-}
-
-.gc-mark-sephora {
-  background: #111111;
-}
-
-.gc-mark-playstation {
-  background: linear-gradient(145deg, #0871d5, #06469c);
-}
-
-.gc-mark-amazon {
-  background: linear-gradient(145deg, #171717, #222222);
-}
-
-.gc-card-image > span {
-  position: absolute;
-  top: 0.35rem;
-  right: 0.35rem;
-  padding: 0.2rem 0.45rem;
-  border-radius: 999px;
-  background: linear-gradient(90deg, #0869e8, #1779ef);
-  color: #FFFFFF;
-  font-size: 0.52rem;
-  font-weight: 800;
-  box-shadow: 0 2px 6px rgba(7, 102, 228, 0.2);
-}
-
-.gc-card-details strong,
-.gc-card-details p {
+.gc-card-body strong {
   display: block;
   margin: 0;
-}
-
-.gc-card-details strong {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 0.74rem;
+  font-size: 0.7rem;
   font-weight: 800;
   color: #0b214b;
+  line-height: 1.2;
+  padding-right: 2.4rem;
 }
 
-.gc-card-details p {
-  margin-top: 0.22rem;
+.gc-card-body p {
+  display: block;
+  margin: 0.2rem 0 0.4rem;
   color: #718298;
-  font-size: 0.65rem;
+  font-size: 0.62rem;
   font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .gc-card-sell {
-  width: 100%;
-  height: 2.05rem;
-  margin-top: 0.55rem;
-  display: flex;
+  align-self: flex-end;
+  width: auto;
+  height: 1.7rem;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.25rem;
+  gap: 0.2rem;
+  padding: 0 0.7rem;
   border: 0;
   border-radius: 999px;
   background: linear-gradient(90deg, #0870ec, #167df1);
   color: #FFFFFF;
-  font-size: 0.7rem;
+  font-size: 0.65rem;
   font-weight: 800;
   cursor: pointer;
-  box-shadow: 0 4px 10px rgba(6, 106, 232, 0.15);
+  box-shadow: 0 3px 8px rgba(6, 106, 232, 0.14);
 }
 
+/* —— Bottom nav —— */
 .gc-bottom-nav {
   position: fixed;
   z-index: 100;
@@ -563,28 +577,27 @@
   width: min(100%, 28rem);
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  padding: 0.5rem 0.9rem calc(0.55rem + env(safe-area-inset-bottom));
-  box-sizing: border-box;
+  padding: 0.4rem 0.85rem calc(0.45rem + env(safe-area-inset-bottom, 0px));
   border-top: 1px solid #e1eaf4;
-  border-radius: 1.4rem 1.4rem 0 0;
-  background: rgba(255, 255, 255, 0.96);
+  border-radius: 1.25rem 1.25rem 0 0;
+  background: rgba(255, 255, 255, 0.97);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  box-shadow: 0 -8px 24px rgba(34, 77, 123, 0.08);
+  box-shadow: 0 -6px 20px rgba(34, 77, 123, 0.07);
 }
 
 .gc-bottom-nav button {
   position: relative;
-  min-height: 3.3rem;
+  min-height: 3.1rem;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.2rem;
+  gap: 0.15rem;
   border: 0;
   background: transparent;
   color: #718198;
-  font-size: 0.7rem;
+  font-size: 0.68rem;
   font-weight: 600;
   cursor: pointer;
 }
@@ -597,26 +610,67 @@
 .gc-bottom-nav button.active::after {
   content: "";
   position: absolute;
-  bottom: 0.15rem;
-  width: 2.2rem;
-  height: 0.18rem;
+  bottom: 0.1rem;
+  width: 2rem;
+  height: 0.16rem;
   border-radius: 999px;
   background: #0869e8;
 }
 
+/* —— Narrow phones —— */
 @media (max-width: 360px) {
   .gc-content {
-    padding-left: 0.8rem;
-    padding-right: 0.8rem;
+    padding-left: 0.9rem;
+    padding-right: 0.9rem;
   }
   .gc-grid {
-    gap: 0.55rem;
+    gap: 0.5rem;
   }
   .gc-mark {
-    height: 4rem;
+    width: 2.85rem;
+    height: 2.85rem;
+    flex-basis: 2.85rem;
   }
   .gc-svg {
-    width: 1.85rem;
-    height: 1.85rem;
+    width: 1.45rem;
+    height: 1.45rem;
+  }
+  .gc-promo h2 {
+    font-size: 1.05rem;
+  }
+  .gc-card-body strong {
+    font-size: 0.65rem;
+  }
+}
+
+/* —— Tablet —— */
+@media (min-width: 640px) {
+  .gc-content {
+    max-width: 32rem;
+    padding-left: 1.35rem;
+    padding-right: 1.35rem;
+  }
+  .gc-bottom-nav {
+    width: min(100%, 32rem);
+  }
+  .gc-grid {
+    gap: 0.75rem;
+  }
+}
+
+/* —— Desktop: centered app shell, not stretched phone —— */
+@media (min-width: 1024px) {
+  .gc-page {
+    background: #eef2f7;
+  }
+  .gc-content {
+    max-width: 28rem;
+    margin: 0 auto;
+    min-height: 100dvh;
+    background: #F8FAFC;
+    box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.04), 0 12px 40px rgba(15, 23, 42, 0.06);
+  }
+  .gc-bottom-nav {
+    width: min(100%, 28rem);
   }
 }
