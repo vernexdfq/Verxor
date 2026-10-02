@@ -59,6 +59,24 @@ function saveRemembered(session: AuthSession) {
   );
 }
 
+/** Minimal Verxor mark — Welcome + Create only */
+function BrandMark() {
+  return (
+    <div className="auth-brand" aria-label="Verxor">
+      <div className="auth-brand-mark">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden>
+          <path
+            d="M4 6.5h6.2L12 11l1.8-4.5H20L14.2 17.5h-4.4L4 6.5z"
+            fill="#FFFFFF"
+          />
+          <circle cx="18.5" cy="6.5" r="2.2" fill="#2563EB" />
+        </svg>
+      </div>
+      <span className="auth-brand-name">Verxor</span>
+    </div>
+  );
+}
+
 type Step =
   | 'signin'
   | 'pin'
@@ -90,6 +108,7 @@ export function AuthFlow({
   const [referral, setReferral] = useState('');
 
   const [forgotPassword, setForgotPassword] = useState('');
+  const [showForgotPass, setShowForgotPass] = useState(false);
   const [newPin, setNewPin] = useState('');
   const [confirmNewPin, setConfirmNewPin] = useState('');
 
@@ -118,7 +137,9 @@ export function AuthFlow({
   const handleContinue = () => {
     const value = contact.trim();
     if (!value) {
-      setError(method === 'phone' ? 'Enter your phone number' : 'Enter your email');
+      setError(
+        method === 'phone' ? 'Enter your phone number' : 'Enter your email',
+      );
       return;
     }
     if (method === 'email' && !value.includes('@')) {
@@ -126,7 +147,12 @@ export function AuthFlow({
       return;
     }
     setError('');
-    const next = { ...remembered, method, contact: value, authenticated: false };
+    const next = {
+      ...remembered,
+      method,
+      contact: value,
+      authenticated: false,
+    };
     saveRemembered(next);
     setRemembered(next);
     goToPin(method, value);
@@ -138,7 +164,7 @@ export function AuthFlow({
     setPin(next);
     setError('');
     if (next.length === 4) {
-      setTimeout(() => verifyPin(next), 120);
+      setTimeout(() => verifyPin(next), 140);
     }
   };
 
@@ -155,7 +181,7 @@ export function AuthFlow({
         authenticated: true,
         method,
         contact,
-        name: current.name || 'Destiny',
+        name: current.name || 'User',
       };
       saveRemembered({ ...next, authenticated: false });
       onAuthenticated(next);
@@ -200,7 +226,10 @@ export function AuthFlow({
 
   const handleForgotPasswordCheck = () => {
     const current = loadRemembered();
-    if (forgotPassword === current.password || forgotPassword === 'Verxor1') {
+    if (
+      forgotPassword === current.password ||
+      forgotPassword === 'Verxor1'
+    ) {
       setError('');
       setNewPin('');
       setConfirmNewPin('');
@@ -250,10 +279,12 @@ export function AuthFlow({
     return (
       <div className="auth-root">
         <div className="auth-body">
+          <BrandMark />
+
           <h1 className="auth-title">Welcome back</h1>
           <p className="auth-sub">Sign in to your account</p>
 
-          {error && <div className="auth-error">{error}</div>}
+          {error ? <div className="auth-error">{error}</div> : null}
 
           <div className="auth-tabs" role="tablist">
             <button
@@ -267,7 +298,7 @@ export function AuthFlow({
                 setError('');
               }}
             >
-              <Phone size={16} strokeWidth={2.2} />
+              <Phone size={15} strokeWidth={2.25} />
               Phone Number
             </button>
             <button
@@ -281,7 +312,7 @@ export function AuthFlow({
                 setError('');
               }}
             >
-              <Mail size={16} strokeWidth={2.2} />
+              <Mail size={15} strokeWidth={2.25} />
               Email Address
             </button>
           </div>
@@ -300,7 +331,9 @@ export function AuthFlow({
                 id="auth-contact"
                 type={method === 'phone' ? 'tel' : 'email'}
                 inputMode={method === 'phone' ? 'tel' : 'email'}
-                placeholder={method === 'phone' ? '0814 162 0644' : 'you@example.com'}
+                placeholder={
+                  method === 'phone' ? '0814 162 0644' : 'you@example.com'
+                }
                 value={contact}
                 onChange={(e) => {
                   setContact(e.target.value);
@@ -336,17 +369,20 @@ export function AuthFlow({
 
   /* ——— PIN ENTRY ——— */
   if (step === 'pin') {
-    const changeLabel = method === 'phone' ? '← Change number' : '← Change email';
+    const changeLabel =
+      method === 'phone' ? '← Change number' : '← Change email';
+    const displayContact = contact || remembered.contact;
+
     return (
       <div className="auth-root">
         <div className="auth-body auth-body--pin">
           <h1 className="auth-title auth-title--center">Enter your PIN</h1>
           <p className="auth-sub auth-sub--center">
-            Logging in as <strong>{contact || remembered.contact}</strong>
+            Logging in as <strong>{displayContact}</strong>
           </p>
 
-          {successMsg && <div className="auth-success">{successMsg}</div>}
-          {error && <div className="auth-error">{error}</div>}
+          {successMsg ? <div className="auth-success">{successMsg}</div> : null}
+          {error ? <div className="auth-error">{error}</div> : null}
 
           <p className="pin-label">Enter your 4-digit PIN</p>
 
@@ -358,7 +394,7 @@ export function AuthFlow({
                   pin.length > i ? 'filled' : ''
                 } ${pin.length === i ? 'active' : ''}`}
               >
-                {pin[i] ? '•' : ''}
+                {pin.length > i ? <span className="pin-dot" /> : null}
               </div>
             ))}
           </div>
@@ -374,7 +410,7 @@ export function AuthFlow({
                 {d}
               </button>
             ))}
-            <div />
+            <div aria-hidden />
             <button
               type="button"
               className="pin-key"
@@ -409,6 +445,7 @@ export function AuthFlow({
               onClick={() => {
                 setError('');
                 setForgotPassword('');
+                setShowForgotPass(false);
                 setStep('forgot-password');
               }}
             >
@@ -453,10 +490,12 @@ export function AuthFlow({
             <ArrowLeft size={16} strokeWidth={2.2} /> Back
           </button>
 
+          <BrandMark />
+
           <h1 className="auth-title">Create your account</h1>
           <p className="auth-sub">Fill in your details to get started for free</p>
 
-          {error && <div className="auth-error">{error}</div>}
+          {error ? <div className="auth-error">{error}</div> : null}
 
           <div className="auth-section">Personal info</div>
 
@@ -541,7 +580,9 @@ export function AuthFlow({
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
-            <p className="auth-hint">Min 6 chars · uppercase, lowercase and a number</p>
+            <p className="auth-hint">
+              Min 6 chars · uppercase, lowercase and a number
+            </p>
           </div>
 
           <div className="auth-field">
@@ -562,7 +603,9 @@ export function AuthFlow({
                 autoComplete="off"
               />
             </div>
-            <p className="auth-hint">Used to authorise transactions — keep it secret</p>
+            <p className="auth-hint">
+              Used to authorise transactions — keep it secret
+            </p>
           </div>
 
           <div className="auth-section">Referral</div>
@@ -581,7 +624,9 @@ export function AuthFlow({
                 onChange={(e) => setReferral(e.target.value)}
               />
             </div>
-            <p className="auth-hint">Have a friend&apos;s referral code? Enter it here.</p>
+            <p className="auth-hint">
+              Have a friend&apos;s referral code? Enter it here.
+            </p>
           </div>
 
           <p className="auth-terms">
@@ -631,7 +676,7 @@ export function AuthFlow({
             Enter the password linked to your account to create a new PIN.
           </p>
 
-          {error && <div className="auth-error">{error}</div>}
+          {error ? <div className="auth-error">{error}</div> : null}
 
           <div className="auth-field">
             <label htmlFor="fp-pass">Password</label>
@@ -639,7 +684,7 @@ export function AuthFlow({
               <Lock size={18} strokeWidth={2} />
               <input
                 id="fp-pass"
-                type="password"
+                type={showForgotPass ? 'text' : 'password'}
                 placeholder="Enter your password"
                 value={forgotPassword}
                 onChange={(e) => {
@@ -648,24 +693,36 @@ export function AuthFlow({
                 }}
                 autoComplete="current-password"
               />
+              <button
+                type="button"
+                className="auth-eye"
+                onClick={() => setShowForgotPass((v) => !v)}
+                aria-label={showForgotPass ? 'Hide password' : 'Show password'}
+              >
+                {showForgotPass ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
             </div>
           </div>
 
-          <button type="button" className="auth-btn" onClick={handleForgotPasswordCheck}>
+          <button
+            type="button"
+            className="auth-btn"
+            onClick={handleForgotPasswordCheck}
+          >
             Continue
           </button>
 
-          <button
-            type="button"
-            className="auth-btn secondary"
-            style={{ marginTop: 12 }}
-            onClick={() => {
-              setError('');
-              setStep('pin');
-            }}
-          >
-            ← Back to login
-          </button>
+          <p className="auth-footer-link" style={{ marginTop: 20 }}>
+            <button
+              type="button"
+              onClick={() => {
+                setError('');
+                setStep('pin');
+              }}
+            >
+              ← Back to login
+            </button>
+          </p>
         </div>
       </div>
     );
@@ -679,7 +736,7 @@ export function AuthFlow({
           <h1 className="auth-title">Create new PIN</h1>
           <p className="auth-sub">Choose a new 4-digit PIN for your account.</p>
 
-          {error && <div className="auth-error">{error}</div>}
+          {error ? <div className="auth-error">{error}</div> : null}
 
           <div className="auth-field">
             <label htmlFor="np1">New 4-digit PIN</label>
@@ -712,7 +769,9 @@ export function AuthFlow({
                 placeholder="••••"
                 value={confirmNewPin}
                 onChange={(e) => {
-                  setConfirmNewPin(e.target.value.replace(/\D/g, '').slice(0, 4));
+                  setConfirmNewPin(
+                    e.target.value.replace(/\D/g, '').slice(0, 4),
+                  );
                   if (error) setError('');
                 }}
               />
