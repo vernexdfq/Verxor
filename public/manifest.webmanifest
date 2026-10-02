@@ -1,0 +1,17 @@
+{
+  "name": "Verxor — Your complete digital ecosystem",
+  "short_name": "Verxor",
+  "description": "Connect, verify and grow with Verxor.",
+  "start_url": "/workspace",
+  "display": "standalone",
+  "background_color": "#F8FAFC",
+  "theme_color": "#2563EB",
+  "icons": [
+    {
+      "src": "/brand/verxor-logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
