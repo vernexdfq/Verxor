@@ -11,6 +11,7 @@ import { AirtimePage } from './airtime-page';
 import { DataPage } from './data-page';
 import { GiftCardPage } from './giftcard-page';
 import { TvPage } from './tv-page';
+import { EsimPage } from './esim-page';
 import { VirtualNumbersPage } from './virtual-numbers-page';
 import { AdminPage } from './admin-page';
 import { AuthFlow, type AuthSession } from './auth/AuthFlow';
@@ -145,6 +146,8 @@ export function VerxorApp() {
       <GiftCardPage onBack={closeService} />
     ) : service === 'tv-cable' ? (
       <TvPage onBack={closeService} />
+    ) : service === 'esim' ? (
+      <EsimPage onBack={closeService} />
     ) : service ? (
       <ServicePage view={service} onBack={closeService} />
     ) : page === 'history' ? (
