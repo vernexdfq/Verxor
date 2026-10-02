@@ -1,83 +1,91 @@
-/* Verxor Auth — Primex-style, Verxor colors */
+/* =========================================================
+   Verxor Auth — Grade-one fintech quality (Primex-strength)
+   ========================================================= */
+
 .auth-root {
   min-height: 100dvh;
-  width: min(100%, 448px);
+  width: min(100%, 430px);
   margin: 0 auto;
-  background: #F8FAFC;
+  background: #FFFFFF;
   color: #0F172A;
   position: relative;
   display: flex;
   flex-direction: column;
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
 
 .auth-body {
   flex: 1;
   display: flex;
   flex-direction: column;
-  padding: max(28px, env(safe-area-inset-top)) 24px 32px;
+  padding: max(40px, env(safe-area-inset-top)) 28px max(36px, env(safe-area-inset-bottom));
   overflow-y: auto;
 }
 
+/* ---- Typography ---- */
 .auth-title {
-  margin: 0 0 6px;
-  font-size: 26px;
-  font-weight: 700;
-  letter-spacing: -0.03em;
-  line-height: 1.2;
+  margin: 0 0 8px;
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  line-height: 1.15;
   color: #0F172A;
 }
 
 .auth-sub {
-  margin: 0 0 28px;
-  font-size: 14px;
+  margin: 0 0 32px;
+  font-size: 15px;
   color: #64748B;
-  line-height: 1.45;
+  line-height: 1.5;
+  font-weight: 400;
 }
 
 .auth-sub strong {
   color: #2563EB;
-  font-weight: 600;
+  font-weight: 700;
 }
 
-/* Tabs */
+/* ---- Tabs (Phone / Email) ---- */
 .auth-tabs {
   display: flex;
-  gap: 8px;
-  margin-bottom: 22px;
+  gap: 10px;
+  margin-bottom: 28px;
 }
 
 .auth-tab {
   flex: 1;
-  min-height: 44px;
+  min-height: 48px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
   border-radius: 999px;
-  border: 1px solid #E2E8F0;
+  border: 1.5px solid #E2E8F0;
   background: #FFFFFF;
   color: #64748B;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
+  cursor: pointer;
   transition: all 0.15s ease;
 }
 
 .auth-tab.active {
   background: #EFF6FF;
-  border-color: #BFDBFE;
+  border-color: #93C5FD;
   color: #2563EB;
+  box-shadow: 0 1px 3px rgba(37, 99, 235, 0.08);
 }
 
-/* Fields */
+/* ---- Form fields ---- */
 .auth-field {
-  margin-bottom: 16px;
+  margin-bottom: 18px;
 }
 
 .auth-field label {
   display: block;
-  margin-bottom: 7px;
-  font-size: 13px;
+  margin-bottom: 8px;
+  font-size: 14px;
   font-weight: 600;
   color: #0F172A;
 }
@@ -85,18 +93,18 @@
 .auth-input-wrap {
   display: flex;
   align-items: center;
-  gap: 10px;
-  min-height: 52px;
-  padding: 0 14px;
+  gap: 12px;
+  min-height: 56px;
+  padding: 0 16px;
   border: 1.5px solid #E2E8F0;
-  border-radius: 14px;
+  border-radius: 16px;
   background: #FFFFFF;
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 
 .auth-input-wrap:focus-within {
   border-color: #2563EB;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
 }
 
 .auth-input-wrap svg {
@@ -110,7 +118,7 @@
   outline: 0;
   background: transparent;
   color: #0F172A;
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 500;
   min-width: 0;
 }
@@ -121,29 +129,31 @@
 }
 
 .auth-hint {
-  margin: 6px 0 0;
-  font-size: 11px;
+  margin: 8px 0 0;
+  font-size: 12px;
   color: #94A3B8;
   line-height: 1.4;
 }
 
-/* Primary button */
+/* ---- Primary CTA ---- */
 .auth-btn {
   width: 100%;
-  min-height: 52px;
-  margin-top: 8px;
+  min-height: 56px;
+  margin-top: 10px;
   border: 0;
-  border-radius: 14px;
+  border-radius: 16px;
   background: #2563EB;
   color: #FFFFFF;
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 700;
+  letter-spacing: -0.01em;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
   cursor: pointer;
   transition: background 0.15s, transform 0.1s;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.25);
 }
 
 .auth-btn:hover {
@@ -157,25 +167,28 @@
 .auth-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+  box-shadow: none;
 }
 
 .auth-btn.secondary {
   background: #F1F5F9;
   color: #0F172A;
+  box-shadow: none;
 }
 
 .auth-btn.secondary:hover {
   background: #E2E8F0;
 }
 
-/* Divider + links */
+/* ---- Divider + footer links ---- */
 .auth-or {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin: 22px 0 16px;
+  gap: 14px;
+  margin: 28px 0 18px;
   color: #94A3B8;
-  font-size: 12px;
+  font-size: 13px;
+  font-weight: 500;
 }
 
 .auth-or::before,
@@ -188,7 +201,7 @@
 
 .auth-footer-link {
   text-align: center;
-  font-size: 13px;
+  font-size: 14px;
   color: #64748B;
   margin: 0;
 }
@@ -197,153 +210,171 @@
   background: none;
   border: 0;
   color: #2563EB;
-  font-weight: 600;
-  font-size: 13px;
+  font-weight: 700;
+  font-size: 14px;
   cursor: pointer;
   padding: 0;
 }
 
-/* PIN screen */
+/* =========================================================
+   PIN SCREEN — Primex-strength
+   ========================================================= */
+
+.pin-label {
+  margin: 0 0 16px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #64748B;
+  text-align: center;
+}
+
 .pin-boxes {
   display: flex;
   justify-content: center;
-  gap: 12px;
-  margin: 8px 0 28px;
+  gap: 14px;
+  margin: 0 0 36px;
 }
 
 .pin-box {
-  width: 52px;
-  height: 56px;
-  border-radius: 14px;
+  width: 58px;
+  height: 64px;
+  border-radius: 16px;
   border: 1.5px solid #E2E8F0;
-  background: #FFFFFF;
+  background: #F8FAFC;
   display: grid;
   place-items: center;
-  font-size: 22px;
+  font-size: 26px;
   font-weight: 700;
   color: #0F172A;
-  transition: border-color 0.15s, box-shadow 0.15s;
+  transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
 }
 
 .pin-box.filled {
-  border-color: #2563EB;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+  background: #FFFFFF;
+  border-color: #CBD5E1;
 }
 
 .pin-box.active {
   border-color: #2563EB;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18);
+  background: #FFFFFF;
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.15);
 }
 
+/* Keypad — large, solid, touch-friendly */
 .pin-keypad {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
-  max-width: 280px;
-  margin: 0 auto 28px;
+  gap: 14px;
+  max-width: 300px;
+  width: 100%;
+  margin: 0 auto 32px;
 }
 
 .pin-key {
-  height: 58px;
-  border-radius: 16px;
-  border: 1px solid #E2E8F0;
-  background: #FFFFFF;
-  font-size: 22px;
+  height: 64px;
+  border-radius: 18px;
+  border: 0;
+  background: #F1F5F9;
+  font-size: 24px;
   font-weight: 600;
   color: #0F172A;
   cursor: pointer;
   transition: background 0.12s, transform 0.1s;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
 }
 
 .pin-key:active {
-  background: #F1F5F9;
-  transform: scale(0.96);
+  background: #E2E8F0;
+  transform: scale(0.95);
 }
 
 .pin-key.delete {
-  background: #FEF2F2;
-  border-color: #FECACA;
+  background: #FEE2E2;
   color: #EF4444;
-  font-size: 18px;
+  font-size: 20px;
+}
+
+.pin-key.delete:active {
+  background: #FECACA;
 }
 
 .pin-actions {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 8px;
+  width: 100%;
+  max-width: 300px;
+  margin: 0 auto 8px;
 }
 
 .pin-actions button {
   background: none;
   border: 0;
   color: #2563EB;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   cursor: pointer;
-  padding: 6px 0;
+  padding: 8px 0;
 }
 
-.pin-actions button.muted {
-  color: #64748B;
-}
-
-/* Success toast */
+/* ---- Alerts ---- */
 .auth-success {
   margin: 0 0 20px;
-  padding: 12px 14px;
-  border-radius: 12px;
+  padding: 14px 16px;
+  border-radius: 14px;
   background: #ECFDF5;
   border: 1px solid #A7F3D0;
   color: #065F46;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   text-align: center;
 }
 
 .auth-error {
-  margin: 0 0 16px;
-  padding: 12px 14px;
-  border-radius: 12px;
+  margin: 0 0 18px;
+  padding: 14px 16px;
+  border-radius: 14px;
   background: #FEF2F2;
   border: 1px solid #FECACA;
   color: #991B1B;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
   text-align: center;
 }
 
-/* Section labels in signup */
+/* ---- Signup sections ---- */
 .auth-section {
-  margin: 22px 0 12px;
-  font-size: 11px;
+  margin: 28px 0 14px;
+  font-size: 12px;
   font-weight: 700;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.07em;
   text-transform: uppercase;
   color: #94A3B8;
 }
 
 .auth-terms {
-  margin: 16px 0 8px;
-  font-size: 12px;
+  margin: 20px 0 10px;
+  font-size: 13px;
   color: #64748B;
-  line-height: 1.45;
+  line-height: 1.5;
   text-align: center;
 }
 
 .auth-terms a {
   color: #2563EB;
   font-weight: 600;
+  text-decoration: none;
 }
 
-/* Temporary inspection arrow */
+/* ---- Temporary inspection arrow ---- */
 .auth-inspect-arrow {
   position: fixed;
-  right: 16px;
-  bottom: max(24px, env(safe-area-inset-bottom));
+  right: 18px;
+  bottom: max(28px, env(safe-area-inset-bottom));
   z-index: 50;
-  width: 48px;
-  height: 48px;
+  width: 52px;
+  height: 52px;
   border-radius: 50%;
   border: 0;
   background: #0F172A;
@@ -352,26 +383,27 @@
   font-weight: 700;
   display: grid;
   place-items: center;
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.25);
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.28);
   cursor: pointer;
   transition: transform 0.15s, background 0.15s;
 }
 
 .auth-inspect-arrow:hover {
   background: #2563EB;
-  transform: scale(1.05);
+  transform: scale(1.06);
 }
 
 .auth-inspect-arrow:active {
   transform: scale(0.96);
 }
 
+/* Desktop card feel */
 @media (min-width: 700px) {
   .auth-root {
-    min-height: calc(100dvh - 56px);
-    margin-top: 28px;
-    border-radius: 24px;
-    box-shadow: 0 12px 40px rgba(15, 23, 42, 0.08);
+    min-height: calc(100dvh - 64px);
+    margin-top: 32px;
+    border-radius: 28px;
+    box-shadow: 0 16px 48px rgba(15, 23, 42, 0.1);
     overflow: hidden;
   }
 }

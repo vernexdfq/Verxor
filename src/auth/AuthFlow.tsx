@@ -232,6 +232,7 @@ export function AuthFlow({
     onAuthenticated(next);
   };
 
+  /* ───────── SIGN IN ───────── */
   if (step === 'signin') {
     return (
       <div className="auth-root">
@@ -251,7 +252,7 @@ export function AuthFlow({
                 setError('');
               }}
             >
-              <Phone size={16} /> Phone Number
+              <Phone size={17} /> Phone Number
             </button>
             <button
               type="button"
@@ -262,14 +263,14 @@ export function AuthFlow({
                 setError('');
               }}
             >
-              <Mail size={16} /> Email Address
+              <Mail size={17} /> Email Address
             </button>
           </div>
 
           <div className="auth-field">
             <label>{method === 'phone' ? 'Phone Number' : 'Email Address'}</label>
             <div className="auth-input-wrap">
-              {method === 'phone' ? <Phone size={18} /> : <Mail size={18} />}
+              {method === 'phone' ? <Phone size={19} /> : <Mail size={19} />}
               <input
                 type={method === 'phone' ? 'tel' : 'email'}
                 inputMode={method === 'phone' ? 'tel' : 'email'}
@@ -308,22 +309,24 @@ export function AuthFlow({
     );
   }
 
+  /* ───────── PIN ───────── */
   if (step === 'pin') {
     const changeLabel = method === 'phone' ? '← Change number' : '← Change email';
     return (
       <div className="auth-root">
-        <div className="auth-body" style={{ alignItems: 'center', textAlign: 'center' }}>
+        <div
+          className="auth-body"
+          style={{ alignItems: 'center', textAlign: 'center' }}
+        >
           <h1 className="auth-title">Enter your PIN 🔒</h1>
-          <p className="auth-sub">
+          <p className="auth-sub" style={{ marginBottom: 28 }}>
             Logging in as <strong>{contact}</strong>
           </p>
 
           {successMsg && <div className="auth-success">{successMsg}</div>}
           {error && <div className="auth-error">{error}</div>}
 
-          <p style={{ margin: '0 0 10px', fontSize: 13, color: '#64748B', fontWeight: 500 }}>
-            Enter your 4-digit PIN
-          </p>
+          <p className="pin-label">Enter your 4-digit PIN</p>
 
           <div className="pin-boxes">
             {[0, 1, 2, 3].map((i) => (
@@ -338,29 +341,60 @@ export function AuthFlow({
 
           <div className="pin-keypad">
             {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((d) => (
-              <button key={d} type="button" className="pin-key" onClick={() => handlePinDigit(d)}>
+              <button
+                key={d}
+                type="button"
+                className="pin-key"
+                onClick={() => handlePinDigit(d)}
+              >
                 {d}
               </button>
             ))}
             <div />
-            <button type="button" className="pin-key" onClick={() => handlePinDigit('0')}>
+            <button
+              type="button"
+              className="pin-key"
+              onClick={() => handlePinDigit('0')}
+            >
               0
             </button>
-            <button type="button" className="pin-key delete" onClick={handlePinDelete}>
+            <button
+              type="button"
+              className="pin-key delete"
+              onClick={handlePinDelete}
+              aria-label="Delete"
+            >
               ⌫
             </button>
           </div>
 
-          <div className="pin-actions" style={{ width: '100%', maxWidth: 320 }}>
-            <button type="button" onClick={() => { setStep('signin'); setPin(''); setError(''); setSuccessMsg(''); }}>
+          <div className="pin-actions">
+            <button
+              type="button"
+              onClick={() => {
+                setStep('signin');
+                setPin('');
+                setError('');
+                setSuccessMsg('');
+              }}
+            >
               {changeLabel}
             </button>
-            <button type="button" onClick={() => { setError(''); setForgotPassword(''); setStep('forgot-password'); }}>
+            <button
+              type="button"
+              onClick={() => {
+                setError('');
+                setForgotPassword('');
+                setStep('forgot-password');
+              }}
+            >
               Forgot PIN?
             </button>
           </div>
 
-          <div className="auth-or" style={{ width: '100%', maxWidth: 320 }}>or</div>
+          <div className="auth-or" style={{ width: '100%', maxWidth: 300 }}>
+            or
+          </div>
 
           <p className="auth-footer-link">
             Don&apos;t have an account?{' '}
@@ -383,32 +417,38 @@ export function AuthFlow({
     );
   }
 
+  /* ───────── SIGN UP ───────── */
   if (step === 'signup') {
     return (
       <div className="auth-root">
         <div className="auth-body">
           <button
             type="button"
-            onClick={() => { setError(''); setStep('signin'); }}
+            onClick={() => {
+              setError('');
+              setStep('signin');
+            }}
             style={{
               background: 'none',
               border: 0,
               color: '#64748B',
-              fontSize: 13,
+              fontSize: 14,
               fontWeight: 600,
               display: 'inline-flex',
               alignItems: 'center',
               gap: 6,
-              marginBottom: 16,
+              marginBottom: 20,
               padding: 0,
               cursor: 'pointer',
             }}
           >
-            <ArrowLeft size={16} /> Back
+            <ArrowLeft size={17} /> Back
           </button>
 
           <h1 className="auth-title">Create your account 🚀</h1>
-          <p className="auth-sub">Fill in your details below to get started for free</p>
+          <p className="auth-sub">
+            Fill in your details below to get started for free
+          </p>
 
           {error && <div className="auth-error">{error}</div>}
 
@@ -417,7 +457,7 @@ export function AuthFlow({
           <div className="auth-field">
             <label>Full Name</label>
             <div className="auth-input-wrap">
-              <User size={18} />
+              <User size={19} />
               <input
                 type="text"
                 placeholder="John Doe"
@@ -431,7 +471,7 @@ export function AuthFlow({
           <div className="auth-field">
             <label>Phone Number</label>
             <div className="auth-input-wrap">
-              <Phone size={18} />
+              <Phone size={19} />
               <input
                 type="tel"
                 inputMode="tel"
@@ -446,7 +486,7 @@ export function AuthFlow({
           <div className="auth-field">
             <label>Email Address</label>
             <div className="auth-input-wrap">
-              <Mail size={18} />
+              <Mail size={19} />
               <input
                 type="email"
                 placeholder="you@example.com"
@@ -462,7 +502,7 @@ export function AuthFlow({
           <div className="auth-field">
             <label>Password</label>
             <div className="auth-input-wrap">
-              <Lock size={18} />
+              <Lock size={19} />
               <input
                 type={showPassword ? 'text' : 'password'}
                 placeholder="Create a strong password"
@@ -473,40 +513,53 @@ export function AuthFlow({
               <button
                 type="button"
                 onClick={() => setShowPassword((v) => !v)}
-                style={{ background: 'none', border: 0, color: '#94A3B8', padding: 4, cursor: 'pointer' }}
+                style={{
+                  background: 'none',
+                  border: 0,
+                  color: '#94A3B8',
+                  padding: 4,
+                  cursor: 'pointer',
+                }}
                 aria-label={showPassword ? 'Hide password' : 'Show password'}
               >
-                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                {showPassword ? <EyeOff size={19} /> : <Eye size={19} />}
               </button>
             </div>
-            <p className="auth-hint">Min 6 chars · include uppercase, lowercase and a number</p>
+            <p className="auth-hint">
+              Min 6 chars · include uppercase, lowercase and a number
+            </p>
           </div>
 
           <div className="auth-field">
             <label>4-Digit Transaction PIN</label>
             <div className="auth-input-wrap">
-              <Lock size={18} />
+              <Lock size={19} />
               <input
                 type="password"
                 inputMode="numeric"
                 maxLength={4}
                 placeholder="Enter 4-digit PIN"
                 value={signPin}
-                onChange={(e) => setSignPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                onChange={(e) =>
+                  setSignPin(e.target.value.replace(/\D/g, '').slice(0, 4))
+                }
                 autoComplete="off"
               />
             </div>
-            <p className="auth-hint">Used to authorise transactions — keep it secret</p>
+            <p className="auth-hint">
+              Used to authorise transactions — keep it secret
+            </p>
           </div>
 
           <div className="auth-section">Referral</div>
 
           <div className="auth-field">
             <label>
-              Referral Code <span style={{ color: '#94A3B8', fontWeight: 500 }}>(Optional)</span>
+              Referral Code{' '}
+              <span style={{ color: '#94A3B8', fontWeight: 500 }}>(Optional)</span>
             </label>
             <div className="auth-input-wrap">
-              <Gift size={18} />
+              <Gift size={19} />
               <input
                 type="text"
                 placeholder="ENTER REFERRAL CODE"
@@ -514,21 +567,30 @@ export function AuthFlow({
                 onChange={(e) => setReferral(e.target.value)}
               />
             </div>
-            <p className="auth-hint">Have a friend&apos;s referral code? Enter it here.</p>
+            <p className="auth-hint">
+              Have a friend&apos;s referral code? Enter it here.
+            </p>
           </div>
 
           <p className="auth-terms">
             By creating an account, you agree to our{' '}
-            <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a>.
+            <a href="#">Terms of Service</a> and{' '}
+            <a href="#">Privacy Policy</a>.
           </p>
 
           <button type="button" className="auth-btn" onClick={handleSignUp}>
             Create Account
           </button>
 
-          <p className="auth-footer-link" style={{ marginTop: 18 }}>
+          <p className="auth-footer-link" style={{ marginTop: 22 }}>
             Already have an account?{' '}
-            <button type="button" onClick={() => { setError(''); setStep('signin'); }}>
+            <button
+              type="button"
+              onClick={() => {
+                setError('');
+                setStep('signin');
+              }}
+            >
               Sign In
             </button>
           </p>
@@ -547,6 +609,7 @@ export function AuthFlow({
     );
   }
 
+  /* ───────── FORGOT — password check ───────── */
   if (step === 'forgot-password') {
     return (
       <div className="auth-root">
@@ -561,7 +624,7 @@ export function AuthFlow({
           <div className="auth-field">
             <label>Password</label>
             <div className="auth-input-wrap">
-              <Lock size={18} />
+              <Lock size={19} />
               <input
                 type="password"
                 placeholder="Enter your password"
@@ -572,15 +635,22 @@ export function AuthFlow({
             </div>
           </div>
 
-          <button type="button" className="auth-btn" onClick={handleForgotPasswordCheck}>
+          <button
+            type="button"
+            className="auth-btn"
+            onClick={handleForgotPasswordCheck}
+          >
             Continue
           </button>
 
           <button
             type="button"
             className="auth-btn secondary"
-            style={{ marginTop: 12 }}
-            onClick={() => { setError(''); setStep('pin'); }}
+            style={{ marginTop: 14 }}
+            onClick={() => {
+              setError('');
+              setStep('pin');
+            }}
           >
             ← Back to login
           </button>
@@ -589,6 +659,7 @@ export function AuthFlow({
     );
   }
 
+  /* ───────── FORGOT — set new PIN ───────── */
   if (step === 'forgot-new-pin') {
     return (
       <div className="auth-root">
@@ -601,14 +672,16 @@ export function AuthFlow({
           <div className="auth-field">
             <label>New 4-digit PIN</label>
             <div className="auth-input-wrap">
-              <Lock size={18} />
+              <Lock size={19} />
               <input
                 type="password"
                 inputMode="numeric"
                 maxLength={4}
                 placeholder="••••"
                 value={newPin}
-                onChange={(e) => setNewPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                onChange={(e) =>
+                  setNewPin(e.target.value.replace(/\D/g, '').slice(0, 4))
+                }
               />
             </div>
           </div>
@@ -616,14 +689,16 @@ export function AuthFlow({
           <div className="auth-field">
             <label>Confirm new PIN</label>
             <div className="auth-input-wrap">
-              <Lock size={18} />
+              <Lock size={19} />
               <input
                 type="password"
                 inputMode="numeric"
                 maxLength={4}
                 placeholder="••••"
                 value={confirmNewPin}
-                onChange={(e) => setConfirmNewPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                onChange={(e) =>
+                  setConfirmNewPin(e.target.value.replace(/\D/g, '').slice(0, 4))
+                }
               />
             </div>
           </div>
@@ -636,10 +711,14 @@ export function AuthFlow({
     );
   }
 
+  /* ───────── FORGOT — success ───────── */
   return (
     <div className="auth-root">
-      <div className="auth-body" style={{ justifyContent: 'center', textAlign: 'center' }}>
-        <div className="auth-success" style={{ marginBottom: 24 }}>
+      <div
+        className="auth-body"
+        style={{ justifyContent: 'center', textAlign: 'center' }}
+      >
+        <div className="auth-success" style={{ marginBottom: 28 }}>
           PIN reset successful — enter PIN to login
         </div>
         <button type="button" className="auth-btn" onClick={finishForgotSuccess}>
