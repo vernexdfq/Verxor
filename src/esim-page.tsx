@@ -248,25 +248,23 @@ export function EsimPage({ onBack }: { onBack: () => void }) {
     return selected.plans.some((p) => p.type === 'data-sms');
   }, [selected]);
 
-  const effectiveType: PlanType =
-    planType === 'data-sms' && !hasDataSms ? 'data-only' : planType;
-
+  // Strict filter by user's selected tab — never force-switch
   const visiblePlans = useMemo(() => {
     if (!selected) return [];
     return selected.plans.filter((p) => {
-      if (p.type !== effectiveType) return false;
+      if (p.type !== planType) return false;
       if (coverage !== 'All' && !p.coverage.includes(coverage)) return false;
       if (validity !== 0 && p.days !== validity) return false;
       return true;
     });
-  }, [selected, effectiveType, coverage, validity]);
+  }, [selected, planType, coverage, validity]);
 
   const summaryLine = useMemo(() => {
     if (!selected) return '';
-    const typeLabel = effectiveType === 'data-sms' ? 'Data + SMS' : 'Data Only';
+    const typeLabel = planType === 'data-sms' ? 'Data + SMS' : 'Data Only';
     const daysLabel = validity === 0 ? 'All days' : `${validity} days`;
     return `${typeLabel} · ${coverage} · ${daysLabel}`;
-  }, [selected, effectiveType, coverage, validity]);
+  }, [selected, planType, coverage, validity]);
 
   const handleBuy = async (plan: EsimPlan) => {
     if (buyingId) return;
@@ -334,7 +332,7 @@ export function EsimPage({ onBack }: { onBack: () => void }) {
         <div className="esim-country-list" role="list">
           {filteredCountries.length === 0 ? (
             <div className="esim-empty-inline">
-              <p>No countries match “{query}”</p>
+              <p>No countries match "{query}"</p>
             </div>
           ) : (
             filteredCountries.map((c) => (
@@ -385,18 +383,17 @@ export function EsimPage({ onBack }: { onBack: () => void }) {
               <button
                 type="button"
                 role="tab"
-                aria-selected={effectiveType === 'data-sms'}
-                className={effectiveType === 'data-sms' ? 'active' : ''}
+                aria-selected={planType === 'data-sms'}
+                className={planType === 'data-sms' ? 'active' : ''}
                 onClick={() => setPlanType('data-sms')}
-                disabled={!hasDataSms}
               >
                 Data + SMS
               </button>
               <button
                 type="button"
                 role="tab"
-                aria-selected={effectiveType === 'data-only'}
-                className={effectiveType === 'data-only' ? 'active' : ''}
+                aria-selected={planType === 'data-only'}
+                className={planType === 'data-only' ? 'active' : ''}
                 onClick={() => setPlanType('data-only')}
               >
                 Data Only
@@ -405,7 +402,7 @@ export function EsimPage({ onBack }: { onBack: () => void }) {
 
             {!hasDataSms && planType === 'data-sms' ? (
               <div className="esim-note" role="status">
-                Data + SMS is not available, showing Data Only.
+                Data + SMS is not available for this destination.
               </div>
             ) : null}
 

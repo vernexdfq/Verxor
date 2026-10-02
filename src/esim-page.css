@@ -1,6 +1,6 @@
 /* =========================================================
    Verxor eSIM Store — grade-1 fintech surface
-   Palette locked to Verxor design system
+   Tight edge-to-edge density matching reference rhythm
    ========================================================= */
 
 .esim-page {
@@ -14,22 +14,22 @@
   -webkit-font-smoothing: antialiased;
 }
 
+/* Compact professional header */
 .esim-topbar {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 12px 16px 8px;
+  gap: 8px;
+  padding: 8px 12px 6px;
   position: sticky;
   top: 0;
   z-index: 20;
-  background: rgba(248, 250, 252, 0.92);
+  background: rgba(248, 250, 252, 0.94);
   backdrop-filter: blur(10px);
-  border-bottom: 1px solid transparent;
 }
 
 .esim-back {
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   border-radius: 999px;
   border: 1px solid #E2E8F0;
   background: #FFFFFF;
@@ -45,31 +45,32 @@
   margin: 0;
   flex: 1;
   text-align: center;
-  font-size: 17px;
+  font-size: 16px;
   font-weight: 700;
   letter-spacing: -0.02em;
   color: #0F172A;
 }
 
 .esim-top-spacer {
-  width: 40px;
+  width: 36px;
   flex-shrink: 0;
 }
 
+/* Tighter side gutters — content near edges like reference */
 .esim-scroll {
   flex: 1;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  padding: 4px 16px 32px;
+  padding: 2px 12px 28px;
 }
 
 .esim-intro {
-  margin: 8px 0 16px;
+  margin: 4px 0 12px;
 }
 
 .esim-h1 {
-  margin: 0 0 4px;
-  font-size: 26px;
+  margin: 0 0 2px;
+  font-size: 24px;
   font-weight: 800;
   letter-spacing: -0.04em;
   line-height: 1.15;
@@ -78,22 +79,22 @@
 
 .esim-sub {
   margin: 0;
-  font-size: 14px;
+  font-size: 13.5px;
   color: #64748B;
-  line-height: 1.45;
+  line-height: 1.4;
 }
 
 /* Hero */
 .esim-hero {
   position: relative;
   overflow: hidden;
-  border-radius: 20px;
-  padding: 22px 20px;
-  margin-bottom: 16px;
+  border-radius: 18px;
+  padding: 20px 18px;
+  margin-bottom: 12px;
   background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #4F46E5 100%);
   color: #FFFFFF;
-  box-shadow: 0 12px 30px rgba(37, 99, 235, 0.22);
-  min-height: 112px;
+  box-shadow: 0 10px 26px rgba(37, 99, 235, 0.2);
+  min-height: 104px;
   display: flex;
   align-items: center;
 }
@@ -101,13 +102,13 @@
 .esim-hero-copy {
   position: relative;
   z-index: 1;
-  max-width: 70%;
+  max-width: 72%;
 }
 
 .esim-hero-badge {
   display: inline-block;
-  margin-bottom: 10px;
-  padding: 4px 10px;
+  margin-bottom: 8px;
+  padding: 3px 9px;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.16);
   border: 1px solid rgba(255, 255, 255, 0.22);
@@ -119,24 +120,24 @@
 
 .esim-hero-copy strong {
   display: block;
-  font-size: 22px;
+  font-size: 20px;
   font-weight: 800;
   letter-spacing: -0.03em;
   line-height: 1.2;
-  margin-bottom: 4px;
+  margin-bottom: 3px;
 }
 
 .esim-hero-copy p {
   margin: 0;
-  font-size: 13px;
+  font-size: 12.5px;
   opacity: 0.88;
   font-weight: 500;
 }
 
 .esim-hero-art {
   position: absolute;
-  right: 12px;
-  bottom: 8px;
+  right: 10px;
+  bottom: 6px;
   opacity: 0.22;
   color: #FFFFFF;
   pointer-events: none;
@@ -145,12 +146,12 @@
 /* Search */
 .esim-search-wrap {
   position: relative;
-  margin-bottom: 14px;
+  margin-bottom: 12px;
 }
 
 .esim-search-icon {
   position: absolute;
-  left: 14px;
+  left: 12px;
   top: 50%;
   transform: translateY(-50%);
   color: #94A3B8;
@@ -159,11 +160,11 @@
 
 .esim-search {
   width: 100%;
-  height: 48px;
-  border-radius: 14px;
+  height: 46px;
+  border-radius: 13px;
   border: 1.5px solid #E2E8F0;
   background: #FFFFFF;
-  padding: 0 40px 0 42px;
+  padding: 0 38px 0 40px;
   font-size: 15px;
   font-weight: 500;
   color: #0F172A;
@@ -179,16 +180,16 @@
 
 .esim-search:focus {
   border-color: #2563EB;
-  box-shadow: 0 0 0 3.5px rgba(37, 99, 235, 0.12);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
 }
 
 .esim-search-clear {
   position: absolute;
-  right: 10px;
+  right: 8px;
   top: 50%;
   transform: translateY(-50%);
-  width: 28px;
-  height: 28px;
+  width: 26px;
+  height: 26px;
   border-radius: 999px;
   border: 0;
   background: #F1F5F9;
@@ -198,21 +199,21 @@
   cursor: pointer;
 }
 
-/* Country rows */
+/* Country rows — denser, near edges */
 .esim-country-list {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .esim-country-row {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 11px;
   width: 100%;
   text-align: left;
-  padding: 14px 14px;
-  border-radius: 16px;
+  padding: 12px 12px;
+  border-radius: 14px;
   border: 1px solid #E2E8F0;
   background: #FFFFFF;
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
@@ -227,21 +228,21 @@
 }
 
 .esim-flag {
-  width: 40px;
-  height: 40px;
+  width: 38px;
+  height: 38px;
   border-radius: 999px;
   background: #F1F5F9;
   display: grid;
   place-items: center;
-  font-size: 22px;
+  font-size: 20px;
   flex-shrink: 0;
   line-height: 1;
 }
 
 .esim-flag.lg {
-  width: 44px;
-  height: 44px;
-  font-size: 24px;
+  width: 40px;
+  height: 40px;
+  font-size: 22px;
 }
 
 .esim-country-meta {
@@ -249,24 +250,24 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
 }
 
 .esim-country-meta strong {
-  font-size: 15px;
+  font-size: 14.5px;
   font-weight: 700;
   letter-spacing: -0.02em;
   color: #0F172A;
 }
 
 .esim-country-price {
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 500;
   color: #475569;
 }
 
 .esim-country-validity {
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 600;
   color: #2563EB;
 }
@@ -278,7 +279,7 @@
 
 .esim-empty-inline {
   text-align: center;
-  padding: 40px 16px;
+  padding: 36px 12px;
   color: #64748B;
   font-size: 14px;
 }
@@ -306,7 +307,7 @@
   position: relative;
   z-index: 1;
   background: #FFFFFF;
-  border-radius: 24px 24px 0 0;
+  border-radius: 22px 22px 0 0;
   max-height: min(92dvh, 860px);
   display: flex;
   flex-direction: column;
@@ -315,28 +316,24 @@
 }
 
 @keyframes esim-sheet-up {
-  from {
-    transform: translateY(100%);
-  }
-  to {
-    transform: translateY(0);
-  }
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
 }
 
 .esim-sheet-handle {
-  width: 40px;
+  width: 36px;
   height: 4px;
   border-radius: 999px;
   background: #E2E8F0;
-  margin: 10px auto 4px;
+  margin: 8px auto 2px;
   flex-shrink: 0;
 }
 
 .esim-sheet-head {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 8px 16px 12px;
+  gap: 8px;
+  padding: 6px 12px 10px;
   border-bottom: 1px solid #F1F5F9;
 }
 
@@ -345,25 +342,25 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
 }
 
 .esim-sheet-titles strong {
-  font-size: 17px;
+  font-size: 16px;
   font-weight: 800;
   letter-spacing: -0.02em;
   color: #0F172A;
 }
 
 .esim-sheet-titles span {
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 500;
   color: #64748B;
 }
 
 .esim-icon-btn {
-  width: 36px;
-  height: 36px;
+  width: 34px;
+  height: 34px;
   border-radius: 999px;
   border: 1px solid #E2E8F0;
   background: #FFFFFF;
@@ -379,29 +376,27 @@
 }
 
 @keyframes esim-spin {
-  to {
-    transform: rotate(360deg);
-  }
+  to { transform: rotate(360deg); }
 }
 
-/* Segmented control */
+/* Segmented control — always interactive */
 .esim-seg {
   display: flex;
   gap: 0;
-  margin: 14px 16px 10px;
-  padding: 4px;
+  margin: 12px 12px 8px;
+  padding: 3px;
   background: #EFF6FF;
   border-radius: 999px;
 }
 
 .esim-seg button {
   flex: 1;
-  min-height: 42px;
+  min-height: 40px;
   border: 0;
   border-radius: 999px;
   background: transparent;
   color: #64748B;
-  font-size: 13.5px;
+  font-size: 13px;
   font-weight: 700;
   cursor: pointer;
   transition: background 0.15s, color 0.15s, box-shadow 0.15s;
@@ -413,19 +408,14 @@
   box-shadow: 0 2px 8px rgba(37, 99, 235, 0.32);
 }
 
-.esim-seg button:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-
 .esim-note {
-  margin: 0 16px 10px;
-  padding: 10px 12px;
-  border-radius: 12px;
+  margin: 0 12px 8px;
+  padding: 9px 11px;
+  border-radius: 11px;
   background: #FFFBEB;
   border: 1px solid #FDE68A;
   color: #92400E;
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 600;
   line-height: 1.4;
 }
@@ -434,8 +424,8 @@
 .esim-filters {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 10px;
-  padding: 0 16px 12px;
+  gap: 8px;
+  padding: 0 12px 10px;
 }
 
 .esim-filter-wrap {
@@ -446,10 +436,10 @@
   width: 100%;
   display: flex;
   align-items: center;
-  gap: 8px;
-  min-height: 48px;
-  padding: 8px 12px;
-  border-radius: 14px;
+  gap: 7px;
+  min-height: 46px;
+  padding: 7px 10px;
+  border-radius: 13px;
   border: 1.5px solid #E2E8F0;
   background: #F8FAFC;
   color: #0F172A;
@@ -461,12 +451,12 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: 0;
   min-width: 0;
 }
 
 .esim-filter small {
-  font-size: 10px;
+  font-size: 9.5px;
   font-weight: 600;
   color: #94A3B8;
   text-transform: uppercase;
@@ -474,29 +464,29 @@
 }
 
 .esim-filter strong {
-  font-size: 13.5px;
+  font-size: 13px;
   font-weight: 700;
   color: #0F172A;
 }
 
 .esim-filter-caret {
   color: #94A3B8;
-  font-size: 12px;
+  font-size: 11px;
   flex-shrink: 0;
 }
 
 .esim-dropdown {
   position: absolute;
-  top: calc(100% + 6px);
+  top: calc(100% + 5px);
   left: 0;
   right: 0;
   z-index: 10;
   background: #FFFFFF;
   border: 1px solid #E2E8F0;
-  border-radius: 14px;
-  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.12);
+  border-radius: 12px;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.12);
   overflow: hidden;
-  padding: 4px;
+  padding: 3px;
 }
 
 .esim-dropdown button {
@@ -504,9 +494,9 @@
   text-align: left;
   border: 0;
   background: transparent;
-  padding: 11px 12px;
-  border-radius: 10px;
-  font-size: 14px;
+  padding: 10px 11px;
+  border-radius: 9px;
+  font-size: 13.5px;
   font-weight: 600;
   color: #0F172A;
   cursor: pointer;
@@ -523,18 +513,18 @@
   flex: 1;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  padding: 4px 16px 28px;
+  padding: 2px 12px 24px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .esim-plan-card {
   display: flex;
   align-items: flex-start;
-  gap: 12px;
-  padding: 14px;
-  border-radius: 16px;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 14px;
   border: 1px solid #E2E8F0;
   background: #F8FAFC;
 }
@@ -542,14 +532,14 @@
 .esim-plan-left {
   flex: 1;
   display: flex;
-  gap: 10px;
+  gap: 9px;
   min-width: 0;
 }
 
 .esim-sim-icon {
-  width: 36px;
-  height: 36px;
-  border-radius: 12px;
+  width: 34px;
+  height: 34px;
+  border-radius: 11px;
   background: #EFF6FF;
   color: #2563EB;
   display: grid;
@@ -562,11 +552,11 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
 }
 
 .esim-plan-body strong {
-  font-size: 14px;
+  font-size: 13.5px;
   font-weight: 700;
   letter-spacing: -0.02em;
   color: #0F172A;
@@ -574,7 +564,7 @@
 }
 
 .esim-plan-carrier {
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 500;
   color: #64748B;
 }
@@ -582,18 +572,18 @@
 .esim-chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 4px;
+  gap: 5px;
+  margin-top: 3px;
 }
 
 .esim-chip {
   display: inline-flex;
   align-items: center;
-  padding: 3px 8px;
+  padding: 2px 7px;
   border-radius: 999px;
   background: #EFF6FF;
   color: #1D4ED8;
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 700;
 }
 
@@ -606,26 +596,26 @@
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 8px;
+  gap: 6px;
   flex-shrink: 0;
 }
 
 .esim-plan-price {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 800;
   letter-spacing: -0.02em;
   color: #0F172A;
 }
 
 .esim-buy {
-  min-width: 64px;
-  height: 36px;
-  padding: 0 14px;
+  min-width: 60px;
+  height: 34px;
+  padding: 0 12px;
   border-radius: 999px;
   border: 0;
   background: #2563EB;
   color: #FFFFFF;
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 700;
   cursor: pointer;
   box-shadow: 0 2px 8px rgba(37, 99, 235, 0.28);
@@ -649,24 +639,20 @@
 .esim-skeletons {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .esim-skel-row {
-  height: 88px;
-  border-radius: 16px;
+  height: 82px;
+  border-radius: 14px;
   background: linear-gradient(90deg, #F1F5F9 0%, #E2E8F0 50%, #F1F5F9 100%);
   background-size: 200% 100%;
   animation: esim-shimmer 1.2s ease-in-out infinite;
 }
 
 @keyframes esim-shimmer {
-  0% {
-    background-position: 200% 0;
-  }
-  100% {
-    background-position: -200% 0;
-  }
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
 }
 
 /* Empty */
@@ -676,38 +662,38 @@
   align-items: center;
   justify-content: center;
   text-align: center;
-  padding: 48px 20px;
-  gap: 12px;
+  padding: 40px 16px;
+  gap: 10px;
 }
 
 .esim-empty-icon {
-  width: 44px;
-  height: 44px;
-  border-radius: 14px;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
   background: #F1F5F9;
   color: #64748B;
   display: grid;
   place-items: center;
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 800;
 }
 
 .esim-empty p {
   margin: 0;
-  font-size: 14px;
+  font-size: 13.5px;
   color: #64748B;
   font-weight: 500;
 }
 
 .esim-empty-cta {
-  margin-top: 4px;
-  min-height: 44px;
-  padding: 0 22px;
+  margin-top: 2px;
+  min-height: 42px;
+  padding: 0 20px;
   border-radius: 999px;
   border: 0;
   background: #2563EB;
   color: #FFFFFF;
-  font-size: 14px;
+  font-size: 13.5px;
   font-weight: 700;
   cursor: pointer;
   box-shadow: 0 4px 14px rgba(37, 99, 235, 0.28);
@@ -718,8 +704,8 @@
   position: relative;
   z-index: 1;
   background: #FFFFFF;
-  border-radius: 24px 24px 0 0;
-  padding: 8px 16px 28px;
+  border-radius: 22px 22px 0 0;
+  padding: 6px 12px 24px;
   box-shadow: 0 -12px 40px rgba(15, 23, 42, 0.14);
   animation: esim-sheet-up 0.28s cubic-bezier(0.22, 1, 0.36, 1);
 }
@@ -728,11 +714,11 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 0 16px;
+  padding: 6px 0 14px;
 }
 
 .esim-valid-head strong {
-  font-size: 17px;
+  font-size: 16px;
   font-weight: 800;
   letter-spacing: -0.02em;
 }
@@ -740,16 +726,16 @@
 .esim-valid-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
+  gap: 8px;
 }
 
 .esim-valid-opt {
-  min-height: 48px;
-  border-radius: 14px;
+  min-height: 46px;
+  border-radius: 13px;
   border: 1.5px solid #E2E8F0;
   background: #F8FAFC;
   color: #0F172A;
-  font-size: 13.5px;
+  font-size: 13px;
   font-weight: 700;
   cursor: pointer;
   transition: background 0.12s, border-color 0.12s, color 0.12s;
@@ -766,17 +752,17 @@
 .esim-toast {
   position: fixed;
   left: 50%;
-  bottom: max(24px, env(safe-area-inset-bottom));
+  bottom: max(20px, env(safe-area-inset-bottom));
   transform: translateX(-50%);
   z-index: 100;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 12px 16px;
+  gap: 7px;
+  padding: 11px 15px;
   border-radius: 999px;
   background: #0F172A;
   color: #FFFFFF;
-  font-size: 13.5px;
+  font-size: 13px;
   font-weight: 600;
   box-shadow: 0 12px 30px rgba(15, 23, 42, 0.25);
   max-width: min(92vw, 360px);
