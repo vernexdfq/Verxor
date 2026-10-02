@@ -1,6 +1,6 @@
 /* =========================================================
    Verxor eSIM Store — grade-1 fintech surface
-   Tight edge-to-edge density matching reference rhythm
+   Dense, straight, edge-tight rhythm matching reference
    ========================================================= */
 
 .esim-page {
@@ -14,17 +14,17 @@
   -webkit-font-smoothing: antialiased;
 }
 
-/* Compact professional header */
+/* Compact professional header — full bleed */
 .esim-topbar {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 12px 6px;
+  padding: 10px 14px 8px;
   position: sticky;
   top: 0;
   z-index: 20;
-  background: rgba(248, 250, 252, 0.94);
-  backdrop-filter: blur(10px);
+  background: rgba(248, 250, 252, 0.96);
+  backdrop-filter: blur(12px);
 }
 
 .esim-back {
@@ -56,45 +56,45 @@
   flex-shrink: 0;
 }
 
-/* Tighter side gutters — content near edges like reference */
+/* Tight side gutters — content near edges like reference */
 .esim-scroll {
   flex: 1;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  padding: 2px 12px 28px;
+  padding: 0 14px 32px;
 }
 
 .esim-intro {
-  margin: 4px 0 12px;
+  margin: 2px 0 10px;
 }
 
 .esim-h1 {
   margin: 0 0 2px;
-  font-size: 24px;
+  font-size: 22px;
   font-weight: 800;
-  letter-spacing: -0.04em;
+  letter-spacing: -0.035em;
   line-height: 1.15;
   color: #0F172A;
 }
 
 .esim-sub {
   margin: 0;
-  font-size: 13.5px;
+  font-size: 13px;
   color: #64748B;
   line-height: 1.4;
 }
 
-/* Hero */
+/* Hero — solid, no soft float */
 .esim-hero {
   position: relative;
   overflow: hidden;
-  border-radius: 18px;
-  padding: 20px 18px;
+  border-radius: 16px;
+  padding: 18px 16px;
   margin-bottom: 12px;
   background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #4F46E5 100%);
   color: #FFFFFF;
-  box-shadow: 0 10px 26px rgba(37, 99, 235, 0.2);
-  min-height: 104px;
+  box-shadow: 0 8px 22px rgba(37, 99, 235, 0.22);
+  min-height: 96px;
   display: flex;
   align-items: center;
 }
@@ -107,8 +107,8 @@
 
 .esim-hero-badge {
   display: inline-block;
-  margin-bottom: 8px;
-  padding: 3px 9px;
+  margin-bottom: 6px;
+  padding: 3px 8px;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.16);
   border: 1px solid rgba(255, 255, 255, 0.22);
@@ -120,25 +120,25 @@
 
 .esim-hero-copy strong {
   display: block;
-  font-size: 20px;
+  font-size: 19px;
   font-weight: 800;
   letter-spacing: -0.03em;
   line-height: 1.2;
-  margin-bottom: 3px;
+  margin-bottom: 2px;
 }
 
 .esim-hero-copy p {
   margin: 0;
-  font-size: 12.5px;
+  font-size: 12px;
   opacity: 0.88;
   font-weight: 500;
 }
 
 .esim-hero-art {
   position: absolute;
-  right: 10px;
-  bottom: 6px;
-  opacity: 0.22;
+  right: 8px;
+  bottom: 4px;
+  opacity: 0.2;
   color: #FFFFFF;
   pointer-events: none;
 }
@@ -160,12 +160,12 @@
 
 .esim-search {
   width: 100%;
-  height: 46px;
-  border-radius: 13px;
+  height: 44px;
+  border-radius: 12px;
   border: 1.5px solid #E2E8F0;
   background: #FFFFFF;
-  padding: 0 38px 0 40px;
-  font-size: 15px;
+  padding: 0 36px 0 38px;
+  font-size: 14.5px;
   font-weight: 500;
   color: #0F172A;
   outline: none;
@@ -199,7 +199,7 @@
   cursor: pointer;
 }
 
-/* Country rows — denser, near edges */
+/* Country rows — dense, aligned, no soft float */
 .esim-country-list {
   display: flex;
   flex-direction: column;
@@ -209,27 +209,27 @@
 .esim-country-row {
   display: flex;
   align-items: center;
-  gap: 11px;
+  gap: 12px;
   width: 100%;
   text-align: left;
-  padding: 12px 12px;
+  padding: 12px;
   border-radius: 14px;
   border: 1px solid #E2E8F0;
   background: #FFFFFF;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
   cursor: pointer;
   transition: border-color 0.12s, box-shadow 0.12s, transform 0.08s;
   -webkit-tap-highlight-color: transparent;
 }
 
 .esim-country-row:active {
-  transform: scale(0.99);
+  transform: scale(0.985);
   border-color: #BFDBFE;
 }
 
 .esim-flag {
-  width: 38px;
-  height: 38px;
+  width: 40px;
+  height: 40px;
   border-radius: 999px;
   background: #F1F5F9;
   display: grid;
@@ -254,7 +254,7 @@
 }
 
 .esim-country-meta strong {
-  font-size: 14.5px;
+  font-size: 15px;
   font-weight: 700;
   letter-spacing: -0.02em;
   color: #0F172A;
@@ -307,7 +307,7 @@
   position: relative;
   z-index: 1;
   background: #FFFFFF;
-  border-radius: 22px 22px 0 0;
+  border-radius: 20px 20px 0 0;
   max-height: min(92dvh, 860px);
   display: flex;
   flex-direction: column;
@@ -333,7 +333,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 12px 10px;
+  padding: 6px 14px 10px;
   border-bottom: 1px solid #F1F5F9;
 }
 
@@ -379,11 +379,11 @@
   to { transform: rotate(360deg); }
 }
 
-/* Segmented control — always interactive */
+/* Segmented control */
 .esim-seg {
   display: flex;
   gap: 0;
-  margin: 12px 12px 8px;
+  margin: 12px 14px 8px;
   padding: 3px;
   background: #EFF6FF;
   border-radius: 999px;
@@ -409,7 +409,7 @@
 }
 
 .esim-note {
-  margin: 0 12px 8px;
+  margin: 0 14px 8px;
   padding: 9px 11px;
   border-radius: 11px;
   background: #FFFBEB;
@@ -425,7 +425,7 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 8px;
-  padding: 0 12px 10px;
+  padding: 0 14px 10px;
 }
 
 .esim-filter-wrap {
@@ -439,7 +439,7 @@
   gap: 7px;
   min-height: 46px;
   padding: 7px 10px;
-  border-radius: 13px;
+  border-radius: 12px;
   border: 1.5px solid #E2E8F0;
   background: #F8FAFC;
   color: #0F172A;
@@ -513,7 +513,7 @@
   flex: 1;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  padding: 2px 12px 24px;
+  padding: 2px 14px 24px;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -704,8 +704,8 @@
   position: relative;
   z-index: 1;
   background: #FFFFFF;
-  border-radius: 22px 22px 0 0;
-  padding: 6px 12px 24px;
+  border-radius: 20px 20px 0 0;
+  padding: 6px 14px 24px;
   box-shadow: 0 -12px 40px rgba(15, 23, 42, 0.14);
   animation: esim-sheet-up 0.28s cubic-bezier(0.22, 1, 0.36, 1);
 }
@@ -731,7 +731,7 @@
 
 .esim-valid-opt {
   min-height: 46px;
-  border-radius: 13px;
+  border-radius: 12px;
   border: 1.5px solid #E2E8F0;
   background: #F8FAFC;
   color: #0F172A;

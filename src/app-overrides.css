@@ -538,11 +538,11 @@
   font-size: 10px;
 }
 
+/* Deep service pages own their full width — no shell side gutters */
 .app-frame.deep-service .bottom-nav {
   display: none;
 }
 .app-frame.deep-service .content {
-  padding-left: 16px;
-  padding-right: 16px;
-  padding-bottom: max(20px, env(safe-area-inset-bottom));
+  padding: 0;
+  padding-bottom: max(12px, env(safe-area-inset-bottom));
 }
