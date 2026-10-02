@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import {
   ArrowLeft,
+  ArrowRight,
   Eye,
   EyeOff,
   Gift,
@@ -59,7 +60,19 @@ function saveRemembered(session: AuthSession) {
   );
 }
 
-/** Minimal Verxor mark — Welcome + Create only */
+/** Display phones as 08xx… not +234 concatenated */
+function formatContactDisplay(raw: string, method: AuthMethod): string {
+  if (method === 'email') return raw;
+  let digits = raw.replace(/\D/g, '');
+  if (digits.startsWith('234') && digits.length >= 13) {
+    digits = '0' + digits.slice(3);
+  }
+  if (digits.length === 11 && digits.startsWith('0')) {
+    return `${digits.slice(0, 4)}${digits.slice(4, 7)}${digits.slice(7)}`;
+  }
+  return raw;
+}
+
 function BrandMark() {
   return (
     <div className="auth-brand" aria-label="Verxor">
@@ -124,6 +137,20 @@ export function AuthFlow({
     }
     setHydrated(true);
   }, []);
+
+  /** Temporary bypass until Supabase is live */
+  const handleSkipLogin = () => {
+    const current = loadRemembered();
+    const next: AuthSession = {
+      ...current,
+      authenticated: true,
+      method: method || current.method,
+      contact: contact || current.contact,
+      name: current.name || 'User',
+    };
+    saveRemembered({ ...next, authenticated: false });
+    onAuthenticated(next);
+  };
 
   const goToPin = (nextMethod: AuthMethod, nextContact: string) => {
     setMethod(nextMethod);
@@ -274,11 +301,24 @@ export function AuthFlow({
     );
   }
 
+  const SkipButton = (
+    <button
+      type="button"
+      className="auth-skip"
+      onClick={handleSkipLogin}
+      aria-label="Skip login (temporary)"
+      title="Skip login until Supabase is connected"
+    >
+      <ArrowRight size={18} strokeWidth={2.4} />
+    </button>
+  );
+
   /* ——— SIGN IN ——— */
   if (step === 'signin') {
     return (
       <div className="auth-root">
-        <div className="auth-body">
+        {SkipButton}
+        <div className="auth-body auth-body--signin">
           <BrandMark />
 
           <h1 className="auth-title">Welcome back</h1>
@@ -332,7 +372,7 @@ export function AuthFlow({
                 type={method === 'phone' ? 'tel' : 'email'}
                 inputMode={method === 'phone' ? 'tel' : 'email'}
                 placeholder={
-                  method === 'phone' ? '0814 162 0644' : 'you@example.com'
+                  method === 'phone' ? '08141620644' : 'you@example.com'
                 }
                 value={contact}
                 onChange={(e) => {
@@ -371,10 +411,12 @@ export function AuthFlow({
   if (step === 'pin') {
     const changeLabel =
       method === 'phone' ? '← Change number' : '← Change email';
-    const displayContact = contact || remembered.contact;
+    const rawContact = contact || remembered.contact;
+    const displayContact = formatContactDisplay(rawContact, method);
 
     return (
       <div className="auth-root">
+        {SkipButton}
         <div className="auth-body auth-body--pin">
           <h1 className="auth-title auth-title--center">Enter your PIN</h1>
           <p className="auth-sub auth-sub--center">
@@ -478,6 +520,7 @@ export function AuthFlow({
   if (step === 'signup') {
     return (
       <div className="auth-root">
+        {SkipButton}
         <div className="auth-body">
           <button
             type="button"
@@ -655,10 +698,11 @@ export function AuthFlow({
     );
   }
 
-  /* ——— FORGOT: password check ——— */
+  /* ——— FORGOT: password ——— */
   if (step === 'forgot-password') {
     return (
       <div className="auth-root">
+        {SkipButton}
         <div className="auth-body">
           <button
             type="button"
@@ -728,10 +772,11 @@ export function AuthFlow({
     );
   }
 
-  /* ——— FORGOT: set new PIN ——— */
+  /* ——— FORGOT: new PIN ——— */
   if (step === 'forgot-new-pin') {
     return (
       <div className="auth-root">
+        {SkipButton}
         <div className="auth-body">
           <h1 className="auth-title">Create new PIN</h1>
           <p className="auth-sub">Choose a new 4-digit PIN for your account.</p>
@@ -789,6 +834,7 @@ export function AuthFlow({
   /* ——— FORGOT success ——— */
   return (
     <div className="auth-root">
+      {SkipButton}
       <div className="auth-body auth-body--center">
         <div className="auth-success-icon" aria-hidden>
           ✓
