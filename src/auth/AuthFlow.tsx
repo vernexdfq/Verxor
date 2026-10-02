@@ -44,7 +44,7 @@ function loadRemembered(): AuthSession {
     return {
       ...DEFAULT_MOCK,
       ...parsed,
-      authenticated: false, // never trust storage for live access
+      authenticated: false,
     };
   } catch {
     return { ...DEFAULT_MOCK };
@@ -81,7 +81,6 @@ export function AuthFlow({
   const [successMsg, setSuccessMsg] = useState('');
   const [hydrated, setHydrated] = useState(false);
 
-  // Sign-up
   const [fullName, setFullName] = useState('');
   const [signPhone, setSignPhone] = useState('');
   const [signEmail, setSignEmail] = useState('');
@@ -90,7 +89,6 @@ export function AuthFlow({
   const [signPin, setSignPin] = useState('');
   const [referral, setReferral] = useState('');
 
-  // Forgot PIN
   const [forgotPassword, setForgotPassword] = useState('');
   const [newPin, setNewPin] = useState('');
   const [confirmNewPin, setConfirmNewPin] = useState('');
@@ -98,7 +96,6 @@ export function AuthFlow({
   useEffect(() => {
     const s = loadRemembered();
     setRemembered(s);
-    // Returning user with a saved contact → always land on PIN (never dashboard)
     if (s.contact) {
       setMethod(s.method || 'phone');
       setContact(s.contact);
@@ -129,7 +126,6 @@ export function AuthFlow({
       return;
     }
     setError('');
-    // Remember chosen method + contact for next open
     const next = { ...remembered, method, contact: value, authenticated: false };
     saveRemembered(next);
     setRemembered(next);
@@ -153,7 +149,6 @@ export function AuthFlow({
 
   const verifyPin = (value: string) => {
     const current = loadRemembered();
-    // Mock: accept stored PIN or default 1234 for inspection until Supabase is wired
     if (value === current.pin || value === '1234') {
       const next: AuthSession = {
         ...current,
@@ -240,49 +235,23 @@ export function AuthFlow({
     setStep('pin');
   };
 
-  /** Temporary inspection bypass (remove when Supabase is live) */
-  const inspectLogin = () => {
-    const next: AuthSession = {
-      authenticated: true,
-      method: 'phone',
-      contact: '08141620644',
-      name: 'Destiny',
-      pin: '1234',
-      password: 'Verxor1',
-    };
-    saveRemembered({ ...next, authenticated: false });
-    onAuthenticated(next);
-  };
-
   if (!hydrated) {
     return (
       <div className="auth-root">
-        <div className="auth-body" style={{ justifyContent: 'center', alignItems: 'center' }}>
+        <div className="auth-body auth-body--center">
           <div className="auth-spinner" />
         </div>
       </div>
     );
   }
 
-  /* ——— Brand header (shared) ——— */
-  const BrandHeader = () => (
-    <div className="auth-brand">
-      <div className="auth-logo" aria-hidden>
-        <span>V</span>
-      </div>
-      <span className="auth-brand-name">Verxor</span>
-    </div>
-  );
-
   /* ——— SIGN IN ——— */
   if (step === 'signin') {
     return (
       <div className="auth-root">
         <div className="auth-body">
-          <BrandHeader />
-
           <h1 className="auth-title">Welcome back</h1>
-          <p className="auth-sub">Sign in to your Verxor account</p>
+          <p className="auth-sub">Sign in to your account</p>
 
           {error && <div className="auth-error">{error}</div>}
 
@@ -333,7 +302,10 @@ export function AuthFlow({
                 inputMode={method === 'phone' ? 'tel' : 'email'}
                 placeholder={method === 'phone' ? '0814 162 0644' : 'you@example.com'}
                 value={contact}
-                onChange={(e) => setContact(e.target.value)}
+                onChange={(e) => {
+                  setContact(e.target.value);
+                  if (error) setError('');
+                }}
                 autoComplete={method === 'phone' ? 'tel' : 'email'}
               />
             </div>
@@ -358,28 +330,16 @@ export function AuthFlow({
             </button>
           </p>
         </div>
-
-        <button
-          type="button"
-          className="auth-inspect-arrow"
-          onClick={inspectLogin}
-          aria-label="Temporary inspection login"
-          title="Inspect dashboard (temporary)"
-        >
-          →
-        </button>
       </div>
     );
   }
 
-  /* ——— PIN ENTRY (always shown for returning users) ——— */
+  /* ——— PIN ENTRY ——— */
   if (step === 'pin') {
     const changeLabel = method === 'phone' ? '← Change number' : '← Change email';
     return (
       <div className="auth-root">
         <div className="auth-body auth-body--pin">
-          <BrandHeader />
-
           <h1 className="auth-title auth-title--center">Enter your PIN</h1>
           <p className="auth-sub auth-sub--center">
             Logging in as <strong>{contact || remembered.contact}</strong>
@@ -456,7 +416,7 @@ export function AuthFlow({
             </button>
           </div>
 
-          <div className="auth-or" style={{ maxWidth: 300, width: '100%', marginLeft: 'auto', marginRight: 'auto' }}>
+          <div className="auth-or" style={{ maxWidth: 300 }}>
             or
           </div>
 
@@ -473,16 +433,6 @@ export function AuthFlow({
             </button>
           </p>
         </div>
-
-        <button
-          type="button"
-          className="auth-inspect-arrow"
-          onClick={inspectLogin}
-          aria-label="Temporary inspection login"
-          title="Inspect dashboard (temporary)"
-        >
-          →
-        </button>
       </div>
     );
   }
@@ -519,7 +469,10 @@ export function AuthFlow({
                 type="text"
                 placeholder="John Doe"
                 value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
+                onChange={(e) => {
+                  setFullName(e.target.value);
+                  if (error) setError('');
+                }}
                 autoComplete="name"
               />
             </div>
@@ -535,7 +488,10 @@ export function AuthFlow({
                 inputMode="tel"
                 placeholder="08012345678"
                 value={signPhone}
-                onChange={(e) => setSignPhone(e.target.value)}
+                onChange={(e) => {
+                  setSignPhone(e.target.value);
+                  if (error) setError('');
+                }}
                 autoComplete="tel"
               />
             </div>
@@ -550,7 +506,10 @@ export function AuthFlow({
                 type="email"
                 placeholder="you@example.com"
                 value={signEmail}
-                onChange={(e) => setSignEmail(e.target.value)}
+                onChange={(e) => {
+                  setSignEmail(e.target.value);
+                  if (error) setError('');
+                }}
                 autoComplete="email"
               />
             </div>
@@ -567,7 +526,10 @@ export function AuthFlow({
                 type={showPassword ? 'text' : 'password'}
                 placeholder="Create a strong password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  if (error) setError('');
+                }}
                 autoComplete="new-password"
               />
               <button
@@ -593,9 +555,10 @@ export function AuthFlow({
                 maxLength={4}
                 placeholder="Enter 4-digit PIN"
                 value={signPin}
-                onChange={(e) =>
-                  setSignPin(e.target.value.replace(/\D/g, '').slice(0, 4))
-                }
+                onChange={(e) => {
+                  setSignPin(e.target.value.replace(/\D/g, '').slice(0, 4));
+                  if (error) setError('');
+                }}
                 autoComplete="off"
               />
             </div>
@@ -643,16 +606,6 @@ export function AuthFlow({
             </button>
           </p>
         </div>
-
-        <button
-          type="button"
-          className="auth-inspect-arrow"
-          onClick={inspectLogin}
-          aria-label="Temporary inspection login"
-          title="Inspect dashboard (temporary)"
-        >
-          →
-        </button>
       </div>
     );
   }
@@ -662,7 +615,17 @@ export function AuthFlow({
     return (
       <div className="auth-root">
         <div className="auth-body">
-          <BrandHeader />
+          <button
+            type="button"
+            className="auth-back"
+            onClick={() => {
+              setError('');
+              setStep('pin');
+            }}
+          >
+            <ArrowLeft size={16} strokeWidth={2.2} /> Back
+          </button>
+
           <h1 className="auth-title">Reset your PIN</h1>
           <p className="auth-sub">
             Enter the password linked to your account to create a new PIN.
@@ -679,7 +642,10 @@ export function AuthFlow({
                 type="password"
                 placeholder="Enter your password"
                 value={forgotPassword}
-                onChange={(e) => setForgotPassword(e.target.value)}
+                onChange={(e) => {
+                  setForgotPassword(e.target.value);
+                  if (error) setError('');
+                }}
                 autoComplete="current-password"
               />
             </div>
@@ -710,7 +676,6 @@ export function AuthFlow({
     return (
       <div className="auth-root">
         <div className="auth-body">
-          <BrandHeader />
           <h1 className="auth-title">Create new PIN</h1>
           <p className="auth-sub">Choose a new 4-digit PIN for your account.</p>
 
@@ -727,9 +692,10 @@ export function AuthFlow({
                 maxLength={4}
                 placeholder="••••"
                 value={newPin}
-                onChange={(e) =>
-                  setNewPin(e.target.value.replace(/\D/g, '').slice(0, 4))
-                }
+                onChange={(e) => {
+                  setNewPin(e.target.value.replace(/\D/g, '').slice(0, 4));
+                  if (error) setError('');
+                }}
               />
             </div>
           </div>
@@ -745,9 +711,10 @@ export function AuthFlow({
                 maxLength={4}
                 placeholder="••••"
                 value={confirmNewPin}
-                onChange={(e) =>
-                  setConfirmNewPin(e.target.value.replace(/\D/g, '').slice(0, 4))
-                }
+                onChange={(e) => {
+                  setConfirmNewPin(e.target.value.replace(/\D/g, '').slice(0, 4));
+                  if (error) setError('');
+                }}
               />
             </div>
           </div>
@@ -763,10 +730,14 @@ export function AuthFlow({
   /* ——— FORGOT success ——— */
   return (
     <div className="auth-root">
-      <div className="auth-body" style={{ justifyContent: 'center', textAlign: 'center' }}>
-        <div className="auth-success" style={{ marginBottom: 24 }}>
-          PIN reset successful — enter PIN to login
+      <div className="auth-body auth-body--center">
+        <div className="auth-success-icon" aria-hidden>
+          ✓
         </div>
+        <h1 className="auth-title auth-title--center">PIN reset successful</h1>
+        <p className="auth-sub auth-sub--center">
+          Enter your new PIN to sign in.
+        </p>
         <button type="button" className="auth-btn" onClick={finishForgotSuccess}>
           Enter PIN
         </button>
