@@ -4,3 +4,166 @@
  * Local hero polish (rotators, trusted badge, chips) is in hero-polish.css.
  */
 @import url("https://cdn.jsdelivr.net/gh/vernexdfq/Verxor@f7445f38bc191cb9db8d38f2fd97226b77320989/src/marketing/marketing.css");
+
+
+/* Final visual polish: consistent rhythm, straight layouts and safe mobile composition. */
+*,*::before,*::after{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:88px}
+body{overflow-x:hidden}
+.mk-container{width:min(1160px,calc(100% - 48px))}
+.mk-hero-grid{gap:clamp(28px,4vw,58px);padding-top:clamp(58px,7vw,88px);padding-bottom:clamp(48px,6vw,70px)}
+.mk-hero-copy{max-width:590px}
+.mk-hero h1{max-width:650px;text-wrap:balance}
+.mk-hero-lead{max-width:520px;font-size:clamp(15px,1.3vw,17px);line-height:1.75}
+.mk-hero-art{transform:none;isolation:isolate}
+.mk-preview-window{transform:none}
+.mk-float-card{max-width:calc(100% - 18px)}
+.mk-float-left{left:-12px}
+.mk-float-right{right:-12px}
+.mk-hero-bottom{gap:clamp(8px,1.6vw,18px)}
+.mk-section{padding-block:clamp(66px,7.5vw,96px)}
+.mk-section-heading{margin-bottom:clamp(28px,4vw,40px)}
+.mk-section-heading h2,.mk-faq-layout h2,.mk-platform-copy h2{ text-wrap:balance }
+.mk-audience-grid,.mk-service-grid,.mk-benefit-grid,.mk-steps-grid{align-items:stretch}
+.mk-audience-card,.mk-service-card,.mk-benefit-grid article,.mk-steps-grid article{min-width:0}
+.mk-audience-card p,.mk-service-card p{overflow-wrap:anywhere}
+.mk-service-card{display:flex;flex-direction:column}
+.mk-service-card h3{margin-top:17px}
+.mk-service-card p{flex:1}
+.mk-service-link{margin-top:auto}
+.mk-platform-visual{min-width:0}
+.mk-platform-card{max-width:100%}
+.mk-platform-copy{max-width:540px}
+.mk-bottom-cta-inner{align-items:center}
+.mk-bottom-cta-inner>div:first-child{max-width:680px}
+.mk-footer-top{gap:clamp(20px,3vw,40px)}
+.mk-footer-col a{width:fit-content}
+.mk-service-art,.mk-reseller-visual{min-width:0}
+.mk-service-art-card,.mk-reseller-window,.mk-share-card,.mk-application-card{min-width:0}
+.mk-code-card pre{max-width:100%;white-space:pre;tab-size:2}
+@media(max-width:1000px){
+  .mk-container{width:min(100% - 40px,820px)}
+  .mk-hero-grid{grid-template-columns:minmax(0,1fr) minmax(0,.92fr);gap:24px}
+  .mk-hero-art{min-height:430px}
+  .mk-float-left{left:-5px}
+  .mk-float-right{right:-5px}
+  .mk-platform-grid,.mk-partner-dark-grid{gap:32px}
+  .mk-faq-layout{gap:38px}
+}
+@media(max-width:760px){
+  .mk-container{width:calc(100% - 40px)}
+  .mk-nav{height:68px}
+  .mk-hero-grid{grid-template-columns:minmax(0,1fr);gap:22px;padding-top:42px;padding-bottom:32px}
+  .mk-hero-copy{max-width:620px}
+  .mk-hero h1{max-width:560px;margin-top:19px;font-size:clamp(39px,8.6vw,58px);line-height:1.06;letter-spacing:-.06em}
+  .mk-hero-lead{max-width:580px;font-size:15px;line-height:1.75}
+  .mk-hero-actions{gap:10px}
+  .mk-hero-actions .mk-button{min-height:52px}
+  .mk-proof-row{gap:12px 18px;font-size:11px}
+  .mk-hero-art{width:100%;min-height:0;padding:22px 0 36px}
+  .mk-orbit-one{width:min(88vw,430px);height:min(88vw,430px)}
+  .mk-orbit-two{width:min(73vw,355px);height:min(73vw,355px)}
+  .mk-preview-window{width:min(100%,460px);padding:clamp(14px,4vw,20px)}
+  .mk-float-left{left:0;bottom:10px}
+  .mk-float-right{right:0;top:0}
+  .mk-hero-bottom{flex-wrap:wrap;justify-content:center;padding:16px 0;font-size:8px}
+  .mk-hero-bottom div{min-width:12px;max-width:40px}
+  .mk-section{padding-block:62px}
+  .mk-section-heading h2{font-size:clamp(29px,7vw,39px)}
+  .mk-audience-grid{grid-template-columns:minmax(0,1fr);gap:12px}
+  .mk-audience-card{padding:22px}
+  .mk-service-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+  .mk-service-card{padding:17px;min-height:225px}
+  .mk-service-top{align-items:flex-start}
+  .mk-service-top>span:last-child{max-width:105px;line-height:1.5}
+  .mk-service-card h3{font-size:15px}
+  .mk-service-card p{font-size:11px}
+  .mk-platform-grid,.mk-partner-dark-grid,.mk-service-process-grid,.mk-share-grid,.mk-application-grid,.mk-pricing-rules,.mk-faq-layout{grid-template-columns:minmax(0,1fr);gap:32px}
+  .mk-platform-band,.mk-partner-dark{padding-block:56px}
+  .mk-platform-visual{min-height:275px}
+  .mk-platform-chip{right:0;bottom:0}
+  .mk-bottom-cta{padding-block:42px}
+  .mk-bottom-cta-inner{align-items:stretch;flex-direction:column;gap:22px}
+  .mk-bottom-actions{display:grid;grid-template-columns:minmax(0,1fr);width:100%}
+  .mk-bottom-actions .mk-button{width:100%}
+  .mk-footer{padding-top:42px}
+  .mk-footer-top{grid-template-columns:repeat(2,minmax(0,1fr));gap:28px 18px}
+  .mk-footer-brand{grid-column:1/-1}
+  .mk-footer-bottom{line-height:1.7}
+  .mk-service-hero-grid,.mk-partner-grid{padding-block:34px 46px}
+  .mk-service-art{min-height:300px}
+  .mk-service-bottom>.mk-container{align-items:stretch}
+  .mk-service-bottom .mk-button{width:100%}
+}
+@media(max-width:440px){
+  .mk-container{width:calc(100% - 32px)}
+  .mk-brand{font-size:17px;gap:9px}
+  .mk-brand img{width:35px;height:35px}
+  .mk-hero-grid{padding-top:34px}
+  .mk-eyebrow{font-size:9px;letter-spacing:.1em}
+  .mk-hero h1{font-size:clamp(37px,9.3vw,43px);line-height:1.07}
+  .mk-hero-lead{font-size:14px}
+  .mk-hero-actions{align-items:stretch;flex-direction:column}
+  .mk-hero-actions .mk-button{width:100%;white-space:normal;text-align:center}
+  .mk-proof-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;font-size:10px}
+  .mk-proof-row span{align-items:flex-start;line-height:1.45}
+  .mk-hero-art{padding-top:34px;padding-bottom:35px}
+  .mk-preview-window{padding:13px;border-radius:19px}
+  .mk-preview-top{gap:8px}
+  .mk-preview-brand{font-size:10px}
+  .mk-preview-pill{font-size:7px}
+  .mk-preview-welcome h2{font-size:15px}
+  .mk-balance-card{padding:13px}
+  .mk-balance-card>strong{font-size:clamp(22px,6.5vw,27px)}
+  .mk-balance-foot{font-size:7px}
+  .mk-preview-services>div{gap:8px;padding:8px}
+  .mk-preview-services .mk-icon-tile{width:34px;height:34px;border-radius:10px}
+  .mk-preview-services b{font-size:9px}
+  .mk-preview-services small{font-size:8px}
+  .mk-float-card{gap:7px;padding:8px 9px;border-radius:12px}
+  .mk-float-icon{width:25px;height:25px}
+  .mk-float-card b{font-size:8px}
+  .mk-float-card small{font-size:7px}
+  .mk-float-left{bottom:4px}
+  .mk-float-right{top:0}
+  .mk-hero-bottom{gap:6px;font-size:7px;letter-spacing:.04em}
+  .mk-service-grid{grid-template-columns:minmax(0,1fr)}
+  .mk-service-card{min-height:0;padding:19px}
+  .mk-service-card p{margin-bottom:13px}
+  .mk-service-number{font-size:22px}
+  .mk-platform-visual{min-height:245px}
+  .mk-platform-card{padding:14px}
+  .mk-platform-bars{height:125px;gap:6px}
+  .mk-platform-chip{max-width:90%;font-size:9px}
+  .mk-footer-top{gap:25px 13px}
+  .mk-footer-col a{font-size:10px}
+  .mk-share-equation{align-items:flex-start;flex-direction:column}
+}
+@media(prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  .mk-button,.mk-nav-cta,.mk-audience-card,.mk-service-card{transition:none}
+  .mk-button:hover,.mk-nav-cta:hover,.mk-audience-card:hover,.mk-service-card:hover{transform:none}
+}
+
+
+/* Bespoke vector banner artwork, built for Verxor's existing palette. */
+.mk-hero-art::before{
+  content:"";
+  position:absolute;
+  z-index:0;
+  inset:2% -5% 0;
+  background:url("/brand/marketing-ecosystem.svg") center/contain no-repeat;
+  opacity:.5;
+  pointer-events:none;
+}
+.mk-preview-window{z-index:2}
+.mk-orbit{z-index:0}
+.mk-service-art{isolation:isolate}
+.mk-service-art-orb{background:radial-gradient(circle at 50% 45%,rgba(147,197,253,.68) 0%,rgba(219,234,254,.48) 42%,rgba(239,246,255,0) 74%)}
+.mk-service-art-card{z-index:1}
+@media(max-width:760px){
+ .mk-hero-art::before{inset:0 -8% 0;background-size:105% auto;opacity:.34}
+}
+@media(max-width:440px){
+ .mk-hero-art::before{inset:0 -12% 0;background-size:120% auto;opacity:.26}
+}
