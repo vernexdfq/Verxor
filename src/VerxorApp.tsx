@@ -13,15 +13,30 @@ import { GiftCardPage } from './giftcard-page';
 import { TvPage } from './tv-page';
 import { VirtualNumbersPage } from './virtual-numbers-page';
 import { AdminPage } from './admin-page';
+import { AuthFlow, type AuthSession } from './auth/AuthFlow';
 import type { Page } from './types';
 
-const SESSION_USER = { name: 'Destiny' };
+const STORAGE_KEY = 'verxor-auth-session';
+
+function loadAuth(): AuthSession | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as AuthSession;
+    return parsed.authenticated ? parsed : null;
+  } catch {
+    return null;
+  }
+}
 
 export function VerxorApp() {
   const [page, setPage] = useState<Page>('home');
   const [service, setService] = useState<ServiceView | null>(null);
   const [dark, setDark] = useState(false);
   const [admin, setAdmin] = useState(false);
+  const [auth, setAuth] = useState<AuthSession | null>(null);
+  const [authReady, setAuthReady] = useState(false);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -29,9 +44,32 @@ export function VerxorApp() {
     if (params.get('admin') === '1') {
       setAdmin(true);
     }
+    setAuth(loadAuth());
+    setAuthReady(true);
   }, []);
 
   const closeService = () => setService(null);
+
+  const handleLogout = () => {
+    if (typeof window !== 'undefined') {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw) as AuthSession;
+          // Keep contact + method + pin so next open can go straight to PIN
+          localStorage.setItem(
+            STORAGE_KEY,
+            JSON.stringify({ ...parsed, authenticated: false }),
+          );
+        }
+      } catch {
+        /* ignore */
+      }
+    }
+    setAuth(null);
+    setService(null);
+    setPage('home');
+  };
 
   if (admin) {
     return (
@@ -50,7 +88,28 @@ export function VerxorApp() {
     );
   }
 
+  if (!authReady) {
+    return (
+      <div className="app" style={{ minHeight: '100dvh', display: 'grid', placeItems: 'center', background: '#F8FAFC' }}>
+        <div style={{ width: 36, height: 36, borderRadius: '50%', border: '3px solid #E2E8F0', borderTopColor: '#2563EB', animation: 'spin 0.7s linear infinite' }} />
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </div>
+    );
+  }
+
+  if (!auth) {
+    return (
+      <AuthFlow
+        onAuthenticated={(session) => {
+          setAuth(session);
+          setPage('home');
+        }}
+      />
+    );
+  }
+
   const deepService = service !== null;
+  const userName = auth.name || 'User';
 
   const content =
     service === 'services' ? (
@@ -91,20 +150,14 @@ export function VerxorApp() {
       dark={dark}
       page={page}
       deepService={deepService}
-      userName={SESSION_USER.name}
+      userName={userName}
       onNavigate={(next) => {
         setService(null);
         setPage(next);
       }}
       onToggleTheme={() => setDark((v) => !v)}
       onOpenService={(next) => setService(next)}
-      onLogout={() => {
-        setService(null);
-        setPage('home');
-        if (typeof window !== 'undefined') {
-          window.location.href = '/';
-        }
-      }}
+      onLogout={handleLogout}
     >
       {content}
     </AppShell>
