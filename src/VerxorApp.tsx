@@ -18,23 +18,19 @@ import type { Page } from './types';
 
 const STORAGE_KEY = 'verxor-auth-session';
 
-function loadAuth(): AuthSession | null {
-  if (typeof window === 'undefined') return null;
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as AuthSession;
-    return parsed.authenticated ? parsed : null;
-  } catch {
-    return null;
-  }
-}
-
+/**
+ * IMPORTANT (fintech rule):
+ * Cookies/localStorage may remember contact, method, name, and PIN hash,
+ * but they must NEVER auto-admit the user into the dashboard.
+ * Every open of /workspace requires a successful 4-digit PIN entry.
+ * Authentication lives only in React state for the current tab session.
+ */
 export function VerxorApp() {
   const [page, setPage] = useState<Page>('home');
   const [service, setService] = useState<ServiceView | null>(null);
   const [dark, setDark] = useState(false);
   const [admin, setAdmin] = useState(false);
+  /** Session is in-memory only — never restored from localStorage as authenticated */
   const [auth, setAuth] = useState<AuthSession | null>(null);
   const [authReady, setAuthReady] = useState(false);
 
@@ -44,7 +40,8 @@ export function VerxorApp() {
     if (params.get('admin') === '1') {
       setAdmin(true);
     }
-    setAuth(loadAuth());
+    // Do NOT load authenticated=true from storage.
+    // Always present AuthFlow (PIN gate) on every open.
     setAuthReady(true);
   }, []);
 
@@ -56,7 +53,7 @@ export function VerxorApp() {
         const raw = localStorage.getItem(STORAGE_KEY);
         if (raw) {
           const parsed = JSON.parse(raw) as AuthSession;
-          // Keep contact + method + pin so next open can go straight to PIN
+          // Keep remembered contact/method/pin — clear only the live session flag
           localStorage.setItem(
             STORAGE_KEY,
             JSON.stringify({ ...parsed, authenticated: false }),
@@ -90,13 +87,31 @@ export function VerxorApp() {
 
   if (!authReady) {
     return (
-      <div className="app" style={{ minHeight: '100dvh', display: 'grid', placeItems: 'center', background: '#F8FAFC' }}>
-        <div style={{ width: 36, height: 36, borderRadius: '50%', border: '3px solid #E2E8F0', borderTopColor: '#2563EB', animation: 'spin 0.7s linear infinite' }} />
+      <div
+        className="app"
+        style={{
+          minHeight: '100dvh',
+          display: 'grid',
+          placeItems: 'center',
+          background: '#F8FAFC',
+        }}
+      >
+        <div
+          style={{
+            width: 36,
+            height: 36,
+            borderRadius: '50%',
+            border: '3px solid #E2E8F0',
+            borderTopColor: '#2563EB',
+            animation: 'spin 0.7s linear infinite',
+          }}
+        />
         <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>
     );
   }
 
+  // PIN gate — always shown until PIN succeeds in this tab session
   if (!auth) {
     return (
       <AuthFlow

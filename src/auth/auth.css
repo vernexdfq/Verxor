@@ -1,5 +1,5 @@
 /* =========================================================
-   Verxor Auth — Grade-one fintech quality (Primex-strength)
+   Verxor Auth — Grade-1 fintech (Primex-strength density)
    ========================================================= */
 
 .auth-root {
@@ -11,34 +11,85 @@
   position: relative;
   display: flex;
   flex-direction: column;
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+    'Segoe UI', sans-serif;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 .auth-body {
   flex: 1;
   display: flex;
   flex-direction: column;
-  padding: max(40px, env(safe-area-inset-top)) 28px max(36px, env(safe-area-inset-bottom));
+  padding: max(28px, env(safe-area-inset-top)) 24px max(28px, env(safe-area-inset-bottom));
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
-/* ---- Typography ---- */
-.auth-title {
-  margin: 0 0 8px;
-  font-size: 28px;
+.auth-body--pin {
+  align-items: center;
+  text-align: center;
+}
+
+/* Brand mark */
+.auth-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 28px;
+}
+
+.auth-logo {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%);
+  display: grid;
+  place-items: center;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+  flex-shrink: 0;
+}
+
+.auth-logo span {
+  color: #FFFFFF;
+  font-size: 18px;
   font-weight: 800;
-  letter-spacing: -0.035em;
+  letter-spacing: -0.03em;
+}
+
+.auth-brand-name {
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: #0F172A;
+}
+
+/* Typography */
+.auth-title {
+  margin: 0 0 6px;
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.04em;
   line-height: 1.15;
   color: #0F172A;
 }
 
+.auth-title--center {
+  text-align: center;
+  width: 100%;
+}
+
 .auth-sub {
-  margin: 0 0 32px;
-  font-size: 15px;
+  margin: 0 0 28px;
+  font-size: 14.5px;
   color: #64748B;
   line-height: 1.5;
   font-weight: 400;
+}
+
+.auth-sub--center {
+  text-align: center;
+  width: 100%;
 }
 
 .auth-sub strong {
@@ -46,11 +97,12 @@
   font-weight: 700;
 }
 
-/* ---- Tabs (Phone / Email) ---- */
+/* Tabs */
 .auth-tabs {
   display: flex;
   gap: 10px;
-  margin-bottom: 28px;
+  margin-bottom: 24px;
+  width: 100%;
 }
 
 .auth-tab {
@@ -59,52 +111,60 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 7px;
   border-radius: 999px;
   border: 1.5px solid #E2E8F0;
   background: #FFFFFF;
   color: #64748B;
-  font-size: 14px;
+  font-size: 13.5px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: border-color 0.15s, background 0.15s, color 0.15s, box-shadow 0.15s;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .auth-tab.active {
   background: #EFF6FF;
   border-color: #93C5FD;
   color: #2563EB;
-  box-shadow: 0 1px 3px rgba(37, 99, 235, 0.08);
+  box-shadow: 0 1px 3px rgba(37, 99, 235, 0.1);
 }
 
-/* ---- Form fields ---- */
+/* Fields */
 .auth-field {
-  margin-bottom: 18px;
+  margin-bottom: 16px;
+  width: 100%;
+  text-align: left;
 }
 
 .auth-field label {
   display: block;
-  margin-bottom: 8px;
-  font-size: 14px;
+  margin-bottom: 7px;
+  font-size: 13.5px;
   font-weight: 600;
   color: #0F172A;
+}
+
+.auth-optional {
+  color: #94A3B8;
+  font-weight: 500;
 }
 
 .auth-input-wrap {
   display: flex;
   align-items: center;
   gap: 12px;
-  min-height: 56px;
-  padding: 0 16px;
+  min-height: 54px;
+  padding: 0 14px;
   border: 1.5px solid #E2E8F0;
-  border-radius: 16px;
+  border-radius: 14px;
   background: #FFFFFF;
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 
 .auth-input-wrap:focus-within {
   border-color: #2563EB;
-  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
+  box-shadow: 0 0 0 3.5px rgba(37, 99, 235, 0.12);
 }
 
 .auth-input-wrap svg {
@@ -128,23 +188,34 @@
   font-weight: 400;
 }
 
+.auth-eye {
+  background: none;
+  border: 0;
+  color: #94A3B8;
+  padding: 4px;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
 .auth-hint {
-  margin: 8px 0 0;
+  margin: 7px 0 0;
   font-size: 12px;
   color: #94A3B8;
   line-height: 1.4;
 }
 
-/* ---- Primary CTA ---- */
+/* Primary CTA */
 .auth-btn {
   width: 100%;
-  min-height: 56px;
-  margin-top: 10px;
+  min-height: 54px;
+  margin-top: 8px;
   border: 0;
-  border-radius: 16px;
+  border-radius: 14px;
   background: #2563EB;
   color: #FFFFFF;
-  font-size: 16px;
+  font-size: 15.5px;
   font-weight: 700;
   letter-spacing: -0.01em;
   display: inline-flex;
@@ -153,7 +224,8 @@
   gap: 8px;
   cursor: pointer;
   transition: background 0.15s, transform 0.1s;
-  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.25);
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.28);
+  -webkit-tap-highlight-color: transparent;
 }
 
 .auth-btn:hover {
@@ -162,12 +234,6 @@
 
 .auth-btn:active {
   transform: scale(0.985);
-}
-
-.auth-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-  box-shadow: none;
 }
 
 .auth-btn.secondary {
@@ -180,12 +246,12 @@
   background: #E2E8F0;
 }
 
-/* ---- Divider + footer links ---- */
+/* Divider + footer */
 .auth-or {
   display: flex;
   align-items: center;
   gap: 14px;
-  margin: 28px 0 18px;
+  margin: 24px 0 16px;
   color: #94A3B8;
   font-size: 13px;
   font-weight: 500;
@@ -204,6 +270,7 @@
   font-size: 14px;
   color: #64748B;
   margin: 0;
+  width: 100%;
 }
 
 .auth-footer-link button {
@@ -216,34 +283,47 @@
   padding: 0;
 }
 
-/* =========================================================
-   PIN SCREEN — Primex-strength
-   ========================================================= */
+.auth-back {
+  background: none;
+  border: 0;
+  color: #64748B;
+  font-size: 13.5px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 18px;
+  padding: 0;
+  cursor: pointer;
+}
 
+/* PIN screen */
 .pin-label {
-  margin: 0 0 16px;
-  font-size: 14px;
+  margin: 0 0 14px;
+  font-size: 13.5px;
   font-weight: 500;
   color: #64748B;
   text-align: center;
+  width: 100%;
 }
 
 .pin-boxes {
   display: flex;
   justify-content: center;
-  gap: 14px;
-  margin: 0 0 36px;
+  gap: 12px;
+  margin: 0 0 28px;
+  width: 100%;
 }
 
 .pin-box {
-  width: 58px;
-  height: 64px;
-  border-radius: 16px;
+  width: 56px;
+  height: 60px;
+  border-radius: 14px;
   border: 1.5px solid #E2E8F0;
   background: #F8FAFC;
   display: grid;
   place-items: center;
-  font-size: 26px;
+  font-size: 24px;
   font-weight: 700;
   color: #0F172A;
   transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
@@ -257,42 +337,41 @@
 .pin-box.active {
   border-color: #2563EB;
   background: #FFFFFF;
-  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.15);
+  box-shadow: 0 0 0 3.5px rgba(37, 99, 235, 0.14);
 }
 
-/* Keypad — large, solid, touch-friendly */
 .pin-keypad {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 14px;
-  max-width: 300px;
+  gap: 12px;
+  max-width: 280px;
   width: 100%;
-  margin: 0 auto 32px;
+  margin: 0 auto 24px;
 }
 
 .pin-key {
-  height: 64px;
-  border-radius: 18px;
+  height: 58px;
+  border-radius: 16px;
   border: 0;
   background: #F1F5F9;
-  font-size: 24px;
+  font-size: 22px;
   font-weight: 600;
   color: #0F172A;
   cursor: pointer;
-  transition: background 0.12s, transform 0.1s;
+  transition: background 0.1s, transform 0.08s;
   -webkit-tap-highlight-color: transparent;
   user-select: none;
 }
 
 .pin-key:active {
   background: #E2E8F0;
-  transform: scale(0.95);
+  transform: scale(0.94);
 }
 
 .pin-key.delete {
   background: #FEE2E2;
   color: #EF4444;
-  font-size: 20px;
+  font-size: 18px;
 }
 
 .pin-key.delete:active {
@@ -304,61 +383,66 @@
   justify-content: space-between;
   align-items: center;
   width: 100%;
-  max-width: 300px;
-  margin: 0 auto 8px;
+  max-width: 280px;
+  margin: 0 auto 4px;
 }
 
 .pin-actions button {
   background: none;
   border: 0;
   color: #2563EB;
-  font-size: 14px;
+  font-size: 13.5px;
   font-weight: 600;
   cursor: pointer;
   padding: 8px 0;
 }
 
-/* ---- Alerts ---- */
+/* Alerts */
 .auth-success {
-  margin: 0 0 20px;
-  padding: 14px 16px;
-  border-radius: 14px;
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  border-radius: 12px;
   background: #ECFDF5;
   border: 1px solid #A7F3D0;
   color: #065F46;
-  font-size: 14px;
+  font-size: 13.5px;
   font-weight: 600;
   text-align: center;
+  width: 100%;
 }
 
 .auth-error {
-  margin: 0 0 18px;
-  padding: 14px 16px;
-  border-radius: 14px;
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  border-radius: 12px;
   background: #FEF2F2;
   border: 1px solid #FECACA;
   color: #991B1B;
-  font-size: 14px;
+  font-size: 13.5px;
   font-weight: 500;
   text-align: center;
+  width: 100%;
 }
 
-/* ---- Signup sections ---- */
+/* Signup sections */
 .auth-section {
-  margin: 28px 0 14px;
-  font-size: 12px;
+  margin: 22px 0 12px;
+  font-size: 11.5px;
   font-weight: 700;
-  letter-spacing: 0.07em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: #94A3B8;
+  width: 100%;
+  text-align: left;
 }
 
 .auth-terms {
-  margin: 20px 0 10px;
-  font-size: 13px;
+  margin: 16px 0 8px;
+  font-size: 12.5px;
   color: #64748B;
   line-height: 1.5;
   text-align: center;
+  width: 100%;
 }
 
 .auth-terms a {
@@ -367,19 +451,35 @@
   text-decoration: none;
 }
 
-/* ---- Temporary inspection arrow ---- */
+/* Spinner */
+.auth-spinner {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 3px solid #E2E8F0;
+  border-top-color: #2563EB;
+  animation: auth-spin 0.7s linear infinite;
+}
+
+@keyframes auth-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Temporary inspection arrow */
 .auth-inspect-arrow {
   position: fixed;
-  right: 18px;
-  bottom: max(28px, env(safe-area-inset-bottom));
+  right: 16px;
+  bottom: max(24px, env(safe-area-inset-bottom));
   z-index: 50;
-  width: 52px;
-  height: 52px;
+  width: 50px;
+  height: 50px;
   border-radius: 50%;
   border: 0;
   background: #0F172A;
   color: #FFFFFF;
-  font-size: 22px;
+  font-size: 20px;
   font-weight: 700;
   display: grid;
   place-items: center;
@@ -397,12 +497,11 @@
   transform: scale(0.96);
 }
 
-/* Desktop card feel */
 @media (min-width: 700px) {
   .auth-root {
     min-height: calc(100dvh - 64px);
     margin-top: 32px;
-    border-radius: 28px;
+    border-radius: 24px;
     box-shadow: 0 16px 48px rgba(15, 23, 42, 0.1);
     overflow: hidden;
   }
