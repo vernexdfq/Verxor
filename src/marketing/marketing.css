@@ -144,3 +144,26 @@ body{overflow-x:hidden}
   .mk-button,.mk-nav-cta,.mk-audience-card,.mk-service-card{transition:none}
   .mk-button:hover,.mk-nav-cta:hover,.mk-audience-card:hover,.mk-service-card:hover{transform:none}
 }
+
+
+/* Bespoke vector banner artwork, built for Verxor's existing palette. */
+.mk-hero-art::before{
+  content:"";
+  position:absolute;
+  z-index:0;
+  inset:2% -5% 0;
+  background:url("/brand/marketing-ecosystem.svg") center/contain no-repeat;
+  opacity:.5;
+  pointer-events:none;
+}
+.mk-preview-window{z-index:2}
+.mk-orbit{z-index:0}
+.mk-service-art{isolation:isolate}
+.mk-service-art-orb{background:radial-gradient(circle at 50% 45%,rgba(147,197,253,.68) 0%,rgba(219,234,254,.48) 42%,rgba(239,246,255,0) 74%)}
+.mk-service-art-card{z-index:1}
+@media(max-width:760px){
+ .mk-hero-art::before{inset:0 -8% 0;background-size:105% auto;opacity:.34}
+}
+@media(max-width:440px){
+ .mk-hero-art::before{inset:0 -12% 0;background-size:120% auto;opacity:.26}
+}
