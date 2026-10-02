@@ -8,55 +8,24 @@ const ECOSYSTEM_SLIDES = [
   'BUILT FOR MODERN USERS',
 ] as const;
 
-const WORD_SLIDES = ['Connect', 'Verify', 'Grow'] as const;
-
 /**
- * Two tiny auto-rotating lines above the trusted badge:
- * 1) Ecosystem phrase (horizontal slide)
- * 2) Connect / Verify / Grow with active dot
+ * Single clean auto-rotating ecosystem pill above the trusted badge.
+ * No overlapping absolute text — matches a bold, balanced TNXVERIFY-style hero.
  */
 export function HeroRotator() {
-  const [ecoIndex, setEcoIndex] = useState(0);
-  const [wordIndex, setWordIndex] = useState(0);
+  const [index, setIndex] = useState(0);
 
   useEffect(() => {
-    const ecoId = window.setInterval(() => {
-      setEcoIndex((current) => (current + 1) % ECOSYSTEM_SLIDES.length);
-    }, 3200);
-    const wordId = window.setInterval(() => {
-      setWordIndex((current) => (current + 1) % WORD_SLIDES.length);
-    }, 2400);
-    return () => {
-      window.clearInterval(ecoId);
-      window.clearInterval(wordId);
-    };
+    const id = window.setInterval(() => {
+      setIndex((current) => (current + 1) % ECOSYSTEM_SLIDES.length);
+    }, 3000);
+    return () => window.clearInterval(id);
   }, []);
 
   return (
     <div className="mk-hero-rotators" aria-live="polite">
-      <div className="mk-eco-rotator">
-        {ECOSYSTEM_SLIDES.map((label, i) => (
-          <span
-            key={label}
-            className={'mk-eco-rotator-item' + (i === ecoIndex ? ' is-active' : '')}
-          >
-            {label}
-          </span>
-        ))}
-      </div>
-
-      <div className="mk-hero-rotator">
-        <span className="mk-hero-rotator-dot" aria-hidden="true" />
-        <div className="mk-hero-rotator-track">
-          {WORD_SLIDES.map((label, i) => (
-            <span
-              key={label}
-              className={'mk-hero-rotator-item' + (i === wordIndex ? ' is-active' : '')}
-            >
-              {label}
-            </span>
-          ))}
-        </div>
+      <div className="mk-eco-rotator" key={ECOSYSTEM_SLIDES[index]}>
+        <span className="mk-eco-rotator-item is-active">{ECOSYSTEM_SLIDES[index]}</span>
       </div>
     </div>
   );
