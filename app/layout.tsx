@@ -11,6 +11,7 @@ import '../src/rental-page.css';
 import '../src/product-pages.css';
 import '../src/admin-page.css';
 import '../src/marketing/marketing.css';
+import '../src/marketing/hero-polish.css';
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://verxor.com'),
@@ -47,5 +48,9 @@ export const viewport: Viewport = {
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  return <html lang="en"><body>{children}</body></html>;
+  return (
+    <html lang="en">
+      <body>{children}</body>
+    </html>
+  );
 }
