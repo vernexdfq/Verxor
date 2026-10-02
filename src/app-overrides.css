@@ -542,7 +542,7 @@
  * Deep service pages:
  * Balanced 16px side gutters so Airtime / Data / Boost / Virtual Numbers /
  * Accounts keep their designed scale and professional density.
- * eSIM keeps its own edge-tight layout (owns padding inside the page).
+ * eSIM + Betting own edge-tight layout (page controls its own padding).
  */
 .app-frame.deep-service .bottom-nav {
   display: none;
@@ -551,7 +551,7 @@
   padding: 10px 16px max(16px, env(safe-area-inset-bottom));
 }
 .app-frame.deep-service .content:has(.esim-page),
-.app-frame.deep-service .content:has(.betting-page) {
+.app-frame.deep-service .content:has(.bet-page) {
   padding-left: 0;
   padding-right: 0;
   padding-top: 0;
