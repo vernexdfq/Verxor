@@ -21,7 +21,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: npm
 
       - name: Install dependencies
         run: npm install --no-audit --no-fund
@@ -29,5 +28,4 @@ jobs:
       - name: Typecheck and build
         run: npm run build
         env:
-          # Build-time placeholders so next build does not fail on missing secrets
           NEXT_TELEMETRY_DISABLED: "1"
