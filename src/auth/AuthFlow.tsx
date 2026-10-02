@@ -71,7 +71,6 @@ export function AuthFlow({
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
-  // Sign-up fields
   const [fullName, setFullName] = useState('');
   const [signPhone, setSignPhone] = useState('');
   const [signEmail, setSignEmail] = useState('');
@@ -80,7 +79,6 @@ export function AuthFlow({
   const [signPin, setSignPin] = useState('');
   const [referral, setReferral] = useState('');
 
-  // Forgot PIN
   const [forgotPassword, setForgotPassword] = useState('');
   const [newPin, setNewPin] = useState('');
   const [confirmNewPin, setConfirmNewPin] = useState('');
@@ -88,7 +86,6 @@ export function AuthFlow({
   useEffect(() => {
     const s = loadSession();
     setSession(s);
-    // Returning / installed-style: if we have a remembered contact, go straight to PIN
     if (s.contact && s.pin) {
       setMethod(s.method);
       setContact(s.contact);
@@ -125,7 +122,6 @@ export function AuthFlow({
     setPin(next);
     setError('');
     if (next.length === 4) {
-      // Auto-submit
       setTimeout(() => verifyPin(next), 120);
     }
   };
@@ -137,7 +133,6 @@ export function AuthFlow({
 
   const verifyPin = (value: string) => {
     const current = loadSession();
-    // Mock: accept stored PIN or default 1234 for inspection
     if (value === current.pin || value === '1234') {
       const next: AuthSession = {
         ...current,
@@ -168,7 +163,8 @@ export function AuthFlow({
       return;
     }
     if (password.length < 6) {
-      setError('Password must be at least 6 characters');\n      return;
+      setError('Password must be at least 6 characters');
+      return;
     }
     if (!/^\d{4}$/.test(signPin)) {
       setError('PIN must be exactly 4 digits');
@@ -223,7 +219,6 @@ export function AuthFlow({
     setStep('pin');
   };
 
-  /** Temporary inspection bypass */
   const inspectLogin = () => {
     const next: AuthSession = {
       authenticated: true,
@@ -236,8 +231,6 @@ export function AuthFlow({
     saveSession(next);
     onAuthenticated(next);
   };
-
-  // ——— Screens ———
 
   if (step === 'signin') {
     return (
@@ -397,7 +390,19 @@ export function AuthFlow({
           <button
             type="button"
             onClick={() => { setError(''); setStep('signin'); }}
-            style={{ background: 'none', border: 0, color: '#64748B', fontSize: 13, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 6, marginBottom: 16, padding: 0, cursor: 'pointer' }}
+            style={{
+              background: 'none',
+              border: 0,
+              color: '#64748B',
+              fontSize: 13,
+              fontWeight: 600,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              marginBottom: 16,
+              padding: 0,
+              cursor: 'pointer',
+            }}
           >
             <ArrowLeft size={16} /> Back
           </button>
@@ -631,7 +636,6 @@ export function AuthFlow({
     );
   }
 
-  // forgot-success
   return (
     <div className="auth-root">
       <div className="auth-body" style={{ justifyContent: 'center', textAlign: 'center' }}>
