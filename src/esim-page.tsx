@@ -9,7 +9,7 @@ import {
   Globe2,
   RefreshCw,
   Search,
-  SimCard,
+  Smartphone,
   X,
 } from 'lucide-react';
 import './esim-page.css';
@@ -50,9 +50,8 @@ function money(n: number) {
   );
 }
 
-const VALIDITY_OPTIONS = [3, 7, 15, 30, 60, 90, 180, 365, 0] as const; // 0 = All days
+const VALIDITY_OPTIONS = [3, 7, 15, 30, 60, 90, 180, 365, 0] as const;
 
-/** Realistic mock catalog — structure matches professional eSIM stores */
 const COUNTRIES: Country[] = [
   {
     id: 'us',
@@ -62,132 +61,18 @@ const COUNTRIES: Country[] = [
     planCount: 27,
     validityLabel: '3-365 days available',
     plans: [
-      {
-        id: 'us-ds-5',
-        type: 'data-sms',
-        dataGb: 5,
-        sms: 50,
-        mins: 50,
-        days: 30,
-        price: 21620,
-        carrier: 'Change+',
-        topUp: true,
-        coverage: ['All', 'Local'],
-      },
-      {
-        id: 'us-ds-10',
-        type: 'data-sms',
-        dataGb: 10,
-        sms: 100,
-        mins: 100,
-        days: 30,
-        price: 33495,
-        carrier: 'Change+',
-        topUp: true,
-        coverage: ['All', 'Local'],
-      },
-      {
-        id: 'us-ds-20',
-        type: 'data-sms',
-        dataGb: 20,
-        sms: 200,
-        mins: 200,
-        days: 30,
-        price: 50852,
-        carrier: 'Change+',
-        topUp: true,
-        coverage: ['All', 'Local'],
-      },
-      {
-        id: 'us-do-3',
-        type: 'data-only',
-        dataGb: 3,
-        days: 30,
-        price: 9135,
-        carrier: 'Change',
-        topUp: true,
-        coverage: ['All', 'Local'],
-      },
-      {
-        id: 'us-do-5',
-        type: 'data-only',
-        dataGb: 5,
-        days: 30,
-        price: 13094,
-        carrier: 'Change',
-        topUp: true,
-        coverage: ['All', 'Local'],
-      },
-      {
-        id: 'us-do-10',
-        type: 'data-only',
-        dataGb: 10,
-        days: 30,
-        price: 21315,
-        carrier: 'Change',
-        topUp: true,
-        coverage: ['All', 'Local'],
-      },
-      {
-        id: 'us-do-20',
-        type: 'data-only',
-        dataGb: 20,
-        days: 30,
-        price: 33191,
-        carrier: 'Change',
-        topUp: true,
-        coverage: ['All', 'Local'],
-      },
-      {
-        id: 'us-do-unl-30',
-        type: 'data-only',
-        dataGb: 'Unlimited',
-        days: 30,
-        price: 140070,
-        carrier: 'Change',
-        topUp: true,
-        coverage: ['All', 'Local'],
-      },
-      {
-        id: 'us-do-1-7',
-        type: 'data-only',
-        dataGb: 1,
-        days: 7,
-        price: 5481,
-        carrier: 'Change',
-        topUp: true,
-        coverage: ['All', 'Local'],
-      },
-      {
-        id: 'us-do-unl-7',
-        type: 'data-only',
-        dataGb: 'Unlimited',
-        days: 7,
-        price: 35018,
-        carrier: 'Change',
-        topUp: true,
-        coverage: ['All', 'Local'],
-      },
-      {
-        id: 'us-do-2-15',
-        type: 'data-only',
-        dataGb: 2,
-        days: 15,
-        price: 7613,
-        carrier: 'Change',
-        topUp: true,
-        coverage: ['All', 'Local'],
-      },
-      {
-        id: 'us-do-unl-3',
-        type: 'data-only',
-        dataGb: 'Unlimited',
-        days: 3,
-        price: 19184,
-        carrier: 'Change',
-        topUp: true,
-        coverage: ['All', 'Local'],
-      },
+      { id: 'us-ds-5', type: 'data-sms', dataGb: 5, sms: 50, mins: 50, days: 30, price: 21620, carrier: 'Change+', topUp: true, coverage: ['All', 'Local'] },
+      { id: 'us-ds-10', type: 'data-sms', dataGb: 10, sms: 100, mins: 100, days: 30, price: 33495, carrier: 'Change+', topUp: true, coverage: ['All', 'Local'] },
+      { id: 'us-ds-20', type: 'data-sms', dataGb: 20, sms: 200, mins: 200, days: 30, price: 50852, carrier: 'Change+', topUp: true, coverage: ['All', 'Local'] },
+      { id: 'us-do-3', type: 'data-only', dataGb: 3, days: 30, price: 9135, carrier: 'Change', topUp: true, coverage: ['All', 'Local'] },
+      { id: 'us-do-5', type: 'data-only', dataGb: 5, days: 30, price: 13094, carrier: 'Change', topUp: true, coverage: ['All', 'Local'] },
+      { id: 'us-do-10', type: 'data-only', dataGb: 10, days: 30, price: 21315, carrier: 'Change', topUp: true, coverage: ['All', 'Local'] },
+      { id: 'us-do-20', type: 'data-only', dataGb: 20, days: 30, price: 33191, carrier: 'Change', topUp: true, coverage: ['All', 'Local'] },
+      { id: 'us-do-unl-30', type: 'data-only', dataGb: 'Unlimited', days: 30, price: 140070, carrier: 'Change', topUp: true, coverage: ['All', 'Local'] },
+      { id: 'us-do-1-7', type: 'data-only', dataGb: 1, days: 7, price: 5481, carrier: 'Change', topUp: true, coverage: ['All', 'Local'] },
+      { id: 'us-do-unl-7', type: 'data-only', dataGb: 'Unlimited', days: 7, price: 35018, carrier: 'Change', topUp: true, coverage: ['All', 'Local'] },
+      { id: 'us-do-2-15', type: 'data-only', dataGb: 2, days: 15, price: 7613, carrier: 'Change', topUp: true, coverage: ['All', 'Local'] },
+      { id: 'us-do-unl-3', type: 'data-only', dataGb: 'Unlimited', days: 3, price: 19184, carrier: 'Change', topUp: true, coverage: ['All', 'Local'] },
     ],
   },
   {
@@ -198,92 +83,14 @@ const COUNTRIES: Country[] = [
     planCount: 26,
     validityLabel: '3-30 days available',
     plans: [
-      {
-        id: 'uk-ds-5',
-        type: 'data-sms',
-        dataGb: 5,
-        sms: 50,
-        mins: 50,
-        days: 30,
-        price: 13703,
-        carrier: 'Uki Mobile+',
-        topUp: true,
-        coverage: ['All', 'Local'],
-      },
-      {
-        id: 'uk-ds-10',
-        type: 'data-sms',
-        dataGb: 10,
-        sms: 100,
-        mins: 100,
-        days: 30,
-        price: 22229,
-        carrier: 'Uki Mobile+',
-        topUp: true,
-        coverage: ['All', 'Local'],
-      },
-      {
-        id: 'uk-ds-20',
-        type: 'data-sms',
-        dataGb: 20,
-        sms: 200,
-        mins: 200,
-        days: 30,
-        price: 34713,
-        carrier: 'Uki Mobile+',
-        topUp: true,
-        coverage: ['All', 'Local'],
-      },
-      {
-        id: 'uk-do-3',
-        type: 'data-only',
-        dataGb: 3,
-        days: 30,
-        price: 7004,
-        carrier: 'Uki Mobile',
-        topUp: true,
-        coverage: ['All', 'Local'],
-      },
-      {
-        id: 'uk-do-5',
-        type: 'data-only',
-        dataGb: 5,
-        days: 30,
-        price: 9440,
-        carrier: 'Uki Mobile',
-        topUp: true,
-        coverage: ['All', 'Local'],
-      },
-      {
-        id: 'uk-do-10',
-        type: 'data-only',
-        dataGb: 10,
-        days: 30,
-        price: 14616,
-        carrier: 'Uki Mobile',
-        topUp: true,
-        coverage: ['All', 'Local'],
-      },
-      {
-        id: 'uk-do-20',
-        type: 'data-only',
-        dataGb: 20,
-        days: 30,
-        price: 27710,
-        carrier: 'Uki Mobile',
-        topUp: true,
-        coverage: ['All', 'Local'],
-      },
-      {
-        id: 'uk-do-unl',
-        type: 'data-only',
-        dataGb: 'Unlimited',
-        days: 30,
-        price: 75516,
-        carrier: 'Uki Mobile',
-        topUp: true,
-        coverage: ['All', 'Local'],
-      },
+      { id: 'uk-ds-5', type: 'data-sms', dataGb: 5, sms: 50, mins: 50, days: 30, price: 13703, carrier: 'Uki Mobile+', topUp: true, coverage: ['All', 'Local'] },
+      { id: 'uk-ds-10', type: 'data-sms', dataGb: 10, sms: 100, mins: 100, days: 30, price: 22229, carrier: 'Uki Mobile+', topUp: true, coverage: ['All', 'Local'] },
+      { id: 'uk-ds-20', type: 'data-sms', dataGb: 20, sms: 200, mins: 200, days: 30, price: 34713, carrier: 'Uki Mobile+', topUp: true, coverage: ['All', 'Local'] },
+      { id: 'uk-do-3', type: 'data-only', dataGb: 3, days: 30, price: 7004, carrier: 'Uki Mobile', topUp: true, coverage: ['All', 'Local'] },
+      { id: 'uk-do-5', type: 'data-only', dataGb: 5, days: 30, price: 9440, carrier: 'Uki Mobile', topUp: true, coverage: ['All', 'Local'] },
+      { id: 'uk-do-10', type: 'data-only', dataGb: 10, days: 30, price: 14616, carrier: 'Uki Mobile', topUp: true, coverage: ['All', 'Local'] },
+      { id: 'uk-do-20', type: 'data-only', dataGb: 20, days: 30, price: 27710, carrier: 'Uki Mobile', topUp: true, coverage: ['All', 'Local'] },
+      { id: 'uk-do-unl', type: 'data-only', dataGb: 'Unlimited', days: 30, price: 75516, carrier: 'Uki Mobile', topUp: true, coverage: ['All', 'Local'] },
     ],
   },
   {
@@ -294,46 +101,10 @@ const COUNTRIES: Country[] = [
     planCount: 18,
     validityLabel: '3-30 days available',
     plans: [
-      {
-        id: 'ca-do-5',
-        type: 'data-only',
-        dataGb: 5,
-        days: 30,
-        price: 45615,
-        carrier: 'Canada Mobile',
-        topUp: true,
-        coverage: ['All', 'Local'],
-      },
-      {
-        id: 'ca-do-10',
-        type: 'data-only',
-        dataGb: 10,
-        days: 30,
-        price: 57216,
-        carrier: 'Canada Mobile',
-        topUp: true,
-        coverage: ['All', 'Local'],
-      },
-      {
-        id: 'ca-do-20',
-        type: 'data-only',
-        dataGb: 20,
-        days: 30,
-        price: 90894,
-        carrier: 'Canada Mobile',
-        topUp: true,
-        coverage: ['All', 'Local'],
-      },
-      {
-        id: 'ca-do-50',
-        type: 'data-only',
-        dataGb: 50,
-        days: 30,
-        price: 203924,
-        carrier: 'Canada Mobile',
-        topUp: true,
-        coverage: ['All', 'Local'],
-      },
+      { id: 'ca-do-5', type: 'data-only', dataGb: 5, days: 30, price: 45615, carrier: 'Canada Mobile', topUp: true, coverage: ['All', 'Local'] },
+      { id: 'ca-do-10', type: 'data-only', dataGb: 10, days: 30, price: 57216, carrier: 'Canada Mobile', topUp: true, coverage: ['All', 'Local'] },
+      { id: 'ca-do-20', type: 'data-only', dataGb: 20, days: 30, price: 90894, carrier: 'Canada Mobile', topUp: true, coverage: ['All', 'Local'] },
+      { id: 'ca-do-50', type: 'data-only', dataGb: 50, days: 30, price: 203924, carrier: 'Canada Mobile', topUp: true, coverage: ['All', 'Local'] },
     ],
   },
   {
@@ -344,48 +115,10 @@ const COUNTRIES: Country[] = [
     planCount: 11,
     validityLabel: '3-30 days available',
     plans: [
-      {
-        id: 'ng-do-2',
-        type: 'data-only',
-        dataGb: 2,
-        days: 7,
-        price: 7613,
-        carrier: 'NG Mobile',
-        topUp: true,
-        coverage: ['All', 'Local'],
-      },
-      {
-        id: 'ng-do-5',
-        type: 'data-only',
-        dataGb: 5,
-        days: 30,
-        price: 12450,
-        carrier: 'NG Mobile',
-        topUp: true,
-        coverage: ['All', 'Local'],
-      },
-      {
-        id: 'ng-do-10',
-        type: 'data-only',
-        dataGb: 10,
-        days: 30,
-        price: 18900,
-        carrier: 'NG Mobile',
-        topUp: true,
-        coverage: ['All', 'Local'],
-      },
-      {
-        id: 'ng-ds-5',
-        type: 'data-sms',
-        dataGb: 5,
-        sms: 50,
-        mins: 50,
-        days: 30,
-        price: 21500,
-        carrier: 'NG Mobile+',
-        topUp: true,
-        coverage: ['All', 'Local'],
-      },
+      { id: 'ng-do-2', type: 'data-only', dataGb: 2, days: 7, price: 7613, carrier: 'NG Mobile', topUp: true, coverage: ['All', 'Local'] },
+      { id: 'ng-do-5', type: 'data-only', dataGb: 5, days: 30, price: 12450, carrier: 'NG Mobile', topUp: true, coverage: ['All', 'Local'] },
+      { id: 'ng-do-10', type: 'data-only', dataGb: 10, days: 30, price: 18900, carrier: 'NG Mobile', topUp: true, coverage: ['All', 'Local'] },
+      { id: 'ng-ds-5', type: 'data-sms', dataGb: 5, sms: 50, mins: 50, days: 30, price: 21500, carrier: 'NG Mobile+', topUp: true, coverage: ['All', 'Local'] },
     ],
   },
   {
@@ -396,26 +129,8 @@ const COUNTRIES: Country[] = [
     planCount: 12,
     validityLabel: '3-30 days available',
     plans: [
-      {
-        id: 'au-do-3',
-        type: 'data-only',
-        dataGb: 3,
-        days: 30,
-        price: 4263,
-        carrier: 'AU Mobile',
-        topUp: true,
-        coverage: ['All', 'Local'],
-      },
-      {
-        id: 'au-do-10',
-        type: 'data-only',
-        dataGb: 10,
-        days: 30,
-        price: 11200,
-        carrier: 'AU Mobile',
-        topUp: true,
-        coverage: ['All', 'Local'],
-      },
+      { id: 'au-do-3', type: 'data-only', dataGb: 3, days: 30, price: 4263, carrier: 'AU Mobile', topUp: true, coverage: ['All', 'Local'] },
+      { id: 'au-do-10', type: 'data-only', dataGb: 10, days: 30, price: 11200, carrier: 'AU Mobile', topUp: true, coverage: ['All', 'Local'] },
     ],
   },
   {
@@ -426,26 +141,8 @@ const COUNTRIES: Country[] = [
     planCount: 14,
     validityLabel: '3-30 days available',
     plans: [
-      {
-        id: 'de-do-5',
-        type: 'data-only',
-        dataGb: 5,
-        days: 30,
-        price: 5120,
-        carrier: 'EU Mobile',
-        topUp: true,
-        coverage: ['All', 'Regional'],
-      },
-      {
-        id: 'de-do-15',
-        type: 'data-only',
-        dataGb: 15,
-        days: 30,
-        price: 14800,
-        carrier: 'EU Mobile',
-        topUp: true,
-        coverage: ['All', 'Regional'],
-      },
+      { id: 'de-do-5', type: 'data-only', dataGb: 5, days: 30, price: 5120, carrier: 'EU Mobile', topUp: true, coverage: ['All', 'Regional'] },
+      { id: 'de-do-15', type: 'data-only', dataGb: 15, days: 30, price: 14800, carrier: 'EU Mobile', topUp: true, coverage: ['All', 'Regional'] },
     ],
   },
   {
@@ -456,16 +153,7 @@ const COUNTRIES: Country[] = [
     planCount: 12,
     validityLabel: '3-30 days available',
     plans: [
-      {
-        id: 'fr-do-5',
-        type: 'data-only',
-        dataGb: 5,
-        days: 30,
-        price: 4890,
-        carrier: 'EU Mobile',
-        topUp: true,
-        coverage: ['All', 'Regional'],
-      },
+      { id: 'fr-do-5', type: 'data-only', dataGb: 5, days: 30, price: 4890, carrier: 'EU Mobile', topUp: true, coverage: ['All', 'Regional'] },
     ],
   },
   {
@@ -476,16 +164,7 @@ const COUNTRIES: Country[] = [
     planCount: 9,
     validityLabel: '3-30 days available',
     plans: [
-      {
-        id: 'ae-do-5',
-        type: 'data-only',
-        dataGb: 5,
-        days: 30,
-        price: 9200,
-        carrier: 'Gulf Mobile',
-        topUp: true,
-        coverage: ['All', 'Local'],
-      },
+      { id: 'ae-do-5', type: 'data-only', dataGb: 5, days: 30, price: 9200, carrier: 'Gulf Mobile', topUp: true, coverage: ['All', 'Local'] },
     ],
   },
   {
@@ -496,16 +175,7 @@ const COUNTRIES: Country[] = [
     planCount: 10,
     validityLabel: '3-30 days available',
     plans: [
-      {
-        id: 'sg-do-5',
-        type: 'data-only',
-        dataGb: 5,
-        days: 30,
-        price: 6100,
-        carrier: 'SG Mobile',
-        topUp: true,
-        coverage: ['All', 'Local'],
-      },
+      { id: 'sg-do-5', type: 'data-only', dataGb: 5, days: 30, price: 6100, carrier: 'SG Mobile', topUp: true, coverage: ['All', 'Local'] },
     ],
   },
   {
@@ -516,23 +186,13 @@ const COUNTRIES: Country[] = [
     planCount: 8,
     validityLabel: '3-30 days available',
     plans: [
-      {
-        id: 'za-do-5',
-        type: 'data-only',
-        dataGb: 5,
-        days: 30,
-        price: 7800,
-        carrier: 'ZA Mobile',
-        topUp: true,
-        coverage: ['All', 'Local'],
-      },
+      { id: 'za-do-5', type: 'data-only', dataGb: 5, days: 30, price: 7800, carrier: 'ZA Mobile', topUp: true, coverage: ['All', 'Local'] },
     ],
   },
 ];
 
 function planTitle(p: EsimPlan) {
-  const data =
-    p.dataGb === 'Unlimited' ? 'Unlimited' : `${p.dataGb} GB`;
+  const data = p.dataGb === 'Unlimited' ? 'Unlimited' : `${p.dataGb} GB`;
   if (p.type === 'data-sms') {
     return `${data} - ${p.sms} SMS - ${p.mins} Mins - ${p.days} days`;
   }
@@ -548,7 +208,7 @@ export function EsimPage({ onBack }: { onBack: () => void }) {
   const [selected, setSelected] = useState<Country | null>(null);
   const [planType, setPlanType] = useState<PlanType>('data-sms');
   const [coverage, setCoverage] = useState<Coverage>('All');
-  const [validity, setValidity] = useState<number>(30); // 0 = All days
+  const [validity, setValidity] = useState<number>(30);
   const [showCoverageMenu, setShowCoverageMenu] = useState(false);
   const [showValiditySheet, setShowValiditySheet] = useState(false);
   const [loadingPlans, setLoadingPlans] = useState(false);
@@ -588,7 +248,6 @@ export function EsimPage({ onBack }: { onBack: () => void }) {
     return selected.plans.some((p) => p.type === 'data-sms');
   }, [selected]);
 
-  // Auto-fallback when Data+SMS not available
   const effectiveType: PlanType =
     planType === 'data-sms' && !hasDataSms ? 'data-only' : planType;
 
@@ -604,11 +263,9 @@ export function EsimPage({ onBack }: { onBack: () => void }) {
 
   const summaryLine = useMemo(() => {
     if (!selected) return '';
-    const typeLabel =
-      effectiveType === 'data-sms' ? 'Data + SMS' : 'Data Only';
-    const cov = coverage;
+    const typeLabel = effectiveType === 'data-sms' ? 'Data + SMS' : 'Data Only';
     const daysLabel = validity === 0 ? 'All days' : `${validity} days`;
-    return `${typeLabel} · ${cov} · ${daysLabel}`;
+    return `${typeLabel} · ${coverage} · ${daysLabel}`;
   }, [selected, effectiveType, coverage, validity]);
 
   const handleBuy = async (plan: EsimPlan) => {
@@ -705,7 +362,6 @@ export function EsimPage({ onBack }: { onBack: () => void }) {
         </div>
       </div>
 
-      {/* Country detail sheet */}
       {selected ? (
         <div className="esim-sheet-root" role="dialog" aria-modal="true" aria-label={selected.name}>
           <button type="button" className="esim-sheet-backdrop" onClick={closeCountry} aria-label="Close" />
@@ -717,20 +373,10 @@ export function EsimPage({ onBack }: { onBack: () => void }) {
                 <strong>{selected.name}</strong>
                 <span>{summaryLine}</span>
               </div>
-              <button
-                type="button"
-                className="esim-icon-btn"
-                onClick={handleRefresh}
-                aria-label="Refresh plans"
-              >
+              <button type="button" className="esim-icon-btn" onClick={handleRefresh} aria-label="Refresh plans">
                 <RefreshCw size={16} strokeWidth={2.2} className={loadingPlans ? 'spin' : ''} />
               </button>
-              <button
-                type="button"
-                className="esim-icon-btn"
-                onClick={closeCountry}
-                aria-label="Close"
-              >
+              <button type="button" className="esim-icon-btn" onClick={closeCountry} aria-label="Close">
                 <X size={18} strokeWidth={2.2} />
               </button>
             </div>
@@ -834,11 +480,7 @@ export function EsimPage({ onBack }: { onBack: () => void }) {
                     No package for{' '}
                     {validity === 0 ? 'selected filters' : `${validity} days`}
                   </p>
-                  <button
-                    type="button"
-                    className="esim-empty-cta"
-                    onClick={() => setValidity(0)}
-                  >
+                  <button type="button" className="esim-empty-cta" onClick={() => setValidity(0)}>
                     Show all days
                   </button>
                 </div>
@@ -847,7 +489,7 @@ export function EsimPage({ onBack }: { onBack: () => void }) {
                   <article key={p.id} className="esim-plan-card">
                     <div className="esim-plan-left">
                       <span className="esim-sim-icon" aria-hidden>
-                        <SimCard size={18} strokeWidth={2} />
+                        <Smartphone size={18} strokeWidth={2} />
                       </span>
                       <div className="esim-plan-body">
                         <strong>{planTitle(p)}</strong>
@@ -856,15 +498,9 @@ export function EsimPage({ onBack }: { onBack: () => void }) {
                         </span>
                         <div className="esim-chips">
                           <span className="esim-chip">{dataChip(p)}</span>
-                          {p.mins != null ? (
-                            <span className="esim-chip">{p.mins} mins</span>
-                          ) : null}
-                          {p.sms != null ? (
-                            <span className="esim-chip">{p.sms} SMS</span>
-                          ) : null}
-                          {p.topUp ? (
-                            <span className="esim-chip topup">Top-up</span>
-                          ) : null}
+                          {p.mins != null ? <span className="esim-chip">{p.mins} mins</span> : null}
+                          {p.sms != null ? <span className="esim-chip">{p.sms} SMS</span> : null}
+                          {p.topUp ? <span className="esim-chip topup">Top-up</span> : null}
                         </div>
                       </div>
                     </div>
@@ -887,7 +523,6 @@ export function EsimPage({ onBack }: { onBack: () => void }) {
         </div>
       ) : null}
 
-      {/* Validity bottom sheet */}
       {showValiditySheet ? (
         <div className="esim-valid-root" role="dialog" aria-modal="true" aria-label="Select validity">
           <button
