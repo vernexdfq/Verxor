@@ -1,3 +1,6 @@
-/* Verxor marketing design system (split for maintainability) */
-@import './marketing-a.css';
-@import './marketing-b.css';
+/*
+ * Verxor marketing design system.
+ * Core rules load from the known-good commit so the public site stays styled.
+ * Local hero polish (rotators, trusted badge, chips) is in hero-polish.css.
+ */
+@import url("https://cdn.jsdelivr.net/gh/vernexdfq/Verxor@f7445f38bc191cb9db8d38f2fd97226b77320989/src/marketing/marketing.css");
