@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppShell } from './components/AppShell';
 import { HomePage, FundPage, HistoryPage, ProfilePage } from './pages';
 import { ServicePage, ServicesPage, type ServiceView } from './service-pages';
@@ -20,6 +20,30 @@ import type { Page } from './types';
 
 const STORAGE_KEY = 'verxor-auth-session';
 
+type NavState = {
+  page: Page;
+  service: ServiceView | null;
+};
+
+function readNavState(raw: unknown): NavState | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const s = raw as Partial<NavState>;
+  const page = s.page;
+  if (
+    page !== 'home' &&
+    page !== 'history' &&
+    page !== 'fund' &&
+    page !== 'services' &&
+    page !== 'profile'
+  ) {
+    return null;
+  }
+  return {
+    page,
+    service: (s.service as ServiceView | null | undefined) ?? null,
+  };
+}
+
 /**
  * IMPORTANT (fintech rule):
  * Cookies/localStorage may remember contact, method, name, and PIN hash,
@@ -36,6 +60,52 @@ export function VerxorApp() {
   const [auth, setAuth] = useState<AuthSession | null>(null);
   const [authReady, setAuthReady] = useState(false);
 
+  /** Skip pushState when restoring from popstate */
+  const skipPushRef = useRef(false);
+  const pageRef = useRef(page);
+  const serviceRef = useRef(service);
+  pageRef.current = page;
+  serviceRef.current = service;
+
+  const pushNav = useCallback((next: NavState) => {
+    if (typeof window === 'undefined') return;
+    if (skipPushRef.current) {
+      skipPushRef.current = false;
+      return;
+    }
+    try {
+      window.history.pushState(next, '', window.location.pathname + window.location.search);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  const openService = useCallback(
+    (next: ServiceView) => {
+      setService(next);
+      pushNav({ page: pageRef.current, service: next });
+    },
+    [pushNav],
+  );
+
+  const navigatePage = useCallback(
+    (next: Page) => {
+      setService(null);
+      setPage(next);
+      pushNav({ page: next, service: null });
+    },
+    [pushNav],
+  );
+
+  /** UI Back on service screens — go one step in browser history when possible */
+  const closeService = useCallback(() => {
+    if (typeof window !== 'undefined' && window.history.state?.service) {
+      window.history.back();
+      return;
+    }
+    setService(null);
+  }, []);
+
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const params = new URLSearchParams(window.location.search);
@@ -47,7 +117,39 @@ export function VerxorApp() {
     setAuthReady(true);
   }, []);
 
-  const closeService = () => setService(null);
+  /** Seed history + handle swipe/browser Back inside the workspace */
+  useEffect(() => {
+    if (typeof window === 'undefined' || !auth) return;
+
+    const root: NavState = { page: 'home', service: null };
+    try {
+      window.history.replaceState(root, '', window.location.pathname + window.location.search);
+    } catch {
+      /* ignore */
+    }
+
+    const onPop = (e: PopStateEvent) => {
+      const restored = readNavState(e.state);
+      if (restored) {
+        skipPushRef.current = true;
+        setPage(restored.page);
+        setService(restored.service);
+        return;
+      }
+      // No in-app state → keep user inside workspace (do not exit to landing)
+      skipPushRef.current = true;
+      setPage('home');
+      setService(null);
+      try {
+        window.history.pushState(root, '', window.location.pathname + window.location.search);
+      } catch {
+        /* ignore */
+      }
+    };
+
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, [auth]);
 
   const handleLogout = () => {
     if (typeof window !== 'undefined') {
@@ -130,11 +232,17 @@ export function VerxorApp() {
 
   const content =
     service === 'services' ? (
-      <ServicesPage open={setService} onBack={() => { setService(null); setPage('home'); }} />
+      <ServicesPage
+        open={openService}
+        onBack={() => navigatePage('home')}
+      />
     ) : service === 'rental' ? (
-      <RentalPage onBack={closeService} onOpenEsim={() => setService('esim')} />
+      <RentalPage onBack={closeService} onOpenEsim={() => openService('esim')} />
     ) : service === 'virtual-numbers' ? (
-      <VirtualNumbersPage onBack={closeService} onOpenNotifications={() => setService('alerts')} />
+      <VirtualNumbersPage
+        onBack={closeService}
+        onOpenNotifications={() => openService('alerts')}
+      />
     ) : service === 'accounts' ? (
       <AccountsPage onBack={closeService} />
     ) : service === 'boost' ? (
@@ -152,23 +260,20 @@ export function VerxorApp() {
     ) : service === 'bet-wallet' ? (
       <BettingPage
         onBack={closeService}
-        onOpenHistory={() => {
-          setService(null);
-          setPage('history');
-        }}
+        onOpenHistory={() => navigatePage('history')}
       />
     ) : service ? (
       <ServicePage view={service} onBack={closeService} />
     ) : page === 'history' ? (
       <HistoryPage />
     ) : page === 'services' ? (
-      <ServicesPage open={setService} onBack={() => { setService(null); setPage('home'); }} />
+      <ServicesPage open={openService} onBack={() => navigatePage('home')} />
     ) : (
       {
-        home: <HomePage go={setPage} openService={setService} />,
+        home: <HomePage go={navigatePage} openService={openService} />,
         fund: <FundPage />,
-        services: <ServicesPage open={setService} onBack={() => { setService(null); setPage('home'); }} />,
-        profile: <ProfilePage openService={setService} />,
+        services: <ServicesPage open={openService} onBack={() => navigatePage('home')} />,
+        profile: <ProfilePage openService={openService} />,
       }[page]
     );
 
@@ -178,12 +283,9 @@ export function VerxorApp() {
       page={page}
       deepService={deepService}
       userName={userName}
-      onNavigate={(next) => {
-        setService(null);
-        setPage(next);
-      }}
+      onNavigate={navigatePage}
       onToggleTheme={() => setDark((v) => !v)}
-      onOpenService={(next) => setService(next)}
+      onOpenService={openService}
       onLogout={handleLogout}
     >
       {content}
