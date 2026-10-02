@@ -13,6 +13,7 @@ import { GiftCardPage } from './giftcard-page';
 import { TvPage } from './tv-page';
 import { EsimPage } from './esim-page';
 import { VirtualNumbersPage } from './virtual-numbers-page';
+import { BettingPage } from './betting-page';
 import { AdminPage } from './admin-page';
 import { AuthFlow, type AuthSession } from './auth/AuthFlow';
 import type { Page } from './types';
@@ -148,6 +149,14 @@ export function VerxorApp() {
       <TvPage onBack={closeService} />
     ) : service === 'esim' ? (
       <EsimPage onBack={closeService} />
+    ) : service === 'bet-wallet' ? (
+      <BettingPage
+        onBack={closeService}
+        onOpenHistory={() => {
+          setService(null);
+          setPage('history');
+        }}
+      />
     ) : service ? (
       <ServicePage view={service} onBack={closeService} />
     ) : page === 'history' ? (
