@@ -1,113 +1,48 @@
 # Verxor deploy — Vercel (primary) + Cloudflare DNS
 
-**Deploy host:** Vercel (Next.js)
-**DNS / domain:** Cloudflare (you keep nameservers & DNS records there)
+**Deploy host:** Vercel (Next.js)  
+**DNS:** Cloudflare  
+
+**Build status:** Local `next build` on latest `main` **succeeds**. Gift card syntax error is fixed.
 
 ---
 
-## 1. Connect the GitHub repo on Vercel
+## Redeploy on Vercel (if you already imported the project)
 
-1. Open [vercel.com](https://vercel.com) → **Add New… → Project**
-2. Import **`vernexdfq/Verxor`**
-3. Framework Preset: **Next.js** (auto-detected)
-4. Root Directory: `.` (leave default)
-5. Build Command: `next build` (or leave blank — uses package.json)
-6. Output Directory: **leave empty**
-7. Install Command: `npm install`
-8. Node.js Version: **20.x**
-9. Click **Deploy** once (first deploy can succeed without env vars; APIs that need keys will fail until you add them)
+1. Open **vercel.com** → project **verxor**
+2. Go to **Deployments** (list view — not an old failed log)
+3. Find the **newest** deployment from `main`
+4. Tap **⋯** → **Redeploy** → turn ON **Clear cache and redeploy**
+5. Wait for green status
+
+The failed log you saw (`HvUD9bJ5m`, time ~08:07) is the **old** build before the fix. Do not keep refreshing that page.
 
 ---
 
-## 2. Environment variables (Vercel → Project → Settings → Environment Variables)
+## First-time import
 
-Add for **Production** (and Preview if you want):
-
-```text
-SUPABASE_URL
-SUPABASE_ANON_KEY
-SUPABASE_SERVICE_ROLE_KEY
-
-FLUTTERWAVE_PUBLIC_KEY
-FLUTTERWAVE_SECRET_KEY
-FLUTTERWAVE_ENCRYPTION_KEY
-FLUTTERWAVE_SECRET_HASH
-
-FIVESIM_API_KEY
-GRIZZLYSMS_API_KEY
-TEXTVERIFIED_API_KEY
-SMSBOWER_API_KEY
-
-SMMWIZ_API_URL
-SMMWIZ_API_KEY
-BULKFOLLOWS_API_URL
-BULKFOLLOWS_API_KEY
-```
-
-See `.env.example` for the full list. **Never commit real values.**
-
-After saving env vars → **Deployments → … → Redeploy** (clear cache if needed).
+1. **Add New → Project** → import `vernexdfq/Verxor`
+2. Framework: **Next.js** | Root: `.` | Build: `next build` | Output: empty | Node: **20.x**
+3. Deploy
 
 ---
 
-## 3. Custom domain via Cloudflare DNS (DNS stays on Cloudflare)
+## Environment variables
 
-### On Vercel
-1. Project → **Settings → Domains**
-2. Add your domain, e.g. `verxor.com` and/or `www.verxor.com`
-3. Vercel will show the target (usually a CNAME to `cname.vercel-dns.com`)
-
-### On Cloudflare (DNS only — do not proxy incorrectly)
-
-| Type  | Name | Content                 | Proxy status      |
-|-------|------|-------------------------|-------------------|
-| CNAME | `@`  | `cname.vercel-dns.com`  | **DNS only** (grey cloud) *or* follow Vercel’s exact instruction |
-| CNAME | `www`| `cname.vercel-dns.com`  | DNS only / as Vercel shows |
-
-**Important:**
-- For apex (`@`), if Cloudflare requires A records, use the IPs Vercel lists in the Domains panel.
-- Start with **DNS only** (grey cloud) until the domain is verified on Vercel; then you can enable orange-cloud proxy if you want Cloudflare CDN in front.
-- SSL: Cloudflare → Full (strict) once Vercel has issued the cert.
+Settings → Environment Variables — use names from `.env.example`, then Redeploy.
 
 ---
 
-## 4. Success checks
+## Custom domain (DNS stays on Cloudflare)
 
-After a green Production deploy:
+Vercel → Domains → add domain.  
+Cloudflare DNS: CNAME `www` → `cname.vercel-dns.com` (DNS only first).
+
+---
+
+## Success checks
 
 ```text
 https://YOUR-PROJECT.vercel.app/
 https://YOUR-PROJECT.vercel.app/api/health
 ```
-
-Custom domain (when DNS propagates):
-
-```text
-https://verxor.com/
-https://www.verxor.com/
-```
-
-Must show the app / JSON — not a Cloudflare Worker error page.
-
----
-
-## 5. Cloudflare Workers (optional fallback only)
-
-The repo still has OpenNext + Wrangler for emergency Workers deploys:
-
-```bash
-npm run cf:deploy
-```
-
-Primary production path is **Vercel**. GitHub Actions CI now only **builds** (no auto-deploy to Workers).
-
----
-
-## 6. Local
-
-```bash
-npm install
-npm run dev
-```
-
-Open `http://localhost:3000`.
