@@ -31,7 +31,6 @@ type InputKind = 'phone' | 'account_id' | 'username';
 type Provider = {
   id: ProviderId;
   name: string;
-  short: string;
   color: string;
   inputKind: InputKind;
   placeholder: string;
@@ -42,8 +41,7 @@ const PROVIDERS: Provider[] = [
   {
     id: 'sportybet',
     name: 'SportyBet',
-    short: 'S',
-    color: '#E11D2E',
+    color: '#E30613',
     inputKind: 'phone',
     placeholder: 'Enter SportyBet phone number',
     hot: true,
@@ -51,8 +49,7 @@ const PROVIDERS: Provider[] = [
   {
     id: 'ilotbet',
     name: 'iLOTBet',
-    short: 'iL',
-    color: '#0F172A',
+    color: '#0B0B0B',
     inputKind: 'phone',
     placeholder: 'Enter iLOT phone number',
     hot: true,
@@ -60,8 +57,7 @@ const PROVIDERS: Provider[] = [
   {
     id: '1xbet',
     name: '1xBET',
-    short: '1x',
-    color: '#1D4ED8',
+    color: '#1A66FF',
     inputKind: 'account_id',
     placeholder: 'Enter 1xBET Account ID',
     hot: true,
@@ -69,8 +65,7 @@ const PROVIDERS: Provider[] = [
   {
     id: 'bet9ja',
     name: 'Bet9ja',
-    short: '9ja',
-    color: '#16A34A',
+    color: '#00A651',
     inputKind: 'account_id',
     placeholder: 'Enter Bet9ja User ID',
     hot: true,
@@ -78,8 +73,7 @@ const PROVIDERS: Provider[] = [
   {
     id: 'bangbet',
     name: 'BangBet',
-    short: 'BB',
-    color: '#EAB308',
+    color: '#F5A623',
     inputKind: 'account_id',
     placeholder: 'Enter BangBet Account ID',
     hot: true,
@@ -87,8 +81,7 @@ const PROVIDERS: Provider[] = [
   {
     id: 'easywin',
     name: 'EasyWin',
-    short: 'EW',
-    color: '#EA580C',
+    color: '#FF6B00',
     inputKind: 'username',
     placeholder: 'Enter EasyWin username',
     hot: true,
@@ -96,48 +89,42 @@ const PROVIDERS: Provider[] = [
   {
     id: 'betking',
     name: 'BetKing',
-    short: 'K',
-    color: '#1E3A8A',
+    color: '#0033A0',
     inputKind: 'account_id',
     placeholder: 'Enter BetKing Account ID',
   },
   {
     id: 'msport',
     name: 'MSport',
-    short: 'M',
-    color: '#0F172A',
+    color: '#111111',
     inputKind: 'account_id',
     placeholder: 'Enter MSport Account ID',
   },
   {
     id: 'nairabet',
     name: 'NairaBet',
-    short: 'NB',
-    color: '#2563EB',
+    color: '#1E90FF',
     inputKind: 'phone',
     placeholder: 'Enter NairaBet phone number',
   },
   {
     id: 'betway',
     name: 'Betway',
-    short: 'BW',
-    color: '#0F172A',
+    color: '#00A651',
     inputKind: 'account_id',
     placeholder: 'Enter Betway Account ID',
   },
   {
     id: 'livescorebet',
     name: 'Livescorebet',
-    short: 'LS',
-    color: '#F97316',
+    color: '#FF6200',
     inputKind: 'account_id',
     placeholder: 'Enter Livescorebet ID',
   },
   {
     id: 'merrybet',
     name: 'MerryBet',
-    short: 'MB',
-    color: '#7C3AED',
+    color: '#7B2D8E',
     inputKind: 'account_id',
     placeholder: 'Enter MerryBet Account ID',
   },
@@ -165,34 +152,135 @@ type MockHistory = {
   account: string;
 };
 
-/** Empty until real transactions exist — shows structure only when needed */
 const MOCK_HISTORY: MockHistory[] = [];
 
 function money(n: number) {
   return '\u20a6' + n.toLocaleString('en-NG');
 }
 
-function ProviderLogo({
-  provider,
-  size = 40,
-}: {
-  provider: Provider;
-  size?: number;
-}) {
-  return (
-    <span
-      className="bet-logo"
-      style={{
-        width: size,
-        height: size,
-        background: provider.color,
-        fontSize: size > 36 ? 13 : 11,
-      }}
-      aria-hidden
-    >
-      {provider.short}
-    </span>
-  );
+/** Brand-colored marks for Nigerian betting books */
+function ProviderLogo({ id, size = 48 }: { id: ProviderId; size?: number }) {
+  const s = { width: size, height: size, viewBox: '0 0 48 48', 'aria-hidden': true as const };
+
+  switch (id) {
+    case 'sportybet':
+      return (
+        <svg {...s}>
+          <rect width="48" height="48" rx="12" fill="#E30613" />
+          <text x="24" y="31" textAnchor="middle" fill="#fff" fontSize="20" fontWeight="800" fontFamily="Inter, system-ui, sans-serif">
+            S
+          </text>
+        </svg>
+      );
+    case 'ilotbet':
+      return (
+        <svg {...s}>
+          <rect width="48" height="48" rx="12" fill="#0B0B0B" />
+          <text x="24" y="30" textAnchor="middle" fill="#fff" fontSize="15" fontWeight="800" fontFamily="Inter, system-ui, sans-serif" letterSpacing="-0.5">
+            iL
+          </text>
+        </svg>
+      );
+    case '1xbet':
+      return (
+        <svg {...s}>
+          <rect width="48" height="48" rx="12" fill="#1A66FF" />
+          <text x="24" y="30" textAnchor="middle" fill="#fff" fontSize="15" fontWeight="800" fontFamily="Inter, system-ui, sans-serif">
+            1x
+          </text>
+        </svg>
+      );
+    case 'bet9ja':
+      return (
+        <svg {...s}>
+          <rect width="48" height="48" rx="12" fill="#00A651" />
+          <text x="24" y="30" textAnchor="middle" fill="#fff" fontSize="13" fontWeight="800" fontFamily="Inter, system-ui, sans-serif">
+            9ja
+          </text>
+        </svg>
+      );
+    case 'bangbet':
+      return (
+        <svg {...s}>
+          <rect width="48" height="48" rx="12" fill="#F5A623" />
+          <text x="24" y="30" textAnchor="middle" fill="#111" fontSize="14" fontWeight="800" fontFamily="Inter, system-ui, sans-serif">
+            BB
+          </text>
+        </svg>
+      );
+    case 'easywin':
+      return (
+        <svg {...s}>
+          <rect width="48" height="48" rx="12" fill="#FF6B00" />
+          <text x="24" y="30" textAnchor="middle" fill="#fff" fontSize="13" fontWeight="800" fontFamily="Inter, system-ui, sans-serif">
+            EW
+          </text>
+        </svg>
+      );
+    case 'betking':
+      return (
+        <svg {...s}>
+          <rect width="48" height="48" rx="12" fill="#0033A0" />
+          <text x="24" y="30" textAnchor="middle" fill="#fff" fontSize="16" fontWeight="800" fontFamily="Inter, system-ui, sans-serif">
+            K
+          </text>
+        </svg>
+      );
+    case 'msport':
+      return (
+        <svg {...s}>
+          <rect width="48" height="48" rx="12" fill="#111" />
+          <text x="24" y="30" textAnchor="middle" fill="#FFD100" fontSize="16" fontWeight="800" fontFamily="Inter, system-ui, sans-serif">
+            M
+          </text>
+        </svg>
+      );
+    case 'nairabet':
+      return (
+        <svg {...s}>
+          <rect width="48" height="48" rx="12" fill="#1E90FF" />
+          <text x="24" y="30" textAnchor="middle" fill="#fff" fontSize="13" fontWeight="800" fontFamily="Inter, system-ui, sans-serif">
+            NB
+          </text>
+        </svg>
+      );
+    case 'betway':
+      return (
+        <svg {...s}>
+          <rect width="48" height="48" rx="12" fill="#00A651" />
+          <text x="24" y="30" textAnchor="middle" fill="#fff" fontSize="12" fontWeight="800" fontFamily="Inter, system-ui, sans-serif">
+            BW
+          </text>
+        </svg>
+      );
+    case 'livescorebet':
+      return (
+        <svg {...s}>
+          <rect width="48" height="48" rx="12" fill="#FF6200" />
+          <text x="24" y="30" textAnchor="middle" fill="#fff" fontSize="13" fontWeight="800" fontFamily="Inter, system-ui, sans-serif">
+            LS
+          </text>
+        </svg>
+      );
+    case 'merrybet':
+      return (
+        <svg {...s}>
+          <rect width="48" height="48" rx="12" fill="#7B2D8E" />
+          <text x="24" y="30" textAnchor="middle" fill="#fff" fontSize="13" fontWeight="800" fontFamily="Inter, system-ui, sans-serif">
+            MB
+          </text>
+        </svg>
+      );
+    default:
+      return (
+        <svg {...s}>
+          <rect width="48" height="48" rx="12" fill="#64748B" />
+          <text x="24" y="30" textAnchor="middle" fill="#fff" fontSize="16" fontWeight="800">
+            ?
+          </text>
+        </svg>
+      );
+  }
 }
 
 export function BettingPage({
@@ -227,8 +315,7 @@ export function BettingPage({
   }, [amountStr]);
 
   const idReady = accountId.trim().length >= 4;
-  const amountReady =
-    amount >= MIN_AMOUNT && amount <= MAX_AMOUNT && verified;
+  const amountReady = amount >= MIN_AMOUNT && amount <= MAX_AMOUNT && verified;
   const canPay = verified && amountReady && !paying;
 
   const hotProviders = useMemo(
@@ -266,7 +353,6 @@ export function BettingPage({
     await new Promise((r) => setTimeout(r, 900));
     setVerifying(false);
     setVerified(true);
-    // Mock customer name — later from betting API
     setCustomerName('Verified Customer');
     toastMsg('Account verified');
   };
@@ -295,14 +381,10 @@ export function BettingPage({
     if (pin.length >= 4 || paying) return;
     const next = pin + d;
     setPin(next);
-    if (next.length === 4) {
-      void submitPin(next);
-    }
+    if (next.length === 4) void submitPin(next);
   };
 
-  const onPinBack = () => {
-    setPin((p) => p.slice(0, -1));
-  };
+  const onPinBack = () => setPin((p) => p.slice(0, -1));
 
   const recentHistory = MOCK_HISTORY.slice(0, 3);
 
@@ -316,18 +398,13 @@ export function BettingPage({
           <h1>Betting</h1>
           <p>Fund betting wallets instantly</p>
         </div>
-        <button
-          type="button"
-          className="bet-history-link"
-          onClick={() => onOpenHistory?.()}
-        >
+        <button type="button" className="bet-history-link" onClick={() => onOpenHistory?.()}>
           <History size={15} strokeWidth={2.2} />
           History
         </button>
       </header>
 
       <div className="bet-scroll">
-        {/* Provider row */}
         <section className="bet-section">
           <div className="bet-section-head">
             <strong>Select Provider</strong>
@@ -344,36 +421,29 @@ export function BettingPage({
                   onClick={() => pickProvider(p.id)}
                   aria-pressed={on}
                 >
-                  <ProviderLogo provider={p} size={40} />
-                  <span>{p.name}</span>
+                  <span className="bet-logo-wrap">
+                    <ProviderLogo id={p.id} size={48} />
+                  </span>
+                  <span className="bet-prov-name">{p.name}</span>
                 </button>
               );
             })}
-            <button
-              type="button"
-              className="bet-prov bet-more"
-              onClick={() => setMoreOpen(true)}
-            >
+            <button type="button" className="bet-prov bet-more" onClick={() => setMoreOpen(true)}>
               <span className="bet-more-dot" aria-hidden>
                 ···
               </span>
-              <span>More</span>
+              <span className="bet-prov-name">More</span>
             </button>
           </div>
         </section>
 
-        {/* Account ID */}
         <section className="bet-card">
           <div className="bet-card-head">
             <div>
               <strong>User ID</strong>
               <span>Verify account before payment</span>
             </div>
-            <button
-              type="button"
-              className="bet-beneficiaries"
-              onClick={() => setBeneficiariesOpen(true)}
-            >
+            <button type="button" className="bet-beneficiaries" onClick={() => setBeneficiariesOpen(true)}>
               Beneficiaries <ChevronRight size={14} />
             </button>
           </div>
@@ -434,7 +504,6 @@ export function BettingPage({
           </button>
         </section>
 
-        {/* Amount — locked until verified */}
         <section className={`bet-card ${!verified ? 'bet-locked' : ''}`}>
           <div className="bet-section-head">
             <strong>Select Amount</strong>
@@ -474,16 +543,13 @@ export function BettingPage({
                 placeholder={`${MIN_AMOUNT.toLocaleString()}–${MAX_AMOUNT.toLocaleString()}`}
                 value={amountStr}
                 disabled={!verified}
-                onChange={(e) =>
-                  setAmountStr(e.target.value.replace(/[^\d]/g, ''))
-                }
+                onChange={(e) => setAmountStr(e.target.value.replace(/[^\d]/g, ''))}
                 aria-label="Custom amount"
               />
             </div>
           </div>
         </section>
 
-        {/* Recent history */}
         <section className="bet-history-block">
           <div className="bet-history-head">
             <strong>Recent</strong>
@@ -516,24 +582,13 @@ export function BettingPage({
         </section>
       </div>
 
-      {/* Sticky pay bar */}
       <div className="bet-foot">
-        <button
-          type="button"
-          className="bet-pay"
-          disabled={!canPay}
-          onClick={openPay}
-        >
+        <button type="button" className="bet-pay" disabled={!canPay} onClick={openPay}>
           <Lock size={16} strokeWidth={2.4} />
-          {paying
-            ? 'Processing…'
-            : amount > 0
-              ? `Pay ${money(amount)}`
-              : 'Pay'}
+          {paying ? 'Processing…' : amount > 0 ? `Pay ${money(amount)}` : 'Pay'}
         </button>
       </div>
 
-      {/* More providers sheet */}
       {moreOpen && (
         <div className="bet-sheet-root" role="dialog" aria-modal="true">
           <button
@@ -557,30 +612,18 @@ export function BettingPage({
                 autoFocus
               />
               {search ? (
-                <button
-                  type="button"
-                  className="bet-x"
-                  aria-label="Clear search"
-                  onClick={() => setSearch('')}
-                >
+                <button type="button" className="bet-x" aria-label="Clear search" onClick={() => setSearch('')}>
                   <X size={13} />
                 </button>
               ) : null}
             </div>
 
-            {!search && (
-              <div className="bet-hot-label">Hot</div>
-            )}
+            {!search && <div className="bet-hot-label">Hot</div>}
             {!search && (
               <div className="bet-hot-grid">
                 {hotProviders.map((p) => (
-                  <button
-                    key={p.id}
-                    type="button"
-                    className="bet-hot-item"
-                    onClick={() => pickProvider(p.id)}
-                  >
-                    <ProviderLogo provider={p} size={44} />
+                  <button key={p.id} type="button" className="bet-hot-item" onClick={() => pickProvider(p.id)}>
+                    <ProviderLogo id={p.id} size={48} />
                     <span>{p.name}</span>
                   </button>
                 ))}
@@ -591,7 +634,7 @@ export function BettingPage({
               {filteredProviders.map((p) => (
                 <li key={p.id}>
                   <button type="button" onClick={() => pickProvider(p.id)}>
-                    <ProviderLogo provider={p} size={36} />
+                    <ProviderLogo id={p.id} size={40} />
                     <span className="bet-all-name">{p.name}</span>
                     {p.hot && <span className="bet-hot-badge">HOT</span>}
                     <ChevronRight size={16} className="chev" />
@@ -606,7 +649,6 @@ export function BettingPage({
         </div>
       )}
 
-      {/* Beneficiaries sheet (empty state) */}
       {beneficiariesOpen && (
         <div className="bet-sheet-root" role="dialog" aria-modal="true">
           <button
@@ -618,12 +660,7 @@ export function BettingPage({
           <div className="bet-sheet bet-sheet-sm">
             <div className="bet-sheet-handle" />
             <div className="bet-sheet-title-row">
-              <button
-                type="button"
-                className="bet-round"
-                onClick={() => setBeneficiariesOpen(false)}
-                aria-label="Back"
-              >
+              <button type="button" className="bet-round" onClick={() => setBeneficiariesOpen(false)} aria-label="Back">
                 <ArrowLeft size={16} />
               </button>
               <h2>Beneficiaries</h2>
@@ -637,7 +674,6 @@ export function BettingPage({
         </div>
       )}
 
-      {/* PIN modal */}
       {pinOpen && (
         <div className="bet-pin-root" role="dialog" aria-modal="true">
           <button
@@ -663,35 +699,21 @@ export function BettingPage({
               ))}
             </div>
             <div className="bet-keypad">
-              {['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0', '⌫'].map(
-                (k, idx) => {
-                  if (k === '') return <span key={idx} className="bet-key empty" />;
-                  if (k === '⌫') {
-                    return (
-                      <button
-                        key={idx}
-                        type="button"
-                        className="bet-key"
-                        onClick={onPinBack}
-                        disabled={paying}
-                      >
-                        ⌫
-                      </button>
-                    );
-                  }
+              {['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0', '⌫'].map((k, idx) => {
+                if (k === '') return <span key={idx} className="bet-key empty" />;
+                if (k === '⌫') {
                   return (
-                    <button
-                      key={idx}
-                      type="button"
-                      className="bet-key"
-                      onClick={() => onPinDigit(k)}
-                      disabled={paying}
-                    >
-                      {k}
+                    <button key={idx} type="button" className="bet-key" onClick={onPinBack} disabled={paying}>
+                      ⌫
                     </button>
                   );
-                },
-              )}
+                }
+                return (
+                  <button key={idx} type="button" className="bet-key" onClick={() => onPinDigit(k)} disabled={paying}>
+                    {k}
+                  </button>
+                );
+              })}
             </div>
             {paying && <p className="bet-pin-busy">Processing…</p>}
           </div>
@@ -700,11 +722,9 @@ export function BettingPage({
 
       {toast && (
         <div className="bet-toast" role="status">
-          <Check size={15} /> {toast}
+          <Check size={14} strokeWidth={2.5} /> {toast}
         </div>
       )}
     </div>
   );
 }
-
-export default BettingPage;
