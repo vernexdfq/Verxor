@@ -1,0 +1,801 @@
+/* =========================================================
+   Verxor eSIM Store — grade-1 fintech surface
+   Palette locked to Verxor design system
+   ========================================================= */
+
+.esim-page {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: #F8FAFC;
+  color: #0F172A;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+    'Segoe UI', Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.esim-topbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px 8px;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: rgba(248, 250, 252, 0.92);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid transparent;
+}
+
+.esim-back {
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  border: 1px solid #E2E8F0;
+  background: #FFFFFF;
+  display: grid;
+  place-items: center;
+  color: #0F172A;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  flex-shrink: 0;
+}
+
+.esim-top-title {
+  margin: 0;
+  flex: 1;
+  text-align: center;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #0F172A;
+}
+
+.esim-top-spacer {
+  width: 40px;
+  flex-shrink: 0;
+}
+
+.esim-scroll {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 4px 16px 32px;
+}
+
+.esim-intro {
+  margin: 8px 0 16px;
+}
+
+.esim-h1 {
+  margin: 0 0 4px;
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  line-height: 1.15;
+  color: #0F172A;
+}
+
+.esim-sub {
+  margin: 0;
+  font-size: 14px;
+  color: #64748B;
+  line-height: 1.45;
+}
+
+/* Hero */
+.esim-hero {
+  position: relative;
+  overflow: hidden;
+  border-radius: 20px;
+  padding: 22px 20px;
+  margin-bottom: 16px;
+  background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #4F46E5 100%);
+  color: #FFFFFF;
+  box-shadow: 0 12px 30px rgba(37, 99, 235, 0.22);
+  min-height: 112px;
+  display: flex;
+  align-items: center;
+}
+
+.esim-hero-copy {
+  position: relative;
+  z-index: 1;
+  max-width: 70%;
+}
+
+.esim-hero-badge {
+  display: inline-block;
+  margin-bottom: 10px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.esim-hero-copy strong {
+  display: block;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.2;
+  margin-bottom: 4px;
+}
+
+.esim-hero-copy p {
+  margin: 0;
+  font-size: 13px;
+  opacity: 0.88;
+  font-weight: 500;
+}
+
+.esim-hero-art {
+  position: absolute;
+  right: 12px;
+  bottom: 8px;
+  opacity: 0.22;
+  color: #FFFFFF;
+  pointer-events: none;
+}
+
+/* Search */
+.esim-search-wrap {
+  position: relative;
+  margin-bottom: 14px;
+}
+
+.esim-search-icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #94A3B8;
+  pointer-events: none;
+}
+
+.esim-search {
+  width: 100%;
+  height: 48px;
+  border-radius: 14px;
+  border: 1.5px solid #E2E8F0;
+  background: #FFFFFF;
+  padding: 0 40px 0 42px;
+  font-size: 15px;
+  font-weight: 500;
+  color: #0F172A;
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.esim-search::placeholder {
+  color: #94A3B8;
+  font-weight: 400;
+}
+
+.esim-search:focus {
+  border-color: #2563EB;
+  box-shadow: 0 0 0 3.5px rgba(37, 99, 235, 0.12);
+}
+
+.esim-search-clear {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  border: 0;
+  background: #F1F5F9;
+  color: #64748B;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+/* Country rows */
+.esim-country-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.esim-country-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  padding: 14px 14px;
+  border-radius: 16px;
+  border: 1px solid #E2E8F0;
+  background: #FFFFFF;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  cursor: pointer;
+  transition: border-color 0.12s, box-shadow 0.12s, transform 0.08s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.esim-country-row:active {
+  transform: scale(0.99);
+  border-color: #BFDBFE;
+}
+
+.esim-flag {
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  background: #F1F5F9;
+  display: grid;
+  place-items: center;
+  font-size: 22px;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.esim-flag.lg {
+  width: 44px;
+  height: 44px;
+  font-size: 24px;
+}
+
+.esim-country-meta {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.esim-country-meta strong {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #0F172A;
+}
+
+.esim-country-price {
+  font-size: 13px;
+  font-weight: 500;
+  color: #475569;
+}
+
+.esim-country-validity {
+  font-size: 12px;
+  font-weight: 600;
+  color: #2563EB;
+}
+
+.esim-chevron {
+  color: #94A3B8;
+  flex-shrink: 0;
+}
+
+.esim-empty-inline {
+  text-align: center;
+  padding: 40px 16px;
+  color: #64748B;
+  font-size: 14px;
+}
+
+/* Sheet */
+.esim-sheet-root,
+.esim-valid-root {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+.esim-sheet-backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: rgba(15, 23, 42, 0.45);
+  cursor: pointer;
+}
+
+.esim-sheet {
+  position: relative;
+  z-index: 1;
+  background: #FFFFFF;
+  border-radius: 24px 24px 0 0;
+  max-height: min(92dvh, 860px);
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 -12px 40px rgba(15, 23, 42, 0.14);
+  animation: esim-sheet-up 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes esim-sheet-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.esim-sheet-handle {
+  width: 40px;
+  height: 4px;
+  border-radius: 999px;
+  background: #E2E8F0;
+  margin: 10px auto 4px;
+  flex-shrink: 0;
+}
+
+.esim-sheet-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px 12px;
+  border-bottom: 1px solid #F1F5F9;
+}
+
+.esim-sheet-titles {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.esim-sheet-titles strong {
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #0F172A;
+}
+
+.esim-sheet-titles span {
+  font-size: 12px;
+  font-weight: 500;
+  color: #64748B;
+}
+
+.esim-icon-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  border: 1px solid #E2E8F0;
+  background: #FFFFFF;
+  display: grid;
+  place-items: center;
+  color: #475569;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.esim-icon-btn .spin {
+  animation: esim-spin 0.7s linear infinite;
+}
+
+@keyframes esim-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Segmented control */
+.esim-seg {
+  display: flex;
+  gap: 0;
+  margin: 14px 16px 10px;
+  padding: 4px;
+  background: #EFF6FF;
+  border-radius: 999px;
+}
+
+.esim-seg button {
+  flex: 1;
+  min-height: 42px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #64748B;
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, box-shadow 0.15s;
+}
+
+.esim-seg button.active {
+  background: #2563EB;
+  color: #FFFFFF;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.32);
+}
+
+.esim-seg button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.esim-note {
+  margin: 0 16px 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: #FFFBEB;
+  border: 1px solid #FDE68A;
+  color: #92400E;
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+/* Filters */
+.esim-filters {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  padding: 0 16px 12px;
+}
+
+.esim-filter-wrap {
+  position: relative;
+}
+
+.esim-filter {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 8px 12px;
+  border-radius: 14px;
+  border: 1.5px solid #E2E8F0;
+  background: #F8FAFC;
+  color: #0F172A;
+  cursor: pointer;
+  text-align: left;
+}
+
+.esim-filter span {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.esim-filter small {
+  font-size: 10px;
+  font-weight: 600;
+  color: #94A3B8;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.esim-filter strong {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #0F172A;
+}
+
+.esim-filter-caret {
+  color: #94A3B8;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.esim-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 10;
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 14px;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.12);
+  overflow: hidden;
+  padding: 4px;
+}
+
+.esim-dropdown button {
+  width: 100%;
+  text-align: left;
+  border: 0;
+  background: transparent;
+  padding: 11px 12px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #0F172A;
+  cursor: pointer;
+}
+
+.esim-dropdown button.active,
+.esim-dropdown button:hover {
+  background: #EFF6FF;
+  color: #2563EB;
+}
+
+/* Plans */
+.esim-plan-scroll {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 4px 16px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.esim-plan-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid #E2E8F0;
+  background: #F8FAFC;
+}
+
+.esim-plan-left {
+  flex: 1;
+  display: flex;
+  gap: 10px;
+  min-width: 0;
+}
+
+.esim-sim-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  background: #EFF6FF;
+  color: #2563EB;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.esim-plan-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.esim-plan-body strong {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #0F172A;
+  line-height: 1.3;
+}
+
+.esim-plan-carrier {
+  font-size: 12px;
+  font-weight: 500;
+  color: #64748B;
+}
+
+.esim-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.esim-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: #EFF6FF;
+  color: #1D4ED8;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.esim-chip.topup {
+  background: #FFF7ED;
+  color: #C2410C;
+}
+
+.esim-plan-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.esim-plan-price {
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #0F172A;
+}
+
+.esim-buy {
+  min-width: 64px;
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 0;
+  background: #2563EB;
+  color: #FFFFFF;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.28);
+  transition: background 0.12s, transform 0.08s;
+}
+
+.esim-buy:hover {
+  background: #1D4ED8;
+}
+
+.esim-buy:active {
+  transform: scale(0.96);
+}
+
+.esim-buy:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+/* Skeletons */
+.esim-skeletons {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.esim-skel-row {
+  height: 88px;
+  border-radius: 16px;
+  background: linear-gradient(90deg, #F1F5F9 0%, #E2E8F0 50%, #F1F5F9 100%);
+  background-size: 200% 100%;
+  animation: esim-shimmer 1.2s ease-in-out infinite;
+}
+
+@keyframes esim-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* Empty */
+.esim-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 48px 20px;
+  gap: 12px;
+}
+
+.esim-empty-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: #F1F5F9;
+  color: #64748B;
+  display: grid;
+  place-items: center;
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.esim-empty p {
+  margin: 0;
+  font-size: 14px;
+  color: #64748B;
+  font-weight: 500;
+}
+
+.esim-empty-cta {
+  margin-top: 4px;
+  min-height: 44px;
+  padding: 0 22px;
+  border-radius: 999px;
+  border: 0;
+  background: #2563EB;
+  color: #FFFFFF;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.28);
+}
+
+/* Validity sheet */
+.esim-valid-sheet {
+  position: relative;
+  z-index: 1;
+  background: #FFFFFF;
+  border-radius: 24px 24px 0 0;
+  padding: 8px 16px 28px;
+  box-shadow: 0 -12px 40px rgba(15, 23, 42, 0.14);
+  animation: esim-sheet-up 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.esim-valid-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 0 16px;
+}
+
+.esim-valid-head strong {
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.esim-valid-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.esim-valid-opt {
+  min-height: 48px;
+  border-radius: 14px;
+  border: 1.5px solid #E2E8F0;
+  background: #F8FAFC;
+  color: #0F172A;
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+}
+
+.esim-valid-opt.active {
+  background: #2563EB;
+  border-color: #2563EB;
+  color: #FFFFFF;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.28);
+}
+
+/* Toast */
+.esim-toast {
+  position: fixed;
+  left: 50%;
+  bottom: max(24px, env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  z-index: 100;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  border-radius: 999px;
+  background: #0F172A;
+  color: #FFFFFF;
+  font-size: 13.5px;
+  font-weight: 600;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.25);
+  max-width: min(92vw, 360px);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (min-width: 700px) {
+  .esim-page {
+    max-width: 448px;
+    margin: 0 auto;
+  }
+
+  .esim-sheet-root,
+  .esim-valid-root {
+    max-width: 448px;
+    left: 50%;
+    transform: translateX(-50%);
+    right: auto;
+  }
+}
