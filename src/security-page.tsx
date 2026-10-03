@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ArrowLeft,
   ChevronRight,
@@ -12,20 +12,29 @@ import {
   ShieldCheck,
   Smartphone,
 } from 'lucide-react';
+import type { AuthSession } from './auth/AuthFlow';
+import {
+  clearBiometricLocal,
+  enrollPlatformBiometric,
+  isBiometricEnabledLocally,
+  isPlatformBiometricAvailable,
+} from './lib/webauthn';
 import './security-page.css';
 
 type Props = {
   onBack: () => void;
+  session?: AuthSession | null;
 };
 
 type Mode = 'hub' | 'password' | 'pin';
 
-export function SecurityPage({ onBack }: Props) {
+export function SecurityPage({ onBack, session }: Props) {
   const [mode, setMode] = useState<Mode>('hub');
   const [biometric, setBiometric] = useState(false);
+  const [bioSupported, setBioSupported] = useState(true);
+  const [bioBusy, setBioBusy] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
 
-  // Password form
   const [currentPw, setCurrentPw] = useState('');
   const [newPw, setNewPw] = useState('');
   const [confirmPw, setConfirmPw] = useState('');
@@ -35,22 +44,54 @@ export function SecurityPage({ onBack }: Props) {
   const [pwBusy, setPwBusy] = useState(false);
   const [pwError, setPwError] = useState<string | null>(null);
 
-  // PIN form
   const [currentPin, setCurrentPin] = useState('');
   const [newPin, setNewPin] = useState('');
   const [confirmPin, setConfirmPin] = useState('');
   const [pinBusy, setPinBusy] = useState(false);
   const [pinError, setPinError] = useState<string | null>(null);
 
+  useEffect(() => {
+    setBiometric(isBiometricEnabledLocally());
+    void isPlatformBiometricAvailable().then(setBioSupported);
+  }, []);
+
   function flash(msg: string) {
     setToast(msg);
-    window.setTimeout(() => setToast(null), 2800);
+    window.setTimeout(() => setToast(null), 3200);
   }
 
-  function toggleBiometric() {
-    const next = !biometric;
-    setBiometric(next);
-    flash(next ? 'Biometrics enabled successfully!' : 'Biometrics disabled');
+  async function toggleBiometric() {
+    if (bioBusy) return;
+
+    if (biometric) {
+      clearBiometricLocal();
+      setBiometric(false);
+      flash('Biometrics disabled');
+      return;
+    }
+
+    setBioBusy(true);
+    const userId = session?.phone || session?.email || session?.name || 'verxor-user';
+    const displayName = session?.name || session?.email || session?.phone || 'Verxor user';
+
+    const result = await enrollPlatformBiometric(userId, displayName);
+    setBioBusy(false);
+
+    if (result.ok) {
+      setBiometric(true);
+      flash('Biometrics enabled successfully!');
+      return;
+    }
+
+    if (result.reason === 'cancelled') {
+      flash('Biometric setup cancelled');
+      return;
+    }
+
+    if (result.reason === 'unsupported') {
+      setBioSupported(false);
+    }
+    flash(result.message);
   }
 
   function submitPassword(e: React.FormEvent) {
@@ -256,6 +297,14 @@ export function SecurityPage({ onBack }: Props) {
     );
   }
 
+  const bioSub = !bioSupported
+    ? 'Not available on this device or browser'
+    : bioBusy
+      ? 'Waiting for fingerprint / Face ID…'
+      : biometric
+        ? 'Face ID / fingerprint is enabled'
+        : 'Enable quick login with Face ID or fingerprint';
+
   return (
     <div className="sec-page">
       <header className="sec-header">
@@ -290,18 +339,19 @@ export function SecurityPage({ onBack }: Props) {
               <ChevronRight size={18} className="sec-chevron" />
             </button>
 
-            <div className="sec-row sec-row-static">
+            <div className={`sec-row sec-row-static ${!bioSupported ? 'dim' : ''}`}>
               <span className={`sec-icon ${biometric ? 'tone-bio-on' : 'tone-bio'}`}>
                 <Fingerprint size={18} strokeWidth={2} />
               </span>
               <span className="sec-copy">
                 <strong>Biometric Login</strong>
-                <small>{biometric ? 'Face ID / Touch ID is enabled' : 'Enable quick login with Face ID or fingerprint'}</small>
+                <small>{bioSub}</small>
               </span>
               <button
                 type="button"
-                className={`sec-toggle ${biometric ? 'on' : ''}`}
-                onClick={toggleBiometric}
+                className={`sec-toggle ${biometric ? 'on' : ''} ${bioBusy ? 'busy' : ''}`}
+                onClick={() => void toggleBiometric()}
+                disabled={!bioSupported || bioBusy}
                 aria-pressed={biometric}
                 aria-label="Toggle biometric login"
               >
