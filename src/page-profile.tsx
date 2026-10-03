@@ -30,8 +30,8 @@ export function ProfilePage({ openService }: { openService: (view: ServiceView) 
   return (
     <div className="prof-page">
       <header className="prof-page-head">
-        <h1>Settings &amp; Profile</h1>
-        <p>Manage your account, security &amp; tenancy</p>
+        <h1>Settings & Profile</h1>
+        <p>Manage your account, security & tenancy</p>
       </header>
 
       <section className="prof-hero" aria-label="Profile summary">
@@ -63,8 +63,8 @@ export function ProfilePage({ openService }: { openService: (view: ServiceView) 
           <Gift size={20} strokeWidth={1.9} />
         </span>
         <span className="prof-refer-copy">
-          <strong>Refer &amp; Earn</strong>
-          <small>Earn commission on every invited user&apos;s deposit</small>
+          <strong>Refer & Earn</strong>
+          <small>Earn commission on every invited user's deposit</small>
         </span>
         <span className="prof-refer-cta">Invite</span>
       </button>
@@ -127,7 +127,7 @@ export function ProfilePage({ openService }: { openService: (view: ServiceView) 
           tone="tone-teal"
           title="FAQ"
           description="Knowledge base & self-service"
-          onClick={() => openService('help')}
+          onClick={() => openService('faq')}
         />
         <ProfileItem
           icon={<MessageSquare size={18} />}
