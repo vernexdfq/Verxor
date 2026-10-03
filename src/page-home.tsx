@@ -132,108 +132,121 @@ export function HomePage({
   openService: (view: ServiceView) => void;
 }) {
   const [showBalance, setShowBalance] = useState(true);
-  const [slide, setSlide] = useState(0);
+  const [promoIndex, setPromoIndex] = useState(0);
+  const [paused, setPaused] = useState(false);
 
   useEffect(() => {
-    const t = setInterval(() => setSlide((s) => (s + 1) % PROMO_SLIDES.length), 4200);
+    if (paused) return;
+    const t = setInterval(() => {
+      setPromoIndex((i) => (i + 1) % PROMO_SLIDES.length);
+    }, 4500);
     return () => clearInterval(t);
-  }, []);
+  }, [paused]);
 
-  const current = PROMO_SLIDES[slide];
+  const promo = PROMO_SLIDES[promoIndex];
+
+  const openPromo = () => {
+    if (promo.service) openService(promo.service);
+  };
 
   return (
     <div className="vx-home">
-      <header className="vx-home-header">
-        <div className="vx-home-user">
-          <div className="vx-avatar">V</div>
-          <div>
-            <p className="vx-greeting">Good morning, DESTINY 🌞</p>
-            <p className="vx-sub">Your Verxor Dashboard</p>
-          </div>
-        </div>
-        <button type="button" className="vx-bell" aria-label="Notifications">
-          <span className="vx-bell-dot" />
-        </button>
-      </header>
-
-      <section className="vx-wallet-card">
+      {/* Wallet */}
+      <section className="vx-wallet" aria-label="Available balance">
         <div className="vx-wallet-top">
           <span className="vx-wallet-label">AVAILABLE BALANCE</span>
-          <span className="vx-wallet-status">
-            <span className="vx-status-dot" /> Active
+          <span className="vx-wallet-active">
+            <i /> Active
           </span>
         </div>
-        <div className="vx-wallet-row">
-          <p className="vx-balance">
-            {showBalance ? `${wallet.symbol}${wallet.amount}` : `${wallet.symbol}••••••`}
-          </p>
+        <div className="vx-wallet-amount">
+          <strong>
+            {showBalance ? (
+              <>
+                {wallet.symbol}
+                {wallet.amount}
+              </>
+            ) : (
+              `${wallet.symbol}••••••`
+            )}
+          </strong>
           <button
             type="button"
-            className="vx-eye"
-            onClick={() => setShowBalance((v) => !v)}
+            className="vx-wallet-eye"
             aria-label={showBalance ? 'Hide balance' : 'Show balance'}
+            onClick={() => setShowBalance((v) => !v)}
           >
             {showBalance ? <Eye size={18} /> : <EyeOff size={18} />}
           </button>
         </div>
         <div className="vx-wallet-actions">
-          <button type="button" className="vx-btn-primary" onClick={() => go('fund')}>
-            <Plus size={16} /> Fund Wallet
+          <button type="button" className="vx-btn-fund" onClick={() => go('fund')}>
+            <Plus size={18} strokeWidth={2.5} /> Fund Wallet
           </button>
-          <button type="button" className="vx-btn-ghost" onClick={() => go('history')}>
+          <button type="button" className="vx-btn-history" onClick={() => go('history')}>
             <History size={16} /> History
           </button>
         </div>
       </section>
 
-      <section className="vx-section">
+      {/* Quick actions — fixed equal tiles */}
+      <section className="vx-quick" aria-label="Quick actions">
         <p className="vx-section-label">QUICK ACTIONS</p>
-        <div className="vx-qa-grid">
-          {QUICK_ACTIONS.map((item) => {
-            const Icon = item.icon;
-            return (
-              <button
-                key={item.id}
-                type="button"
-                className="vx-qa-item"
-                onClick={() => item.service && openService(item.service)}
-              >
-                <span className={`vx-qa-icon ${item.tone}`}>
-                  <Icon size={20} strokeWidth={1.8} />
-                </span>
-                <span className="vx-qa-title">{item.title}</span>
-              </button>
-            );
-          })}
+        <div className="vx-quick-grid">
+          {QUICK_ACTIONS.map(({ id, title, icon: Icon, tone, service }) => (
+            <button
+              key={id}
+              type="button"
+              className="vx-quick-tile"
+              aria-label={title}
+              onClick={() => {
+                if (service) openService(service);
+              }}
+            >
+              <span className={`vx-quick-icon ${tone}`}>
+                <Icon size={20} strokeWidth={1.9} />
+              </span>
+              <strong>{title}</strong>
+            </button>
+          ))}
         </div>
       </section>
 
-      <section className={`vx-promo ${current.accent}`}>
-        <span className="vx-promo-badge">{current.badge}</span>
-        <h2 className="vx-promo-title">{current.headline}</h2>
-        <p className="vx-promo-sub">{current.subtext}</p>
-        <button
-          type="button"
-          className="vx-promo-cta"
-          onClick={() => current.service && openService(current.service)}
-        >
-          {current.cta} <ArrowRight size={16} />
+      {/* Bold promo carousel — full slide is tappable */}
+      <section
+        className="vx-promo"
+        aria-label="Promotions"
+        onMouseEnter={() => setPaused(true)}
+        onMouseLeave={() => setPaused(false)}
+      >
+        <button type="button" className={`vx-promo-card ${promo.accent}`} onClick={openPromo}>
+          <div className="vx-promo-copy">
+            <span className="vx-promo-badge">{promo.badge}</span>
+            <strong className="vx-promo-headline">{promo.headline}</strong>
+            <p className="vx-promo-sub">{promo.subtext}</p>
+            <span className="vx-promo-cta">
+              {promo.cta} <ArrowRight size={16} />
+            </span>
+          </div>
+          <div className="vx-promo-glow" aria-hidden />
         </button>
-        <div className="vx-promo-dots">
+        <div className="vx-promo-dots" role="tablist" aria-label="Promo slides">
           {PROMO_SLIDES.map((_, i) => (
             <button
               key={i}
               type="button"
-              className={i === slide ? 'is-active' : ''}
-              onClick={() => setSlide(i)}
-              aria-label={`Slide ${i + 1}`}
+              role="tab"
+              aria-selected={i === promoIndex}
+              className={i === promoIndex ? 'dot active' : 'dot'}
+              onClick={() => setPromoIndex(i)}
             />
           ))}
         </div>
       </section>
 
-      <section className="vx-section">
-        <div className="vx-section-row">
+      {/* Recent activity */}
+      <section className="vx-activity" aria-label="Recent activity">
+        <div className="vx-activity-head">
           <p className="vx-section-label" style={{ margin: 0 }}>
             RECENT ACTIVITY
           </p>
