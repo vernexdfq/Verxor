@@ -168,3 +168,130 @@ const POPULAR: ServiceItem[] = [
     tags: ['card', 'usd', 'virtual'],
   },
 ];
+
+function filterList(items: ServiceItem[], q: string) {
+  if (!q) return items;
+  return items.filter(
+    (item) =>
+      item.title.toLowerCase().includes(q) ||
+      item.description.toLowerCase().includes(q) ||
+      item.tags.some((t) => t.includes(q)),
+  );
+}
+
+export function ServicesHub({
+  open,
+  onBack,
+}: {
+  open: (view: ServiceView) => void;
+  onBack?: () => void;
+}) {
+  const [query, setQuery] = useState('');
+  const [searchOpen, setSearchOpen] = useState(true);
+
+  const q = query.trim().toLowerCase();
+  const additional = useMemo(() => filterList(ADDITIONAL, q), [q]);
+  const popular = useMemo(() => filterList(POPULAR, q), [q]);
+  const total = additional.length + popular.length;
+
+  return (
+    <div className="svc-hub">
+      <header className="svc-hub-top">
+        <button type="button" className="svc-hub-icon-btn" aria-label="Back" onClick={() => onBack?.()}>
+          <ArrowLeft size={20} strokeWidth={2} />
+        </button>
+        <h1 className="svc-hub-title">All Services</h1>
+        <button
+          type="button"
+          className="svc-hub-icon-btn"
+          aria-label={searchOpen ? 'Hide search' : 'Search'}
+          onClick={() => setSearchOpen((v) => !v)}
+        >
+          {searchOpen ? <X size={18} /> : <Search size={18} />}
+        </button>
+      </header>
+
+      {searchOpen && (
+        <div className="svc-hub-search">
+          <Search size={16} className="svc-hub-search-icon" aria-hidden />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search for services (e.g., eSIM, Cable, TV)…"
+            aria-label="Search services"
+          />
+          {query ? (
+            <button type="button" className="svc-hub-clear" aria-label="Clear search" onClick={() => setQuery('')}>
+              <X size={14} />
+            </button>
+          ) : null}
+        </div>
+      )}
+
+      {total === 0 ? (
+        <div className="svc-hub-empty">
+          <strong>No services found</strong>
+          <p>Try another keyword.</p>
+        </div>
+      ) : (
+        <>
+          {additional.length > 0 && (
+            <section className="svc-hub-group">
+              <h2 className="svc-hub-group-title">ADDITIONAL SERVICES</h2>
+              <div className="svc-hub-grid-2">
+                {additional.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      className="svc-hub-card-lg"
+                      onClick={() => item.service && open(item.service)}
+                    >
+                      <span className={`svc-hub-icon-lg ${item.tone}`}>
+                        <Icon size={22} strokeWidth={1.9} />
+                      </span>
+                      <span className="svc-hub-card-body">
+                        <span className="svc-hub-card-title">
+                          {item.title} <ArrowRight size={14} className="svc-arrow" />
+                        </span>
+                        <span className="svc-hub-card-desc">{item.description}</span>
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+          )}
+
+          {popular.length > 0 && (
+            <section className="svc-hub-group">
+              <h2 className="svc-hub-group-title">POPULAR SERVICES</h2>
+              <div className="svc-hub-grid-2">
+                {popular.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      className="svc-hub-card-sm"
+                      onClick={() => item.service && open(item.service)}
+                    >
+                      <span className={`svc-hub-icon-sm ${item.tone}`}>
+                        <Icon size={18} strokeWidth={1.9} />
+                      </span>
+                      <span className="svc-hub-card-title-sm">
+                        {item.title}
+                        <ArrowRight size={13} className="svc-arrow" />
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
