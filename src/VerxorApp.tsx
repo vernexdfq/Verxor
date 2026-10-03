@@ -19,6 +19,7 @@ import { ReferralPage } from './referral-page';
 import { PrivacyPolicyPage } from './privacy-policy-page';
 import { FeedbackPage } from './feedback-page';
 import { FaqPage } from './faq-page';
+import { SupportCenterPage } from './support-center-page';
 import { AdminPage } from './admin-page';
 import { AuthFlow, type AuthSession } from './auth/AuthFlow';
 import type { Page } from './types';
@@ -217,6 +218,13 @@ export function VerxorApp() {
     content = <PrivacyPolicyPage onBack={closeService} />;
   } else if (service === 'feedback') {
     content = <FeedbackPage onBack={closeService} session={auth} />;
+  } else if (service === 'support-center') {
+    content = (
+      <SupportCenterPage
+        onBack={closeService}
+        onOpenFaq={() => openService('faq')}
+      />
+    );
   } else if (isFaqService(service)) {
     content = <FaqPage onBack={closeService} />;
   } else if (service) {
