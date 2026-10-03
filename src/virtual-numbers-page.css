@@ -567,7 +567,7 @@
 
 /* Promotional strip: photographic but restrained, with the existing page geometry preserved. */
 .vn-promo-slide { position:relative; isolation:isolate; overflow:hidden; min-height:160px; padding:18px 16px; background:#0f172a; }
-.vn-promo-slide::before { content:''; position:absolute; inset:0; z-index:-1; background-image:url('https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fit=crop&w=1200&q=80'); background-size:cover; background-position:center; transform:scale(1.01); }
+.vn-promo-slide::before { content:''; position:absolute; inset:0; z-index:-1; background-image:url('https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1200&q=80'); background-size:cover; background-position:center; transform:scale(1.01); }
 .vn-promo-slide::after { content:''; position:absolute; inset:0; z-index:0; background:linear-gradient(90deg,rgba(9,16,34,.94) 0%,rgba(9,16,34,.78) 54%,rgba(9,16,34,.2) 100%); pointer-events:none; }
 .vn-promo-copy,.vn-promo-cta { position:relative; z-index:1; }
 .vn-promo-copy { padding-top:20px; }
@@ -582,3 +582,8 @@
 .vn-promo-slide::after { z-index:1; }
 .vn-promo-copy,.vn-promo-cta { z-index:2; }
 .vn-promo-logo { z-index:3; }
+
+
+/* Distinct Virtual Numbers campaign artwork; preserve card size and surrounding content. */
+.vn-promo-slide::before { background-image:url('https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?auto=format&fit=crop&w=1200&q=85'); }
+.vn-promo { margin-top: 4px; }
