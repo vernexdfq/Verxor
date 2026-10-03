@@ -86,9 +86,27 @@ function formatStamp(iso: string): string {
   }
 }
 
-function firstName(full: string): string {
-  const n = (full || 'User').trim().split(/\s+/)[0];
-  return n || 'User';
+/** Title-case first name so "DESTINY" → "Destiny" */
+function displayFirstName(full: string): string {
+  const raw = (full || 'User').trim().split(/\s+/)[0] || 'User';
+  return raw.charAt(0).toUpperCase() + raw.slice(1).toLowerCase();
+}
+
+function resolveReplyEmail(session: AuthSession): string {
+  if (session.method === 'email' && session.contact.includes('@')) {
+    return session.contact.trim();
+  }
+  try {
+    const raw = localStorage.getItem('verxor-auth-session');
+    if (raw) {
+      const parsed = JSON.parse(raw) as { email?: string; contact?: string; method?: string };
+      if (parsed.email && parsed.email.includes('@')) return parsed.email;
+      if (parsed.method === 'email' && parsed.contact?.includes('@')) return parsed.contact;
+    }
+  } catch {
+    /* ignore */
+  }
+  return '';
 }
 
 export function FeedbackPage({
@@ -98,7 +116,7 @@ export function FeedbackPage({
   onBack: () => void;
   session: AuthSession;
 }) {
-  const name = firstName(session.name || 'User');
+  const name = displayFirstName(session.name || 'User');
   const [items, setItems] = useState<FeedbackItem[]>([]);
   const [type, setType] = useState<FeedbackType | ''>('');
   const [subject, setSubject] = useState('');
@@ -106,6 +124,7 @@ export function FeedbackPage({
   const [pickerOpen, setPickerOpen] = useState(false);
   const [sending, setSending] = useState(false);
   const [justSent, setJustSent] = useState(false);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     setItems(loadItems());
@@ -120,28 +139,57 @@ export function FeedbackPage({
   const canSend =
     Boolean(type) && subject.trim().length >= 3 && message.trim().length >= 8 && !sending;
 
-  const handleSend = useCallback(() => {
+  const handleSend = useCallback(async () => {
     if (!canSend || !type) return;
     setSending(true);
-    const item: FeedbackItem = {
-      id: `fb_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+    setError('');
+
+    const payload = {
       type,
       subject: subject.trim(),
       message: message.trim(),
-      createdAt: new Date().toISOString(),
-      status: 'received',
+      userName: session.name || name,
+      userContact: session.contact || '',
+      userEmail: resolveReplyEmail(session),
     };
-    const next = [item, ...loadItems()].slice(0, 50);
-    saveItems(next);
-    setItems(next);
-    setType('');
-    setSubject('');
-    setMessage('');
-    setPickerOpen(false);
-    setSending(false);
-    setJustSent(true);
-    window.setTimeout(() => setJustSent(false), 2200);
-  }, [canSend, type, subject, message]);
+
+    try {
+      const res = await fetch('/api/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        id?: string;
+        error?: string;
+      };
+      if (!res.ok) {
+        throw new Error(data.error || 'Could not send feedback');
+      }
+
+      const item: FeedbackItem = {
+        id: data.id || `fb_${Date.now()}`,
+        type,
+        subject: payload.subject,
+        message: payload.message,
+        createdAt: new Date().toISOString(),
+        status: 'received',
+      };
+      const next = [item, ...loadItems()].slice(0, 50);
+      saveItems(next);
+      setItems(next);
+      setType('');
+      setSubject('');
+      setMessage('');
+      setPickerOpen(false);
+      setJustSent(true);
+      window.setTimeout(() => setJustSent(false), 2400);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Something went wrong. Try again.');
+    } finally {
+      setSending(false);
+    }
+  }, [canSend, type, subject, message, session, name]);
 
   return (
     <div className="fb-page">
@@ -229,17 +277,21 @@ export function FeedbackPage({
             maxLength={2000}
           />
 
+          {error ? <p className="fb-error">{error}</p> : null}
+
           <button
             type="button"
-            className="fb-send"
+            className={`fb-send ${justSent ? 'success' : ''}`}
             disabled={!canSend}
-            onClick={handleSend}
+            onClick={() => void handleSend()}
           >
             {justSent ? (
               <>
                 <Check size={18} strokeWidth={2.5} />
                 Sent
               </>
+            ) : sending ? (
+              'Sending…'
             ) : (
               <>
                 <Send size={17} strokeWidth={2.25} />
