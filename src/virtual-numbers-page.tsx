@@ -362,6 +362,7 @@ export function VirtualNumbersPage({
 
           <section className="vn-promo" aria-label="Promotions">
             <div className="vn-promo-slide">
+              <img className="vn-promo-logo" src="/brand/verxor-logo.svg" alt="Verxor" width="28" height="28" />
               <div className="vn-promo-copy">
                 <strong>{promo.title}</strong>
                 <span>{promo.subtitle}</span>
