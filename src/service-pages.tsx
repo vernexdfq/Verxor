@@ -46,6 +46,7 @@ export type ServiceView =
   | 'community'
   | 'feedback'
   | 'help'
+  | 'faq'
   | 'privacy'
   | 'edit-profile'
   | 'referral'
