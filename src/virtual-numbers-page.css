@@ -576,3 +576,9 @@
 .vn-promo-logo { position:absolute; z-index:2; top:12px; left:14px; width:28px; height:28px; border-radius:8px; object-fit:cover; box-shadow:0 2px 8px rgba(0,0,0,.18); }
 .vn-promo-cta { align-self:center; }
 @media(max-width:360px){ .vn-promo-slide { gap:9px; padding:16px 12px; } .vn-promo-cta { padding:0 9px; font-size:10px; } }
+
+/* Layering correction for promo artwork and content. */
+.vn-promo-slide::before { z-index:0; }
+.vn-promo-slide::after { z-index:1; }
+.vn-promo-copy,.vn-promo-cta { z-index:2; }
+.vn-promo-logo { z-index:3; }
