@@ -757,6 +757,7 @@ export function AccountsPage({ onBack }: { onBack: () => void }) {
       {/* Promo carousel */}
       <div className="accounts-promo">
         <div className="promo-slide">
+          <img className="accounts-promo-logo" src="/brand/verxor-logo.svg" alt="Verxor" width="28" height="28" />
           <div className="promo-copy">
             <strong>{activePromo.title}</strong>
             <p>{activePromo.body}</p>
