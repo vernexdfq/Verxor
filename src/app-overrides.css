@@ -44,16 +44,13 @@
   width: 40px;
   height: 40px;
   flex: none;
-  display: grid;
-  place-items: center;
+  display: block;
+  overflow: hidden;
   border-radius: 12px;
-  background: #2563eb;
-  color: #fff;
-  font-size: 16px;
-  font-weight: 800;
-  letter-spacing: -0.03em;
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+  background: #0f172a;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.18);
 }
+.home-brand-mark img { display:block; width:100%; height:100%; object-fit:cover; }
 .topbar-greeting {
   display: flex;
   flex-direction: column;
@@ -557,3 +554,29 @@
   padding-right: 0;
   padding-top: 0;
 }
+
+
+/* Promotional photography — content layout remains independent of the artwork. */
+.vx-promo-card { isolation:isolate; background:#0f172a; }
+.vx-promo-card::before { content:''; position:absolute; inset:0; z-index:-1; background-size:cover; background-position:center; transform:scale(1.01); }
+.vx-promo-card::after { content:''; position:absolute; inset:0; z-index:0; background:linear-gradient(90deg,rgba(9,16,34,.94) 0%,rgba(9,16,34,.78) 48%,rgba(9,16,34,.22) 100%); pointer-events:none; }
+.vx-promo-copy { max-width:82%; }
+.vx-promo-logo { position:absolute; z-index:2; top:14px; right:14px; width:28px; height:28px; border-radius:8px; object-fit:cover; box-shadow:0 2px 8px rgba(0,0,0,.18); }
+.promo-accent-blue::before { background-image:url('https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1200&q=80'); }
+.promo-accent-purple::before { background-image:url('https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1200&q=80'); }
+.promo-accent-amber::before { background-image:url('https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=1200&q=80'); }
+.promo-accent-teal::before { background-image:url('https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1200&q=80'); }
+.promo-accent-sky::before { background-image:url('https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=1200&q=80'); }
+.promo-accent-green::before { background-image:url('https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fit=crop&w=1200&q=80'); }
+.promo-accent-pink::before { background-image:url('https://images.unsplash.com/photo-1607082349566-187342175e2f?auto=format&fit=crop&w=1200&q=80'); }
+.promo-accent-indigo::before { background-image:url('https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?auto=format&fit=crop&w=1200&q=80'); }
+.vx-promo-copy,.vx-promo-glow { z-index:1; }
+.vx-promo-badge { position:relative; }
+.vx-promo-dots button { cursor:pointer; }
+@media (prefers-reduced-motion: reduce) { .vx-promo-card:active { transform:none; } }
+
+/* Layering correction: keep photographic artwork behind readable foreground content. */
+.vx-promo-card::before { z-index:0; }
+.vx-promo-card::after { z-index:1; }
+.vx-promo-copy,.vx-promo-glow { z-index:2; }
+.vx-promo-logo { z-index:3; }
