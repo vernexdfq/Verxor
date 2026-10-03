@@ -1,27 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 /**
- * Simple operator gate. Set ADMIN_PASSWORD on Vercel.
- * Client keeps a session flag in sessionStorage after success.
+ * Operator gate for Verxor admin console.
+ * Set ADMIN_PASSWORD on Vercel (and locally in .env.local).
  */
 export async function POST(req: NextRequest) {
-  const body = (await req.json().catch(() => ({}))) as { password?: string };
-  const expected = process.env.ADMIN_PASSWORD || '';
+  try {
+    const body = (await req.json()) as { password?: string };
+    const password = typeof body.password === 'string' ? body.password : '';
+    const expected = process.env.ADMIN_PASSWORD || '';
 
-  if (!expected) {
-    return NextResponse.json(
-      {
-        ok: false,
-        reason:
-          'ADMIN_PASSWORD is not set on the server. Add it in Vercel env (Secret), redeploy, then sign in.',
-      },
-      { status: 503 },
-    );
+    if (!expected) {
+      return NextResponse.json(
+        { ok: false, reason: 'ADMIN_PASSWORD is not configured on the server' },
+        { status: 503 },
+      );
+    }
+
+    if (!password || password !== expected) {
+      return NextResponse.json({ ok: false, reason: 'Invalid password' }, { status: 401 });
+    }
+
+    return NextResponse.json({ ok: true });
+  } catch {
+    return NextResponse.json({ ok: false, reason: 'Bad request' }, { status: 400 });
   }
-
-  if (!body.password || body.password !== expected) {
-    return NextResponse.json({ ok: false, reason: 'Invalid password' }, { status: 401 });
-  }
-
-  return NextResponse.json({ ok: true, role: 'admin' });
 }

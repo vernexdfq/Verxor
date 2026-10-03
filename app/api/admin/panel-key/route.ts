@@ -1,41 +1,49 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createHash, randomBytes } from 'crypto';
+import { randomBytes, createHash } from 'crypto';
 
 /**
- * Generate a child-panel API key (Vernex day-one).
- * Requires ADMIN_PASSWORD in body for a minimal gate until full session cookies land.
- * Returns plaintext key once — store on Vernex as VERXOR_PANEL_API_KEY + VERXOR_API_BASE.
+ * Generate a Vernex (child panel) API key.
+ * Key format: vx_panel_<32 hex chars>
+ * Store only a hash if you later persist to Supabase; for day-one we return the raw key once.
  */
 export async function POST(req: NextRequest) {
-  const body = (await req.json().catch(() => ({}))) as {
-    password?: string;
-    panelName?: string;
-  };
+  try {
+    const body = (await req.json()) as { password?: string; panelName?: string };
+    const password = typeof body.password === 'string' ? body.password : '';
+    const panelName = (typeof body.panelName === 'string' && body.panelName.trim()) || 'Vernex';
+    const expected = process.env.ADMIN_PASSWORD || '';
 
-  const expected = process.env.ADMIN_PASSWORD || '';
-  if (!expected || body.password !== expected) {
-    return NextResponse.json({ ok: false, reason: 'Unauthorized' }, { status: 401 });
-  }
+    if (!expected) {
+      return NextResponse.json(
+        { ok: false, reason: 'ADMIN_PASSWORD is not configured on the server' },
+        { status: 503 },
+      );
+    }
 
-  const name = (body.panelName || 'Vernex').trim() || 'Vernex';
-  const raw = `vx_panel_${randomBytes(24).toString('hex')}`;
-  const hash = createHash('sha256').update(raw).digest('hex');
-  const prefix = raw.slice(0, 12);
+    if (!password || password !== expected) {
+      return NextResponse.json({ ok: false, reason: 'Invalid password' }, { status: 401 });
+    }
 
-  // Persistence via Supabase can be wired next; key is issued for env handoff now.
-  return NextResponse.json({
-    ok: true,
-    panel: {
-      name,
-      apiKey: raw,
-      apiKeyPrefix: prefix,
-      apiKeyHash: hash,
-      baseUrl: 'https://verxor.com/api/v1',
-      envHint: {
-        VERXOR_API_BASE: 'https://verxor.com/api/v1',
-        VERXOR_PANEL_API_KEY: raw,
+    const raw = randomBytes(16).toString('hex');
+    const apiKey = `vx_panel_${raw}`;
+    const apiKeyPrefix = apiKey.slice(0, 16);
+    const keyHash = createHash('sha256').update(apiKey).digest('hex');
+
+    return NextResponse.json({
+      ok: true,
+      panel: {
+        name: panelName,
+        apiKey,
+        apiKeyPrefix,
+        keyHash,
+        createdAt: new Date().toISOString(),
+        envHint: {
+          VERXOR_API_BASE: 'https://verxor.com/api/v1',
+          VERXOR_PANEL_API_KEY: apiKey,
+        },
       },
-      note: 'Copy the key now. It is shown once. Add both env vars on the child panel (Vernex) host.',
-    },
-  });
+    });
+  } catch {
+    return NextResponse.json({ ok: false, reason: 'Bad request' }, { status: 400 });
+  }
 }
