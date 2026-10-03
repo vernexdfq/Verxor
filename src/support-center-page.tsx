@@ -1,13 +1,6 @@
 'use client';
 
-import {
-  ArrowLeft,
-  BookOpen,
-  ChevronRight,
-  Mail,
-  MessageCircle,
-  Send,
-} from 'lucide-react';
+import { ArrowLeft, BookOpen, ChevronRight, Mail } from 'lucide-react';
 import { SOCIAL } from './lib/social';
 import './support-center-page.css';
 
@@ -54,7 +47,6 @@ function BrandIcon({ kind }: { kind: Row['icon'] }) {
       </svg>
     );
   }
-  // TikTok
   return (
     <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden fill="currentColor">
       <path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1v-3.5a6.37 6.37 0 00-.79-.05A6.34 6.34 0 003.15 15.3a6.34 6.34 0 0010.86 4.49V13a8.24 8.24 0 004.83 1.55V11.1a4.84 4.84 0 01-.75-.11 4.83 4.83 0 01-.5-3.3z" />
@@ -78,12 +70,7 @@ function SupportRow({ row }: { row: Row }) {
 
   if (row.href) {
     return (
-      <a
-        className="sc-row"
-        href={row.href}
-        target="_blank"
-        rel="noopener noreferrer"
-      >
+      <a className="sc-row" href={row.href} target="_blank" rel="noopener noreferrer">
         {inner}
       </a>
     );
