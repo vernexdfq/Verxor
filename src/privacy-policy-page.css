@@ -1,0 +1,333 @@
+/* Privacy Policy — grade-1 fintech legal page (Verxor palette) */
+
+.pp-page {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: #F8FAFC;
+  color: #0F172A;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+    'Segoe UI', Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.pp-page *,
+.pp-page *::before,
+.pp-page *::after {
+  box-sizing: border-box;
+}
+
+/* Clean professional header — no dark-mode toggle */
+.pp-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 12px 8px;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: rgba(248, 250, 252, 0.96);
+  backdrop-filter: blur(12px);
+}
+
+.pp-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 0 12px 0 8px;
+  border-radius: 999px;
+  border: 1px solid #E2E8F0;
+  background: #FFFFFF;
+  color: #0F172A;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.pp-back:active {
+  background: #F1F5F9;
+}
+
+.pp-scroll {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 4px 12px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Hero — deep navy card */
+.pp-hero {
+  position: relative;
+  overflow: hidden;
+  border-radius: 20px;
+  padding: 22px 18px 20px;
+  background: linear-gradient(145deg, #0B132B 0%, #1E3A8A 55%, #1D4ED8 100%);
+  color: #FFFFFF;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.22);
+}
+
+.pp-hero::after {
+  content: '';
+  position: absolute;
+  right: -40px;
+  top: -40px;
+  width: 160px;
+  height: 160px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(147, 197, 253, 0.25), transparent 70%);
+  pointer-events: none;
+}
+
+.pp-hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #BFDBFE;
+  margin-bottom: 14px;
+}
+
+.pp-hero-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #22C55E;
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.25);
+}
+
+.pp-hero h1 {
+  margin: 0 0 8px;
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+  position: relative;
+  z-index: 1;
+}
+
+.pp-hero h1 span {
+  color: #93C5FD;
+}
+
+.pp-hero > p {
+  margin: 0 0 16px;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: rgba(226, 232, 240, 0.92);
+  max-width: 92%;
+  position: relative;
+  z-index: 1;
+}
+
+.pp-hero-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  position: relative;
+  z-index: 1;
+}
+
+.pp-hero-meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: rgba(191, 219, 254, 0.95);
+}
+
+/* Intro callout */
+.pp-intro {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 14px 14px;
+  border-radius: 14px;
+  background: #EFF6FF;
+  border: 1px solid #BFDBFE;
+}
+
+.pp-intro-ico {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: #FFFFFF;
+  color: #2563EB;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  box-shadow: 0 1px 3px rgba(37, 99, 235, 0.12);
+}
+
+.pp-intro p {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: #334155;
+  font-weight: 500;
+}
+
+.pp-intro strong {
+  color: #0F172A;
+  font-weight: 700;
+}
+
+/* Accordion */
+.pp-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pp-card {
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.pp-card.open {
+  border-color: #CBD5E1;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+}
+
+.pp-card-head {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 12px;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  color: #0F172A;
+}
+
+.pp-card-head:active {
+  background: #F8FAFC;
+}
+
+.pp-card-ico {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: #EFF6FF;
+  color: #2563EB;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.pp-card-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 14.5px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: #0F172A;
+}
+
+.pp-card-num {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: #94A3B8;
+  background: #F1F5F9;
+  padding: 3px 8px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.pp-chevron {
+  color: #94A3B8;
+  flex-shrink: 0;
+  transition: transform 0.18s ease;
+}
+
+.pp-chevron.up {
+  transform: rotate(180deg);
+  color: #2563EB;
+}
+
+.pp-card-body {
+  padding: 0 14px 16px 58px;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: #475569;
+  font-weight: 500;
+}
+
+/* Contact footer */
+.pp-contact {
+  margin-top: 4px;
+  text-align: center;
+  padding: 24px 16px 20px;
+  border-radius: 16px;
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+}
+
+.pp-contact-ico {
+  width: 52px;
+  height: 52px;
+  margin: 0 auto 12px;
+  border-radius: 14px;
+  background: linear-gradient(145deg, #1E40AF, #2563EB);
+  color: #FFFFFF;
+  display: grid;
+  place-items: center;
+  box-shadow: 0 8px 20px rgba(37, 99, 235, 0.3);
+}
+
+.pp-contact h2 {
+  margin: 0 0 6px;
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #0F172A;
+}
+
+.pp-contact p {
+  margin: 0 0 16px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: #64748B;
+  max-width: 300px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.pp-mail-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 46px;
+  padding: 0 20px;
+  border-radius: 12px;
+  background: #2563EB;
+  color: #FFFFFF;
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.28);
+}
+
+.pp-mail-btn:active {
+  background: #1D4ED8;
+}
