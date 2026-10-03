@@ -125,10 +125,7 @@ function BrandMark() {
   return (
     <div className="auth-brand" aria-label="Verxor">
       <div className="auth-brand-mark">
-        <svg viewBox="0 0 24 24" fill="none" aria-hidden>
-          <path d="M4 6.5h6.2L12 11l1.8-4.5H20L14.2 17.5h-4.4L4 6.5z" fill="#FFFFFF" />
-          <circle cx="18.5" cy="6.5" r="2.2" fill="#2563EB" />
-        </svg>
+        <img src="/brand/verxor-logo.svg" alt="" width="36" height="36" />
       </div>
       <span className="auth-brand-name">Verxor</span>
     </div>
