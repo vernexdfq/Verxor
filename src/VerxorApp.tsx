@@ -16,6 +16,7 @@ import { VirtualNumbersPage } from './virtual-numbers-page';
 import { BettingPage } from './betting-page';
 import { EditProfilePage } from './edit-profile-page';
 import { ReferralPage } from './referral-page';
+import { PrivacyPolicyPage } from './privacy-policy-page';
 import { AdminPage } from './admin-page';
 import { AuthFlow, type AuthSession } from './auth/AuthFlow';
 import { canOpenService, NG_ONLY_MESSAGE } from './lib/service-access';
@@ -23,255 +24,146 @@ import type { Page } from './types';
 
 const STORAGE_KEY = 'verxor-auth-session';
 
-type NavState = { page: Page; service: ServiceView | null };
-
-function readNavState(raw: unknown): NavState | null {
-  if (!raw || typeof raw !== 'object') return null;
-  const o = raw as Record<string, unknown>;
-  if (typeof o.page !== 'string') return null;
-  return {
-    page: o.page as Page,
-    service: (o.service as ServiceView | null) ?? null,
-  };
+function loadSession(): AuthSession | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as AuthSession;
+    if (parsed && typeof parsed.contact === 'string') return parsed;
+  } catch {
+    /* ignore */
+  }
+  return null;
 }
 
-export function VerxorApp() {
+function saveSession(s: AuthSession | null) {
+  if (typeof window === 'undefined') return;
+  try {
+    if (s) localStorage.setItem(STORAGE_KEY, JSON.stringify(s));
+    else localStorage.removeItem(STORAGE_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
+export default function VerxorApp() {
+  const [auth, setAuth] = useState<AuthSession | null>(null);
+  const [booting, setBooting] = useState(true);
   const [page, setPage] = useState<Page>('home');
   const [service, setService] = useState<ServiceView | null>(null);
   const [dark, setDark] = useState(false);
-  const [admin, setAdmin] = useState(false);
-  const [auth, setAuth] = useState<AuthSession | null>(null);
-  const [authReady, setAuthReady] = useState(false);
-  const [serviceBlocked, setServiceBlocked] = useState<string | null>(null);
+  const [blockedMsg, setBlockedMsg] = useState<string | null>(null);
+  const historyRef = useRef<string[]>([]);
 
-  const skipPushRef = useRef(false);
-  const pageRef = useRef(page);
-  const serviceRef = useRef(service);
-  pageRef.current = page;
-  serviceRef.current = service;
+  useEffect(() => {
+    setAuth(loadSession());
+    setBooting(false);
+  }, []);
 
-  const pushNav = useCallback((next: NavState) => {
+  useEffect(() => {
     if (typeof window === 'undefined') return;
-    if (skipPushRef.current) {
-      skipPushRef.current = false;
-      return;
-    }
+    // Capture inbound referral for signup attribution
     try {
-      window.history.pushState(next, '', window.location.pathname + window.location.search);
+      const params = new URLSearchParams(window.location.search);
+      const ref = params.get('ref');
+      if (ref) sessionStorage.setItem('verxor-inbound-ref', ref.trim().toUpperCase());
     } catch {
       /* ignore */
+    }
+  }, []);
+
+  const closeService = useCallback(() => {
+    setService(null);
+    if (typeof window !== 'undefined' && window.history.state?.vx) {
+      window.history.back();
     }
   }, []);
 
   const openService = useCallback(
     (next: ServiceView) => {
-      const eligible = auth?.vtuEligible;
-      if (!canOpenService(next, eligible)) {
-        setServiceBlocked(NG_ONLY_MESSAGE);
+      if (auth && !canOpenService(next, auth)) {
+        setBlockedMsg(NG_ONLY_MESSAGE);
+        window.setTimeout(() => setBlockedMsg(null), 3200);
         return;
       }
-      setServiceBlocked(null);
       setService(next);
-      pushNav({ page: pageRef.current, service: next });
+      if (typeof window !== 'undefined') {
+        window.history.pushState({ vx: true, service: next }, '');
+      }
     },
-    [pushNav, auth?.vtuEligible],
+    [auth],
   );
 
-  const navigatePage = useCallback(
-    (next: Page) => {
-      setService(null);
-      setPage(next);
-      pushNav({ page: next, service: null });
-    },
-    [pushNav],
-  );
-
-  const closeService = useCallback(() => {
-    if (typeof window !== 'undefined' && window.history.state?.service) {
-      window.history.back();
-      return;
-    }
+  const navigatePage = useCallback((next: Page) => {
     setService(null);
+    setPage(next);
   }, []);
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('admin') === '1') {
-      setAdmin(true);
-    }
-    const ref = params.get('ref');
-    if (ref && /^[A-Za-z0-9]{4,16}$/.test(ref)) {
-      try {
-        localStorage.setItem('verxor-inbound-ref', ref.toUpperCase());
-      } catch {
-        /* ignore */
-      }
-    }
-    setAuthReady(true);
-  }, []);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const onPop = (e: PopStateEvent) => {
-      skipPushRef.current = true;
-      const restored = readNavState(e.state);
-      if (restored) {
-        setPage(restored.page);
-        setService(restored.service);
-      } else {
-        setPage('home');
-        setService(null);
-      }
+    const onPop = () => {
+      setService(null);
     };
     window.addEventListener('popstate', onPop);
     return () => window.removeEventListener('popstate', onPop);
   }, []);
 
-  useEffect(() => {
-    if (!auth) return;
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw) as AuthSession;
-        localStorage.setItem(
-          STORAGE_KEY,
-          JSON.stringify({ ...parsed, ...auth, authenticated: false }),
-        );
-      } else {
-        localStorage.setItem(
-          STORAGE_KEY,
-          JSON.stringify({ ...auth, authenticated: false }),
-        );
-      }
-    } catch {
-      /* ignore */
-    }
-  }, [auth]);
+  const handleAuth = useCallback((s: AuthSession) => {
+    setAuth(s);
+    saveSession(s);
+  }, []);
 
   const handleLogout = useCallback(() => {
     setAuth(null);
+    saveSession(null);
     setService(null);
     setPage('home');
   }, []);
 
-  if (!authReady) {
+  if (booting) {
     return (
-      <div
-        style={{
-          minHeight: '100dvh',
-          display: 'grid',
-          placeItems: 'center',
-          background: '#F8FAFC',
-        }}
-      >
-        <div
-          style={{
-            width: 36,
-            height: 36,
-            borderRadius: '50%',
-            border: '3px solid #E2E8F0',
-            borderTopColor: '#2563EB',
-            animation: 'spin 0.7s linear infinite',
-          }}
-        />
-        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      <div style={{ minHeight: '100dvh', display: 'grid', placeItems: 'center', background: '#F8FAFC' }}>
+        <span style={{ color: '#64748B', fontSize: 14, fontWeight: 600 }}>Loading…</span>
       </div>
-    );
-  }
-
-  if (admin) {
-    return (
-      <AdminPage
-        onBack={() => {
-          setAdmin(false);
-          if (typeof window !== 'undefined') {
-            const url = new URL(window.location.href);
-            url.searchParams.delete('admin');
-            window.history.replaceState({}, '', url.pathname + url.search);
-          }
-        }}
-      />
     );
   }
 
   if (!auth) {
-    return (
-      <AuthFlow
-        onAuthenticated={(session) => {
-          setAuth(session);
-          setPage('home');
-        }}
-      />
-    );
+    return <AuthFlow onAuthenticated={handleAuth} />;
   }
 
-  const blockedBanner = serviceBlocked ? (
+  const userName = auth.name || 'User';
+  const deepService = Boolean(service);
+
+  const blockedBanner = blockedMsg ? (
     <div
-      role="alertdialog"
       style={{
         position: 'fixed',
-        inset: 0,
+        left: '50%',
+        bottom: 88,
+        transform: 'translateX(-50%)',
         zIndex: 80,
-        background: 'rgba(15, 23, 42, 0.45)',
-        display: 'grid',
-        placeItems: 'center',
-        padding: 24,
+        maxWidth: '90%',
+        padding: '12px 16px',
+        borderRadius: 12,
+        background: '#0F172A',
+        color: '#fff',
+        fontSize: 13,
+        fontWeight: 600,
+        boxShadow: '0 10px 28px rgba(15,23,42,.28)',
       }}
-      onClick={() => setServiceBlocked(null)}
     >
-      <div
-        style={{
-          maxWidth: 340,
-          width: '100%',
-          background: '#fff',
-          borderRadius: 16,
-          padding: '22px 20px',
-          boxShadow: '0 20px 40px rgba(15,23,42,0.18)',
-          textAlign: 'center',
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <p style={{ margin: '0 0 8px', fontWeight: 800, fontSize: 17, color: '#0F172A' }}>
-          Not available
-        </p>
-        <p style={{ margin: '0 0 18px', fontSize: 14, lineHeight: 1.5, color: '#475569' }}>
-          {serviceBlocked}
-        </p>
-        <button
-          type="button"
-          onClick={() => setServiceBlocked(null)}
-          style={{
-            width: '100%',
-            minHeight: 48,
-            border: 0,
-            borderRadius: 12,
-            background: '#2563EB',
-            color: '#fff',
-            fontWeight: 700,
-            fontSize: 15,
-            cursor: 'pointer',
-          }}
-        >
-          OK
-        </button>
-      </div>
+      {blockedMsg}
     </div>
   ) : null;
 
-  const deepService = service !== null;
-  const userName = auth.name || 'User';
-
-  const content =
+  const body =
     service === 'services' ? (
-      <ServicesPage open={openService} onBack={() => navigatePage('home')} />
+      <ServicesPage open={openService} onBack={closeService} />
     ) : service === 'rental' ? (
       <RentalPage onBack={closeService} onOpenEsim={() => openService('esim')} />
     ) : service === 'virtual-numbers' ? (
-      <VirtualNumbersPage
-        onBack={closeService}
-        onOpenNotifications={() => openService('alerts')}
-      />
+      <VirtualNumbersPage onBack={closeService} />
     ) : service === 'accounts' ? (
       <AccountsPage onBack={closeService} />
     ) : service === 'boost' ? (
@@ -301,6 +193,8 @@ export function VerxorApp() {
       />
     ) : service === 'referral' ? (
       <ReferralPage onBack={closeService} session={auth} />
+    ) : service === 'privacy' ? (
+      <PrivacyPolicyPage onBack={closeService} />
     ) : service ? (
       <ServicePage view={service} onBack={closeService} />
     ) : page === 'history' ? (
@@ -329,7 +223,7 @@ export function VerxorApp() {
         onOpenService={openService}
         onLogout={handleLogout}
       >
-        {content}
+        {body}
       </AppShell>
     </>
   );
