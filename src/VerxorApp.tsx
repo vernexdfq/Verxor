@@ -17,6 +17,7 @@ import { BettingPage } from './betting-page';
 import { EditProfilePage } from './edit-profile-page';
 import { ReferralPage } from './referral-page';
 import { PrivacyPolicyPage } from './privacy-policy-page';
+import { FeedbackPage } from './feedback-page';
 import { AdminPage } from './admin-page';
 import { AuthFlow, type AuthSession } from './auth/AuthFlow';
 import type { Page } from './types';
@@ -203,6 +204,8 @@ export function VerxorApp() {
       <ReferralPage onBack={closeService} session={auth} />
     ) : service === 'privacy' ? (
       <PrivacyPolicyPage onBack={closeService} />
+    ) : service === 'feedback' ? (
+      <FeedbackPage onBack={closeService} session={auth} />
     ) : service ? (
       <ServicePage view={service} onBack={closeService} />
     ) : page === 'history' ? (
