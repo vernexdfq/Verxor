@@ -20,6 +20,7 @@ import { PrivacyPolicyPage } from './privacy-policy-page';
 import { FeedbackPage } from './feedback-page';
 import { FaqPage } from './faq-page';
 import { SupportCenterPage } from './support-center-page';
+import { SecurityPage } from './security-page';
 import { AdminPage } from './admin-page';
 import { AuthFlow, type AuthSession } from './auth/AuthFlow';
 import type { Page } from './types';
@@ -225,6 +226,8 @@ export function VerxorApp() {
         onOpenFaq={() => openService('faq')}
       />
     );
+  } else if (service === 'security') {
+    content = <SecurityPage onBack={closeService} />;
   } else if (isFaqService(service)) {
     content = <FaqPage onBack={closeService} />;
   } else if (service) {
