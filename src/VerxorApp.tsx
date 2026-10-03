@@ -15,6 +15,7 @@ import { EsimPage } from './esim-page';
 import { VirtualNumbersPage } from './virtual-numbers-page';
 import { BettingPage } from './betting-page';
 import { EditProfilePage } from './edit-profile-page';
+import { ReferralPage } from './referral-page';
 import { AdminPage } from './admin-page';
 import { AuthFlow, type AuthSession } from './auth/AuthFlow';
 import type { Page } from './types';
@@ -112,6 +113,15 @@ export function VerxorApp() {
     const params = new URLSearchParams(window.location.search);
     if (params.get('admin') === '1') {
       setAdmin(true);
+    }
+    // Capture inbound referral for signup attribution
+    const ref = params.get('ref');
+    if (ref && /^[A-Za-z0-9]{4,16}$/.test(ref)) {
+      try {
+        localStorage.setItem('verxor-inbound-ref', ref.toUpperCase());
+      } catch {
+        /* ignore */
+      }
     }
     // Do NOT load authenticated=true from storage.
     // Always present AuthFlow (PIN gate) on every open.
@@ -271,6 +281,8 @@ export function VerxorApp() {
           setAuth((prev) => (prev ? { ...prev, name: patch.name } : prev));
         }}
       />
+    ) : service === 'referral' ? (
+      <ReferralPage onBack={closeService} session={auth} />
     ) : service ? (
       <ServicePage view={service} onBack={closeService} />
     ) : page === 'history' ? (
