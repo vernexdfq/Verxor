@@ -227,7 +227,7 @@ export function VerxorApp() {
       />
     );
   } else if (service === 'security') {
-    content = <SecurityPage onBack={closeService} />;
+    content = <SecurityPage onBack={closeService} session={auth} />;
   } else if (isFaqService(service)) {
     content = <FaqPage onBack={closeService} />;
   } else if (service) {
