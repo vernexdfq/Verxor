@@ -24,6 +24,20 @@ import type { Page } from './types';
 
 const STORAGE_KEY = 'verxor-auth-session';
 
+type NavState = { page: Page; service: ServiceView | null };
+
+function readNavState(raw: unknown): NavState | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const o = raw as Record<string, unknown>;
+  const page = o.page;
+  const service = o.service;
+  if (typeof page !== 'string') return null;
+  return {
+    page: page as Page,
+    service: (service as ServiceView | null | undefined) ?? null,
+  };
+}
+
 function loadSession(): AuthSession | null {
   if (typeof window === 'undefined') return null;
   try {
@@ -54,7 +68,41 @@ export default function VerxorApp() {
   const [service, setService] = useState<ServiceView | null>(null);
   const [dark, setDark] = useState(false);
   const [blockedMsg, setBlockedMsg] = useState<string | null>(null);
-  const historyRef = useRef<string[]>([]);
+
+  const pushNav = useCallback((next: NavState) => {
+    setPage(next.page);
+    setService(next.service);
+    if (typeof window !== 'undefined') {
+      window.history.pushState({ vx: true, page: next.page, service: next.service }, '');
+    }
+  }, []);
+
+  const openService = useCallback(
+    (next: ServiceView) => {
+      const eligible = auth?.vtuEligible;
+      if (!canOpenService(next, eligible)) {
+        setBlockedMsg(NG_ONLY_MESSAGE);
+        window.setTimeout(() => setBlockedMsg(null), 3200);
+        return;
+      }
+      pushNav({ page, service: next });
+    },
+    [auth, page, pushNav],
+  );
+
+  const closeService = useCallback(() => {
+    setService(null);
+    if (typeof window !== 'undefined' && window.history.state?.vx) {
+      window.history.back();
+    }
+  }, []);
+
+  const navigatePage = useCallback(
+    (next: Page) => {
+      pushNav({ page: next, service: null });
+    },
+    [pushNav],
+  );
 
   useEffect(() => {
     setAuth(loadSession());
@@ -63,7 +111,6 @@ export default function VerxorApp() {
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    // Capture inbound referral for signup attribution
     try {
       const params = new URLSearchParams(window.location.search);
       const ref = params.get('ref');
@@ -73,36 +120,15 @@ export default function VerxorApp() {
     }
   }, []);
 
-  const closeService = useCallback(() => {
-    setService(null);
-    if (typeof window !== 'undefined' && window.history.state?.vx) {
-      window.history.back();
-    }
-  }, []);
-
-  const openService = useCallback(
-    (next: ServiceView) => {
-      if (auth && !canOpenService(next, auth)) {
-        setBlockedMsg(NG_ONLY_MESSAGE);
-        window.setTimeout(() => setBlockedMsg(null), 3200);
-        return;
-      }
-      setService(next);
-      if (typeof window !== 'undefined') {
-        window.history.pushState({ vx: true, service: next }, '');
-      }
-    },
-    [auth],
-  );
-
-  const navigatePage = useCallback((next: Page) => {
-    setService(null);
-    setPage(next);
-  }, []);
-
   useEffect(() => {
-    const onPop = () => {
-      setService(null);
+    const onPop = (e: PopStateEvent) => {
+      const restored = readNavState(e.state);
+      if (restored) {
+        setPage(restored.page);
+        setService(restored.service);
+      } else {
+        setService(null);
+      }
     };
     window.addEventListener('popstate', onPop);
     return () => window.removeEventListener('popstate', onPop);
@@ -130,6 +156,18 @@ export default function VerxorApp() {
 
   if (!auth) {
     return <AuthFlow onAuthenticated={handleAuth} />;
+  }
+
+  // Admin gate (simple)
+  if (auth.contact === 'admin@verxor.com' || (auth as { role?: string }).role === 'admin') {
+    return (
+      <AdminPage
+        onBack={() => {
+          /* stay */
+        }}
+        onLogout={handleLogout}
+      />
+    );
   }
 
   const userName = auth.name || 'User';
