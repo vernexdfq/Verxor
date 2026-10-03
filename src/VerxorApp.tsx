@@ -14,6 +14,7 @@ import { TvPage } from './tv-page';
 import { EsimPage } from './esim-page';
 import { VirtualNumbersPage } from './virtual-numbers-page';
 import { BettingPage } from './betting-page';
+import { EditProfilePage } from './edit-profile-page';
 import { AdminPage } from './admin-page';
 import { AuthFlow, type AuthSession } from './auth/AuthFlow';
 import type { Page } from './types';
@@ -261,6 +262,14 @@ export function VerxorApp() {
       <BettingPage
         onBack={closeService}
         onOpenHistory={() => navigatePage('history')}
+      />
+    ) : service === 'edit-profile' ? (
+      <EditProfilePage
+        onBack={closeService}
+        session={auth}
+        onSaved={(patch) => {
+          setAuth((prev) => (prev ? { ...prev, name: patch.name } : prev));
+        }}
       />
     ) : service ? (
       <ServicePage view={service} onBack={closeService} />
