@@ -18,6 +18,7 @@ import { EditProfilePage } from './edit-profile-page';
 import { ReferralPage } from './referral-page';
 import { PrivacyPolicyPage } from './privacy-policy-page';
 import { FeedbackPage } from './feedback-page';
+import { FaqPage } from './faq-page';
 import { AdminPage } from './admin-page';
 import { AuthFlow, type AuthSession } from './auth/AuthFlow';
 import type { Page } from './types';
@@ -206,6 +207,8 @@ export function VerxorApp() {
       <PrivacyPolicyPage onBack={closeService} />
     ) : service === 'feedback' ? (
       <FeedbackPage onBack={closeService} session={auth} />
+    ) : service === 'faq' || service === 'help' ? (
+      <FaqPage onBack={closeService} />
     ) : service ? (
       <ServicePage view={service} onBack={closeService} />
     ) : page === 'history' ? (
