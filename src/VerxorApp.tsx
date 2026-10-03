@@ -40,6 +40,10 @@ function readNavState(raw: unknown): NavState | null {
   };
 }
 
+function isFaqService(s: ServiceView | null): boolean {
+  return s === 'faq' || s === 'help';
+}
+
 /**
  * IMPORTANT (fintech rule):
  * Cookies/localStorage may remember contact, method, name, and PIN hash,
@@ -164,36 +168,41 @@ export function VerxorApp() {
   const userName = auth.name || 'User';
   const deepService = Boolean(service);
 
-  const content =
-    service === 'services' ? (
-      <ServicesPage open={openService} onBack={closeService} />
-    ) : service === 'rental' ? (
-      <RentalPage onBack={closeService} onOpenEsim={() => openService('esim')} />
-    ) : service === 'virtual-numbers' ? (
+  let content: React.ReactNode;
+  if (service === 'services') {
+    content = <ServicesPage open={openService} onBack={closeService} />;
+  } else if (service === 'rental') {
+    content = <RentalPage onBack={closeService} onOpenEsim={() => openService('esim')} />;
+  } else if (service === 'virtual-numbers') {
+    content = (
       <VirtualNumbersPage
         onBack={closeService}
         onOpenNotifications={() => openService('alerts')}
       />
-    ) : service === 'accounts' ? (
-      <AccountsPage onBack={closeService} />
-    ) : service === 'boost' ? (
-      <BoostPage onBack={closeService} />
-    ) : service === 'airtime' ? (
-      <AirtimePage onBack={closeService} />
-    ) : service === 'data' ? (
-      <DataPage onBack={closeService} />
-    ) : service === 'gift-card' ? (
-      <GiftCardPage onBack={closeService} />
-    ) : service === 'tv-cable' ? (
-      <TvPage onBack={closeService} />
-    ) : service === 'esim' ? (
-      <EsimPage onBack={closeService} />
-    ) : service === 'bet-wallet' ? (
+    );
+  } else if (service === 'accounts') {
+    content = <AccountsPage onBack={closeService} />;
+  } else if (service === 'boost') {
+    content = <BoostPage onBack={closeService} />;
+  } else if (service === 'airtime') {
+    content = <AirtimePage onBack={closeService} />;
+  } else if (service === 'data') {
+    content = <DataPage onBack={closeService} />;
+  } else if (service === 'gift-card') {
+    content = <GiftCardPage onBack={closeService} />;
+  } else if (service === 'tv-cable') {
+    content = <TvPage onBack={closeService} />;
+  } else if (service === 'esim') {
+    content = <EsimPage onBack={closeService} />;
+  } else if (service === 'bet-wallet') {
+    content = (
       <BettingPage
         onBack={closeService}
         onOpenHistory={() => navigatePage('history')}
       />
-    ) : service === 'edit-profile' ? (
+    );
+  } else if (service === 'edit-profile') {
+    content = (
       <EditProfilePage
         onBack={closeService}
         session={auth}
@@ -201,28 +210,29 @@ export function VerxorApp() {
           setAuth((prev) => (prev ? { ...prev, name: patch.name } : prev));
         }}
       />
-    ) : service === 'referral' ? (
-      <ReferralPage onBack={closeService} session={auth} />
-    ) : service === 'privacy' ? (
-      <PrivacyPolicyPage onBack={closeService} />
-    ) : service === 'feedback' ? (
-      <FeedbackPage onBack={closeService} session={auth} />
-    ) : service === 'faq' || service === 'help' ? (
-      <FaqPage onBack={closeService} />
-    ) : service ? (
-      <ServicePage view={service} onBack={closeService} />
-    ) : page === 'history' ? (
-      <HistoryPage />
-    ) : page === 'services' ? (
-      <ServicesPage open={openService} onBack={() => navigatePage('home')} />
-    ) : (
-      {
-        home: <HomePage go={navigatePage} openService={openService} />,
-        fund: <FundPage />,
-        services: <ServicesPage open={openService} onBack={() => navigatePage('home')} />,
-        profile: <ProfilePage openService={openService} />,
-      }[page]
     );
+  } else if (service === 'referral') {
+    content = <ReferralPage onBack={closeService} session={auth} />;
+  } else if (service === 'privacy') {
+    content = <PrivacyPolicyPage onBack={closeService} />;
+  } else if (service === 'feedback') {
+    content = <FeedbackPage onBack={closeService} session={auth} />;
+  } else if (isFaqService(service)) {
+    content = <FaqPage onBack={closeService} />;
+  } else if (service) {
+    content = <ServicePage view={service} onBack={closeService} />;
+  } else if (page === 'history') {
+    content = <HistoryPage />;
+  } else if (page === 'services') {
+    content = <ServicesPage open={openService} onBack={() => navigatePage('home')} />;
+  } else {
+    content = {
+      home: <HomePage go={navigatePage} openService={openService} />,
+      fund: <FundPage />,
+      services: <ServicesPage open={openService} onBack={() => navigatePage('home')} />,
+      profile: <ProfilePage openService={openService} />,
+    }[page];
+  }
 
   return (
     <AppShell
