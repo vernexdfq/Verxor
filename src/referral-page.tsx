@@ -160,7 +160,6 @@ export function ReferralPage({
           <h1>Referral Program</h1>
           <p>Earn 10% of each referral's first deposit, instantly</p>
         </div>
-        <span className="ref-top-spacer" />
       </header>
 
       <div className="ref-scroll">
