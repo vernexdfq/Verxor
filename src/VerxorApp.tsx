@@ -40,12 +40,10 @@ export function VerxorApp() {
   const [service, setService] = useState<ServiceView | null>(null);
   const [dark, setDark] = useState(false);
   const [admin, setAdmin] = useState(false);
-  /** Session is in-memory only — never restored from localStorage as authenticated */
   const [auth, setAuth] = useState<AuthSession | null>(null);
   const [authReady, setAuthReady] = useState(false);
   const [serviceBlocked, setServiceBlocked] = useState<string | null>(null);
 
-  /** Skip pushState when restoring from popstate */
   const skipPushRef = useRef(false);
   const pageRef = useRef(page);
   const serviceRef = useRef(service);
@@ -67,7 +65,6 @@ export function VerxorApp() {
 
   const openService = useCallback(
     (next: ServiceView) => {
-      // Nigerian-only VTU services: block non-NG accounts (still show tiles)
       const eligible = auth?.vtuEligible;
       if (!canOpenService(next, eligible)) {
         setServiceBlocked(NG_ONLY_MESSAGE);
@@ -89,7 +86,6 @@ export function VerxorApp() {
     [pushNav],
   );
 
-  /** UI Back on service screens — go one step in browser history when possible */
   const closeService = useCallback(() => {
     if (typeof window !== 'undefined' && window.history.state?.service) {
       window.history.back();
@@ -104,7 +100,6 @@ export function VerxorApp() {
     if (params.get('admin') === '1') {
       setAdmin(true);
     }
-    // Capture inbound referral for signup attribution
     const ref = params.get('ref');
     if (ref && /^[A-Za-z0-9]{4,16}$/.test(ref)) {
       try {
@@ -113,8 +108,6 @@ export function VerxorApp() {
         /* ignore */
       }
     }
-    // Do NOT load authenticated=true from storage.
-    // Always present AuthFlow (PIN gate) on every open.
     setAuthReady(true);
   }, []);
 
@@ -135,7 +128,6 @@ export function VerxorApp() {
     return () => window.removeEventListener('popstate', onPop);
   }, []);
 
-  // Persist session fields (not authenticated flag) for PIN/login remember
   useEffect(() => {
     if (!auth) return;
     try {
@@ -188,7 +180,21 @@ export function VerxorApp() {
     );
   }
 
-  // PIN gate — always shown until PIN succeeds in this tab session
+  if (admin) {
+    return (
+      <AdminPage
+        onClose={() => {
+          setAdmin(false);
+          if (typeof window !== 'undefined') {
+            const url = new URL(window.location.href);
+            url.searchParams.delete('admin');
+            window.history.replaceState({}, '', url.pathname + url.search);
+          }
+        }}
+      />
+    );
+  }
+
   if (!auth) {
     return (
       <AuthFlow
@@ -258,10 +264,7 @@ export function VerxorApp() {
 
   const content =
     service === 'services' ? (
-      <ServicesPage
-        open={openService}
-        onBack={() => navigatePage('home')}
-      />
+      <ServicesPage open={openService} onBack={() => navigatePage('home')} />
     ) : service === 'rental' ? (
       <RentalPage onBack={closeService} onOpenEsim={() => openService('esim')} />
     ) : service === 'virtual-numbers' ? (
