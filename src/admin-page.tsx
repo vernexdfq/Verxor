@@ -2,13 +2,16 @@
  * Main Verxor platform admin (operator console).
  * Not partner/wholesaler admin. No password in v1 — security added later.
  */
-import { useState } from 'react';
+'use client';
+
+import { useCallback, useEffect, useState } from 'react';
 import {
   Activity,
   ArrowLeft,
   Building2,
   CreditCard,
   LayoutDashboard,
+  MessageSquare,
   Package,
   Percent,
   Plug,
@@ -18,10 +21,29 @@ import {
 } from 'lucide-react';
 import './admin-page.css';
 
-type AdminSection = 'overview' | 'wholesale' | 'partners' | 'orders' | 'providers' | 'settings';
+type AdminSection =
+  | 'overview'
+  | 'wholesale'
+  | 'partners'
+  | 'orders'
+  | 'providers'
+  | 'feedback'
+  | 'settings';
 
 type AdminPageProps = {
   onBack: () => void;
+};
+
+type FeedbackRow = {
+  id: string;
+  type?: string;
+  subject?: string;
+  message?: string;
+  user_name?: string;
+  user_contact?: string;
+  user_email?: string;
+  status?: string;
+  created_at?: string;
 };
 
 const NAV: { id: AdminSection; label: string; icon: typeof LayoutDashboard }[] = [
@@ -30,6 +52,7 @@ const NAV: { id: AdminSection; label: string; icon: typeof LayoutDashboard }[] =
   { id: 'partners', label: 'Partners', icon: Building2 },
   { id: 'orders', label: 'Orders', icon: Package },
   { id: 'providers', label: 'Providers', icon: Plug },
+  { id: 'feedback', label: 'Feedback', icon: MessageSquare },
   { id: 'settings', label: 'Settings', icon: Settings },
 ];
 
@@ -47,8 +70,60 @@ const WHOLESALE_ROWS = [
   { service: 'Rent a Line', rule: 'Cost × rate card', status: 'Pending inventory' },
 ];
 
+const TYPE_LABEL: Record<string, string> = {
+  feature: 'Feature Suggestion',
+  bug: 'Bug / Issue Report',
+  poor: 'Poor Experience',
+  like: 'What You Like',
+  general: 'General Suggestion',
+};
+
+function formatWhen(iso?: string) {
+  if (!iso) return '—';
+  try {
+    return new Date(iso).toLocaleString(undefined, {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  } catch {
+    return iso;
+  }
+}
+
 export function AdminPage({ onBack }: AdminPageProps) {
   const [section, setSection] = useState<AdminSection>('overview');
+  const [feedback, setFeedback] = useState<FeedbackRow[]>([]);
+  const [fbLoading, setFbLoading] = useState(false);
+  const [fbError, setFbError] = useState('');
+
+  const loadFeedback = useCallback(async () => {
+    setFbLoading(true);
+    setFbError('');
+    try {
+      const res = await fetch('/api/feedback', { cache: 'no-store' });
+      const data = (await res.json()) as { ok?: boolean; items?: FeedbackRow[]; reason?: string };
+      if (!res.ok || data.ok === false) {
+        setFbError(data.reason || 'Could not load feedback');
+        setFeedback([]);
+      } else {
+        setFeedback(Array.isArray(data.items) ? data.items : []);
+      }
+    } catch {
+      setFbError('Network error loading feedback');
+      setFeedback([]);
+    } finally {
+      setFbLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (section === 'feedback') {
+      void loadFeedback();
+    }
+  }, [section, loadFeedback]);
 
   return (
     <div className="vx-admin">
@@ -210,6 +285,64 @@ export function AdminPage({ onBack }: AdminPageProps) {
               <strong>No providers connected</strong>
               <p>Connect adapters when you are ready to serve live inventory.</p>
             </div>
+          </section>
+        )}
+
+        {section === 'feedback' && (
+          <section className="vx-admin-section">
+            <p className="vx-admin-lead">
+              User feedback from the app. Each submission is emailed to support@verxor.com (with Reply-To set to the user when available) and stored here when Supabase is connected.
+            </p>
+            <div style={{ marginBottom: 12 }}>
+              <button type="button" className="vx-admin-exit" style={{ position: 'static' }} onClick={() => void loadFeedback()}>
+                Refresh
+              </button>
+            </div>
+            {fbLoading ? (
+              <p className="vx-admin-note">Loading…</p>
+            ) : fbError ? (
+              <div className="vx-admin-empty tall">
+                <MessageSquare size={28} strokeWidth={1.4} />
+                <strong>Inbox not ready</strong>
+                <p>{fbError}. Run the feedback SQL and set Supabase env vars on Vercel.</p>
+              </div>
+            ) : feedback.length === 0 ? (
+              <div className="vx-admin-empty tall">
+                <MessageSquare size={28} strokeWidth={1.4} />
+                <strong>No feedback yet</strong>
+                <p>When users send feedback from Profile → Feedback, it will list here.</p>
+              </div>
+            ) : (
+              <div className="vx-admin-table-wrap">
+                <table className="vx-admin-table">
+                  <thead>
+                    <tr>
+                      <th>When</th>
+                      <th>Type</th>
+                      <th>From</th>
+                      <th>Subject</th>
+                      <th>Message</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {feedback.map((row) => (
+                      <tr key={row.id}>
+                        <td>{formatWhen(row.created_at)}</td>
+                        <td>{TYPE_LABEL[row.type || ''] || row.type || '—'}</td>
+                        <td>
+                          <div>{row.user_name || '—'}</div>
+                          <small style={{ color: '#64748b' }}>
+                            {row.user_email || row.user_contact || ''}
+                          </small>
+                        </td>
+                        <td>{row.subject || '—'}</td>
+                        <td style={{ maxWidth: 280, whiteSpace: 'pre-wrap' }}>{row.message || '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </section>
         )}
 
