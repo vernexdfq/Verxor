@@ -123,3 +123,134 @@ const PROMO_SLIDES: {
     accent: 'promo-accent-indigo',
   },
 ];
+
+export function HomePage({
+  go,
+  openService,
+}: {
+  go: (page: Page) => void;
+  openService: (view: ServiceView) => void;
+}) {
+  const [showBalance, setShowBalance] = useState(true);
+  const [slide, setSlide] = useState(0);
+
+  useEffect(() => {
+    const t = setInterval(() => setSlide((s) => (s + 1) % PROMO_SLIDES.length), 4200);
+    return () => clearInterval(t);
+  }, []);
+
+  const current = PROMO_SLIDES[slide];
+
+  return (
+    <div className="vx-home">
+      <header className="vx-home-header">
+        <div className="vx-home-user">
+          <div className="vx-avatar">V</div>
+          <div>
+            <p className="vx-greeting">Good morning, DESTINY 🌞</p>
+            <p className="vx-sub">Your Verxor Dashboard</p>
+          </div>
+        </div>
+        <button type="button" className="vx-bell" aria-label="Notifications">
+          <span className="vx-bell-dot" />
+        </button>
+      </header>
+
+      <section className="vx-wallet-card">
+        <div className="vx-wallet-top">
+          <span className="vx-wallet-label">AVAILABLE BALANCE</span>
+          <span className="vx-wallet-status">
+            <span className="vx-status-dot" /> Active
+          </span>
+        </div>
+        <div className="vx-wallet-row">
+          <p className="vx-balance">
+            {showBalance ? `${wallet.symbol}${wallet.amount}` : `${wallet.symbol}••••••`}
+          </p>
+          <button
+            type="button"
+            className="vx-eye"
+            onClick={() => setShowBalance((v) => !v)}
+            aria-label={showBalance ? 'Hide balance' : 'Show balance'}
+          >
+            {showBalance ? <Eye size={18} /> : <EyeOff size={18} />}
+          </button>
+        </div>
+        <div className="vx-wallet-actions">
+          <button type="button" className="vx-btn-primary" onClick={() => go('fund')}>
+            <Plus size={16} /> Fund Wallet
+          </button>
+          <button type="button" className="vx-btn-ghost" onClick={() => go('history')}>
+            <History size={16} /> History
+          </button>
+        </div>
+      </section>
+
+      <section className="vx-section">
+        <p className="vx-section-label">QUICK ACTIONS</p>
+        <div className="vx-qa-grid">
+          {QUICK_ACTIONS.map((item) => {
+            const Icon = item.icon;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                className="vx-qa-item"
+                onClick={() => item.service && openService(item.service)}
+              >
+                <span className={`vx-qa-icon ${item.tone}`}>
+                  <Icon size={20} strokeWidth={1.8} />
+                </span>
+                <span className="vx-qa-title">{item.title}</span>
+              </button>
+            );
+          })}
+        </div>
+      </section>
+
+      <section className={`vx-promo ${current.accent}`}>
+        <span className="vx-promo-badge">{current.badge}</span>
+        <h2 className="vx-promo-title">{current.headline}</h2>
+        <p className="vx-promo-sub">{current.subtext}</p>
+        <button
+          type="button"
+          className="vx-promo-cta"
+          onClick={() => current.service && openService(current.service)}
+        >
+          {current.cta} <ArrowRight size={16} />
+        </button>
+        <div className="vx-promo-dots">
+          {PROMO_SLIDES.map((_, i) => (
+            <button
+              key={i}
+              type="button"
+              className={i === slide ? 'is-active' : ''}
+              onClick={() => setSlide(i)}
+              aria-label={`Slide ${i + 1}`}
+            />
+          ))}
+        </div>
+      </section>
+
+      <section className="vx-section">
+        <div className="vx-section-row">
+          <p className="vx-section-label" style={{ margin: 0 }}>
+            RECENT ACTIVITY
+          </p>
+          <button type="button" className="vx-view-all" onClick={() => go('history')}>
+            View all →
+          </button>
+        </div>
+        <div className="vx-activity-empty">
+          <div className="vx-activity-icon">
+            <Clock3 size={18} />
+          </div>
+          <div>
+            <strong>No recent activity</strong>
+            <p>Wallet and order activity will show here.</p>
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+}
