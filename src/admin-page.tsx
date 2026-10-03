@@ -1,10 +1,11 @@
 /**
- * Verxor platform admin — operator console
- * Entry: /admin → /workspace?admin=1 | footer admin
+ * Verxor platform admin (operator console).
+ * Entry: /admin → /workspace?admin=1 or footer "admin" link.
+ * Gate: ADMIN_PASSWORD via /api/admin/login
  */
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import {
   Activity,
   ArrowLeft,
@@ -12,39 +13,152 @@ import {
   Copy,
   CreditCard,
   KeyRound,
+  LayoutDashboard,
   Lock,
   MessageSquare,
   Package,
+  Percent,
+  Plug,
+  Settings,
+  ToggleLeft,
   Users,
   Wallet,
 } from 'lucide-react';
 import './admin-page.css';
-import {
-  DEFAULT_CATALOG,
-  DEFAULT_PRICES,
-  NAV,
-  PASS_KEY,
-  SESSION_KEY,
-  TYPE_LABEL,
-  formatWhen,
-  panelUsd,
-  type AdminSection,
-  type CatalogItem,
-  type FeedbackRow,
-  type PriceRow,
-} from './admin-constants';
 
-export function AdminPage({ onBack }: { onBack: () => void }) {
+type AdminSection =
+  | 'overview'
+  | 'catalog'
+  | 'pricing'
+  | 'panels'
+  | 'orders'
+  | 'users'
+  | 'providers'
+  | 'feedback'
+  | 'settings';
+
+type AdminPageProps = { onBack: () => void };
+
+type FeedbackRow = {
+  id: string;
+  type?: string;
+  subject?: string;
+  message?: string;
+  user_name?: string;
+  user_contact?: string;
+  user_email?: string;
+  status?: string;
+  created_at?: string;
+};
+
+type ServiceStatus = 'live' | 'coming_soon' | 'hidden';
+type ServiceScope = 'global' | 'nigeria' | 'both';
+
+type CatalogItem = {
+  id: string;
+  name: string;
+  scope: ServiceScope;
+  status: ServiceStatus;
+  provider: string;
+};
+
+type PriceRow = {
+  id: string;
+  service: string;
+  costUsd: number;
+  retailUsd: number;
+  retailNgn: number;
+  panelMarkupPct: number;
+};
+
+type PanelInfo = {
+  name: string;
+  status: 'active' | 'pending';
+  apiKeyPrefix: string;
+  balanceUsd: number;
+  markupPct: number;
+};
+
+const SESSION_KEY = 'verxor-admin-ok';
+const PASS_KEY = 'verxor-admin-pw';
+
+const NAV: { id: AdminSection; label: string; icon: typeof LayoutDashboard }[] = [
+  { id: 'overview', label: 'Overview', icon: LayoutDashboard },
+  { id: 'catalog', label: 'Catalog', icon: ToggleLeft },
+  { id: 'pricing', label: 'Pricing', icon: Percent },
+  { id: 'panels', label: 'Child panels', icon: Building2 },
+  { id: 'orders', label: 'Orders', icon: Package },
+  { id: 'users', label: 'Users', icon: Users },
+  { id: 'providers', label: 'Providers', icon: Plug },
+  { id: 'feedback', label: 'Feedback', icon: MessageSquare },
+  { id: 'settings', label: 'Settings', icon: Settings },
+];
+
+const DEFAULT_CATALOG: CatalogItem[] = [
+  { id: 'virtual-numbers', name: 'Virtual Number', scope: 'global', status: 'live', provider: '5sim / PVAPins' },
+  { id: 'boost', name: 'Boost Account', scope: 'global', status: 'live', provider: 'SMM' },
+  { id: 'accounts', name: 'Buy Logs', scope: 'global', status: 'coming_soon', provider: 'AccsZone' },
+  { id: 'rental', name: 'Rent Number', scope: 'global', status: 'live', provider: 'Rental pool' },
+  { id: 'esim', name: 'eSIM', scope: 'global', status: 'coming_soon', provider: '—' },
+  { id: 'proxies', name: 'Proxies', scope: 'global', status: 'coming_soon', provider: '—' },
+  { id: 'gift-card', name: 'Gift Card', scope: 'global', status: 'live', provider: 'Trade desk' },
+  { id: 'virtual-card', name: 'Virtual Card', scope: 'global', status: 'coming_soon', provider: '—' },
+  { id: 'airtime', name: 'Airtime', scope: 'nigeria', status: 'live', provider: 'VTU' },
+  { id: 'data', name: 'Data', scope: 'nigeria', status: 'live', provider: 'VTU' },
+  { id: 'tv-cable', name: 'TV Subscription', scope: 'nigeria', status: 'live', provider: 'VTU' },
+  { id: 'bet-wallet', name: 'Bet Wallet', scope: 'nigeria', status: 'live', provider: 'Betting' },
+];
+
+const DEFAULT_PRICES: PriceRow[] = [
+  { id: 'vn-eco', service: 'Virtual Numbers · Economy', costUsd: 0.22, retailUsd: 0.3, retailNgn: 480, panelMarkupPct: 15 },
+  { id: 'vn-std', service: 'Virtual Numbers · Standard', costUsd: 0.65, retailUsd: 0.88, retailNgn: 1408, panelMarkupPct: 15 },
+  { id: 'vn-fast', service: 'Virtual Numbers · Fast', costUsd: 1.2, retailUsd: 1.62, retailNgn: 2592, panelMarkupPct: 12 },
+  { id: 'vn-prem', service: 'Virtual Numbers · Premium', costUsd: 2.4, retailUsd: 3.24, retailNgn: 5184, panelMarkupPct: 12 },
+  { id: 'boost', service: 'Boost Account (base)', costUsd: 1.0, retailUsd: 1.5, retailNgn: 2400, panelMarkupPct: 20 },
+  { id: 'logs', service: 'Buy Logs (base)', costUsd: 2.0, retailUsd: 3.5, retailNgn: 5600, panelMarkupPct: 18 },
+  { id: 'airtime', service: 'Airtime (NG)', costUsd: 0, retailUsd: 0, retailNgn: 100, panelMarkupPct: 5 },
+  { id: 'data', service: 'Data (NG)', costUsd: 0, retailUsd: 0, retailNgn: 500, panelMarkupPct: 5 },
+];
+
+const TYPE_LABEL: Record<string, string> = {
+  feature: 'Feature Suggestion',
+  bug: 'Bug / Issue Report',
+  poor: 'Poor Experience',
+  like: 'What You Like',
+  general: 'General Suggestion',
+};
+
+function formatWhen(iso?: string) {
+  if (!iso) return '—';
+  try {
+    return new Date(iso).toLocaleString(undefined, {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  } catch {
+    return iso;
+  }
+}
+
+function panelPriceUsd(cost: number, markupPct: number) {
+  return Math.round(cost * (1 + markupPct / 100) * 100) / 100;
+}
+
+export function AdminPage({ onBack }: AdminPageProps) {
   const [unlocked, setUnlocked] = useState(false);
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState('');
   const [loginBusy, setLoginBusy] = useState(false);
+
   const [section, setSection] = useState<AdminSection>('overview');
-  const [catalog, setCatalog] = useState(DEFAULT_CATALOG);
-  const [prices, setPrices] = useState(DEFAULT_PRICES);
-  const [panel, setPanel] = useState({
+  const [catalog, setCatalog] = useState<CatalogItem[]>(DEFAULT_CATALOG);
+  const [prices, setPrices] = useState<PriceRow[]>(DEFAULT_PRICES);
+  const [panel, setPanel] = useState<PanelInfo>({
     name: 'Vernex',
-    status: 'pending' as 'active' | 'pending',
+    status: 'pending',
     apiKeyPrefix: '—',
     balanceUsd: 0,
     markupPct: 15,
@@ -53,6 +167,7 @@ export function AdminPage({ onBack }: { onBack: () => void }) {
   const [keyBusy, setKeyBusy] = useState(false);
   const [keyError, setKeyError] = useState('');
   const [copyOk, setCopyOk] = useState(false);
+
   const [feedback, setFeedback] = useState<FeedbackRow[]>([]);
   const [fbLoading, setFbLoading] = useState(false);
   const [fbError, setFbError] = useState('');
@@ -61,11 +176,11 @@ export function AdminPage({ onBack }: { onBack: () => void }) {
     try {
       if (sessionStorage.getItem(SESSION_KEY) === '1') setUnlocked(true);
     } catch {
-      /* */
+      /* ignore */
     }
   }, []);
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleLogin = async (e: FormEvent) => {
     e.preventDefault();
     setLoginBusy(true);
     setLoginError('');
@@ -84,7 +199,7 @@ export function AdminPage({ onBack }: { onBack: () => void }) {
         sessionStorage.setItem(SESSION_KEY, '1');
         sessionStorage.setItem(PASS_KEY, password);
       } catch {
-        /* */
+        /* ignore */
       }
       setUnlocked(true);
       setPassword('');
@@ -100,7 +215,7 @@ export function AdminPage({ onBack }: { onBack: () => void }) {
       sessionStorage.removeItem(SESSION_KEY);
       sessionStorage.removeItem(PASS_KEY);
     } catch {
-      /* */
+      /* ignore */
     }
     setUnlocked(false);
     setGeneratedKey(null);
@@ -138,7 +253,7 @@ export function AdminPage({ onBack }: { onBack: () => void }) {
     try {
       pw = sessionStorage.getItem(PASS_KEY) || '';
     } catch {
-      /* */
+      /* ignore */
     }
     try {
       const res = await fetch('/api/admin/panel-key', {
@@ -156,7 +271,11 @@ export function AdminPage({ onBack }: { onBack: () => void }) {
         return;
       }
       setGeneratedKey(data.panel.apiKey);
-      setPanel((p) => ({ ...p, status: 'active', apiKeyPrefix: data.panel!.apiKeyPrefix + '…' }));
+      setPanel((p) => ({
+        ...p,
+        status: 'active',
+        apiKeyPrefix: data.panel!.apiKeyPrefix + '…',
+      }));
     } catch {
       setKeyError('Network error');
     } finally {
@@ -171,7 +290,7 @@ export function AdminPage({ onBack }: { onBack: () => void }) {
       setCopyOk(true);
       setTimeout(() => setCopyOk(false), 2000);
     } catch {
-      /* */
+      /* ignore */
     }
   };
 
@@ -179,15 +298,20 @@ export function AdminPage({ onBack }: { onBack: () => void }) {
     setCatalog((rows) =>
       rows.map((r) => {
         if (r.id !== id) return r;
-        const next =
+        const next: ServiceStatus =
           r.status === 'live' ? 'coming_soon' : r.status === 'coming_soon' ? 'hidden' : 'live';
-        return { ...r, status: next as CatalogItem['status'] };
+        return { ...r, status: next };
       }),
     );
   };
 
   const updatePrice = (id: string, field: keyof PriceRow, value: number) => {
-    setPrices((rows) => rows.map((r) => (r.id === id ? { ...r, [field]: value } : r)));
+    setPrices((rows) =>
+      rows.map((r) => {
+        if (r.id !== id) return r;
+        return { ...r, [field]: value };
+      }),
+    );
   };
 
   const liveCount = useMemo(() => catalog.filter((c) => c.status === 'live').length, [catalog]);
@@ -200,7 +324,9 @@ export function AdminPage({ onBack }: { onBack: () => void }) {
             <Lock size={22} />
           </div>
           <h1>Verxor Admin</h1>
-          <p>Operator console. Set ADMIN_PASSWORD on Vercel (secret), then sign in.</p>
+          <p>
+            Operator console. Set <strong>ADMIN_PASSWORD</strong> on Vercel, then sign in.
+          </p>
           <label>
             Password
             <input
@@ -271,13 +397,14 @@ export function AdminPage({ onBack }: { onBack: () => void }) {
         {section === 'overview' && (
           <section className="vx-admin-section">
             <p className="vx-admin-lead">
-              Catalog, dual-currency pricing, and Vernex panel API keys. Panel rates stay separate from retail.
+              Control catalog visibility, retail vs panel pricing, Vernex API keys, and provider health.
+              Child panel rates are separate from retail so Vernex never sees end-user prices.
             </p>
             <div className="vx-admin-stats">
               <article className="vx-admin-stat">
                 <small>Services live</small>
                 <strong>{liveCount}</strong>
-                <span>of {catalog.length}</span>
+                <span>of {catalog.length} in catalog</span>
               </article>
               <article className="vx-admin-stat">
                 <small>Child panels</small>
@@ -290,9 +417,9 @@ export function AdminPage({ onBack }: { onBack: () => void }) {
                 <span>All services</span>
               </article>
               <article className="vx-admin-stat">
-                <small>Panel markup</small>
+                <small>Default panel markup</small>
                 <strong>{panel.markupPct}%</strong>
-                <span>Over cost USD</span>
+                <span>Over provider cost (USD)</span>
               </article>
             </div>
             <div className="vx-admin-grid-2">
@@ -304,7 +431,7 @@ export function AdminPage({ onBack }: { onBack: () => void }) {
                 <ul className="vx-admin-list">
                   <li>
                     <span>1. Catalog</span>
-                    <em>Live / coming soon / hidden</em>
+                    <em>Turn services live / Nigeria-only</em>
                   </li>
                   <li>
                     <span>2. Pricing</span>
@@ -315,7 +442,7 @@ export function AdminPage({ onBack }: { onBack: () => void }) {
                     <em>Generate Vernex API key</em>
                   </li>
                   <li>
-                    <span>4. Vernex env</span>
+                    <span>4. Env on Vernex</span>
                     <em>VERXOR_API_BASE + VERXOR_PANEL_API_KEY</em>
                   </li>
                 </ul>
@@ -335,12 +462,12 @@ export function AdminPage({ onBack }: { onBack: () => void }) {
                     <em className="ok">Password gate</em>
                   </li>
                   <li>
-                    <span>Providers</span>
-                    <em>See Providers tab</em>
+                    <span>Provider adapters</span>
+                    <em>Check Providers tab</em>
                   </li>
                   <li>
                     <span>Panel API</span>
-                    <em>Key issue ready</em>
+                    <em>Key issue ready · routes next</em>
                   </li>
                 </ul>
               </article>
@@ -351,7 +478,8 @@ export function AdminPage({ onBack }: { onBack: () => void }) {
         {section === 'catalog' && (
           <section className="vx-admin-section">
             <p className="vx-admin-lead">
-              Click status to cycle Live → Coming soon → Hidden. Nigeria scope stays gated for non-NG accounts.
+              Click status to cycle Live → Coming soon → Hidden. Nigeria-only services stay gated for non-NG
+              accounts in the consumer app.
             </p>
             <div className="vx-admin-table-wrap">
               <table className="vx-admin-table">
@@ -389,15 +517,17 @@ export function AdminPage({ onBack }: { onBack: () => void }) {
                 </tbody>
               </table>
             </div>
-            <p className="vx-admin-note">Session UI state — persist to Supabase in the finishing pass.</p>
+            <p className="vx-admin-note">
+              UI state for this session. Persist to Supabase catalog table in the finishing pass.
+            </p>
           </section>
         )}
 
         {section === 'pricing' && (
           <section className="vx-admin-section">
             <p className="vx-admin-lead">
-              Cost in <strong>USD</strong>. Retail dual <strong>USD + NGN</strong>. Panel price = cost × (1 +
-              panel %).
+              Provider cost in <strong>USD</strong>. Retail shown dual <strong>USD + NGN</strong>. Child panel
+              price = cost × (1 + panel markup %). Vernex pays panel price, not retail.
             </p>
             <div className="vx-admin-table-wrap">
               <table className="vx-admin-table">
@@ -448,13 +578,11 @@ export function AdminPage({ onBack }: { onBack: () => void }) {
                           type="number"
                           step="1"
                           value={row.panelMarkupPct}
-                          onChange={(e) =>
-                            updatePrice(row.id, 'panelMarkupPct', Number(e.target.value))
-                          }
+                          onChange={(e) => updatePrice(row.id, 'panelMarkupPct', Number(e.target.value))}
                         />
                       </td>
                       <td>
-                        <strong>${panelUsd(row.costUsd, row.panelMarkupPct).toFixed(2)}</strong>
+                        <strong>${panelPriceUsd(row.costUsd, row.panelMarkupPct).toFixed(2)}</strong>
                       </td>
                     </tr>
                   ))}
@@ -467,13 +595,14 @@ export function AdminPage({ onBack }: { onBack: () => void }) {
         {section === 'panels' && (
           <section className="vx-admin-section">
             <p className="vx-admin-lead">
-              Day-one panel: <strong>Vernex</strong>. Generate a key, then set env vars on their host.
+              Day-one child panel: <strong>Vernex only</strong>. Generate an API key, then put base URL + key in
+              Vernex environment variables so orders debit their panel rate automatically.
             </p>
             <div className="vx-admin-card">
               <div className="vx-admin-card-head">
                 <Building2 size={18} />
                 <strong>{panel.name}</strong>
-                <span className={`vx-pill status-${panel.status === 'active' ? 'live' : 'coming_soon'}`}>
+                <span className={`vx-pill scope-${panel.status === 'active' ? 'global' : 'nigeria'}`}>
                   {panel.status}
                 </span>
               </div>
@@ -493,9 +622,7 @@ export function AdminPage({ onBack }: { onBack: () => void }) {
                       className="vx-admin-input inline"
                       type="number"
                       value={panel.markupPct}
-                      onChange={(e) =>
-                        setPanel((p) => ({ ...p, markupPct: Number(e.target.value) || 0 }))
-                      }
+                      onChange={(e) => setPanel((p) => ({ ...p, markupPct: Number(e.target.value) || 0 }))}
                     />
                     %
                   </em>
@@ -526,35 +653,43 @@ export function AdminPage({ onBack }: { onBack: () => void }) {
                   <button type="button" className="vx-admin-primary" onClick={() => void copyKey()}>
                     <Copy size={14} /> {copyOk ? 'Copied' : 'Copy key'}
                   </button>
-                  <pre className="vx-admin-env">{`# Vernex environment\nVERXOR_API_BASE=https://verxor.com/api/v1\nVERXOR_PANEL_API_KEY=${generatedKey}`}</pre>
+                  <pre className="vx-admin-env">{`# Vernex (child panel) environment variables
+VERXOR_API_BASE=https://verxor.com/api/v1
+VERXOR_PANEL_API_KEY=${generatedKey}`}</pre>
                 </div>
               ) : null}
             </div>
+            <p className="vx-admin-note">
+              After finishing, panel routes will authenticate this key and charge panel USD rates from Pricing.
+            </p>
           </section>
         )}
 
         {section === 'orders' && (
           <section className="vx-admin-section">
+            <p className="vx-admin-lead">Cross-tenant order feed (retail + Vernex).</p>
             <div className="vx-admin-empty tall">
               <Package size={28} strokeWidth={1.4} />
               <strong>No orders yet</strong>
-              <p>Retail + Vernex fulfillments will list here.</p>
+              <p>When buys complete, they list here for support and refunds.</p>
             </div>
           </section>
         )}
 
         {section === 'users' && (
           <section className="vx-admin-section">
+            <p className="vx-admin-lead">Search profiles and adjust wallets.</p>
             <div className="vx-admin-empty tall">
               <Users size={28} strokeWidth={1.4} />
               <strong>User tools next</strong>
-              <p>Wallet credit/search binds to Supabase profiles in the finishing pass.</p>
+              <p>Supabase profiles + wallets land with the finishing pass.</p>
             </div>
           </section>
         )}
 
         {section === 'providers' && (
           <section className="vx-admin-section">
+            <p className="vx-admin-lead">Upstream adapters. Keys stay on the server only.</p>
             <div className="vx-admin-table-wrap">
               <table className="vx-admin-table">
                 <thead>
@@ -562,21 +697,25 @@ export function AdminPage({ onBack }: { onBack: () => void }) {
                     <th>Provider</th>
                     <th>Use</th>
                     <th>Env</th>
+                    <th>Status</th>
                   </tr>
                 </thead>
                 <tbody>
                   {[
                     ['5sim', 'OTP', 'FIVESIM_API_KEY'],
                     ['PVAPins', 'OTP', 'PVAPINS_API_KEY'],
-                    ['GrizzlySMS', 'OTP', 'GRIZZLY_API_KEY'],
+                    ['GrizzlySMS', 'OTP', 'GRIZZLYSMS_API_KEY'],
                     ['SmsBower', 'OTP', 'SMSBOWER_API_KEY'],
                     ['AccsZone', 'Buy logs', 'ACCSZONE_API_KEY'],
-                  ].map(([n, u, e]) => (
-                    <tr key={n}>
-                      <td>{n}</td>
-                      <td>{u}</td>
+                  ].map(([name, use, env]) => (
+                    <tr key={name}>
+                      <td>{name}</td>
+                      <td>{use}</td>
                       <td>
-                        <code>{e}</code>
+                        <code>{env}</code>
+                      </td>
+                      <td>
+                        <em>Server env</em>
                       </td>
                     </tr>
                   ))}
@@ -588,26 +727,25 @@ export function AdminPage({ onBack }: { onBack: () => void }) {
 
         {section === 'feedback' && (
           <section className="vx-admin-section">
-            <button
-              type="button"
-              className="vx-admin-exit"
-              style={{ position: 'static', marginBottom: 12 }}
-              onClick={() => void loadFeedback()}
-            >
-              Refresh
-            </button>
+            <p className="vx-admin-lead">User feedback from the app.</p>
+            <div style={{ marginBottom: 12 }}>
+              <button type="button" className="vx-admin-primary" onClick={() => void loadFeedback()}>
+                Refresh
+              </button>
+            </div>
             {fbLoading ? (
               <p className="vx-admin-note">Loading…</p>
             ) : fbError ? (
               <div className="vx-admin-empty tall">
-                <MessageSquare size={28} />
+                <MessageSquare size={28} strokeWidth={1.4} />
                 <strong>Inbox not ready</strong>
                 <p>{fbError}</p>
               </div>
             ) : feedback.length === 0 ? (
               <div className="vx-admin-empty tall">
-                <MessageSquare size={28} />
+                <MessageSquare size={28} strokeWidth={1.4} />
                 <strong>No feedback yet</strong>
+                <p>When users submit from the app, messages appear here.</p>
               </div>
             ) : (
               <div className="vx-admin-table-wrap">
@@ -617,7 +755,6 @@ export function AdminPage({ onBack }: { onBack: () => void }) {
                       <th>When</th>
                       <th>Type</th>
                       <th>From</th>
-                      <th>Subject</th>
                       <th>Message</th>
                     </tr>
                   </thead>
@@ -626,15 +763,8 @@ export function AdminPage({ onBack }: { onBack: () => void }) {
                       <tr key={row.id}>
                         <td>{formatWhen(row.created_at)}</td>
                         <td>{TYPE_LABEL[row.type || ''] || row.type || '—'}</td>
-                        <td>
-                          {row.user_name || '—'}
-                          <br />
-                          <small style={{ color: '#64748b' }}>
-                            {row.user_email || row.user_contact || ''}
-                          </small>
-                        </td>
-                        <td>{row.subject || '—'}</td>
-                        <td style={{ maxWidth: 280, whiteSpace: 'pre-wrap' }}>{row.message || '—'}</td>
+                        <td>{row.user_name || row.user_email || row.user_contact || '—'}</td>
+                        <td>{row.subject || row.message || '—'}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -646,6 +776,7 @@ export function AdminPage({ onBack }: { onBack: () => void }) {
 
         {section === 'settings' && (
           <section className="vx-admin-section">
+            <p className="vx-admin-lead">Platform defaults and entry points.</p>
             <div className="vx-admin-card">
               <ul className="vx-admin-list">
                 <li>
@@ -654,7 +785,7 @@ export function AdminPage({ onBack }: { onBack: () => void }) {
                 </li>
                 <li>
                   <span>Hidden footer</span>
-                  <em>Landing “admin” link</em>
+                  <em>Landing “ops” link</em>
                 </li>
                 <li>
                   <span>ADMIN_PASSWORD</span>
@@ -662,8 +793,7 @@ export function AdminPage({ onBack }: { onBack: () => void }) {
                 </li>
                 <li>
                   <span>
-                    <CreditCard size={14} style={{ display: 'inline', verticalAlign: 'middle' }} />{' '}
-                    Funding
+                    <CreditCard size={14} style={{ display: 'inline', verticalAlign: 'middle' }} /> Funding
                   </span>
                   <em>Flutterwave webhook present</em>
                 </li>
@@ -675,3 +805,5 @@ export function AdminPage({ onBack }: { onBack: () => void }) {
     </div>
   );
 }
+
+export default AdminPage;
