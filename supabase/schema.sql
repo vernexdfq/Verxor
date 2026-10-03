@@ -1,9 +1,8 @@
 -- ============================================================
--- VERXOR — Supabase schema (run once in SQL Editor)
--- Wallet + orders + notifications + wholesale API keys
+-- VERXOR — Supabase schema (run in SQL Editor)
+-- Virtual numbers + wallet + notifications + wholesale API keys
 -- ============================================================
 
--- Extensions
 create extension if not exists "pgcrypto";
 
 -- Profiles (extends auth.users)
@@ -12,6 +11,7 @@ create table if not exists public.profiles (
   email text,
   full_name text,
   phone text,
+  pin_hash text,
   country_code text default 'NG',
   currency text default 'NGN',
   role text not null default 'customer' check (role in ('customer', 'admin', 'wholesale')),
@@ -19,7 +19,7 @@ create table if not exists public.profiles (
   updated_at timestamptz not null default now()
 );
 
--- Wallet balances (one row per user)
+-- Wallet balances
 create table if not exists public.wallets (
   user_id uuid primary key references public.profiles (id) on delete cascade,
   balance_usd numeric(18, 6) not null default 0 check (balance_usd >= 0),
@@ -27,7 +27,7 @@ create table if not exists public.wallets (
   updated_at timestamptz not null default now()
 );
 
--- Immutable ledger (credits / debits)
+-- Immutable ledger
 create table if not exists public.wallet_ledger (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references public.profiles (id) on delete cascade,
@@ -44,24 +44,6 @@ create table if not exists public.wallet_ledger (
 create index if not exists wallet_ledger_user_created_idx
   on public.wallet_ledger (user_id, created_at desc);
 
--- Flutterwave / payment intents
-create table if not exists public.payment_intents (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references public.profiles (id) on delete cascade,
-  provider text not null default 'flutterwave',
-  amount numeric(18, 2) not null check (amount > 0),
-  currency text not null default 'NGN',
-  status text not null default 'pending'
-    check (status in ('pending', 'successful', 'failed', 'cancelled')),
-  flw_tx_ref text unique,
-  flw_transaction_id text,
-  raw jsonb not null default '{}'::jsonb,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
-);
-
-create index if not exists payment_intents_user_idx on public.payment_intents (user_id, created_at desc);
-
 -- Virtual number (OTP) orders
 create table if not exists public.number_orders (
   id uuid primary key default gen_random_uuid(),
@@ -73,7 +55,7 @@ create table if not exists public.number_orders (
   product text,
   pool_id text,
   server_lane int check (server_lane in (1, 2)),
-  tier text,
+  tier text check (tier in ('economy', 'standard', 'fast', 'premium')),
   cost_usd numeric(18, 6),
   price_usd numeric(18, 6) not null,
   status text not null default 'waiting'
@@ -86,6 +68,36 @@ create table if not exists public.number_orders (
 
 create index if not exists number_orders_user_idx on public.number_orders (user_id, created_at desc);
 create index if not exists number_orders_provider_idx on public.number_orders (provider, provider_order_id);
+create index if not exists number_orders_pool_idx on public.number_orders (pool_id, status);
+
+-- Cached provider price rows (optional; filled by scrape jobs)
+create table if not exists public.provider_price_cache (
+  id uuid primary key default gen_random_uuid(),
+  provider text not null,
+  country text not null,
+  product text not null,
+  operator text,
+  cost_usd numeric(18, 6) not null,
+  stock_count int,
+  region text not null check (region in ('usa', 'worldwide')),
+  tier text not null check (tier in ('economy', 'standard', 'fast', 'premium')),
+  pool_id text not null,
+  server_lane int not null check (server_lane in (1, 2)),
+  fetched_at timestamptz not null default now()
+);
+
+create index if not exists provider_price_cache_pool_idx
+  on public.provider_price_cache (pool_id, product, fetched_at desc);
+
+-- Provider health (admin)
+create table if not exists public.provider_health (
+  provider text primary key,
+  is_up boolean not null default true,
+  last_success_at timestamptz,
+  last_error text,
+  last_error_at timestamptz,
+  updated_at timestamptz not null default now()
+);
 
 -- Generic service orders (SMM, accounts, etc.)
 create table if not exists public.service_orders (
@@ -104,7 +116,7 @@ create table if not exists public.service_orders (
 
 create index if not exists service_orders_user_idx on public.service_orders (user_id, created_at desc);
 
--- In-app notifications (single feed)
+-- Notifications
 create table if not exists public.notifications (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references public.profiles (id) on delete cascade,
@@ -118,13 +130,14 @@ create table if not exists public.notifications (
 
 create index if not exists notifications_user_idx on public.notifications (user_id, created_at desc);
 
--- Wholesale / panel API keys (vernexdigital etc.)
+-- Wholesale / child-panel API keys
 create table if not exists public.api_clients (
   id uuid primary key default gen_random_uuid(),
   name text not null,
   api_key_hash text not null unique,
   api_key_prefix text not null,
   markup_percent numeric(8, 2) not null default 0,
+  allowed_products text[] not null default array['virtual_numbers'],
   is_active boolean not null default true,
   meta jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now()
@@ -159,13 +172,23 @@ create trigger on_auth_user_created
 alter table public.profiles enable row level security;
 alter table public.wallets enable row level security;
 alter table public.wallet_ledger enable row level security;
-alter table public.payment_intents enable row level security;
 alter table public.number_orders enable row level security;
 alter table public.service_orders enable row level security;
 alter table public.notifications enable row level security;
 alter table public.api_clients enable row level security;
+alter table public.provider_price_cache enable row level security;
+alter table public.provider_health enable row level security;
 
--- Users read/update own profile
+-- Drop old policies if re-running
+drop policy if exists "profiles_select_own" on public.profiles;
+drop policy if exists "profiles_update_own" on public.profiles;
+drop policy if exists "wallets_select_own" on public.wallets;
+drop policy if exists "ledger_select_own" on public.wallet_ledger;
+drop policy if exists "number_orders_select_own" on public.number_orders;
+drop policy if exists "service_orders_select_own" on public.service_orders;
+drop policy if exists "notifications_select_own" on public.notifications;
+drop policy if exists "notifications_update_own" on public.notifications;
+
 create policy "profiles_select_own" on public.profiles
   for select using (auth.uid() = id);
 create policy "profiles_update_own" on public.profiles
@@ -175,9 +198,6 @@ create policy "wallets_select_own" on public.wallets
   for select using (auth.uid() = user_id);
 
 create policy "ledger_select_own" on public.wallet_ledger
-  for select using (auth.uid() = user_id);
-
-create policy "payments_select_own" on public.payment_intents
   for select using (auth.uid() = user_id);
 
 create policy "number_orders_select_own" on public.number_orders
@@ -191,7 +211,13 @@ create policy "notifications_select_own" on public.notifications
 create policy "notifications_update_own" on public.notifications
   for update using (auth.uid() = user_id);
 
--- api_clients: no direct client access (service role only)
--- (no policies for anon/authenticated = blocked by RLS)
+-- provider_price_cache / provider_health / api_clients: service role only (no anon policies)
 
--- Service role bypasses RLS for webhooks and provider jobs.
+-- Optional seed health rows
+insert into public.provider_health (provider, is_up)
+values
+  ('fivesim', true),
+  ('grizzly', true),
+  ('smsbower', true),
+  ('pvapins', true)
+on conflict (provider) do nothing;

@@ -11,14 +11,10 @@ function apiKey(): string {
   return key;
 }
 
-async function fivesimGet(path: string) {
-  const res = await fetch(`${BASE}${path}`, {
-    headers: {
-      Authorization: `Bearer ${apiKey()}`,
-      Accept: 'application/json',
-    },
-    cache: 'no-store',
-  });
+async function fivesimGet(path: string, auth = true) {
+  const headers: Record<string, string> = { Accept: 'application/json' };
+  if (auth) headers.Authorization = `Bearer ${apiKey()}`;
+  const res = await fetch(`${BASE}${path}`, { headers, cache: 'no-store' });
   if (!res.ok) {
     const text = await res.text().catch(() => '');
     throw new Error(`5SIM ${res.status}: ${text.slice(0, 200)}`);
@@ -31,7 +27,34 @@ export async function getBalance(): Promise<number> {
   return Number(data?.balance ?? 0);
 }
 
-/** Buy activation. product e.g. telegram, country e.g. usa */
+/** Guest prices for country+product. Returns operator → { cost, count, rate }. */
+export async function getPricesByCountryProduct(country: string, product: string) {
+  const q = new URLSearchParams({
+    country: country.toLowerCase(),
+    product: product.toLowerCase(),
+  });
+  return fivesimGet(`/guest/prices?${q.toString()}`, false);
+}
+
+/** Flatten guest prices into rows with cost + operator + stock. */
+export async function listOffers(country: string, product: string) {
+  const data = await getPricesByCountryProduct(country, product);
+  const rows: Array<{ operator: string; cost: number; count: number; rate?: number }> = [];
+  const byCountry = data?.[country.toLowerCase()] || data;
+  const byProduct = byCountry?.[product.toLowerCase()] || byCountry;
+  if (!byProduct || typeof byProduct !== 'object') return rows;
+
+  for (const [operator, info] of Object.entries(byProduct as Record<string, any>)) {
+    if (!info || typeof info !== 'object') continue;
+    const cost = Number(info.cost ?? info.Price ?? info.price ?? 0);
+    const count = Number(info.count ?? info.Qty ?? 0);
+    if (cost > 0) {
+      rows.push({ operator, cost, count, rate: Number(info.rate ?? 0) || undefined });
+    }
+  }
+  return rows.sort((a, b) => a.cost - b.cost);
+}
+
 export async function buyActivation(opts: {
   country: string;
   product: string;
@@ -48,4 +71,8 @@ export async function checkOrder(orderId: string | number) {
 
 export async function cancelOrder(orderId: string | number) {
   return fivesimGet(`/user/cancel/${orderId}`);
+}
+
+export function isConfigured() {
+  return Boolean(process.env.FIVESIM_API_KEY);
 }
