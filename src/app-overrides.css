@@ -281,9 +281,9 @@
 .vx-quick-icon {
   width: 44px;
   height: 44px;
-  border-radius: 14px;
   display: grid;
   place-items: center;
+  border-radius: 14px;
   flex: none;
 }
 .vx-quick-tile strong {
@@ -542,7 +542,7 @@
  * Deep service pages:
  * Balanced 16px side gutters so Airtime / Data / Boost / Virtual Numbers /
  * Accounts keep their designed scale and professional density.
- * eSIM + Betting own edge-tight layout (page controls its own padding).
+ * eSIM + Betting + Edit Profile own edge-tight layout (page controls its own padding).
  */
 .app-frame.deep-service .bottom-nav {
   display: none;
@@ -551,7 +551,8 @@
   padding: 10px 16px max(16px, env(safe-area-inset-bottom));
 }
 .app-frame.deep-service .content:has(.esim-page),
-.app-frame.deep-service .content:has(.bet-page) {
+.app-frame.deep-service .content:has(.bet-page),
+.app-frame.deep-service .content:has(.ep-page) {
   padding-left: 0;
   padding-right: 0;
   padding-top: 0;
