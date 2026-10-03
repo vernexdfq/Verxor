@@ -18,41 +18,23 @@ import { EditProfilePage } from './edit-profile-page';
 import { ReferralPage } from './referral-page';
 import { AdminPage } from './admin-page';
 import { AuthFlow, type AuthSession } from './auth/AuthFlow';
+import { canOpenService, NG_ONLY_MESSAGE } from './lib/service-access';
 import type { Page } from './types';
 
 const STORAGE_KEY = 'verxor-auth-session';
 
-type NavState = {
-  page: Page;
-  service: ServiceView | null;
-};
+type NavState = { page: Page; service: ServiceView | null };
 
 function readNavState(raw: unknown): NavState | null {
   if (!raw || typeof raw !== 'object') return null;
-  const s = raw as Partial<NavState>;
-  const page = s.page;
-  if (
-    page !== 'home' &&
-    page !== 'history' &&
-    page !== 'fund' &&
-    page !== 'services' &&
-    page !== 'profile'
-  ) {
-    return null;
-  }
+  const o = raw as Record<string, unknown>;
+  if (typeof o.page !== 'string') return null;
   return {
-    page,
-    service: (s.service as ServiceView | null | undefined) ?? null,
+    page: o.page as Page,
+    service: (o.service as ServiceView | null) ?? null,
   };
 }
 
-/**
- * IMPORTANT (fintech rule):
- * Cookies/localStorage may remember contact, method, name, and PIN hash,
- * but they must NEVER auto-admit the user into the dashboard.
- * Every open of /workspace requires a successful 4-digit PIN entry.
- * Authentication lives only in React state for the current tab session.
- */
 export function VerxorApp() {
   const [page, setPage] = useState<Page>('home');
   const [service, setService] = useState<ServiceView | null>(null);
@@ -61,6 +43,7 @@ export function VerxorApp() {
   /** Session is in-memory only — never restored from localStorage as authenticated */
   const [auth, setAuth] = useState<AuthSession | null>(null);
   const [authReady, setAuthReady] = useState(false);
+  const [serviceBlocked, setServiceBlocked] = useState<string | null>(null);
 
   /** Skip pushState when restoring from popstate */
   const skipPushRef = useRef(false);
@@ -84,10 +67,17 @@ export function VerxorApp() {
 
   const openService = useCallback(
     (next: ServiceView) => {
+      // Nigerian-only VTU services: block non-NG accounts (still show tiles)
+      const eligible = auth?.vtuEligible;
+      if (!canOpenService(next, eligible)) {
+        setServiceBlocked(NG_ONLY_MESSAGE);
+        return;
+      }
+      setServiceBlocked(null);
       setService(next);
       pushNav({ page: pageRef.current, service: next });
     },
-    [pushNav],
+    [pushNav, auth?.vtuEligible],
   );
 
   const navigatePage = useCallback(
@@ -128,82 +118,54 @@ export function VerxorApp() {
     setAuthReady(true);
   }, []);
 
-  /** Seed history + handle swipe/browser Back inside the workspace */
   useEffect(() => {
-    if (typeof window === 'undefined' || !auth) return;
+    if (typeof window === 'undefined') return;
+    const onPop = (e: PopStateEvent) => {
+      skipPushRef.current = true;
+      const restored = readNavState(e.state);
+      if (restored) {
+        setPage(restored.page);
+        setService(restored.service);
+      } else {
+        setPage('home');
+        setService(null);
+      }
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
 
-    const root: NavState = { page: 'home', service: null };
+  // Persist session fields (not authenticated flag) for PIN/login remember
+  useEffect(() => {
+    if (!auth) return;
     try {
-      window.history.replaceState(root, '', window.location.pathname + window.location.search);
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw) as AuthSession;
+        localStorage.setItem(
+          STORAGE_KEY,
+          JSON.stringify({ ...parsed, ...auth, authenticated: false }),
+        );
+      } else {
+        localStorage.setItem(
+          STORAGE_KEY,
+          JSON.stringify({ ...auth, authenticated: false }),
+        );
+      }
     } catch {
       /* ignore */
     }
-
-    const onPop = (e: PopStateEvent) => {
-      const restored = readNavState(e.state);
-      if (restored) {
-        skipPushRef.current = true;
-        setPage(restored.page);
-        setService(restored.service);
-        return;
-      }
-      // No in-app state → keep user inside workspace (do not exit to landing)
-      skipPushRef.current = true;
-      setPage('home');
-      setService(null);
-      try {
-        window.history.pushState(root, '', window.location.pathname + window.location.search);
-      } catch {
-        /* ignore */
-      }
-    };
-
-    window.addEventListener('popstate', onPop);
-    return () => window.removeEventListener('popstate', onPop);
   }, [auth]);
 
-  const handleLogout = () => {
-    if (typeof window !== 'undefined') {
-      try {
-        const raw = localStorage.getItem(STORAGE_KEY);
-        if (raw) {
-          const parsed = JSON.parse(raw) as AuthSession;
-          // Keep remembered contact/method/pin — clear only the live session flag
-          localStorage.setItem(
-            STORAGE_KEY,
-            JSON.stringify({ ...parsed, authenticated: false }),
-          );
-        }
-      } catch {
-        /* ignore */
-      }
-    }
+  const handleLogout = useCallback(() => {
     setAuth(null);
     setService(null);
     setPage('home');
-  };
-
-  if (admin) {
-    return (
-      <div className={dark ? 'app dark' : 'app'}>
-        <AdminPage
-          onBack={() => {
-            setAdmin(false);
-            if (typeof window !== 'undefined') {
-              const url = new URL(window.location.href);
-              url.searchParams.delete('admin');
-              window.history.replaceState({}, '', url.pathname);
-            }
-          }}
-        />
-      </div>
-    );
-  }
+  }, []);
 
   if (!authReady) {
     return (
       <div
-        className="app"
         style={{
           minHeight: '100dvh',
           display: 'grid',
@@ -237,6 +199,59 @@ export function VerxorApp() {
       />
     );
   }
+
+  const blockedBanner = serviceBlocked ? (
+    <div
+      role="alertdialog"
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 80,
+        background: 'rgba(15, 23, 42, 0.45)',
+        display: 'grid',
+        placeItems: 'center',
+        padding: 24,
+      }}
+      onClick={() => setServiceBlocked(null)}
+    >
+      <div
+        style={{
+          maxWidth: 340,
+          width: '100%',
+          background: '#fff',
+          borderRadius: 16,
+          padding: '22px 20px',
+          boxShadow: '0 20px 40px rgba(15,23,42,0.18)',
+          textAlign: 'center',
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <p style={{ margin: '0 0 8px', fontWeight: 800, fontSize: 17, color: '#0F172A' }}>
+          Not available
+        </p>
+        <p style={{ margin: '0 0 18px', fontSize: 14, lineHeight: 1.5, color: '#475569' }}>
+          {serviceBlocked}
+        </p>
+        <button
+          type="button"
+          onClick={() => setServiceBlocked(null)}
+          style={{
+            width: '100%',
+            minHeight: 48,
+            border: 0,
+            borderRadius: 12,
+            background: '#2563EB',
+            color: '#fff',
+            fontWeight: 700,
+            fontSize: 15,
+            cursor: 'pointer',
+          }}
+        >
+          OK
+        </button>
+      </div>
+    </div>
+  ) : null;
 
   const deepService = service !== null;
   const userName = auth.name || 'User';
@@ -299,17 +314,20 @@ export function VerxorApp() {
     );
 
   return (
-    <AppShell
-      dark={dark}
-      page={page}
-      deepService={deepService}
-      userName={userName}
-      onNavigate={navigatePage}
-      onToggleTheme={() => setDark((v) => !v)}
-      onOpenService={openService}
-      onLogout={handleLogout}
-    >
-      {content}
-    </AppShell>
+    <>
+      {blockedBanner}
+      <AppShell
+        dark={dark}
+        page={page}
+        deepService={deepService}
+        userName={userName}
+        onNavigate={navigatePage}
+        onToggleTheme={() => setDark((v) => !v)}
+        onOpenService={openService}
+        onLogout={handleLogout}
+      >
+        {content}
+      </AppShell>
+    </>
   );
 }
