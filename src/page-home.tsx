@@ -220,6 +220,7 @@ export function HomePage({
         onMouseLeave={() => setPaused(false)}
       >
         <button type="button" className={`vx-promo-card ${promo.accent}`} onClick={openPromo}>
+          <img className="vx-promo-logo" src="/brand/verxor-logo.svg" alt="Verxor" width="28" height="28" />
           <div className="vx-promo-copy">
             <span className="vx-promo-badge">{promo.badge}</span>
             <strong className="vx-promo-headline">{promo.headline}</strong>
