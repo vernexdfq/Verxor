@@ -755,3 +755,9 @@
 .accounts-promo .promo-dots { z-index:2; }
 .accounts-promo .promo-cta { cursor:pointer; }
 @media(max-width:360px){ .accounts-promo .promo-copy { max-width:76%; } .accounts-promo .promo-copy strong { font-size:14px; line-height:19px; } }
+
+/* Layering correction for promo artwork and content. */
+.accounts-promo::before { z-index:0; }
+.accounts-promo::after { z-index:1; }
+.accounts-promo .promo-slide { z-index:2; }
+.accounts-promo-logo,.accounts-promo .promo-dots { z-index:3; }
