@@ -71,8 +71,9 @@ export function SecurityPage({ onBack, session }: Props) {
     }
 
     setBioBusy(true);
-    const userId = session?.phone || session?.email || session?.name || 'verxor-user';
-    const displayName = session?.name || session?.email || session?.phone || 'Verxor user';
+    // AuthSession stores phone or email in `contact` (no separate phone/email fields)
+    const userId = session?.contact || session?.name || 'verxor-user';
+    const displayName = session?.name || session?.contact || 'Verxor user';
 
     const result = await enrollPlatformBiometric(userId, displayName);
     setBioBusy(false);
