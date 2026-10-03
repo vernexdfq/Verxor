@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { AppShell } from './components/AppShell';
 import { HomePage, FundPage, HistoryPage, ProfilePage } from './pages';
 import { ServicePage, ServicesPage, type ServiceView } from './service-pages';
@@ -40,7 +40,7 @@ function readNavState(raw: unknown): NavState | null {
   };
 }
 
-function isFaqService(s: ServiceView | null): boolean {
+function isFaqService(s: ServiceView | null): s is 'faq' | 'help' {
   return s === 'faq' || s === 'help';
 }
 
@@ -168,7 +168,7 @@ export function VerxorApp() {
   const userName = auth.name || 'User';
   const deepService = Boolean(service);
 
-  let content: React.ReactNode;
+  let content: ReactNode;
   if (service === 'services') {
     content = <ServicesPage open={openService} onBack={closeService} />;
   } else if (service === 'rental') {
