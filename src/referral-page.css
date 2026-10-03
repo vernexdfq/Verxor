@@ -1,4 +1,4 @@
-/* Referral Program — grade-1 fintech, Verxor palette */
+/* Referral Program — dense grade-1 fintech (edge-tight, Verxor palette) */
 
 .ref-page {
   min-height: 100%;
@@ -9,6 +9,8 @@
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
     'Segoe UI', Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 .ref-page *,
@@ -17,21 +19,23 @@
   box-sizing: border-box;
 }
 
+/* Header — left aligned like production fintech apps */
 .ref-top {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 12px 8px;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 12px 10px;
   position: sticky;
   top: 0;
   z-index: 20;
-  background: rgba(248, 250, 252, 0.97);
-  backdrop-filter: blur(10px);
+  background: rgba(248, 250, 252, 0.98);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid transparent;
 }
 
 .ref-back {
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 40px;
   border-radius: 999px;
   border: 1px solid #E2E8F0;
   background: #FFFFFF;
@@ -41,6 +45,8 @@
   cursor: pointer;
   flex-shrink: 0;
   padding: 0;
+  margin-top: 0;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
 }
 
 .ref-back:active {
@@ -49,73 +55,75 @@
 
 .ref-top-mid {
   flex: 1;
-  text-align: center;
+  text-align: left;
   min-width: 0;
+  padding-top: 2px;
 }
 
 .ref-top-mid h1 {
   margin: 0;
-  font-size: 16px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
   color: #0F172A;
-  line-height: 1.15;
+  line-height: 1.2;
 }
 
 .ref-top-mid p {
-  margin: 2px 0 0;
-  font-size: 11px;
+  margin: 3px 0 0;
+  font-size: 12px;
   font-weight: 500;
   color: #64748B;
-  line-height: 1.3;
+  line-height: 1.35;
 }
 
 .ref-top-spacer {
-  width: 36px;
-  flex-shrink: 0;
+  display: none;
 }
 
+/* Content — tight horizontal gutters (12px) for edge density */
 .ref-scroll {
   flex: 1;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  padding: 8px 16px 36px;
+  padding: 10px 12px 40px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
 }
 
 .ref-stats {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 10px;
+  gap: 8px;
 }
 
 .ref-stat {
   background: #FFFFFF;
   border: 1px solid #E2E8F0;
-  border-radius: 14px;
-  padding: 12px 14px;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+  border-radius: 12px;
+  padding: 14px 12px;
+  box-shadow: none;
 }
 
 .ref-stat small {
   display: block;
   font-size: 10px;
   font-weight: 700;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
   color: #94A3B8;
-  margin-bottom: 4px;
+  margin-bottom: 6px;
 }
 
 .ref-stat strong {
   display: block;
-  font-size: 22px;
+  font-size: 26px;
   font-weight: 800;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.04em;
   color: #0F172A;
-  line-height: 1.1;
+  line-height: 1;
 }
 
 .ref-stat strong.ok {
@@ -134,53 +142,56 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 14px 16px;
-  border-radius: 14px;
+  padding: 14px 14px;
+  border-radius: 12px;
   background: #ECFDF5;
-  border: 1px solid #A7F3D0;
+  border: 1px solid #BBF7D0;
 }
 
 .ref-earnings-ico {
-  width: 40px;
-  height: 40px;
-  border-radius: 12px;
+  width: 42px;
+  height: 42px;
+  border-radius: 11px;
   background: #FFFFFF;
   color: #16A34A;
   display: grid;
   place-items: center;
   flex-shrink: 0;
-  box-shadow: 0 1px 3px rgba(22, 163, 74, 0.15);
+  box-shadow: 0 1px 3px rgba(22, 163, 74, 0.12);
 }
 
 .ref-earnings small {
   display: block;
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
   color: #047857;
   margin-bottom: 2px;
 }
 
 .ref-earnings strong {
   display: block;
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 800;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.03em;
   color: #065F46;
+  line-height: 1.1;
 }
 
 .ref-section {
   background: #FFFFFF;
   border: 1px solid #E2E8F0;
-  border-radius: 16px;
-  padding: 14px;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+  border-radius: 14px;
+  padding: 16px 14px;
+  box-shadow: none;
 }
 
 .ref-section h2 {
-  margin: 0 0 12px;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.05em;
+  margin: 0 0 14px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: #64748B;
 }
@@ -217,8 +228,8 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  min-height: 48px;
-  padding: 0 8px 0 14px;
+  min-height: 52px;
+  padding: 0 6px 0 14px;
   border-radius: 12px;
   border: 1.5px solid #E2E8F0;
   background: #F8FAFC;
@@ -228,9 +239,9 @@
   flex: 1;
   min-width: 0;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 800;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
   color: #0F172A;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -242,28 +253,28 @@
   min-width: 0;
   font-size: 13px;
   font-weight: 600;
-  color: #334155;
+  color: #1E293B;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .ref-copy {
-  width: 40px;
-  height: 40px;
+  width: 42px;
+  height: 42px;
   border-radius: 10px;
-  border: 0;
+  border: 1px solid #E2E8F0;
   background: #FFFFFF;
-  color: #2563EB;
+  color: #0F172A;
   display: grid;
   place-items: center;
   cursor: pointer;
   flex-shrink: 0;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
 }
 
 .ref-copy:active {
   background: #EFF6FF;
+  color: #2563EB;
 }
 
 .ref-copy:disabled {
@@ -272,24 +283,24 @@
 }
 
 .ref-note {
-  margin: 4px 0 14px;
+  margin: 2px 0 16px;
   font-size: 12.5px;
-  line-height: 1.45;
+  line-height: 1.5;
   color: #64748B;
   font-weight: 500;
 }
 
 .ref-share-row {
   display: grid;
-  grid-template-columns: 1.4fr 1fr;
+  grid-template-columns: 1.35fr 1fr;
   gap: 8px;
 }
 
 .ref-share {
-  min-height: 46px;
+  min-height: 48px;
   border-radius: 12px;
   border: 0;
-  font-size: 13.5px;
+  font-size: 14px;
   font-weight: 700;
   cursor: pointer;
   display: inline-flex;
@@ -301,7 +312,7 @@
 .ref-share.primary {
   background: #2563EB;
   color: #FFFFFF;
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.28);
 }
 
 .ref-share.primary:active {
@@ -323,22 +334,23 @@
   flex-direction: column;
   align-items: center;
   text-align: center;
-  padding: 28px 16px;
+  padding: 32px 12px 24px;
   color: #64748B;
 }
 
 .ref-empty strong {
   margin-top: 10px;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 700;
   color: #0F172A;
 }
 
 .ref-empty p {
   margin: 6px 0 0;
-  font-size: 12.5px;
-  line-height: 1.4;
-  max-width: 260px;
+  font-size: 13px;
+  line-height: 1.45;
+  max-width: 280px;
+  color: #64748B;
 }
 
 .ref-history {
@@ -347,7 +359,7 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .ref-history li {
@@ -355,10 +367,10 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
-  padding: 12px;
+  padding: 12px 12px 12px 14px;
   border-radius: 12px;
   border: 1px solid #E2E8F0;
-  background: #F8FAFC;
+  background: #FFFFFF;
   border-left: 3px solid #F59E0B;
 }
 
@@ -399,7 +411,7 @@
 
 .ref-badge {
   display: inline-block;
-  padding: 3px 8px;
+  padding: 4px 9px;
   border-radius: 999px;
   font-size: 10px;
   font-weight: 800;
@@ -424,7 +436,7 @@
 
 .ref-hist-side small {
   display: block;
-  margin-top: 4px;
+  margin-top: 5px;
   font-size: 11px;
   color: #94A3B8;
 }
@@ -438,19 +450,12 @@
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  padding: 11px 15px;
-  border-radius: 11px;
+  padding: 12px 16px;
+  border-radius: 12px;
   background: #0F172A;
   color: #FFFFFF;
-  font-size: 12.5px;
+  font-size: 13px;
   font-weight: 600;
   box-shadow: 0 10px 28px rgba(15, 23, 42, 0.28);
   white-space: nowrap;
-}
-
-@media (min-width: 700px) {
-  .ref-page {
-    max-width: 448px;
-    margin: 0 auto;
-  }
 }
