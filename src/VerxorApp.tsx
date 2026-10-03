@@ -21,8 +21,6 @@ import { AdminPage } from './admin-page';
 import { AuthFlow, type AuthSession } from './auth/AuthFlow';
 import type { Page } from './types';
 
-const STORAGE_KEY = 'verxor-auth-session';
-
 type NavState = {
   page: Page;
   service: ServiceView | null;
@@ -158,12 +156,7 @@ export function VerxorApp() {
   }
 
   if (admin) {
-    return (
-      <AdminPage
-        onBack={() => setAdmin(false)}
-        onLogout={handleLogout}
-      />
-    );
+    return <AdminPage onBack={() => setAdmin(false)} />;
   }
 
   const userName = auth.name || 'User';
