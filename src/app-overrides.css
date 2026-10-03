@@ -562,14 +562,14 @@
 .vx-promo-card::after { content:''; position:absolute; inset:0; z-index:0; background:linear-gradient(90deg,rgba(9,16,34,.94) 0%,rgba(9,16,34,.78) 48%,rgba(9,16,34,.22) 100%); pointer-events:none; }
 .vx-promo-copy { max-width:82%; }
 .vx-promo-logo { position:absolute; z-index:2; top:14px; right:14px; width:28px; height:28px; border-radius:8px; object-fit:cover; box-shadow:0 2px 8px rgba(0,0,0,.18); }
-.promo-accent-blue::before { background-image:url('https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1200&q=80'); }
-.promo-accent-purple::before { background-image:url('https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1200&q=80'); }
-.promo-accent-amber::before { background-image:url('https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=1200&q=80'); }
-.promo-accent-teal::before { background-image:url('https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1200&q=80'); }
-.promo-accent-sky::before { background-image:url('https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=1200&q=80'); }
-.promo-accent-green::before { background-image:url('https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fit=crop&w=1200&q=80'); }
-.promo-accent-pink::before { background-image:url('https://images.unsplash.com/photo-1607082349566-187342175e2f?auto=format&fit=crop&w=1200&q=80'); }
-.promo-accent-indigo::before { background-image:url('https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?auto=format&fit=crop&w=1200&q=80'); }
+.promo-accent-blue::before { background-image:url('https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?auto=format&fit=crop&w=1200&q=85'); }
+.promo-accent-purple::before { background-image:url('https://images.unsplash.com/photo-1522542550221-31fd19575a2d?auto=format&fit=crop&w=1200&q=85'); }
+.promo-accent-amber::before { background-image:url('https://images.unsplash.com/photo-1556761175-b413da4baf72?auto=format&fit=crop&w=1200&q=85'); }
+.promo-accent-teal::before { background-image:url('https://images.unsplash.com/photo-1521791136064-7986c2920216?auto=format&fit=crop&w=1200&q=85'); }
+.promo-accent-sky::before { background-image:url('https://images.unsplash.com/photo-1530789253388-582c481c54b0?auto=format&fit=crop&w=1200&q=85'); }
+.promo-accent-green::before { background-image:url('https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1200&q=85'); }
+.promo-accent-pink::before { background-image:url('https://images.unsplash.com/photo-1607082349566-187342175e2f?auto=format&fit=crop&w=1200&q=85'); }
+.promo-accent-indigo::before { background-image:url('https://images.unsplash.com/photo-1556742502-ec7c0e9f34b1?auto=format&fit=crop&w=1200&q=85'); }
 .vx-promo-copy,.vx-promo-glow { z-index:1; }
 .vx-promo-badge { position:relative; }
 .vx-promo-dots button { cursor:pointer; }
@@ -580,3 +580,17 @@
 .vx-promo-card::after { z-index:1; }
 .vx-promo-copy,.vx-promo-glow { z-index:2; }
 .vx-promo-logo { z-index:3; }
+
+
+/* Final spacing pass: separate the promo carousel from the action grid without changing card size. */
+.vx-quick { margin-bottom: 22px; }
+.vx-quick-grid { column-gap: 11px; row-gap: 11px; }
+.vx-promo { margin: 0 0 20px; }
+.vx-promo-card { min-height: 160px; }
+.vx-promo-copy { max-width: min(82%, 360px); }
+.vx-promo-sub { max-width: 32ch; }
+@media (max-width: 360px) {
+  .vx-quick { margin-bottom: 20px; }
+  .vx-quick-grid { column-gap: 8px; row-gap: 10px; }
+  .vx-promo-card { min-height: 156px; }
+}
