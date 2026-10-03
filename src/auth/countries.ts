@@ -68,7 +68,7 @@ export const COUNTRIES: Country[] = [
   { iso: 'SL', name: 'Sierra Leone', dial: '232' },
   { iso: 'GM', name: 'Gambia', dial: '220' },
   { iso: 'ZW', name: 'Zimbabwe', dial: '263' },
-  { iso: 'ZA2', name: 'South Africa', dial: '27' },
+  { iso: 'ZM', name: 'Zambia', dial: '260' },
   { iso: 'BW', name: 'Botswana', dial: '267' },
   { iso: 'NA', name: 'Namibia', dial: '264' },
   { iso: 'MZ', name: 'Mozambique', dial: '258' },
@@ -107,7 +107,6 @@ export const COUNTRIES: Country[] = [
   { iso: 'GY', name: 'Guyana', dial: '592' },
 ];
 
-// Remove accidental duplicate ZA2 if present - fix by filtering in consumers; cleaner list without ZA2:
 export const DEFAULT_COUNTRY = COUNTRIES[0]; // Nigeria
 
 export function findCountry(iso: string): Country {
