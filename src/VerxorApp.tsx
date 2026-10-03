@@ -183,7 +183,7 @@ export function VerxorApp() {
   if (admin) {
     return (
       <AdminPage
-        onClose={() => {
+        onBack={() => {
           setAdmin(false);
           if (typeof window !== 'undefined') {
             const url = new URL(window.location.href);
