@@ -574,3 +574,9 @@
 .vx-promo-badge { position:relative; }
 .vx-promo-dots button { cursor:pointer; }
 @media (prefers-reduced-motion: reduce) { .vx-promo-card:active { transform:none; } }
+
+/* Layering correction: keep photographic artwork behind readable foreground content. */
+.vx-promo-card::before { z-index:0; }
+.vx-promo-card::after { z-index:1; }
+.vx-promo-copy,.vx-promo-glow { z-index:2; }
+.vx-promo-logo { z-index:3; }
