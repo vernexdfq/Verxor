@@ -209,9 +209,7 @@ export function AuthFlow({ onAuthenticated }: AuthFlowProps) {
       setError('Enter a valid email');
       return;
     }
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters'); return;
-    }
+    if (password.length < 6) { setError('Password must be at least 6 characters'); return; }
     if (!/^[0-9]{4}$/.test(signPin)) {
       setError('PIN must be exactly 4 digits');
       return;
@@ -328,7 +326,7 @@ export function AuthFlow({ onAuthenticated }: AuthFlowProps) {
         <div className="auth-hero">
           <div className="auth-logo">V</div>
           <h1>Welcome to Verxor</h1>
-          <p>Fast, secure VTU & payments</p>
+          <p>Fast, secure VTU and payments</p>
         </div>
         <div className="auth-actions">
           <button type="button" className="btn-primary" onClick={() => handleWelcomeContinue('phone')}>
@@ -352,7 +350,7 @@ export function AuthFlow({ onAuthenticated }: AuthFlowProps) {
           <ArrowLeft size={22} />
         </button>
         <h2>Enter your phone</h2>
-        <p className="auth-sub">We'll use this to sign you in</p>
+        <p className="auth-sub">We will use this to sign you in</p>
         <PhoneField country={country} national={national} onCountryChange={setCountry} onNationalChange={setNational} />
         {error && <p className="auth-error">{error}</p>}
         <button type="button" className="btn-primary" onClick={handlePhoneContinue}>
@@ -372,16 +370,10 @@ export function AuthFlow({ onAuthenticated }: AuthFlowProps) {
           <ArrowLeft size={22} />
         </button>
         <h2>Enter your email</h2>
-        <p className="auth-sub">We'll use this to sign you in</p>
+        <p className="auth-sub">We will use this to sign you in</p>
         <div className="auth-field">
           <Mail size={18} className="field-icon" />
-          <input
-            type="email"
-            placeholder="you@example.com"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            autoComplete="email"
-          />
+          <input type="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" />
         </div>
         {error && <p className="auth-error">{error}</p>}
         <button type="button" className="btn-primary" onClick={handleEmailContinue}>
@@ -405,7 +397,7 @@ export function AuthFlow({ onAuthenticated }: AuthFlowProps) {
         <PinBoxes value={pin} />
         {error && <p className="auth-error">{error}</p>}
         <PinKeypad onDigit={handlePinDigit} onBack={handlePinBackspace} showBio />
-        {loading && <p className="auth-loading">Verifying…</p>}
+        {loading && <p className="auth-loading">Verifying...</p>}
       </div>
     );
   }
@@ -418,67 +410,29 @@ export function AuthFlow({ onAuthenticated }: AuthFlowProps) {
         </button>
         <h2>Create account</h2>
         <p className="auth-sub">Join Verxor in under a minute</p>
-
         <div className="auth-field">
           <User size={18} className="field-icon" />
-          <input
-            type="text"
-            placeholder="Full name"
-            value={fullName}
-            onChange={(e) => setFullName(e.target.value)}
-            autoComplete="name"
-          />
+          <input type="text" placeholder="Full name" value={fullName} onChange={(e) => setFullName(e.target.value)} autoComplete="name" />
         </div>
-
         <PhoneField country={country} national={national} onCountryChange={setCountry} onNationalChange={setNational} />
-
         <div className="auth-field">
           <Mail size={18} className="field-icon" />
-          <input
-            type="email"
-            placeholder="Email"
-            value={signEmail}
-            onChange={(e) => setSignEmail(e.target.value)}
-            autoComplete="email"
-          />
+          <input type="email" placeholder="Email" value={signEmail} onChange={(e) => setSignEmail(e.target.value)} autoComplete="email" />
         </div>
-
         <div className="auth-field">
           <Lock size={18} className="field-icon" />
-          <input
-            type={showPassword ? 'text' : 'password'}
-            placeholder="Password (min 6)"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            autoComplete="new-password"
-          />
+          <input type={showPassword ? 'text' : 'password'} placeholder="Password (min 6)" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" />
           <button type="button" className="field-toggle" onClick={() => setShowPassword((v) => !v)} aria-label="Toggle password">
             {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
           </button>
         </div>
-
         <div className="auth-field">
           <Lock size={18} className="field-icon" />
-          <input
-            type="password"
-            inputMode="numeric"
-            maxLength={4}
-            placeholder="4-digit PIN"
-            value={signPin}
-            onChange={(e) => setSignPin(e.target.value.replace(/[^0-9]/g, '').slice(0, 4))}
-            autoComplete="off"
-          />
+          <input type="password" inputMode="numeric" maxLength={4} placeholder="4-digit PIN" value={signPin} onChange={(e) => setSignPin(e.target.value.replace(/[^0-9]/g, '').slice(0, 4))} autoComplete="off" />
         </div>
-
         <div className="auth-field">
-          <input
-            type="text"
-            placeholder="Referral code (optional)"
-            value={referral}
-            onChange={(e) => setReferral(e.target.value)}
-          />
+          <input type="text" placeholder="Referral code (optional)" value={referral} onChange={(e) => setReferral(e.target.value)} />
         </div>
-
         {error && <p className="auth-error">{error}</p>}
         <button type="button" className="btn-primary" onClick={handleSignUp}>
           Create account
@@ -496,12 +450,7 @@ export function AuthFlow({ onAuthenticated }: AuthFlowProps) {
         <h2>Reset PIN</h2>
         <p className="auth-sub">Enter the phone or email linked to your account</p>
         <div className="auth-field">
-          <input
-            type="text"
-            placeholder="Phone or email"
-            value={pendingContact}
-            onChange={(e) => setPendingContact(e.target.value)}
-          />
+          <input type="text" placeholder="Phone or email" value={pendingContact} onChange={(e) => setPendingContact(e.target.value)} />
         </div>
         {error && <p className="auth-error">{error}</p>}
         <button type="button" className="btn-primary" onClick={handleForgotContinue}>
@@ -520,14 +469,7 @@ export function AuthFlow({ onAuthenticated }: AuthFlowProps) {
         <h2>Enter OTP</h2>
         <p className="auth-sub">We sent a code to {pendingContact}</p>
         <div className="auth-field">
-          <input
-            type="text"
-            inputMode="numeric"
-            maxLength={6}
-            placeholder="OTP code"
-            value={otp}
-            onChange={(e) => setOtp(e.target.value.replace(/[^0-9]/g, '').slice(0, 6))}
-          />
+          <input type="text" inputMode="numeric" maxLength={6} placeholder="OTP code" value={otp} onChange={(e) => setOtp(e.target.value.replace(/[^0-9]/g, '').slice(0, 6))} />
         </div>
         {error && <p className="auth-error">{error}</p>}
         <button type="button" className="btn-primary" onClick={handleOtpContinue}>
@@ -546,24 +488,10 @@ export function AuthFlow({ onAuthenticated }: AuthFlowProps) {
         <h2>Set new PIN</h2>
         <p className="auth-sub">Choose a new 4-digit PIN</p>
         <div className="auth-field">
-          <input
-            type="password"
-            inputMode="numeric"
-            maxLength={4}
-            placeholder="New PIN"
-            value={newPin}
-            onChange={(e) => setNewPin(e.target.value.replace(/[^0-9]/g, '').slice(0, 4))}
-          />
+          <input type="password" inputMode="numeric" maxLength={4} placeholder="New PIN" value={newPin} onChange={(e) => setNewPin(e.target.value.replace(/[^0-9]/g, '').slice(0, 4))} />
         </div>
         <div className="auth-field">
-          <input
-            type="password"
-            inputMode="numeric"
-            maxLength={4}
-            placeholder="Confirm PIN"
-            value={confirmPin}
-            onChange={(e) => setConfirmPin(e.target.value.replace(/[^0-9]/g, '').slice(0, 4))}
-          />
+          <input type="password" inputMode="numeric" maxLength={4} placeholder="Confirm PIN" value={confirmPin} onChange={(e) => setConfirmPin(e.target.value.replace(/[^0-9]/g, '').slice(0, 4))} />
         </div>
         {error && <p className="auth-error">{error}</p>}
         <button type="button" className="btn-primary" onClick={handleNewPin}>
