@@ -116,7 +116,6 @@ export function VerxorApp() {
     if (params.get('admin') === '1') {
       setAdmin(true);
     }
-    // Capture inbound referral for signup attribution
     const ref = params.get('ref');
     if (ref && /^[A-Za-z0-9]{4,16}$/.test(ref)) {
       try {
@@ -144,7 +143,11 @@ export function VerxorApp() {
   }, []);
 
   const handleAuth = useCallback((s: AuthSession) => {
-    setAuth(s);
+    setAuth({
+      ...s,
+      balanceNgn: s.balanceNgn ?? 0,
+      balanceUsd: s.balanceUsd ?? 0,
+    });
   }, []);
 
   const handleLogout = useCallback(() => {
@@ -244,10 +247,10 @@ export function VerxorApp() {
     content = <ServicesPage open={openService} onBack={() => navigatePage('home')} />;
   } else {
     content = {
-      home: <HomePage go={navigatePage} openService={openService} />,
-      fund: <FundPage />,
+      home: <HomePage go={navigatePage} openService={openService} session={auth} />,
+      fund: <FundPage session={auth} />,
       services: <ServicesPage open={openService} onBack={() => navigatePage('home')} />,
-      profile: <ProfilePage openService={openService} />,
+      profile: <ProfilePage openService={openService} session={auth} />,
     }[page];
   }
 
