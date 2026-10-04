@@ -14,6 +14,7 @@ import { TvPage } from './tv-page';
 import { EsimPage } from './esim-page';
 import { VirtualNumbersPage } from './virtual-numbers-page';
 import { BettingPage } from './betting-page';
+import { ExamPinPage } from './exam-pin-page';
 import { EditProfilePage } from './edit-profile-page';
 import { ReferralPage } from './referral-page';
 import { PrivacyPolicyPage } from './privacy-policy-page';
@@ -203,6 +204,8 @@ export function VerxorApp() {
         onOpenHistory={() => navigatePage('history')}
       />
     );
+  } else if (service === 'exam-pin') {
+    content = <ExamPinPage onBack={closeService} />;
   } else if (service === 'edit-profile') {
     content = (
       <EditProfilePage
