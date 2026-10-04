@@ -8,7 +8,16 @@
   gap: 16px;
   max-width: 480px;
   margin: 0 auto;
-  padding-bottom: 28px;
+  padding: 0 0 28px;
+  background: #f8fafc;
+  min-height: 100%;
+  box-sizing: border-box;
+}
+
+.air-page *,
+.air-page *::before,
+.air-page *::after {
+  box-sizing: border-box;
 }
 
 .air-topbar {
@@ -68,20 +77,24 @@
   font-weight: 500;
 }
 
-/* ── Balance Card (matches Data page) ── */
-.air-balance-card {
+/* ── Balance Card (matches Data page — high specificity) ── */
+.air-page .air-balance-card {
   position: relative;
-  display: flex;
+  display: flex !important;
+  flex-direction: row;
   align-items: center;
   justify-content: space-between;
   padding: 20px 18px;
   border-radius: 20px;
-  background: linear-gradient(135deg, #0a1628 0%, #0f1f38 45%, #122848 100%);
+  background: linear-gradient(135deg, #0a1628 0%, #0f1f38 45%, #122848 100%) !important;
   overflow: hidden;
   box-shadow: 0 8px 28px rgba(15, 23, 42, 0.22);
+  color: #fff;
+  min-height: 110px;
+  width: 100%;
 }
 
-.air-balance-card::before {
+.air-page .air-balance-card::before {
   content: '';
   position: absolute;
   inset: 0;
@@ -89,62 +102,72 @@
   pointer-events: none;
 }
 
-.air-balance-left {
+.air-page .air-balance-left {
   position: relative;
   z-index: 1;
-  display: flex;
-  flex-direction: column;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-start;
   gap: 4px;
+  flex: 1;
+  min-width: 0;
 }
 
-.air-balance-label {
+.air-page .air-balance-label {
+  display: block;
   font-size: 12px;
   font-weight: 500;
-  color: rgba(255, 255, 255, 0.65);
+  color: rgba(255, 255, 255, 0.65) !important;
+  line-height: 1.3;
 }
 
-.air-balance-amount {
+.air-page .air-balance-amount {
+  display: block;
   font-size: 26px;
   font-weight: 800;
   letter-spacing: -0.03em;
-  color: #fff;
+  color: #fff !important;
   line-height: 1.15;
+  margin: 0;
 }
 
-.air-quick-topup {
-  display: inline-flex;
+.air-page .air-quick-topup {
+  display: inline-flex !important;
   align-items: center;
   gap: 5px;
   margin-top: 8px;
   padding: 6px 12px;
   border-radius: 999px;
-  border: none;
-  background: rgba(0, 200, 83, 0.18);
-  color: #69f0ae;
+  border: none !important;
+  background: rgba(0, 200, 83, 0.18) !important;
+  color: #69f0ae !important;
   font-size: 11px;
   font-weight: 700;
   cursor: pointer;
   width: fit-content;
   transition: background 0.15s;
+  appearance: none;
+  -webkit-appearance: none;
 }
 
-.air-quick-topup:hover {
-  background: rgba(0, 200, 83, 0.28);
+.air-page .air-quick-topup:hover {
+  background: rgba(0, 200, 83, 0.28) !important;
 }
 
-.air-balance-art {
+.air-page .air-balance-art {
   position: relative;
   z-index: 1;
-  display: flex;
+  display: flex !important;
   align-items: center;
   gap: 8px;
+  flex-shrink: 0;
 }
 
-.air-wallet-glow {
+.air-page .air-wallet-glow {
   position: relative;
   width: 64px;
   height: 64px;
-  display: grid;
+  display: grid !important;
   place-items: center;
   border-radius: 16px;
   background: linear-gradient(145deg, rgba(59, 130, 246, 0.35), rgba(37, 99, 235, 0.15));
@@ -152,13 +175,13 @@
   color: #93c5fd;
 }
 
-.air-naira-badge {
+.air-page .air-naira-badge {
   position: absolute;
   bottom: 6px;
   right: 6px;
   width: 18px;
   height: 18px;
-  display: grid;
+  display: grid !important;
   place-items: center;
   border-radius: 50%;
   background: #2563eb;
@@ -166,10 +189,12 @@
   font-size: 10px;
   font-weight: 800;
   box-shadow: 0 2px 6px rgba(37, 99, 235, 0.5);
+  line-height: 1;
 }
 
-.air-balance-chevron {
+.air-page .air-balance-chevron {
   color: rgba(255, 255, 255, 0.35);
+  flex-shrink: 0;
 }
 
 .air-section {
