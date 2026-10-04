@@ -5,13 +5,14 @@
 .air-page {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
   max-width: 480px;
   margin: 0 auto;
-  padding: 0 0 28px;
+  padding: 8px 14px 28px;
   background: #f8fafc;
   min-height: 100%;
   box-sizing: border-box;
+  width: 100%;
 }
 
 .air-page *,
@@ -26,7 +27,8 @@
   grid-template-columns: 40px 1fr 40px;
   align-items: center;
   gap: 10px;
-  padding: 4px 0;
+  padding: 0;
+  margin: 0;
 }
 
 .air-back,
@@ -85,18 +87,18 @@
   letter-spacing: 0.01em;
 }
 
-/* ── Balance Card — compact, professional fit ── */
+/* ── Balance Card — compact, phone-width professional ── */
 .air-page .air-balance-card {
   position: relative;
   display: flex !important;
   flex-direction: row;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 16px;
-  border-radius: 18px;
+  padding: 14px 14px;
+  border-radius: 16px;
   background: linear-gradient(135deg, #0a1628 0%, #0f1f38 45%, #122848 100%) !important;
   overflow: hidden;
-  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.2);
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.18);
   color: #fff;
   min-height: 0;
   width: 100%;
@@ -118,14 +120,14 @@
   display: flex !important;
   flex-direction: column !important;
   align-items: flex-start;
-  gap: 4px;
+  gap: 2px;
   flex: 1;
   min-width: 0;
 }
 
 .air-page .air-balance-label {
   display: block;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 500;
   color: rgba(255, 255, 255, 0.65) !important;
   line-height: 1.3;
@@ -133,7 +135,7 @@
 
 .air-page .air-balance-amount {
   display: block;
-  font-size: 24px;
+  font-size: 22px;
   font-weight: 800;
   letter-spacing: -0.03em;
   color: #fff !important;
@@ -144,9 +146,9 @@
 .air-page .air-quick-topup {
   display: inline-flex !important;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
   margin-top: 6px;
-  padding: 5px 11px;
+  padding: 4px 10px;
   border-radius: 999px;
   border: none !important;
   background: rgba(0, 200, 83, 0.18) !important;
@@ -169,36 +171,36 @@
   z-index: 1;
   display: flex !important;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   flex-shrink: 0;
 }
 
 .air-page .air-wallet-glow {
   position: relative;
-  width: 52px;
-  height: 52px;
+  width: 48px;
+  height: 48px;
   display: grid !important;
   place-items: center;
-  border-radius: 14px;
+  border-radius: 12px;
   background: linear-gradient(145deg, rgba(59, 130, 246, 0.35), rgba(37, 99, 235, 0.15));
-  box-shadow: 0 0 20px rgba(59, 130, 246, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  box-shadow: 0 0 18px rgba(59, 130, 246, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.12);
   color: #93c5fd;
 }
 
 .air-page .air-naira-badge {
   position: absolute;
-  bottom: 4px;
-  right: 4px;
-  width: 16px;
-  height: 16px;
+  bottom: 3px;
+  right: 3px;
+  width: 15px;
+  height: 15px;
   display: grid !important;
   place-items: center;
   border-radius: 50%;
   background: #2563eb;
   color: #fff;
-  font-size: 9px;
+  font-size: 8px;
   font-weight: 800;
-  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.5);
+  box-shadow: 0 2px 5px rgba(37, 99, 235, 0.5);
   line-height: 1;
 }
 
@@ -211,7 +213,7 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
-  padding: 16px;
+  padding: 14px;
   border-radius: 16px;
   border: 1px solid #e2e8f0;
   background: #fff;
@@ -236,12 +238,12 @@
 .air-networks {
   display: flex;
   flex-wrap: nowrap;
-  gap: 12px;
+  gap: 10px;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
-  padding: 2px 0 6px;
-  margin: 0 -2px;
+  padding: 2px 0 4px;
+  margin: 0;
 }
 
 .air-networks::-webkit-scrollbar {
@@ -251,18 +253,18 @@
 .air-net {
   position: relative;
   flex: 0 0 auto;
-  width: 78px;
-  min-width: 78px;
+  width: 76px;
+  min-width: 76px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
-  padding: 12px 8px 10px;
-  border-radius: 16px;
+  gap: 6px;
+  padding: 10px 6px 8px;
+  border-radius: 14px;
   border: 1.5px solid #e2e8f0;
   background: #fff;
   color: #0f172a;
-  min-height: 96px;
+  min-height: 90px;
 }
 
 .air-net:hover {
@@ -277,10 +279,10 @@
 
 .air-net-check {
   position: absolute;
-  top: 6px;
-  right: 6px;
-  width: 18px;
-  height: 18px;
+  top: 5px;
+  right: 5px;
+  width: 16px;
+  height: 16px;
   display: grid;
   place-items: center;
   border-radius: 999px;
@@ -289,9 +291,9 @@
 }
 
 .air-net-logo {
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
+  width: 42px;
+  height: 42px;
+  border-radius: 11px;
   display: grid;
   place-items: center;
   overflow: hidden;
@@ -331,7 +333,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  min-height: 50px;
+  min-height: 48px;
   padding: 0 10px 0 12px;
   border-radius: 12px;
   border: 1px solid #e2e8f0;
@@ -370,7 +372,7 @@
   font-size: 15px;
   font-weight: 600;
   color: #0f172a;
-  height: 48px;
+  height: 46px;
 }
 
 .air-input-wrap input::placeholder {
@@ -437,7 +439,7 @@
 }
 
 .air-chip {
-  min-height: 36px;
+  min-height: 34px;
   padding: 0 12px;
   border-radius: 999px;
   border: 1px solid #e2e8f0;
@@ -489,7 +491,7 @@
 }
 
 .air-cta {
-  min-height: 52px;
+  min-height: 50px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -528,15 +530,15 @@
   display: flex;
   align-items: flex-start;
   gap: 12px;
-  padding: 14px 16px;
+  padding: 12px 14px;
   border-radius: 14px;
   background: #ecfdf5;
   border: 1px solid #a7f3d0;
 }
 
 .air-trust-icon {
-  width: 28px;
-  height: 28px;
+  width: 26px;
+  height: 26px;
   display: grid;
   place-items: center;
   border-radius: 999px;
@@ -579,21 +581,31 @@
 }
 
 @media (max-width: 360px) {
+  .air-page {
+    padding: 6px 12px 24px;
+  }
   .air-networks {
-    gap: 10px;
+    gap: 8px;
   }
   .air-net {
-    width: 72px;
-    min-width: 72px;
-    padding: 10px 6px 8px;
-    min-height: 90px;
+    width: 70px;
+    min-width: 70px;
+    padding: 8px 5px 6px;
+    min-height: 84px;
   }
   .air-net-logo {
-    width: 40px;
-    height: 40px;
+    width: 38px;
+    height: 38px;
   }
   .air-use-mine {
     font-size: 10px;
     padding: 5px 8px;
+  }
+  .air-page .air-balance-amount {
+    font-size: 20px;
+  }
+  .air-page .air-wallet-glow {
+    width: 44px;
+    height: 44px;
   }
 }
