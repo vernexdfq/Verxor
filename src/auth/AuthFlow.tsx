@@ -564,33 +564,26 @@ export function AuthFlow({ onAuthenticated }: { onAuthenticated: (session: AuthS
           <h1 className="auth-title">Create your account</h1>
           <p className="auth-sub">Fill in your details to get started for free</p>
           {error ? <div className="auth-error">{error}</div> : null}
-          <div className="auth-section">Personal info</div>
           <div className="auth-field">
             <label htmlFor="su-name">Full Name</label>
             <div className="auth-input-wrap">
               <User size={18} strokeWidth={2} />
-              <input id="su-name" type="text" placeholder="John Doe" value={fullName} onChange={(e) => { setFullName(e.target.value); if (error) setError(''); }} autoComplete="name" />
+              <input id="su-name" type="text" placeholder="Your full name" value={fullName} onChange={(e) => { setFullName(e.target.value); if (error) setError(''); }} autoComplete="name" />
             </div>
           </div>
           <PhoneField id="su-phone" label="Phone Number" country={country} national={national} onOpenPicker={() => setPickerOpen(true)} onNationalChange={(v) => { setNational(v); if (error) setError(''); }} placeholder={country.iso === 'NG' ? '8012345678' : 'Phone number'} />
-          <p className="auth-hint auth-hint--tight">
-            {country.iso === 'NG'
-              ? 'Nigerian number - Naira wallet and full VTU services'
-              : 'International number - USD wallet, Nigerian VTU locked'}
-          </p>
           <div className="auth-field">
             <label htmlFor="su-email">Email Address</label>
             <div className="auth-input-wrap">
               <Mail size={18} strokeWidth={2} />
-              <input id="su-email" type="email" placeholder="you@example.com" value={signEmail} onChange={(e) => { setSignEmail(e.target.value); if (error) setError(''); }} autoComplete="email" />
+              <input id="su-email" type="email" inputMode="email" placeholder="you@example.com" value={signEmail} onChange={(e) => { setSignEmail(e.target.value); if (error) setError(''); }} autoComplete="email" />
             </div>
           </div>
-          <div className="auth-section">Account security</div>
           <div className="auth-field">
-            <label htmlFor="su-password">Password</label>
+            <label htmlFor="su-pass">Password</label>
             <div className="auth-input-wrap">
               <Lock size={18} strokeWidth={2} />
-              <input id="su-password" type={showPassword ? 'text' : 'password'} placeholder="Min 6 characters" value={password} onChange={(e) => { setPassword(e.target.value); if (error) setError(''); }} autoComplete="new-password" />
+              <input id="su-pass" type={showPassword ? 'text' : 'password'} placeholder="At least 6 characters" value={password} onChange={(e) => { setPassword(e.target.value); if (error) setError(''); }} autoComplete="new-password" />
               <button type="button" className="auth-eye" onClick={() => setShowPassword((v) => !v)} aria-label={showPassword ? 'Hide password' : 'Show password'}>
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
@@ -607,7 +600,7 @@ export function AuthFlow({ onAuthenticated }: { onAuthenticated: (session: AuthS
             <label htmlFor="su-ref">Referral code (optional)</label>
             <div className="auth-input-wrap">
               <Gift size={18} strokeWidth={2} />
-              <input id="su-ref" type="text" placeholder="Optional" value={referral} onChange={(e) => setReferral(e.target.value)} />
+              <input id="su-ref" type="text" placeholder="Optional" value={referral} onChange={(e) => setReferral(e.target.value)} autoComplete="off" />
             </div>
           </div>
           <button type="button" className="auth-btn" onClick={handleSignUp}>Create account</button>
@@ -627,15 +620,16 @@ export function AuthFlow({ onAuthenticated }: { onAuthenticated: (session: AuthS
           <button type="button" className="auth-back" onClick={() => { setError(''); setStep('pin'); }}>
             <ArrowLeft size={16} strokeWidth={2.2} /> Back
           </button>
+          <BrandMark />
           <h1 className="auth-title">Forgot PIN</h1>
-          <p className="auth-sub">Enter your account password to reset PIN</p>
+          <p className="auth-sub">Enter your account password to reset your PIN</p>
           {error ? <div className="auth-error">{error}</div> : null}
           <div className="auth-field">
             <label htmlFor="fp-pass">Password</label>
             <div className="auth-input-wrap">
               <Lock size={18} strokeWidth={2} />
-              <input id="fp-pass" type={showForgotPass ? 'text' : 'password'} value={forgotPassword} onChange={(e) => { setForgotPassword(e.target.value); if (error) setError(''); }} />
-              <button type="button" className="auth-eye" onClick={() => setShowForgotPass((v) => !v)}>
+              <input id="fp-pass" type={showForgotPass ? 'text' : 'password'} placeholder="Your password" value={forgotPassword} onChange={(e) => { setForgotPassword(e.target.value); if (error) setError(''); }} autoComplete="current-password" />
+              <button type="button" className="auth-eye" onClick={() => setShowForgotPass((v) => !v)} aria-label={showForgotPass ? 'Hide password' : 'Show password'}>
                 {showForgotPass ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
@@ -650,24 +644,28 @@ export function AuthFlow({ onAuthenticated }: { onAuthenticated: (session: AuthS
     return (
       <div className="auth-root">
         <div className="auth-body">
+          <button type="button" className="auth-back" onClick={() => { setError(''); setStep('forgot-password'); }}>
+            <ArrowLeft size={16} strokeWidth={2.2} /> Back
+          </button>
+          <BrandMark />
           <h1 className="auth-title">Set new PIN</h1>
           <p className="auth-sub">Choose a new 4-digit PIN</p>
           {error ? <div className="auth-error">{error}</div> : null}
           <div className="auth-field">
-            <label htmlFor="np1">New PIN</label>
+            <label htmlFor="np-pin">New PIN</label>
             <div className="auth-input-wrap">
               <Lock size={18} strokeWidth={2} />
-              <input id="np1" type="password" inputMode="numeric" maxLength={4} value={newPin} onChange={(e) => setNewPin(e.target.value.replace(/\D/g, '').slice(0, 4))} />
+              <input id="np-pin" type="password" inputMode="numeric" maxLength={4} placeholder="••••" value={newPin} onChange={(e) => { setNewPin(e.target.value.replace(/\D/g, '').slice(0, 4)); if (error) setError(''); }} autoComplete="off" />
             </div>
           </div>
           <div className="auth-field">
-            <label htmlFor="np2">Confirm PIN</label>
+            <label htmlFor="np-confirm">Confirm PIN</label>
             <div className="auth-input-wrap">
               <Lock size={18} strokeWidth={2} />
-              <input id="np2" type="password" inputMode="numeric" maxLength={4} value={confirmNewPin} onChange={(e) => setConfirmNewPin(e.target.value.replace(/\D/g, '').slice(0, 4))} />
+              <input id="np-confirm" type="password" inputMode="numeric" maxLength={4} placeholder="••••" value={confirmNewPin} onChange={(e) => { setConfirmNewPin(e.target.value.replace(/\D/g, '').slice(0, 4)); if (error) setError(''); }} autoComplete="off" />
             </div>
           </div>
-          <button type="button" className="auth-btn" onClick={handleSetNewPin}>Save PIN</button>
+          <button type="button" className="auth-btn" onClick={handleSetNewPin}>Save new PIN</button>
         </div>
       </div>
     );
@@ -677,9 +675,10 @@ export function AuthFlow({ onAuthenticated }: { onAuthenticated: (session: AuthS
     return (
       <div className="auth-root">
         <div className="auth-body auth-body--center">
+          <BrandMark />
           <h1 className="auth-title auth-title--center">PIN updated</h1>
-          <p className="auth-sub auth-sub--center">You can now sign in with your new PIN.</p>
-          <button type="button" className="auth-btn" onClick={finishForgotSuccess}>Continue</button>
+          <p className="auth-sub auth-sub--center">{successMsg || 'Your PIN has been reset successfully.'}</p>
+          <button type="button" className="auth-btn" onClick={finishForgotSuccess}>Continue to login</button>
         </div>
       </div>
     );
