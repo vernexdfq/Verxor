@@ -292,10 +292,10 @@ export function AirtimePage({ onBack }: { onBack: () => void }) {
         </div>
         <div className="air-balance-art" aria-hidden>
           <div className="air-wallet-glow">
-            <Wallet size={36} strokeWidth={1.6} />
+            <Wallet size={28} strokeWidth={1.6} />
             <span className="air-naira-badge">{'\u20a6'}</span>
           </div>
-          <ArrowRight size={16} className="air-balance-chevron" />
+          <ArrowRight size={14} className="air-balance-chevron" />
         </div>
       </section>
 
