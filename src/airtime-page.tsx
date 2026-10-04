@@ -3,6 +3,7 @@
 import { useMemo, useState, useCallback } from 'react';
 import {
   ArrowLeft,
+  ArrowRight,
   Check,
   Lock,
   Phone,
@@ -281,39 +282,20 @@ export function AirtimePage({ onBack }: { onBack: () => void }) {
         </button>
       </header>
 
-      <section className="air-hero" aria-label="Airtime Recharge">
-        <div className="air-hero-copy">
-          <span className="air-hero-badge">
-            <Zap size={12} strokeWidth={2.5} /> FAST TOP-UP
-          </span>
-          <strong>Airtime Recharge</strong>
-          <p>Buy airtime instantly for all major networks.</p>
+      <section className="air-balance-card" aria-label="Wallet balance">
+        <div className="air-balance-left">
+          <span className="air-balance-label">Wallet Balance</span>
+          <strong className="air-balance-amount">{moneyFull(WALLET_BALANCE)}</strong>
+          <button type="button" className="air-quick-topup" onClick={handleFund}>
+            <Zap size={12} strokeWidth={2.5} /> Quick Topup
+          </button>
         </div>
-        <div className="air-hero-art" aria-hidden>
-          <svg width="88" height="88" viewBox="0 0 88 88" fill="none">
-            <circle cx="44" cy="44" r="36" stroke="rgba(147,197,253,0.25)" strokeWidth="1.5" />
-            <circle cx="44" cy="44" r="24" stroke="rgba(147,197,253,0.35)" strokeWidth="1.5" />
-            <path
-              d="M44 22v8M44 58v8M22 44h8M58 44h8"
-              stroke="rgba(147,197,253,0.5)"
-              strokeWidth="2"
-              strokeLinecap="round"
-            />
-            <circle cx="44" cy="44" r="10" fill="rgba(37,99,235,0.35)" stroke="#93c5fd" strokeWidth="1.5" />
-            <path
-              d="M38 48c2.5-4 9.5-4 12 0"
-              stroke="#93c5fd"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-              fill="none"
-            />
-            <circle cx="44" cy="40" r="3" fill="#93c5fd" />
-          </svg>
-        </div>
-        <div className="air-hero-dots" aria-hidden>
-          <span className="active" />
-          <span />
-          <span />
+        <div className="air-balance-art" aria-hidden>
+          <div className="air-wallet-glow">
+            <Wallet size={36} strokeWidth={1.6} />
+            <span className="air-naira-badge">{'\u20a6'}</span>
+          </div>
+          <ArrowRight size={16} className="air-balance-chevron" />
         </div>
       </section>
 
