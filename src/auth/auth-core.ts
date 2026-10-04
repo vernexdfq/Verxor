@@ -23,6 +23,10 @@ export type AuthSession = {
   dialCode?: string;
   homeCurrency?: 'NGN' | 'USD';
   vtuEligible?: boolean;
+  /** Wallet balances — 0 until funded / synced from Supabase */
+  balanceNgn?: number;
+  balanceUsd?: number;
+  email?: string;
 };
 
 export const STORAGE_KEY = 'verxor-auth-session';
@@ -31,14 +35,17 @@ export const LAST_PHONE_KEY = 'verxor-last-phone';
 export const DEFAULT_MOCK: AuthSession = {
   authenticated: false,
   method: 'phone',
-  contact: '08141620644',
-  name: 'Destiny',
-  pin: '1234',
-  password: 'Verxor1',
+  contact: '',
+  name: '',
+  pin: '',
+  password: '',
   phoneCountry: 'NG',
   dialCode: '234',
   homeCurrency: 'NGN',
   vtuEligible: true,
+  balanceNgn: 0,
+  balanceUsd: 0,
+  email: '',
 };
 
 type LastPhone = {
@@ -65,6 +72,8 @@ export function loadRemembered(): AuthSession {
         typeof parsed.vtuEligible === 'boolean'
           ? parsed.vtuEligible
           : isVtuEligible(iso),
+      balanceNgn: typeof parsed.balanceNgn === 'number' ? parsed.balanceNgn : 0,
+      balanceUsd: typeof parsed.balanceUsd === 'number' ? parsed.balanceUsd : 0,
     };
   } catch {
     return { ...DEFAULT_MOCK };
@@ -77,37 +86,4 @@ export function saveRemembered(session: AuthSession) {
     STORAGE_KEY,
     JSON.stringify({ ...session, authenticated: false }),
   );
-}
-
-export function loadLastPhone(): LastPhone | null {
-  if (typeof window === 'undefined') return null;
-  try {
-    const raw = localStorage.getItem(LAST_PHONE_KEY);
-    if (!raw) return null;
-    const p = JSON.parse(raw) as LastPhone;
-    if (p?.iso && p?.national) return p;
-  } catch {
-    /* ignore */
-  }
-  return null;
-}
-
-export function saveLastPhone(iso: string, dial: string, national: string) {
-  if (typeof window === 'undefined') return;
-  try {
-    localStorage.setItem(
-      LAST_PHONE_KEY,
-      JSON.stringify({ iso, dial, national: normalizeNational(national, iso) }),
-    );
-  } catch {
-    /* ignore */
-  }
-}
-
-export function formatContactDisplay(session: AuthSession, method: AuthMethod): string {
-  if (method === 'email') return session.contact;
-  const iso = session.phoneCountry || 'NG';
-  const national = displayNational(iso, session.contact);
-  const c = findCountry(iso);
-  return `${flagEmoji(iso)} +${c.dial} ${national}`;
 }
