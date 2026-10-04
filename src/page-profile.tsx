@@ -16,17 +16,31 @@ import {
   UserCheck,
 } from 'lucide-react';
 import type { ServiceView } from './service-pages';
+import type { AuthSession } from './auth/AuthFlow';
 import './profile-page.css';
 
-const USER = {
-  name: 'Destiny',
-  email: 'vernexdfq@gmail.com',
-  role: 'Tenant / User',
-  memberSince: 'Member since September 2026',
-  initial: 'D',
-};
+export function ProfilePage({
+  openService,
+  session,
+}: {
+  openService: (view: ServiceView) => void;
+  session?: AuthSession | null;
+}) {
+  const name = (session?.name || 'User').trim() || 'User';
+  const email =
+    session?.email ||
+    (session?.method === 'email' ? session.contact : '') ||
+    session?.contact ||
+    '';
+  const initial = name.charAt(0).toUpperCase() || 'U';
+  const USER = {
+    name,
+    email: email || 'No contact on file',
+    role: 'Member',
+    memberSince: '',
+    initial,
+  };
 
-export function ProfilePage({ openService }: { openService: (view: ServiceView) => void }) {
   return (
     <div className="prof-page">
       <header className="prof-page-head">
@@ -46,7 +60,7 @@ export function ProfilePage({ openService }: { openService: (view: ServiceView) 
             <strong className="prof-name">{USER.name}</strong>
             <span className="prof-email">{USER.email}</span>
             <span className="prof-role">{USER.role}</span>
-            <span className="prof-since">{USER.memberSince}</span>
+            {USER.memberSince ? <span className="prof-since">{USER.memberSince}</span> : null}
           </div>
         </div>
         <button
