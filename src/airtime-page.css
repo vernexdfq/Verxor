@@ -68,96 +68,108 @@
   font-weight: 500;
 }
 
-.air-hero {
+/* ── Balance Card (matches Data page) ── */
+.air-balance-card {
   position: relative;
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 18px 16px 22px;
-  border-radius: 18px;
-  background: linear-gradient(135deg, #0c1a30 0%, #0f172a 40%, #1e3a5f 100%);
-  color: #fff;
+  justify-content: space-between;
+  padding: 20px 18px;
+  border-radius: 20px;
+  background: linear-gradient(135deg, #0a1628 0%, #0f1f38 45%, #122848 100%);
   overflow: hidden;
-  box-shadow: 0 10px 28px rgba(12, 26, 48, 0.28);
-  min-height: 118px;
+  box-shadow: 0 8px 28px rgba(15, 23, 42, 0.22);
 }
 
-.air-hero::after {
+.air-balance-card::before {
   content: '';
   position: absolute;
-  right: -30px;
-  top: -40px;
-  width: 160px;
-  height: 160px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(37, 99, 235, 0.4), transparent 70%);
+  inset: 0;
+  background: radial-gradient(ellipse 80% 60% at 85% 40%, rgba(59, 130, 246, 0.22), transparent 55%);
   pointer-events: none;
 }
 
-.air-hero-copy {
-  flex: 1;
-  min-width: 0;
+.air-balance-left {
   position: relative;
   z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
-.air-hero-badge {
+.air-balance-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.air-balance-amount {
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: #fff;
+  line-height: 1.15;
+}
+
+.air-quick-topup {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 4px 10px;
+  gap: 5px;
+  margin-top: 8px;
+  padding: 6px 12px;
   border-radius: 999px;
-  background: rgba(59, 130, 246, 0.35);
-  border: 1px solid rgba(147, 197, 253, 0.25);
-  color: #bfdbfe;
-  font-size: 10px;
+  border: none;
+  background: rgba(0, 200, 83, 0.18);
+  color: #69f0ae;
+  font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0.04em;
-  margin-bottom: 8px;
+  cursor: pointer;
+  width: fit-content;
+  transition: background 0.15s;
 }
 
-.air-hero-copy strong {
-  display: block;
-  font-size: 18px;
-  line-height: 24px;
-  font-weight: 800;
-  letter-spacing: -0.02em;
+.air-quick-topup:hover {
+  background: rgba(0, 200, 83, 0.28);
 }
 
-.air-hero-copy p {
-  margin: 4px 0 0;
-  font-size: 12px;
-  line-height: 16px;
-  color: rgba(226, 232, 240, 0.78);
-  max-width: 200px;
-}
-
-.air-hero-art {
+.air-balance-art {
   position: relative;
   z-index: 1;
-  flex: none;
-  opacity: 0.95;
-}
-
-.air-hero-dots {
-  position: absolute;
-  bottom: 10px;
-  left: 16px;
   display: flex;
-  gap: 5px;
-  z-index: 1;
+  align-items: center;
+  gap: 8px;
 }
 
-.air-hero-dots span {
-  width: 6px;
-  height: 6px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.35);
+.air-wallet-glow {
+  position: relative;
+  width: 64px;
+  height: 64px;
+  display: grid;
+  place-items: center;
+  border-radius: 16px;
+  background: linear-gradient(145deg, rgba(59, 130, 246, 0.35), rgba(37, 99, 235, 0.15));
+  box-shadow: 0 0 24px rgba(59, 130, 246, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  color: #93c5fd;
 }
 
-.air-hero-dots span.active {
-  width: 16px;
-  background: #fff;
+.air-naira-badge {
+  position: absolute;
+  bottom: 6px;
+  right: 6px;
+  width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #2563eb;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.5);
+}
+
+.air-balance-chevron {
+  color: rgba(255, 255, 255, 0.35);
 }
 
 .air-section {
@@ -544,9 +556,6 @@
   .air-net-logo {
     width: 40px;
     height: 40px;
-  }
-  .air-hero-copy strong {
-    font-size: 16px;
   }
   .air-use-mine {
     font-size: 10px;
