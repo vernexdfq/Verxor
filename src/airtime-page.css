@@ -20,11 +20,13 @@
   box-sizing: border-box;
 }
 
+/* ── Top bar (matches Data page) ── */
 .air-topbar {
   display: grid;
   grid-template-columns: 40px 1fr 40px;
   align-items: center;
   gap: 10px;
+  padding: 4px 0;
 }
 
 .air-back,
@@ -33,27 +35,32 @@
   height: 40px;
   display: grid;
   place-items: center;
-  border-radius: 12px;
+  border-radius: 50%;
   border: 1px solid #e2e8f0;
   background: #fff;
   color: #0f172a;
   flex: none;
+  cursor: pointer;
+  transition: background 0.15s, box-shadow 0.15s;
+  padding: 0;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.air-back:hover {
+  background: #f1f5f9;
 }
 
 .air-wallet-btn {
   background: #2563eb;
   border-color: #2563eb;
   color: #fff;
-  border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.28);
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.3);
 }
 
 .air-wallet-btn:hover {
   background: #1d4ed8;
-}
-
-.air-back:hover {
-  background: #f1f5f9;
+  box-shadow: 0 6px 18px rgba(37, 99, 235, 0.38);
 }
 
 .air-title-wrap {
@@ -72,9 +79,10 @@
 
 .air-subtitle {
   margin: 2px 0 0;
-  font-size: 12px;
+  font-size: 11px;
   color: #64748b;
   font-weight: 500;
+  letter-spacing: 0.01em;
 }
 
 /* ── Balance Card (matches Data page — high specificity) ── */
