@@ -158,129 +158,61 @@ function money(n: number) {
   return '\u20a6' + n.toLocaleString('en-NG');
 }
 
-/** Brand-colored marks for Nigerian betting books */
-function ProviderLogo({ id, size = 48 }: { id: ProviderId; size?: number }) {
-  const s = { width: size, height: size, viewBox: '0 0 48 48', 'aria-hidden': true as const };
+/** Uses each provider website's favicon as its brand mark. */
+const PROVIDER_DOMAINS: Record<ProviderId, string> = {
+  sportybet: 'sportybet.com',
+  ilotbet: 'ilotbet.com',
+  '1xbet': '1xbet.com',
+  bet9ja: 'bet9ja.com',
+  bangbet: 'bangbet.com',
+  easywin: 'easywin.com',
+  betking: 'betking.com',
+  msport: 'msport.com',
+  nairabet: 'nairabet.com',
+  betway: 'betway.com.ng',
+  livescorebet: 'livescorebet.com',
+  merrybet: 'merrybet.com',
+};
 
-  switch (id) {
-    case 'sportybet':
-      return (
-        <svg {...s}>
-          <rect width="48" height="48" rx="12" fill="#E30613" />
-          <text x="24" y="31" textAnchor="middle" fill="#fff" fontSize="20" fontWeight="800" fontFamily="Inter, system-ui, sans-serif">
-            S
-          </text>
-        </svg>
-      );
-    case 'ilotbet':
-      return (
-        <svg {...s}>
-          <rect width="48" height="48" rx="12" fill="#0B0B0B" />
-          <text x="24" y="30" textAnchor="middle" fill="#fff" fontSize="15" fontWeight="800" fontFamily="Inter, system-ui, sans-serif" letterSpacing="-0.5">
-            iL
-          </text>
-        </svg>
-      );
-    case '1xbet':
-      return (
-        <svg {...s}>
-          <rect width="48" height="48" rx="12" fill="#1A66FF" />
-          <text x="24" y="30" textAnchor="middle" fill="#fff" fontSize="15" fontWeight="800" fontFamily="Inter, system-ui, sans-serif">
-            1x
-          </text>
-        </svg>
-      );
-    case 'bet9ja':
-      return (
-        <svg {...s}>
-          <rect width="48" height="48" rx="12" fill="#00A651" />
-          <text x="24" y="30" textAnchor="middle" fill="#fff" fontSize="13" fontWeight="800" fontFamily="Inter, system-ui, sans-serif">
-            9ja
-          </text>
-        </svg>
-      );
-    case 'bangbet':
-      return (
-        <svg {...s}>
-          <rect width="48" height="48" rx="12" fill="#F5A623" />
-          <text x="24" y="30" textAnchor="middle" fill="#111" fontSize="14" fontWeight="800" fontFamily="Inter, system-ui, sans-serif">
-            BB
-          </text>
-        </svg>
-      );
-    case 'easywin':
-      return (
-        <svg {...s}>
-          <rect width="48" height="48" rx="12" fill="#FF6B00" />
-          <text x="24" y="30" textAnchor="middle" fill="#fff" fontSize="13" fontWeight="800" fontFamily="Inter, system-ui, sans-serif">
-            EW
-          </text>
-        </svg>
-      );
-    case 'betking':
-      return (
-        <svg {...s}>
-          <rect width="48" height="48" rx="12" fill="#0033A0" />
-          <text x="24" y="30" textAnchor="middle" fill="#fff" fontSize="16" fontWeight="800" fontFamily="Inter, system-ui, sans-serif">
-            K
-          </text>
-        </svg>
-      );
-    case 'msport':
-      return (
-        <svg {...s}>
-          <rect width="48" height="48" rx="12" fill="#111" />
-          <text x="24" y="30" textAnchor="middle" fill="#FFD100" fontSize="16" fontWeight="800" fontFamily="Inter, system-ui, sans-serif">
-            M
-          </text>
-        </svg>
-      );
-    case 'nairabet':
-      return (
-        <svg {...s}>
-          <rect width="48" height="48" rx="12" fill="#1E90FF" />
-          <text x="24" y="30" textAnchor="middle" fill="#fff" fontSize="13" fontWeight="800" fontFamily="Inter, system-ui, sans-serif">
-            NB
-          </text>
-        </svg>
-      );
-    case 'betway':
-      return (
-        <svg {...s}>
-          <rect width="48" height="48" rx="12" fill="#00A651" />
-          <text x="24" y="30" textAnchor="middle" fill="#fff" fontSize="12" fontWeight="800" fontFamily="Inter, system-ui, sans-serif">
-            BW
-          </text>
-        </svg>
-      );
-    case 'livescorebet':
-      return (
-        <svg {...s}>
-          <rect width="48" height="48" rx="12" fill="#FF6200" />
-          <text x="24" y="30" textAnchor="middle" fill="#fff" fontSize="13" fontWeight="800" fontFamily="Inter, system-ui, sans-serif">
-            LS
-          </text>
-        </svg>
-      );
-    case 'merrybet':
-      return (
-        <svg {...s}>
-          <rect width="48" height="48" rx="12" fill="#7B2D8E" />
-          <text x="24" y="30" textAnchor="middle" fill="#fff" fontSize="13" fontWeight="800" fontFamily="Inter, system-ui, sans-serif">
-            MB
-          </text>
-        </svg>
-      );
-    default:
-      return (
-        <svg {...s}>
-          <rect width="48" height="48" rx="12" fill="#64748B" />
-          <text x="24" y="30" textAnchor="middle" fill="#fff" fontSize="16" fontWeight="800">
-            ?
-          </text>
-        </svg>
-      );
+function ProviderLogo({ id, size = 48 }: { id: ProviderId; size?: number }) {
+  const [failed, setFailed] = useState(false);
+  const provider = PROVIDERS.find((item) => item.id === id);
+  const domain = PROVIDER_DOMAINS[id];
+
+  if (!failed) {
+    return (
+      <img
+        src={'https://www.google.com/s2/favicons?domain=' + domain + '&sz=128'}
+        alt={(provider?.name ?? id) + ' logo'}
+        width={size}
+        height={size}
+        loading="lazy"
+        referrerPolicy="no-referrer"
+        onError={() => setFailed(true)}
+        style={{ width: size, height: size, objectFit: 'contain', borderRadius: 10, background: '#fff' }}
+      />
+    );
   }
+
+  return (
+    <span
+      aria-label={(provider?.name ?? id) + ' logo unavailable'}
+      style={{
+        width: size,
+        height: size,
+        display: 'grid',
+        placeItems: 'center',
+        borderRadius: 10,
+        background: provider?.color ?? '#64748B',
+        color: '#fff',
+        fontSize: 12,
+        fontWeight: 800,
+        flexShrink: 0,
+      }}
+    >
+      {(provider?.name ?? id).replace(/[^a-z0-9]/gi, '').slice(0, 3).toUpperCase()}
+    </span>
+  );
 }
 
 export function BettingPage({
@@ -349,12 +281,8 @@ export function BettingPage({
 
   const onVerify = async () => {
     if (!idReady || verifying) return;
-    setVerifying(true);
-    await new Promise((r) => setTimeout(r, 900));
-    setVerifying(false);
-    setVerified(true);
-    setCustomerName('Verified Customer');
-    toastMsg('Account verified');
+    // Do not show a fake verified customer. Connect this to the provider API first.
+    toastMsg('Live account verification is not connected yet.');
   };
 
   const openPay = () => {
@@ -365,16 +293,10 @@ export function BettingPage({
 
   const submitPin = async (fullPin: string) => {
     if (fullPin.length !== 4 || paying) return;
-    setPaying(true);
-    await new Promise((r) => setTimeout(r, 1000));
-    setPaying(false);
+    // A delay is not a payment confirmation; the server/provider integration is required.
     setPinOpen(false);
     setPin('');
-    setAccountId('');
-    setVerified(false);
-    setCustomerName('');
-    setAmountStr('');
-    toastMsg(`${provider.name} funded · ${money(amount)}`);
+    toastMsg('Betting-wallet funding is not connected yet.');
   };
 
   const onPinDigit = (d: string) => {
@@ -440,8 +362,8 @@ export function BettingPage({
         <section className="bet-card">
           <div className="bet-card-head">
             <div>
-              <strong>User ID</strong>
-              <span>Verify account before payment</span>
+              <strong>{provider.inputKind === 'phone' ? 'Phone Number' : provider.inputKind === 'username' ? 'Username' : 'Account ID'}</strong>
+              <span>Enter the identifier registered with {provider.name}</span>
             </div>
             <button type="button" className="bet-beneficiaries" onClick={() => setBeneficiariesOpen(true)}>
               Beneficiaries <ChevronRight size={14} />
@@ -462,7 +384,7 @@ export function BettingPage({
                 setVerified(false);
                 setCustomerName('');
               }}
-              aria-label="Betting account ID"
+              aria-label={provider.inputKind === 'phone' ? 'Betting account phone number' : provider.inputKind === 'username' ? 'Betting account username' : 'Betting account ID'}
             />
             {accountId ? (
               <button
