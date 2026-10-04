@@ -96,20 +96,20 @@ function moneyFull(n: number) {
   return '\u20a6' + n.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+const NETWORK_LOGO_DOMAINS: Record<NetworkId, string> = {
+  mtn: 'mtn.ng',
+  airtel: 'airtel.com.ng',
+  glo: 'gloworld.com',
+  '9mobile': '9mobile.com.ng',
+};
+
 function NetworkLogo({ id, size = 28 }: { id: NetworkId; size?: number }) {
   const [logoFailed, setLogoFailed] = useState(false);
-  const domain: Record<NetworkId, string> = {
-    mtn: 'mtn.ng',
-    airtel: 'airtel.com.ng',
-    glo: 'gloworld.com',
-    '9mobile': '9mobile.com.ng',
-  };
-
   if (!logoFailed) {
     return (
       <img
-        src={`https://www.google.com/s2/favicons?domain=${domain[id]}&sz=128`}
-        alt={`${id === '9mobile' ? '9mobile' : id.toUpperCase()} network logo`}
+        src={`https://www.google.com/s2/favicons?domain=${NETWORK_LOGO_DOMAINS[id]}&sz=128`}
+        alt={`${id === '9mobile' ? '9mobile' : id.toUpperCase()} logo`}
         width={size}
         height={size}
         loading="lazy"
@@ -119,7 +119,6 @@ function NetworkLogo({ id, size = 28 }: { id: NetworkId; size?: number }) {
       />
     );
   }
-  const s = { width: size, height: size, viewBox: '0 0 40 40' };
   switch (id) {
     case 'mtn':
       return (
