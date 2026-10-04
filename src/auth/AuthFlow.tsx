@@ -328,9 +328,7 @@ export function AuthFlow({ onAuthenticated }: { onAuthenticated: (session: AuthS
       setError('Enter a valid email');
       return;
     }
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters');\n      return;
-    }
+    if (password.length < 6) { setError('Password must be at least 6 characters'); return; }
     if (!/^\d{4}$/.test(signPin)) {
       setError('PIN must be exactly 4 digits');
       return;
@@ -399,14 +397,14 @@ export function AuthFlow({ onAuthenticated }: { onAuthenticated: (session: AuthS
     const next = { ...current, pin: newPin, authenticated: false };
     saveRemembered(next);
     setRemembered(next);
-    setSuccessMsg('PIN reset successful — enter PIN to login');
+    setSuccessMsg('PIN reset successful');
     setPin('');
     setError('');
     setStep('forgot-success');
   };
 
   const finishForgotSuccess = () => {
-    setSuccessMsg('PIN reset successful — enter PIN to login');
+    setSuccessMsg('PIN reset successful');
     setPin('');
     setStep('pin');
   };
@@ -422,7 +420,7 @@ export function AuthFlow({ onAuthenticated }: { onAuthenticated: (session: AuthS
   }
 
   const SkipButton = (
-    <button type="button" className="auth-skip" onClick={handleSkipLogin} aria-label="Skip login (temporary)" title="Skip login until Supabase is connected">
+    <button type="button" className="auth-skip" onClick={handleSkipLogin} aria-label="Skip login">
       <ArrowRight size={18} strokeWidth={2.4} />
     </button>
   );
@@ -471,7 +469,7 @@ export function AuthFlow({ onAuthenticated }: { onAuthenticated: (session: AuthS
           <button type="button" className="auth-btn" onClick={handleContinue}>Continue</button>
           <div className="auth-or">or</div>
           <p className="auth-footer-link">
-            Don't have an account?{' '}
+            Don&apos;t have an account?{' '}
             <button type="button" onClick={() => { setError(''); setStep('signup'); }}>Create one free</button>
           </p>
         </div>
@@ -515,7 +513,7 @@ export function AuthFlow({ onAuthenticated }: { onAuthenticated: (session: AuthS
           </div>
           <div className="auth-or" style={{ maxWidth: 300 }}>or</div>
           <p className="auth-footer-link">
-            Don't have an account?{' '}
+            Don&apos;t have an account?{' '}
             <button type="button" onClick={() => { setError(''); setStep('signup'); }}>Create one free</button>
           </p>
         </div>
@@ -546,9 +544,7 @@ export function AuthFlow({ onAuthenticated }: { onAuthenticated: (session: AuthS
           </div>
           <PhoneField id="su-phone" label="Phone Number" country={country} national={national} onOpenPicker={() => setPickerOpen(true)} onNationalChange={(v) => { setNational(v); if (error) setError(''); }} placeholder={country.iso === 'NG' ? '8012345678' : 'Phone number'} />
           <p className="auth-hint auth-hint--tight">
-            {country.iso === 'NG'
-              ? 'Nigerian number - Naira wallet and full VTU services'
-              : 'International number - USD wallet, Nigerian VTU locked'}
+            {country.iso === 'NG' ? 'Nigerian number - Naira wallet and full VTU' : 'International - USD wallet, NG VTU locked'}
           </p>
           <div className="auth-field">
             <label htmlFor="su-email">Email Address</label>
@@ -563,7 +559,7 @@ export function AuthFlow({ onAuthenticated }: { onAuthenticated: (session: AuthS
             <div className="auth-input-wrap">
               <Lock size={18} strokeWidth={2} />
               <input id="su-password" type={showPassword ? 'text' : 'password'} placeholder="Min 6 characters" value={password} onChange={(e) => { setPassword(e.target.value); if (error) setError(''); }} autoComplete="new-password" />
-              <button type="button" className="auth-eye" onClick={() => setShowPassword((v) => !v)} aria-label={showPassword ? 'Hide password' : 'Show password'}>
+              <button type="button" className="auth-eye" onClick={() => setShowPassword((v) => !v)} aria-label="Toggle password">
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
