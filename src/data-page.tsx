@@ -160,19 +160,15 @@ function detectNetwork(raw: string): NetworkId | null {
   const prefix = clean.substring(0, 4);
 
   const map: Record<string, NetworkId> = {
-    // MTN
     '0803': 'mtn', '0806': 'mtn', '0810': 'mtn', '0813': 'mtn',
     '0814': 'mtn', '0816': 'mtn', '0903': 'mtn', '0906': 'mtn',
     '0913': 'mtn', '0916': 'mtn', '0703': 'mtn', '0706': 'mtn',
-    // Airtel (includes 0911)
     '0802': 'airtel', '0808': 'airtel', '0812': 'airtel',
     '0701': 'airtel', '0708': 'airtel', '0901': 'airtel',
     '0902': 'airtel', '0904': 'airtel', '0907': 'airtel',
     '0911': 'airtel', '0912': 'airtel',
-    // Glo
     '0805': 'glo', '0807': 'glo', '0811': 'glo', '0815': 'glo',
     '0905': 'glo', '0915': 'glo', '0705': 'glo',
-    // 9mobile
     '0809': '9mobile', '0817': '9mobile', '0818': '9mobile',
     '0908': '9mobile', '0909': '9mobile',
   };
@@ -195,31 +191,10 @@ function moneyFull(n: number) {
 }
 
 /* ──────────────────────────────────────────
-   Network logo (inline SVG for crispness)
+   Network logo (inline SVG — always defined `s`)
 ────────────────────────────────────────── */
-const NETWORK_LOGO_DOMAINS: Record<NetworkId, string> = {
-  mtn: 'mtn.ng',
-  airtel: 'airtel.com.ng',
-  glo: 'gloworld.com',
-  '9mobile': '9mobile.com.ng',
-};
-
 function NetworkLogo({ id, size = 28 }: { id: NetworkId; size?: number }) {
-  const [logoFailed, setLogoFailed] = useState(false);
-  if (!logoFailed) {
-    return (
-      <img
-        src={`https://www.google.com/s2/favicons?domain=${NETWORK_LOGO_DOMAINS[id]}&sz=128`}
-        alt={`${id === '9mobile' ? '9mobile' : id.toUpperCase()} logo`}
-        width={size}
-        height={size}
-        loading="lazy"
-        referrerPolicy="no-referrer"
-        onError={() => setLogoFailed(true)}
-        style={{ width: size, height: size, objectFit: 'contain', display: 'block' }}
-      />
-    );
-  }
+  const s = { width: size, height: size, viewBox: '0 0 40 40' };
   switch (id) {
     case 'mtn':
       return (
@@ -291,7 +266,6 @@ export function DataPage({ onBack }: { onBack: () => void }) {
     window.setTimeout(() => setToast(null), 2800);
   }, []);
 
-  /* Auto-detect network from typed number */
   useEffect(() => {
     if (phoneDigits.length < 4) {
       setAutoDetected(false);
@@ -304,21 +278,19 @@ export function DataPage({ onBack }: { onBack: () => void }) {
     }
   }, [phoneDigits]);
 
-  /* Keep planType valid when network changes */
   useEffect(() => {
     if (!availableTypes.includes(planType)) {
       setPlanType(availableTypes[0]);
     }
   }, [networkId, availableTypes, planType]);
 
-  /* Auto-select first plan when type/network changes */
   useEffect(() => {
     if (plans.length > 0) {
       setSelectedPlanId(plans[0].id);
     } else {
       setSelectedPlanId('');
     }
-  }, [networkId, planType, plans]);
+  }, [networkId, planType]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handlePhoneChange = (v: string) => {
     setPhone(v.replace(/[^\d+]/g, ''));
@@ -351,7 +323,6 @@ export function DataPage({ onBack }: { onBack: () => void }) {
 
   const handleFund = () => showToast('Opening Fund Wallet...');
 
-  /* CTA state machine */
   let ctaLabel = 'Purchase Data Plan';
   let ctaAction: () => void | Promise<void> = handlePurchase;
   let ctaDisabled = submitting || !formReady;
@@ -374,7 +345,6 @@ export function DataPage({ onBack }: { onBack: () => void }) {
 
   return (
     <div className="data-page">
-      {/* ── Header ── */}
       <header className="data-topbar">
         <button type="button" className="data-back" onClick={onBack} aria-label="Back">
           <ArrowLeft size={18} strokeWidth={2.2} />
@@ -388,7 +358,6 @@ export function DataPage({ onBack }: { onBack: () => void }) {
         </button>
       </header>
 
-      {/* ── Balance Card ── */}
       <section className="data-balance-card" aria-label="Wallet balance">
         <div className="data-balance-left">
           <span className="data-balance-label">Wallet Balance</span>
@@ -406,7 +375,6 @@ export function DataPage({ onBack }: { onBack: () => void }) {
         </div>
       </section>
 
-      {/* ── Network Selector ── */}
       <section className="data-section">
         <div className="data-section-head">
           <h2>Select Network</h2>
@@ -442,7 +410,6 @@ export function DataPage({ onBack }: { onBack: () => void }) {
         </div>
       </section>
 
-      {/* ── Plan Type Segment ── */}
       <div className="data-segment" role="tablist" aria-label="Plan type">
         {availableTypes.map((type) => (
           <button
@@ -458,7 +425,6 @@ export function DataPage({ onBack }: { onBack: () => void }) {
         ))}
       </div>
 
-      {/* ── Phone Input ── */}
       <section className="data-section data-phone-section">
         <div className="data-section-head">
           <h2>Recipient Number</h2>
@@ -486,7 +452,6 @@ export function DataPage({ onBack }: { onBack: () => void }) {
         )}
       </section>
 
-      {/* ── Data Bundles Grid ── */}
       <section className="data-section">
         <div className="data-section-head">
           <h2>Data Bundles</h2>
@@ -508,16 +473,16 @@ export function DataPage({ onBack }: { onBack: () => void }) {
                   className={active ? 'data-plan-card active' : 'data-plan-card'}
                   onClick={() => setSelectedPlanId(plan.id)}
                 >
-                  {plan.badge && (
-                    <span className="data-plan-badge">{plan.badge}</span>
-                  )}
+                  {plan.badge && <span className="data-plan-badge">{plan.badge}</span>}
                   <span className="data-plan-icon" aria-hidden>
                     <Globe2 size={14} strokeWidth={2.2} />
                   </span>
                   <strong className="data-plan-size">{plan.size}</strong>
                   <span className="data-plan-validity">{plan.validity}</span>
                   <span className="data-plan-price">{money(plan.price)}</span>
-                  <ArrowRight size={14} className="data-plan-arrow" />
+                  <span className="data-plan-arrow" aria-hidden>
+                    <ArrowRight size={14} />
+                  </span>
                 </button>
               );
             })}
@@ -525,13 +490,22 @@ export function DataPage({ onBack }: { onBack: () => void }) {
         )}
       </section>
 
-      {/* ── Summary (when plan selected) ── */}
-      {selectedPlan && (
+      <button type="button" className={ctaClass} disabled={ctaDisabled} onClick={ctaAction}>
+        {insufficient && formReady ? (
+          <>
+            <Wallet size={18} strokeWidth={2.2} /> {ctaLabel}
+          </>
+        ) : (
+          <>
+            <Rocket size={16} strokeWidth={2.4} /> {ctaLabel}
+          </>
+        )}
+      </button>
+
+      {price > 0 && (
         <div className="data-summary">
-          <span>
-            {selectedPlan.size} · {selectedPlan.validity}
-          </span>
-          <strong>{moneyFull(selectedPlan.price)}</strong>
+          <span>You pay</span>
+          <strong>{moneyFull(price)}</strong>
           {insufficient && (
             <p className="data-summary-warn">
               Insufficient balance · Wallet {moneyFull(WALLET_BALANCE)}
@@ -539,35 +513,6 @@ export function DataPage({ onBack }: { onBack: () => void }) {
           )}
         </div>
       )}
-
-      {/* ── CTA ── */}
-      <button
-        type="button"
-        className={ctaClass}
-        disabled={ctaDisabled}
-        onClick={ctaAction}
-      >
-        {insufficient && formReady ? (
-          <>
-            <Wallet size={18} strokeWidth={2.2} /> {ctaLabel}
-          </>
-        ) : (
-          <>
-            <Rocket size={16} strokeWidth={2.2} /> {ctaLabel}
-          </>
-        )}
-      </button>
-
-      {/* ── Trust ── */}
-      <div className="data-trust">
-        <span className="data-trust-icon" aria-hidden>
-          <Check size={14} strokeWidth={3} />
-        </span>
-        <div>
-          <strong>Instant Delivery</strong>
-          <p>Data is delivered immediately after successful payment.</p>
-        </div>
-      </div>
 
       {toast && (
         <div className="data-toast" role="status">
