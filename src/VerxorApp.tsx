@@ -11,6 +11,7 @@ import { AirtimePage } from './airtime-page';
 import { DataPage } from './data-page';
 import { GiftCardPage } from './giftcard-page';
 import { TvPage } from './tv-page';
+import { ElectricityPage } from './electricity-page';
 import { EsimPage } from './esim-page';
 import { VirtualNumbersPage } from './virtual-numbers-page';
 import { BettingPage } from './betting-page';
@@ -195,6 +196,8 @@ export function VerxorApp() {
     content = <GiftCardPage onBack={closeService} />;
   } else if (service === 'tv-cable') {
     content = <TvPage onBack={closeService} />;
+  } else if (service === 'electricity') {
+    content = <ElectricityPage onBack={closeService} />;
   } else if (service === 'esim') {
     content = <EsimPage onBack={closeService} />;
   } else if (service === 'bet-wallet') {
