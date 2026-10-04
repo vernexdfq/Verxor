@@ -1,5 +1,6 @@
 /**
  * Verxor platform admin (operator console)
+ * Proper module export so next build / Vercel type-check succeeds.
  */
 'use client';
 
