@@ -39,6 +39,9 @@ export type AuthSession = {
   dialCode?: string;
   homeCurrency?: 'NGN' | 'USD';
   vtuEligible?: boolean;
+  balanceNgn?: number;
+  balanceUsd?: number;
+  email?: string;
 };
 
 const STORAGE_KEY = 'verxor-auth-session';
@@ -47,14 +50,17 @@ const LAST_PHONE_KEY = 'verxor-last-phone';
 const DEFAULT_MOCK: AuthSession = {
   authenticated: false,
   method: 'phone',
-  contact: '08141620644',
-  name: 'Destiny',
-  pin: '1234',
-  password: 'Verxor1',
+  contact: '',
+  name: '',
+  pin: '',
+  password: '',
   phoneCountry: 'NG',
   dialCode: '234',
   homeCurrency: 'NGN',
   vtuEligible: true,
+  balanceNgn: 0,
+  balanceUsd: 0,
+  email: '',
 };
 
 type LastPhone = { iso: string; dial: string; national: string };
@@ -77,6 +83,8 @@ function loadRemembered(): AuthSession {
         typeof parsed.vtuEligible === 'boolean'
           ? parsed.vtuEligible
           : isVtuEligible(iso),
+      balanceNgn: typeof parsed.balanceNgn === 'number' ? parsed.balanceNgn : 0,
+      balanceUsd: typeof parsed.balanceUsd === 'number' ? parsed.balanceUsd : 0,
     };
   } catch {
     return { ...DEFAULT_MOCK };
@@ -196,6 +204,8 @@ export function AuthFlow({ onAuthenticated }: { onAuthenticated: (session: AuthS
       dialCode: country.dial,
       homeCurrency: homeCurrencyFor(country.iso),
       vtuEligible: isVtuEligible(country.iso),
+      balanceNgn: current.balanceNgn ?? 0,
+      balanceUsd: current.balanceUsd ?? 0,
     };
     saveRemembered({ ...next, authenticated: false });
     onAuthenticated(next);
@@ -230,6 +240,8 @@ export function AuthFlow({ onAuthenticated }: { onAuthenticated: (session: AuthS
         homeCurrency: homeCurrencyFor(country.iso),
         vtuEligible: isVtuEligible(country.iso),
         authenticated: false,
+        balanceNgn: remembered.balanceNgn ?? 0,
+        balanceUsd: remembered.balanceUsd ?? 0,
       };
       saveRemembered(next);
       setRemembered(next);
@@ -246,7 +258,14 @@ export function AuthFlow({ onAuthenticated }: { onAuthenticated: (session: AuthS
       return;
     }
     setError('');
-    const next = { ...remembered, method: 'email' as const, contact: value, authenticated: false };
+    const next = {
+      ...remembered,
+      method: 'email' as const,
+      contact: value,
+      authenticated: false,
+      balanceNgn: remembered.balanceNgn ?? 0,
+      balanceUsd: remembered.balanceUsd ?? 0,
+    };
     saveRemembered(next);
     setRemembered(next);
     goToPin('email', value);
@@ -281,6 +300,9 @@ export function AuthFlow({ onAuthenticated }: { onAuthenticated: (session: AuthS
           typeof current.vtuEligible === 'boolean'
             ? current.vtuEligible
             : isVtuEligible(current.phoneCountry || country.iso),
+        balanceNgn: current.balanceNgn ?? 0,
+        balanceUsd: current.balanceUsd ?? 0,
+        email: current.email || (method === 'email' ? contact : ''),
       };
       saveRemembered({ ...next, authenticated: false });
       if (method === 'phone') {
@@ -307,8 +329,7 @@ export function AuthFlow({ onAuthenticated }: { onAuthenticated: (session: AuthS
       return;
     }
     if (password.length < 6) {
-      setError('Password must be at least 6 characters');
-      return;
+      setError('Password must be at least 6 characters');\n      return;
     }
     if (!/^\d{4}$/.test(signPin)) {
       setError('PIN must be exactly 4 digits');
@@ -337,6 +358,9 @@ export function AuthFlow({ onAuthenticated }: { onAuthenticated: (session: AuthS
       dialCode: country.dial,
       homeCurrency: homeCurrencyFor(iso),
       vtuEligible: isVtuEligible(iso),
+      balanceNgn: 0,
+      balanceUsd: 0,
+      email: signEmail.trim(),
     };
     saveLastPhone(iso, country.dial, national);
     saveRemembered({ ...next, authenticated: false });
@@ -535,34 +559,34 @@ export function AuthFlow({ onAuthenticated }: { onAuthenticated: (session: AuthS
           </div>
           <div className="auth-section">Account security</div>
           <div className="auth-field">
-            <label htmlFor="su-pass">Password</label>
+            <label htmlFor="su-password">Password</label>
             <div className="auth-input-wrap">
               <Lock size={18} strokeWidth={2} />
-              <input id="su-pass" type={showPassword ? 'text' : 'password'} placeholder="Create a strong password" value={password} onChange={(e) => { setPassword(e.target.value); if (error) setError(''); }} autoComplete="new-password" />
+              <input id="su-password" type={showPassword ? 'text' : 'password'} placeholder="Min 6 characters" value={password} onChange={(e) => { setPassword(e.target.value); if (error) setError(''); }} autoComplete="new-password" />
               <button type="button" className="auth-eye" onClick={() => setShowPassword((v) => !v)} aria-label={showPassword ? 'Hide password' : 'Show password'}>
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
-            <p className="auth-hint">Min 6 chars · uppercase, lowercase and a number</p>
           </div>
           <div className="auth-field">
-            <label htmlFor="su-pin">4-Digit Transaction PIN</label>
+            <label htmlFor="su-pin">4-digit PIN</label>
             <div className="auth-input-wrap">
               <Lock size={18} strokeWidth={2} />
-              <input id="su-pin" type="password" inputMode="numeric" maxLength={4} placeholder="Enter 4-digit PIN" value={signPin} onChange={(e) => { setSignPin(e.target.value.replace(/\D/g, '').slice(0, 4)); if (error) setError(''); }} autoComplete="off" />
+              <input id="su-pin" type="password" inputMode="numeric" maxLength={4} placeholder="••••" value={signPin} onChange={(e) => { setSignPin(e.target.value.replace(/\D/g, '').slice(0, 4)); if (error) setError(''); }} autoComplete="off" />
             </div>
-            <p className="auth-hint">Used to authorise transactions — keep it secret</p>
           </div>
-          <div className="auth-section">Referral</div>
           <div className="auth-field">
-            <label htmlFor="su-ref">Referral code <span className="auth-optional">(optional)</span></label>
+            <label htmlFor="su-ref">Referral code (optional)</label>
             <div className="auth-input-wrap">
               <Gift size={18} strokeWidth={2} />
-              <input id="su-ref" type="text" placeholder="Enter code if you have one" value={referral} onChange={(e) => setReferral(e.target.value.toUpperCase())} autoComplete="off" />
+              <input id="su-ref" type="text" placeholder="Optional" value={referral} onChange={(e) => setReferral(e.target.value)} autoComplete="off" />
             </div>
           </div>
-          <p className="auth-terms">By creating an account you agree to our Terms of Service and Privacy Policy.</p>
           <button type="button" className="auth-btn" onClick={handleSignUp}>Create account</button>
+          <p className="auth-footer-link">
+            Already have an account?{' '}
+            <button type="button" onClick={() => { setError(''); setStep('signin'); }}>Sign in</button>
+          </p>
         </div>
       </div>
     );
@@ -571,20 +595,19 @@ export function AuthFlow({ onAuthenticated }: { onAuthenticated: (session: AuthS
   if (step === 'forgot-password') {
     return (
       <div className="auth-root">
-        {SkipButton}
         <div className="auth-body">
           <button type="button" className="auth-back" onClick={() => { setError(''); setStep('pin'); }}>
             <ArrowLeft size={16} strokeWidth={2.2} /> Back
           </button>
-          <h1 className="auth-title">Forgot PIN?</h1>
-          <p className="auth-sub">Enter the password you set at sign-up to create a new PIN.</p>
+          <h1 className="auth-title">Reset PIN</h1>
+          <p className="auth-sub">Confirm your password to set a new PIN</p>
           {error ? <div className="auth-error">{error}</div> : null}
           <div className="auth-field">
-            <label htmlFor="fp">Password</label>
+            <label htmlFor="fp-pass">Password</label>
             <div className="auth-input-wrap">
               <Lock size={18} strokeWidth={2} />
-              <input id="fp" type={showForgotPass ? 'text' : 'password'} placeholder="Your account password" value={forgotPassword} onChange={(e) => { setForgotPassword(e.target.value); if (error) setError(''); }} />
-              <button type="button" className="auth-eye" onClick={() => setShowForgotPass((v) => !v)} aria-label={showForgotPass ? 'Hide' : 'Show'}>
+              <input id="fp-pass" type={showForgotPass ? 'text' : 'password'} value={forgotPassword} onChange={(e) => { setForgotPassword(e.target.value); if (error) setError(''); }} />
+              <button type="button" className="auth-eye" onClick={() => setShowForgotPass((v) => !v)}>
                 {showForgotPass ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
@@ -598,40 +621,41 @@ export function AuthFlow({ onAuthenticated }: { onAuthenticated: (session: AuthS
   if (step === 'forgot-new-pin') {
     return (
       <div className="auth-root">
-        {SkipButton}
         <div className="auth-body">
-          <h1 className="auth-title">Create new PIN</h1>
-          <p className="auth-sub">Choose a new 4-digit PIN for your account.</p>
+          <h1 className="auth-title">Set new PIN</h1>
+          <p className="auth-sub">Choose a new 4-digit PIN</p>
           {error ? <div className="auth-error">{error}</div> : null}
           <div className="auth-field">
-            <label htmlFor="np1">New 4-digit PIN</label>
+            <label htmlFor="np1">New PIN</label>
             <div className="auth-input-wrap">
               <Lock size={18} strokeWidth={2} />
-              <input id="np1" type="password" inputMode="numeric" maxLength={4} placeholder="••••" value={newPin} onChange={(e) => { setNewPin(e.target.value.replace(/\D/g, '').slice(0, 4)); if (error) setError(''); }} />
+              <input id="np1" type="password" inputMode="numeric" maxLength={4} value={newPin} onChange={(e) => setNewPin(e.target.value.replace(/\D/g, '').slice(0, 4))} />
             </div>
           </div>
           <div className="auth-field">
-            <label htmlFor="np2">Confirm new PIN</label>
+            <label htmlFor="np2">Confirm PIN</label>
             <div className="auth-input-wrap">
               <Lock size={18} strokeWidth={2} />
-              <input id="np2" type="password" inputMode="numeric" maxLength={4} placeholder="••••" value={confirmNewPin} onChange={(e) => { setConfirmNewPin(e.target.value.replace(/\D/g, '').slice(0, 4)); if (error) setError(''); }} />
+              <input id="np2" type="password" inputMode="numeric" maxLength={4} value={confirmNewPin} onChange={(e) => setConfirmNewPin(e.target.value.replace(/\D/g, '').slice(0, 4))} />
             </div>
           </div>
-          <button type="button" className="auth-btn" onClick={handleSetNewPin}>Save new PIN</button>
+          <button type="button" className="auth-btn" onClick={handleSetNewPin}>Save PIN</button>
         </div>
       </div>
     );
   }
 
-  return (
-    <div className="auth-root">
-      {SkipButton}
-      <div className="auth-body auth-body--center">
-        <div className="auth-success-icon" aria-hidden>✓</div>
-        <h1 className="auth-title auth-title--center">PIN reset successful</h1>
-        <p className="auth-sub auth-sub--center">Enter your new PIN to sign in.</p>
-        <button type="button" className="auth-btn" onClick={finishForgotSuccess}>Enter PIN</button>
+  if (step === 'forgot-success') {
+    return (
+      <div className="auth-root">
+        <div className="auth-body auth-body--center">
+          <h1 className="auth-title auth-title--center">PIN updated</h1>
+          <p className="auth-sub auth-sub--center">You can now sign in with your new PIN.</p>
+          <button type="button" className="auth-btn" onClick={finishForgotSuccess}>Continue</button>
+        </div>
       </div>
-    </div>
-  );
+    );
+  }
+
+  return null;
 }
