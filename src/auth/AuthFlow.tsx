@@ -13,7 +13,7 @@ import {
   CheckCircle2,
 } from 'lucide-react';
 import { COUNTRIES, type Country, displayNational, toE164 } from './countries';
-import { PhoneField } from './phone-field';
+import { CountryPickerSheet, PhoneField } from './phone-field';
 import type { AuthSession } from './auth-core';
 export type { AuthSession };
 import { isBiometricEnabledLocally, verifyPlatformBiometric } from '../lib/webauthn';
@@ -55,6 +55,7 @@ export function AuthFlow({ onAuthenticated }: AuthFlowProps) {
   const [pendingContact, setPendingContact] = useState('');
   const [pendingName, setPendingName] = useState('');
   const [pendingMethod, setPendingMethod] = useState<'phone' | 'email'>('phone');
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   useEffect(() => {
     try {
@@ -354,7 +355,8 @@ export function AuthFlow({ onAuthenticated }: AuthFlowProps) {
         </button>
         <h2>Enter your phone</h2>
         <p className="auth-sub">We will use this to sign you in</p>
-        <PhoneField country={country} national={national} onCountryChange={setCountry} onNationalChange={setNational} />
+        <PhoneField id="auth-phone" label="Phone Number" country={country} national={national} onOpenPicker={() => setPickerOpen(true)} onNationalChange={(v) => { setNational(v); if (error) setError(''); }} placeholder={country.iso === 'NG' ? '8012345678' : 'Phone number'} />
+        <CountryPickerSheet open={pickerOpen} selectedIso={country.iso} onClose={() => setPickerOpen(false)} onSelect={(c) => { setCountry(c); setPickerOpen(false); }} />
         {error && <p className="auth-error">{error}</p>}
         <button type="button" className="btn-primary" onClick={handlePhoneContinue}>
           Continue
@@ -417,7 +419,8 @@ export function AuthFlow({ onAuthenticated }: AuthFlowProps) {
           <User size={18} className="field-icon" />
           <input type="text" placeholder="Full name" value={fullName} onChange={(e) => setFullName(e.target.value)} autoComplete="name" />
         </div>
-        <PhoneField country={country} national={national} onCountryChange={setCountry} onNationalChange={setNational} />
+        <PhoneField id="su-phone" label="Phone Number" country={country} national={national} onOpenPicker={() => setPickerOpen(true)} onNationalChange={(v) => { setNational(v); if (error) setError(''); }} placeholder={country.iso === 'NG' ? '8012345678' : 'Phone number'} />
+        <CountryPickerSheet open={pickerOpen} selectedIso={country.iso} onClose={() => setPickerOpen(false)} onSelect={(c) => { setCountry(c); setPickerOpen(false); }} />
         <div className="auth-field">
           <Mail size={18} className="field-icon" />
           <input type="email" placeholder="Email" value={signEmail} onChange={(e) => setSignEmail(e.target.value)} autoComplete="email" />
