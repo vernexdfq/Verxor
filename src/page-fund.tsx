@@ -1,168 +1,181 @@
 'use client';
 
-import { useState } from 'react';
-import {
-  Building2,
-  Check,
-  Copy,
-  Hash,
-  ShieldCheck,
-  UserRound,
-} from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Building2, Loader2, ShieldCheck } from 'lucide-react';
+import { formatHomeBalance } from './lib/wallet-ui';
+import type { AuthSession } from './auth/AuthFlow';
 import './fund-page.css';
 
-const wallet = { amount: '0.27', symbol: '₦' };
+export type FundingBank = {
+  id: string;
+  label: string;
+  bankName: string;
+  accountNumber: string;
+  accountName: string;
+  feeNote?: string;
+};
 
-/** Placeholder virtual accounts — replace with API/DB when Payvessel/Monnify is live */
-const BANKS = [
-  {
-    id: 'paga',
-    label: 'Paga',
-    bankName: 'Paga',
-    accountNumber: '1535390381',
-    accountName: 'Denny Kay',
-  },
-  {
-    id: 'palmpay',
-    label: 'Palmpay',
-    bankName: 'PalmPay',
-    accountNumber: '9012345678',
-    accountName: 'Denny Kay',
-  },
-] as const;
+type FundPageProps = {
+  session?: AuthSession | null;
+};
 
-const STEPS = [
-  'Select a bank and generate your virtual account (one-time).',
-  'Copy the account number and open your banking app.',
-  'Transfer any amount to the account details shown above.',
-  'Your wallet is credited automatically within seconds.',
-];
+export function FundPage({ session }: FundPageProps) {
+  const homeCurrency = session?.homeCurrency === 'USD' ? 'USD' : 'NGN';
+  const balance = formatHomeBalance(
+    session?.balanceNgn ?? 0,
+    session?.balanceUsd ?? 0,
+    homeCurrency,
+  );
 
-export function FundPage() {
-  const [bankId, setBankId] = useState<(typeof BANKS)[number]['id']>('paga');
+  const [banks, setBanks] = useState<FundingBank[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [activeId, setActiveId] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
 
-  const bank = BANKS.find((b) => b.id === bankId) ?? BANKS[0];
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      try {
+        const res = await fetch('/api/v1/funding/methods', { cache: 'no-store' }).catch(() => null);
+        if (cancelled) return;
+        if (res && res.ok) {
+          const data = (await res.json()) as { ok?: boolean; banks?: FundingBank[] };
+          const list = Array.isArray(data.banks) ? data.banks : [];
+          setBanks(list);
+          setActiveId(list[0]?.id ?? null);
+        } else {
+          setBanks([]);
+          setActiveId(null);
+        }
+      } catch {
+        if (!cancelled) {
+          setBanks([]);
+          setActiveId(null);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const bank = banks.find((b) => b.id === activeId) ?? banks[0] ?? null;
 
   const copy = async (key: string, value: string) => {
     try {
       await navigator.clipboard.writeText(value);
       setCopied(key);
-      window.setTimeout(() => setCopied(null), 1800);
+      setTimeout(() => setCopied(null), 1600);
     } catch {
-      setCopied(null);
+      /* ignore */
     }
   };
 
   return (
     <div className="fund-page">
+      <header className="fund-head">
+        <h1>Fund wallet</h1>
+        <p>Add money to your balance</p>
+      </header>
+
       <section className="fund-balance" aria-label="Wallet balance">
         <span className="fund-balance-label">WALLET BALANCE</span>
         <strong className="fund-balance-amount">
-          {wallet.symbol}
-          {wallet.amount}
+          {balance.symbol}
+          {balance.amount}
         </strong>
-        <span className="fund-balance-ok">
-          <Check size={14} strokeWidth={2.5} /> Available for transactions
-        </span>
+        <span className="fund-balance-ok">Your available balance</span>
       </section>
 
-      <section className="fund-section">
+      <section className="fund-transfer" aria-label="Fund via bank transfer">
         <h2 className="fund-section-title">
-          <Building2 size={18} strokeWidth={2} />
-          Fund via Bank Transfer
+          <Building2 size={18} /> Fund via Bank Transfer
         </h2>
 
-        <div className="fund-fee" role="note">
-          <span aria-hidden>⚠️</span>
-          <p>A fee of ₦50 will be deducted from your deposit.</p>
-        </div>
-
-        <div className="fund-tabs" role="tablist" aria-label="Bank providers">
-          {BANKS.map((b) => (
-            <button
-              key={b.id}
-              type="button"
-              role="tab"
-              aria-selected={bankId === b.id}
-              className={bankId === b.id ? 'fund-tab active' : 'fund-tab'}
-              onClick={() => setBankId(b.id)}
-            >
-              {b.label}
-            </button>
-          ))}
-        </div>
-
-        <div className="fund-account-card">
-          <div className="fund-row">
-            <span className="fund-row-icon">
-              <Building2 size={18} />
-            </span>
-            <div className="fund-row-copy">
-              <span className="fund-row-label">BANK NAME</span>
-              <strong>{bank.bankName}</strong>
-            </div>
-            <button type="button" className="fund-copy" onClick={() => copy('bank', bank.bankName)}>
-              <Copy size={14} />
-              {copied === 'bank' ? 'Copied' : 'Copy'}
-            </button>
+        {loading ? (
+          <div style={{ padding: '28px 16px', textAlign: 'center', color: '#64748b', fontSize: 13 }}>
+            <Loader2 size={22} style={{ animation: 'spin 0.8s linear infinite' }} />
+            <p style={{ margin: '12px 0 0' }}>Loading funding methods...</p>
           </div>
-
-          <div className="fund-row">
-            <span className="fund-row-icon">
-              <Hash size={18} />
-            </span>
-            <div className="fund-row-copy">
-              <span className="fund-row-label">ACCOUNT NUMBER</span>
-              <strong className="fund-mono">{bank.accountNumber}</strong>
-            </div>
-            <button
-              type="button"
-              className="fund-copy"
-              onClick={() => copy('number', bank.accountNumber)}
-            >
-              <Copy size={14} />
-              {copied === 'number' ? 'Copied' : 'Copy'}
-            </button>
+        ) : banks.length === 0 ? (
+          <div
+            style={{
+              padding: '24px 16px',
+              borderRadius: 14,
+              border: '1px dashed #e2e8f0',
+              background: '#f8fafc',
+              textAlign: 'center',
+            }}
+          >
+            <Building2 size={28} strokeWidth={1.5} color="#94a3b8" />
+            <p style={{ margin: '12px 0 4px', fontWeight: 700, color: '#0f172a', fontSize: 15 }}>
+              Funding methods coming soon
+            </p>
+            <p style={{ margin: 0, color: '#64748b', fontSize: 13, lineHeight: 1.5 }}>
+              Bank accounts will appear here once your payment provider is connected. No static account
+              numbers are shown.
+            </p>
           </div>
-
-          <div className="fund-row">
-            <span className="fund-row-icon">
-              <UserRound size={18} />
-            </span>
-            <div className="fund-row-copy">
-              <span className="fund-row-label">ACCOUNT NAME</span>
-              <strong>{bank.accountName}</strong>
+        ) : (
+          <>
+            {bank?.feeNote ? <div className="fund-fee-note" role="status">{bank.feeNote}</div> : null}
+            <div className="fund-tabs" role="tablist" aria-label="Funding banks">
+              {banks.map((b) => (
+                <button
+                  key={b.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={activeId === b.id}
+                  className={activeId === b.id ? 'active' : ''}
+                  onClick={() => setActiveId(b.id)}
+                >
+                  {b.label}
+                </button>
+              ))}
             </div>
-            <button
-              type="button"
-              className="fund-copy"
-              onClick={() => copy('name', bank.accountName)}
-            >
-              <Copy size={14} />
-              {copied === 'name' ? 'Copied' : 'Copy'}
-            </button>
-          </div>
-        </div>
-      </section>
-
-      <section className="fund-steps" aria-label="How to fund">
-        <h3 className="fund-steps-title">HOW TO FUND YOUR WALLET</h3>
-        <ol>
-          {STEPS.map((step, i) => (
-            <li key={step}>
-              <span className="fund-step-num">{i + 1}</span>
-              <p>{step}</p>
-            </li>
-          ))}
-        </ol>
+            {bank ? (
+              <div className="fund-account-card">
+                <div className="fund-row">
+                  <div className="fund-row-copy">
+                    <span className="fund-row-label">BANK NAME</span>
+                    <strong>{bank.bankName}</strong>
+                  </div>
+                  <button type="button" className="fund-copy" onClick={() => void copy('bank', bank.bankName)}>
+                    {copied === 'bank' ? 'Copied' : 'Copy'}
+                  </button>
+                </div>
+                <div className="fund-row">
+                  <div className="fund-row-copy">
+                    <span className="fund-row-label">ACCOUNT NUMBER</span>
+                    <strong className="fund-mono">{bank.accountNumber}</strong>
+                  </div>
+                  <button type="button" className="fund-copy" onClick={() => void copy('number', bank.accountNumber)}>
+                    {copied === 'number' ? 'Copied' : 'Copy'}
+                  </button>
+                </div>
+                <div className="fund-row">
+                  <div className="fund-row-copy">
+                    <span className="fund-row-label">ACCOUNT NAME</span>
+                    <strong>{bank.accountName}</strong>
+                  </div>
+                  <button type="button" className="fund-copy" onClick={() => void copy('name', bank.accountName)}>
+                    {copied === 'name' ? 'Copied' : 'Copy'}
+                  </button>
+                </div>
+              </div>
+            ) : null}
+          </>
+        )}
       </section>
 
       <div className="fund-secure">
         <ShieldCheck size={18} />
         <p>
-          <strong>Instant & Secure:</strong> Transfers are processed automatically. Your balance updates
-          within seconds of a successful transfer.
+          <strong>Secure:</strong> When funding is live, transfers credit your wallet after confirmation from
+          the payment provider.
         </p>
       </div>
     </div>
