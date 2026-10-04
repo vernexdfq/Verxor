@@ -480,7 +480,7 @@ export function AuthFlow({ onAuthenticated }: { onAuthenticated: (session: AuthS
   }
 
   if (step === 'pin') {
-    const changeLabel = method === 'phone' ? '← Change number' : '← Change email';
+    const changeLabel = method === 'phone' ? 'Change number' : 'Change email';
     const displayContact =
       method === 'phone'
         ? formatContactDisplay({ ...remembered, contact: contact || remembered.contact, phoneCountry: remembered.phoneCountry || country.iso }, 'phone')
@@ -507,7 +507,7 @@ export function AuthFlow({ onAuthenticated }: { onAuthenticated: (session: AuthS
             ))}
             <div aria-hidden />
             <button type="button" className="pin-key" onClick={() => handlePinDigit('0')}>0</button>
-            <button type="button" className="pin-key delete" onClick={handlePinDelete} aria-label="Delete">⌫</button>
+            <button type="button" className="pin-key delete" onClick={handlePinDelete} aria-label="Delete">Del</button>
           </div>
           <div className="pin-actions">
             <button type="button" onClick={() => { setStep('signin'); setPin(''); setError(''); setSuccessMsg(''); }}>{changeLabel}</button>
@@ -547,8 +547,8 @@ export function AuthFlow({ onAuthenticated }: { onAuthenticated: (session: AuthS
           <PhoneField id="su-phone" label="Phone Number" country={country} national={national} onOpenPicker={() => setPickerOpen(true)} onNationalChange={(v) => { setNational(v); if (error) setError(''); }} placeholder={country.iso === 'NG' ? '8012345678' : 'Phone number'} />
           <p className="auth-hint auth-hint--tight">
             {country.iso === 'NG'
-              ? 'Nigerian number → Naira wallet & full VTU services'
-              : 'International number → USD wallet · Nigerian VTU locked'}
+              ? 'Nigerian number - Naira wallet and full VTU services'
+              : 'International number - USD wallet, Nigerian VTU locked'}
           </p>
           <div className="auth-field">
             <label htmlFor="su-email">Email Address</label>
@@ -572,7 +572,7 @@ export function AuthFlow({ onAuthenticated }: { onAuthenticated: (session: AuthS
             <label htmlFor="su-pin">4-digit PIN</label>
             <div className="auth-input-wrap">
               <Lock size={18} strokeWidth={2} />
-              <input id="su-pin" type="password" inputMode="numeric" maxLength={4} placeholder="••••" value={signPin} onChange={(e) => { setSignPin(e.target.value.replace(/\D/g, '').slice(0, 4)); if (error) setError(''); }} autoComplete="off" />
+              <input id="su-pin" type="password" inputMode="numeric" maxLength={4} placeholder="PIN" value={signPin} onChange={(e) => { setSignPin(e.target.value.replace(/\D/g, '').slice(0, 4)); if (error) setError(''); }} autoComplete="off" />
             </div>
           </div>
           <div className="auth-field">
