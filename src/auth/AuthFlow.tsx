@@ -173,7 +173,9 @@ export function AuthFlow({ onAuthenticated }: { onAuthenticated: (session: AuthS
 
   useEffect(() => {
     try {
-      if (typeof window !== 'undefined' && sessionStorage.getItem('verxor-force-signin') === '1') {
+      // Clear legacy keys that used to auto-admit users (authenticated:true in localStorage)
+      localStorage.removeItem('verxor-auth');
+      if (sessionStorage.getItem('verxor-force-signin') === '1') {
         sessionStorage.removeItem('verxor-force-signin');
         setStep('signin');
         setBioAvailable(isBiometricEnabledLocally());
@@ -222,13 +224,24 @@ export function AuthFlow({ onAuthenticated }: { onAuthenticated: (session: AuthS
     setError('');
     if (next.length === 4) {
       setTimeout(() => {
+        // Registered users must match their saved PIN — never auto-admit
+        const storedPin = (remembered.pin || '').trim();
+        if (storedPin && /^[0-9]{4}$/.test(storedPin) && next !== storedPin) {
+          setError('Incorrect PIN. Try again.');
+          setPin('');
+          return;
+        }
+        const contactValue =
+          method === 'phone'
+            ? country.iso === 'NG'
+              ? displayNational(country.iso, national)
+              : `+${toE164(country.iso, country.dial, national)}`
+            : contact;
         const session: AuthSession = {
           ...remembered,
           authenticated: true,
           method,
-          contact: method === 'phone'
-            ? (country.iso === 'NG' ? displayNational(country.iso, national) : `+${toE164(country.iso, country.dial, national)}`)
-            : contact,
+          contact: contactValue,
           pin: next,
           phoneCountry: country.iso,
           dialCode: country.dial,
@@ -236,6 +249,7 @@ export function AuthFlow({ onAuthenticated }: { onAuthenticated: (session: AuthS
           vtuEligible: isVtuEligible(country.iso),
         };
         if (method === 'phone') saveLastPhone(country.iso, country.dial, national);
+        // Persist profile fields only — never authenticated:true
         saveRemembered(session);
         onAuthenticated(session);
       }, 80);
