@@ -56,7 +56,6 @@ export function AuthFlow({ onAuthenticated }: AuthFlowProps) {
   const [pendingMethod, setPendingMethod] = useState<'phone' | 'email'>('phone');
 
   useEffect(() => {
-    // Force sign-in after logout
     try {
       if (typeof window !== 'undefined' && sessionStorage.getItem('verxor-force-signin') === '1') {
         sessionStorage.removeItem('verxor-force-signin');
@@ -67,7 +66,6 @@ export function AuthFlow({ onAuthenticated }: AuthFlowProps) {
       /* ignore */
     }
 
-    // Restore session if present
     try {
       const raw = localStorage.getItem('verxor-auth');
       if (raw) {
@@ -125,7 +123,6 @@ export function AuthFlow({ onAuthenticated }: AuthFlowProps) {
     setPin(next);
     setError('');
     if (next.length === 4) {
-      // Auto-submit after short delay so UI updates
       setTimeout(() => submitPin(next), 80);
     }
   };
@@ -143,7 +140,6 @@ export function AuthFlow({ onAuthenticated }: AuthFlowProps) {
     }
     setLoading(true);
     setError('');
-    // Session-based auth: accept any 4-digit PIN for now (server verify later)
     const session: AuthSession = {
       authenticated: true,
       method: pendingMethod,
@@ -170,7 +166,6 @@ export function AuthFlow({ onAuthenticated }: AuthFlowProps) {
         setLoading(false);
         return;
       }
-      // Reconstruct session from stored auth if possible
       let session: AuthSession | null = null;
       try {
         const raw = localStorage.getItem('verxor-auth');
@@ -179,7 +174,6 @@ export function AuthFlow({ onAuthenticated }: AuthFlowProps) {
         /* ignore */
       }
       if (!session || !session.authenticated) {
-        // Fallback: use pending contact if available
         session = {
           authenticated: true,
           method: pendingMethod,
@@ -216,9 +210,9 @@ export function AuthFlow({ onAuthenticated }: AuthFlowProps) {
       return;
     }
     if (password.length < 6) {
-      setError('Password must be at least 6 characters');\n      return;
+      setError('Password must be at least 6 characters'); return;
     }
-    if (!/^\d{4}$/.test(signPin)) {
+    if (!/^[0-9]{4}$/.test(signPin)) {
       setError('PIN must be exactly 4 digits');
       return;
     }
@@ -268,7 +262,7 @@ export function AuthFlow({ onAuthenticated }: AuthFlowProps) {
   };
 
   const handleNewPin = () => {
-    if (!/^\d{4}$/.test(newPin)) {
+    if (!/^[0-9]{4}$/.test(newPin)) {
       setError('PIN must be exactly 4 digits');
       return;
     }
@@ -276,7 +270,6 @@ export function AuthFlow({ onAuthenticated }: AuthFlowProps) {
       setError('PINs do not match');
       return;
     }
-    // Update stored pin if session exists
     try {
       const raw = localStorage.getItem('verxor-auth');
       if (raw) {
@@ -289,8 +282,6 @@ export function AuthFlow({ onAuthenticated }: AuthFlowProps) {
     }
     go('success');
   };
-
-  // ─── Render helpers ───────────────────────────────────────────────
 
   const PinBoxes = ({ value }: { value: string }) => (
     <div className="pin-boxes">
@@ -330,8 +321,6 @@ export function AuthFlow({ onAuthenticated }: AuthFlowProps) {
       </button>
     </div>
   );
-
-  // ─── Steps ────────────────────────────────────────────────────────
 
   if (step === 'welcome') {
     return (
@@ -476,7 +465,7 @@ export function AuthFlow({ onAuthenticated }: AuthFlowProps) {
             maxLength={4}
             placeholder="4-digit PIN"
             value={signPin}
-            onChange={(e) => setSignPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+            onChange={(e) => setSignPin(e.target.value.replace(/[^0-9]/g, '').slice(0, 4))}
             autoComplete="off"
           />
         </div>
@@ -537,7 +526,7 @@ export function AuthFlow({ onAuthenticated }: AuthFlowProps) {
             maxLength={6}
             placeholder="OTP code"
             value={otp}
-            onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+            onChange={(e) => setOtp(e.target.value.replace(/[^0-9]/g, '').slice(0, 6))}
           />
         </div>
         {error && <p className="auth-error">{error}</p>}
@@ -563,7 +552,7 @@ export function AuthFlow({ onAuthenticated }: AuthFlowProps) {
             maxLength={4}
             placeholder="New PIN"
             value={newPin}
-            onChange={(e) => setNewPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+            onChange={(e) => setNewPin(e.target.value.replace(/[^0-9]/g, '').slice(0, 4))}
           />
         </div>
         <div className="auth-field">
@@ -573,7 +562,7 @@ export function AuthFlow({ onAuthenticated }: AuthFlowProps) {
             maxLength={4}
             placeholder="Confirm PIN"
             value={confirmPin}
-            onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+            onChange={(e) => setConfirmPin(e.target.value.replace(/[^0-9]/g, '').slice(0, 4))}
           />
         </div>
         {error && <p className="auth-error">{error}</p>}
