@@ -190,6 +190,7 @@ export function VerxorApp() {
       <VirtualNumbersPage
         onBack={closeService}
         onOpenNotifications={() => openService('alerts')}
+        balanceNgn={auth.balanceNgn ?? 0}
       />
     );
   } else if (service === 'accounts') {
