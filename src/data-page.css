@@ -200,21 +200,34 @@
   font-weight: 500;
 }
 
-/* ── Network grid ── */
+/* ── Network chips — horizontal scroll, fixed width (never shrink) ── */
 .data-networks {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 10px;
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 12px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  padding: 2px 0 6px;
+  margin: 0 -2px;
+}
+
+.data-networks::-webkit-scrollbar {
+  display: none;
 }
 
 .data-net {
   position: relative;
+  flex: 0 0 auto;
+  width: 78px;
+  min-width: 78px;
+  height: 78px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 10px 6px;
-  border-radius: 16px;
+  padding: 10px;
+  border-radius: 18px;
   border: 2px solid #e2e8f0;
   background: #fff;
   cursor: pointer;
@@ -246,7 +259,9 @@
 .data-net-logo {
   display: grid;
   place-items: center;
-  border-radius: 10px;
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
   overflow: hidden;
 }
 
@@ -619,4 +634,3 @@
   font-weight: 700;
   color: #64748b;
 }
-
