@@ -336,7 +336,7 @@ export function AuthFlow({ onAuthenticated }: { onAuthenticated: (session: AuthS
     if (password.length < 6) {
       setError('Password must be at least 6 characters');\n      return;
     }
-    if (!/^\\d{4}$/.test(signPin)) {
+    if (!/^\d{4}$/.test(signPin)) {
       setError('PIN must be exactly 4 digits');
       return;
     }
@@ -392,7 +392,7 @@ export function AuthFlow({ onAuthenticated }: { onAuthenticated: (session: AuthS
   };
 
   const handleSetNewPin = () => {
-    if (!/^\\d{4}$/.test(newPin)) {
+    if (!/^\d{4}$/.test(newPin)) {
       setError('PIN must be exactly 4 digits');
       return;
     }
@@ -600,7 +600,7 @@ export function AuthFlow({ onAuthenticated }: { onAuthenticated: (session: AuthS
             <label htmlFor="su-pin">4-digit PIN</label>
             <div className="auth-input-wrap">
               <Lock size={18} strokeWidth={2} />
-              <input id="su-pin" type="password" inputMode="numeric" maxLength={4} placeholder="••••" value={signPin} onChange={(e) => { setSignPin(e.target.value.replace(/\\D/g, '').slice(0, 4)); if (error) setError(''); }} autoComplete="off" />
+              <input id="su-pin" type="password" inputMode="numeric" maxLength={4} placeholder="••••" value={signPin} onChange={(e) => { setSignPin(e.target.value.replace(/\D/g, '').slice(0, 4)); if (error) setError(''); }} autoComplete="off" />
             </div>
           </div>
           <div className="auth-field">
@@ -657,14 +657,14 @@ export function AuthFlow({ onAuthenticated }: { onAuthenticated: (session: AuthS
             <label htmlFor="np1">New PIN</label>
             <div className="auth-input-wrap">
               <Lock size={18} strokeWidth={2} />
-              <input id="np1" type="password" inputMode="numeric" maxLength={4} value={newPin} onChange={(e) => setNewPin(e.target.value.replace(/\\D/g, '').slice(0, 4))} />
+              <input id="np1" type="password" inputMode="numeric" maxLength={4} value={newPin} onChange={(e) => setNewPin(e.target.value.replace(/\D/g, '').slice(0, 4))} />
             </div>
           </div>
           <div className="auth-field">
             <label htmlFor="np2">Confirm PIN</label>
             <div className="auth-input-wrap">
               <Lock size={18} strokeWidth={2} />
-              <input id="np2" type="password" inputMode="numeric" maxLength={4} value={confirmNewPin} onChange={(e) => setConfirmNewPin(e.target.value.replace(/\\D/g, '').slice(0, 4))} />
+              <input id="np2" type="password" inputMode="numeric" maxLength={4} value={confirmNewPin} onChange={(e) => setConfirmNewPin(e.target.value.replace(/\D/g, '').slice(0, 4))} />
             </div>
           </div>
           <button type="button" className="auth-btn" onClick={handleSetNewPin}>Save PIN</button>
