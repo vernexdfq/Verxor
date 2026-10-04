@@ -584,3 +584,14 @@
 .vn-promo-logo { z-index:3; }
 
 .vn-promo { margin-top: 4px; }
+
+.vn-active-empty {
+  margin: 0;
+  padding: 14px 12px;
+  font-size: 13px;
+  color: #64748b;
+  text-align: center;
+  background: #f8fafc;
+  border-radius: 12px;
+  border: 1px dashed #e2e8f0;
+}
