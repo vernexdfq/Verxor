@@ -185,24 +185,37 @@
   color: #64748b;
 }
 
+/* Network chips — horizontal scroll, fixed width (never shrink) */
 .air-networks {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 8px;
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 12px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  padding: 2px 0 6px;
+  margin: 0 -2px;
+}
+
+.air-networks::-webkit-scrollbar {
+  display: none;
 }
 
 .air-net {
   position: relative;
+  flex: 0 0 auto;
+  width: 78px;
+  min-width: 78px;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 8px;
-  padding: 12px 6px 10px;
-  border-radius: 14px;
+  padding: 12px 8px 10px;
+  border-radius: 16px;
   border: 1.5px solid #e2e8f0;
   background: #fff;
   color: #0f172a;
-  min-height: 92px;
+  min-height: 96px;
 }
 
 .air-net:hover {
@@ -229,9 +242,9 @@
 }
 
 .air-net-logo {
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
   display: grid;
   place-items: center;
   overflow: hidden;
@@ -520,15 +533,17 @@
 
 @media (max-width: 360px) {
   .air-networks {
-    gap: 6px;
+    gap: 10px;
   }
   .air-net {
-    padding: 10px 4px 8px;
-    min-height: 84px;
+    width: 72px;
+    min-width: 72px;
+    padding: 10px 6px 8px;
+    min-height: 90px;
   }
   .air-net-logo {
-    width: 34px;
-    height: 34px;
+    width: 40px;
+    height: 40px;
   }
   .air-hero-copy strong {
     font-size: 16px;
@@ -538,4 +553,3 @@
     padding: 5px 8px;
   }
 }
-
