@@ -19,8 +19,8 @@ import {
 import { useEffect, useState } from 'react';
 import type { Page } from './types';
 import type { ServiceView } from './service-pages';
-
-const wallet = { amount: '7,570.00', symbol: '₦' };
+import type { AuthSession } from './auth/AuthFlow';
+import { formatHomeBalance } from './lib/wallet-ui';
 
 /** Global services only — Nigerian VTU lives on Services page */
 const QUICK_ACTIONS: {
@@ -40,7 +40,6 @@ const QUICK_ACTIONS: {
   { id: 'vcard', title: 'Virtual Card', icon: CreditCard, tone: 'qa-slate', service: 'virtual-card' },
 ];
 
-/** 8 promo slides — each opens its service */
 const PROMO_SLIDES: {
   id: string;
   badge: string;
@@ -101,7 +100,6 @@ const PROMO_SLIDES: {
     headline: 'Secure residential IPs',
     subtext: 'Residential & datacenter proxies.',
     cta: 'Browse Proxies',
-    service: 'proxies',
     accent: 'promo-accent-green',
   },
   {
@@ -127,10 +125,18 @@ const PROMO_SLIDES: {
 export function HomePage({
   go,
   openService,
+  session,
 }: {
   go: (page: Page) => void;
   openService: (view: ServiceView) => void;
+  session?: AuthSession | null;
 }) {
+  const balance = formatHomeBalance(
+    session?.balanceNgn ?? 0,
+    session?.balanceUsd ?? 0,
+    session?.homeCurrency === 'USD' ? 'USD' : 'NGN',
+  );
+  const wallet = { amount: balance.amount, symbol: balance.symbol };
   const [showBalance, setShowBalance] = useState(true);
   const [promoIndex, setPromoIndex] = useState(0);
   const [paused, setPaused] = useState(false);
@@ -151,7 +157,6 @@ export function HomePage({
 
   return (
     <div className="vx-home">
-      {/* Wallet */}
       <section className="vx-wallet" aria-label="Available balance">
         <div className="vx-wallet-top">
           <span className="vx-wallet-label">AVAILABLE BALANCE</span>
@@ -189,7 +194,6 @@ export function HomePage({
         </div>
       </section>
 
-      {/* Quick actions — fixed equal tiles */}
       <section className="vx-quick" aria-label="Quick actions">
         <p className="vx-section-label">QUICK ACTIONS</p>
         <div className="vx-quick-grid">
@@ -212,7 +216,6 @@ export function HomePage({
         </div>
       </section>
 
-      {/* Bold promo carousel — full slide is tappable */}
       <section
         className="vx-promo"
         aria-label="Promotions"
@@ -245,7 +248,6 @@ export function HomePage({
         </div>
       </section>
 
-      {/* Recent activity */}
       <section className="vx-activity" aria-label="Recent activity">
         <div className="vx-activity-head">
           <p className="vx-section-label" style={{ margin: 0 }}>
