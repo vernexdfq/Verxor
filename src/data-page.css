@@ -619,3 +619,62 @@
   font-weight: 700;
   color: #64748b;
 }
+
+
+/* Mobile polish pass — balanced rhythm, touch targets and safe-area spacing */
+.data-page {
+  box-sizing: border-box;
+  gap: 22px;
+  padding: 4px 16px calc(36px + env(safe-area-inset-bottom));
+  background: #f8fafc;
+}
+.data-page *,
+.data-page *::before,
+.data-page *::after { box-sizing: border-box; }
+.data-topbar { min-height: 52px; gap: 12px; }
+.data-back,
+.data-wallet-btn { width: 44px; height: 44px; }
+.data-title { font-size: clamp(16px, 4.2vw, 19px); }
+.data-subtitle { font-size: 12px; }
+.data-balance-card { min-height: 164px; padding: 24px 20px; border-radius: 24px; }
+.data-balance-label { font-size: 13px; }
+.data-balance-amount { font-size: clamp(25px, 6.5vw, 31px); }
+.data-wallet-glow { width: 68px; height: 68px; }
+.data-section { gap: 12px; }
+.data-section-head h2 { font-size: 16px; line-height: 1.35; }
+.data-section-head p { margin-top: 5px; font-size: 13px; line-height: 1.45; }
+.data-networks { gap: 10px; }
+.data-net { min-height: 84px; padding: 10px 6px; border-radius: 18px; }
+.data-net.selected { border-color: #536dfe; box-shadow: 0 0 0 3px rgba(83,109,254,.13); }
+.data-net-check { top: 7px; right: 7px; width: 20px; height: 20px; background: #536dfe; }
+.data-segment { gap: 3px; padding: 5px; border-radius: 16px; background: #e9eef7; }
+.data-seg-btn { min-height: 42px; padding: 10px 14px; border-radius: 12px; font-size: 12px; }
+.data-seg-btn.active { background: #00b85a; box-shadow: 0 4px 12px rgba(0,184,90,.22); }
+.data-input-wrap { min-height: 54px; height: auto; gap: 10px; padding: 0 10px 0 14px; border-radius: 16px; }
+.data-input-wrap input { font-size: 15px; }
+.data-use-mine { min-height: 36px; padding: 8px 11px; font-size: 11px; }
+.data-plans-grid { gap: 12px; }
+.data-plan-card { min-height: 166px; padding: 16px 14px 16px; border-radius: 18px; }
+.data-plan-card.active { border-color: #00b85a; box-shadow: 0 0 0 3px rgba(0,184,90,.12), 0 5px 14px rgba(15,23,42,.04); }
+.data-plan-badge { top: 10px; right: 10px; max-width: calc(100% - 52px); white-space: nowrap; font-size: 10px; }
+.data-plan-size { margin-top: 2px; font-size: 20px; }
+.data-plan-validity { font-size: 13px; }
+.data-plan-price { margin-top: auto; padding-top: 8px; font-size: 16px; }
+.data-plan-arrow { bottom: 16px; right: 12px; }
+.data-summary { padding: 15px 16px; border-radius: 16px; }
+.data-cta { min-height: 54px; height: auto; border-radius: 16px; }
+.data-trust { border-radius: 16px; }
+.data-toast { bottom: max(20px, env(safe-area-inset-bottom)); max-width: calc(100% - 32px); }
+@media (max-width: 380px) {
+  .data-page { padding-inline: 12px; gap: 19px; }
+  .data-balance-card { padding: 20px 16px; min-height: 150px; }
+  .data-balance-art { gap: 4px; }
+  .data-wallet-glow { width: 54px; height: 54px; }
+  .data-balance-chevron { width: 13px; }
+  .data-networks { gap: 7px; }
+  .data-net { min-height: 76px; }
+  .data-seg-btn { padding-inline: 12px; }
+  .data-input-wrap { gap: 7px; padding-inline: 10px; }
+  .data-use-mine { padding-inline: 8px; }
+  .data-plan-card { padding-inline: 12px; }
+}
