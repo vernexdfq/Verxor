@@ -15,6 +15,7 @@ import {
 import { COUNTRIES, type Country, displayNational, toE164 } from './countries';
 import { PhoneField } from './phone-field';
 import type { AuthSession } from './auth-core';
+export type { AuthSession };
 import { isBiometricEnabledLocally, verifyPlatformBiometric } from '../lib/webauthn';
 import './auth.css';
 
@@ -145,6 +146,7 @@ export function AuthFlow({ onAuthenticated }: AuthFlowProps) {
       method: pendingMethod,
       contact: pendingContact,
       name: pendingName || (pendingMethod === 'phone' ? pendingContact : pendingContact.split('@')[0]),
+      password: '',
       pin: p,
     };
     try {
@@ -179,6 +181,7 @@ export function AuthFlow({ onAuthenticated }: AuthFlowProps) {
           method: pendingMethod,
           contact: pendingContact || 'biometric-user',
           name: pendingName || 'User',
+          password: '',
           pin: '****',
         };
       }
@@ -232,8 +235,8 @@ export function AuthFlow({ onAuthenticated }: AuthFlowProps) {
       contact: contactValue,
       name: fullName.trim(),
       email: signEmail.trim(),
+      password: password,
       pin: signPin,
-      referral: refCode || undefined,
     };
     try {
       localStorage.setItem('verxor-auth', JSON.stringify(next));
