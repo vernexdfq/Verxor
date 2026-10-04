@@ -460,7 +460,7 @@
 /*
  * Deep service pages:
  * Balanced 16px side gutters for most services.
- * eSIM / Betting / Edit Profile / Referral / Privacy / Feedback / FAQ / Support / Security own edge-tight layout.
+ * eSIM / Betting / Edit Profile / Referral / Privacy / Feedback / FAQ / Support / Security / Exam PIN own edge-tight layout.
  */
 .app-frame.deep-service .bottom-nav {
   display: none;
@@ -476,7 +476,8 @@
 .app-frame.deep-service .content:has(.fb-page),
 .app-frame.deep-service .content:has(.faq-page),
 .app-frame.deep-service .content:has(.sc-page),
-.app-frame.deep-service .content:has(.sec-page) {
+.app-frame.deep-service .content:has(.sec-page),
+.app-frame.deep-service .content:has(.exam-page) {
   padding-left: 0;
   padding-right: 0;
   padding-top: 0;
