@@ -1,0 +1,2 @@
+# Rebuild trigger — AuthFlow.tsx syntax is clean as of 251bf73
+# Password validation uses real newlines, not escaped \\n
