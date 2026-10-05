@@ -175,6 +175,18 @@
   font-weight: 400;
 }
 
+.ep-error {
+  margin: 4px 0 12px;
+  padding: 11px 13px;
+  border-radius: 12px;
+  background: #FEF2F2;
+  border: 1px solid #FECACA;
+  color: #B91C1C;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
 .ep-hint {
   font-size: 11.5px;
   font-weight: 500;
