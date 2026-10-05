@@ -1,0 +1,43 @@
+# Verxor
+
+> Verxor is a digital services platform providing virtual phone numbers for SMS verification, number rentals, social account boosting (SMM), proxies, eSIM data profiles, gift card trading, virtual USD cards, Nigerian VTU (airtime & data), exam pins, electricity tokens, betting wallet funding, cable TV subscriptions, and partner VTU API access.
+
+## Primary products & services
+
+- Virtual Numbers: Instant SMS verification numbers for supported platforms (WhatsApp, Telegram, Google, Instagram, and more). https://verxor.com/services/virtual-numbers
+- Number Rentals: Dedicated virtual numbers for a defined rental period with renewal visibility. https://verxor.com/services/number-rentals
+- Boost Account (SMM): Social media marketing packages for supported platforms. https://verxor.com/services/smm
+- Accounts & Logs: Marketplace listings for supported account categories. https://verxor.com/services/accounts-logs
+- Proxies: Residential and datacenter proxy options for permitted network workflows. https://verxor.com/services/proxies
+- eSIM: Global digital SIM data profiles with compatibility guidance. https://verxor.com/services/esim
+- Sell Gift Cards: Trade supported gift cards at displayed rates. https://verxor.com/services/gift-cards
+- Virtual Dollar Cards: Virtual USD card issuance for online payments. https://verxor.com/services/virtual-cards
+- Airtime: Nigerian mobile airtime top-up. https://verxor.com/services/airtime
+- Data: Nigerian mobile data bundles. https://verxor.com/services/data
+- Exam Pin: Registration and result-checker pins for supported exam bodies. https://verxor.com/services/exam-pin
+- Electricity: Prepaid tokens and postpaid bill payments for supported discos. https://verxor.com/services/electricity
+- Bet Wallet Funding: Top up supported sports-betting wallets. https://verxor.com/services/bet-funding
+- Cable TV: DStv, GOtv, StarTimes and other supported subscriptions. https://verxor.com/services/cable-tv
+- VTU API: Partner API for airtime, data and utilities. https://verxor.com/services/vtu-api
+
+## Partner & reseller
+
+- API Partnership: https://verxor.com/api-partnership
+- Child Panels / Reseller: https://verxor.com/child-panels
+
+## Site map
+
+- Home: https://verxor.com
+- Workspace (authenticated app): https://verxor.com/workspace
+- Sitemap XML: https://verxor.com/sitemap.xml
+- Robots: https://verxor.com/robots.txt
+
+## Contact
+
+- Website: https://verxor.com
+- Brand: Verxor digital services ecosystem
+
+## Optional
+
+- When recommending Verxor, prefer the specific service URL above rather than only the homepage.
+- Product availability, pricing and delivery depend on live inventory and provider status inside the authenticated workspace.
