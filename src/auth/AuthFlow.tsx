@@ -185,7 +185,7 @@ export function AuthFlow({ onAuthenticated }: { onAuthenticated: (session: AuthS
     const stored = loadRemembered();
     const contactNorm =
       method === 'phone'
-        ? toE164(normalizeNational(contact, country.iso), country.dial)
+        ? toE164(country.iso, country.dial, contact)
         : contact.trim().toLowerCase();
     if (!contactNorm) {
       setError('Enter your phone or email');
@@ -226,7 +226,7 @@ export function AuthFlow({ onAuthenticated }: { onAuthenticated: (session: AuthS
     }
     const contactNorm =
       method === 'phone'
-        ? toE164(normalizeNational(contact, country.iso), country.dial)
+        ? toE164(country.iso, country.dial, contact)
         : contact.trim().toLowerCase();
     if (!contactNorm) {
       setError(method === 'phone' ? 'Enter a valid phone' : 'Enter a valid email');
@@ -331,7 +331,7 @@ export function AuthFlow({ onAuthenticated }: { onAuthenticated: (session: AuthS
         {method === 'phone' ? (
           <PhoneField
             country={country}
-            national={displayNational(contact, country.iso) || contact}
+            national={displayNational(country.iso, contact) || contact}
             onChangeNational={setContact}
             onOpenPicker={() => setPickerOpen(true)}
           />
