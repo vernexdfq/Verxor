@@ -16,9 +16,25 @@ import '../src/marketing/hero-polish.css';
 export const metadata: Metadata = {
   metadataBase: new URL('https://verxor.com'),
   title: { default: 'Verxor — Your complete digital ecosystem', template: '%s | Verxor' },
-  description: 'Verxor brings supported digital services, virtual numbers, everyday utilities and partner infrastructure into one ecosystem.',
+  description:
+    'Verxor brings supported digital services, virtual numbers, everyday utilities and partner infrastructure into one ecosystem.',
   applicationName: 'Verxor',
   manifest: '/manifest.webmanifest',
+  /** Explicit public indexing — do not set noindex/nofollow on the marketing site */
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+      'max-video-preview': -1,
+    },
+  },
+  alternates: {
+    canonical: 'https://verxor.com',
+  },
   icons: {
     icon: [{ url: '/brand/verxor-logo.svg', type: 'image/svg+xml' }],
     shortcut: '/brand/verxor-logo.svg',
