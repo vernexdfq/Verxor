@@ -129,19 +129,9 @@ const PROMO_SLIDES = [
 type Step = 'pools' | 'country' | 'services';
 
 function formatNgn(n: number) {
-  return `₦${n.toLocaleString('en-NG')}`;
+  const v = Number.isFinite(n) ? Math.max(0, Math.round(n)) : 0;
+  return `₦${v.toLocaleString('en-NG')}`;
 }
-
-const DEMO_ACTIVE: CustomerNumberOrder[] = [
-  {
-    id: 'demo-1',
-    number: '+1 (415) •••-4821',
-    service: 'WhatsApp',
-    poolTitle: 'USA · Premium',
-    status: 'waiting',
-    createdAt: new Date().toISOString(),
-  },
-];
 
 /** Brand-colored official-style marks for each service. */
 function ServiceLogo({ id }: { id: string }) {
@@ -245,10 +235,13 @@ export function VirtualNumbersPage({
   onBack,
   onOpenNotifications,
   orders = [],
+  balanceNgn = 0,
 }: {
   onBack: () => void;
   onOpenNotifications: () => void;
   orders?: CustomerNumberOrder[];
+  /** Live wallet balance from AuthSession (NGN). Empty (0) until user funds. */
+  balanceNgn?: number;
 }) {
   const [step, setStep] = useState<Step>('pools');
   const [selectedPool, setSelectedPool] = useState<Pool | null>(null);
@@ -256,9 +249,9 @@ export function VirtualNumbersPage({
   const [countryQuery, setCountryQuery] = useState('');
   const [serviceQuery, setServiceQuery] = useState('');
   const [promoIndex, setPromoIndex] = useState(0);
-  const [balance] = useState(7570);
 
-  const activeOrders = orders.length > 0 ? orders : DEMO_ACTIVE;
+  /** Real orders only — no demo numbers. */
+  const activeOrders = orders;
 
   useEffect(() => {
     const t = setInterval(() => {
@@ -325,7 +318,7 @@ export function VirtualNumbersPage({
         </div>
         <button type="button" className="vn-balance" aria-label="Wallet balance">
           <WalletCards size={14} />
-          <span>{formatNgn(balance)}</span>
+          <span>{formatNgn(balanceNgn)}</span>
         </button>
       </header>
 
@@ -389,30 +382,37 @@ export function VirtualNumbersPage({
               <Radio size={16} className="vn-active-icon" />
               <h3 id="vn-active-title">Your Active Numbers & OTP Inboxes</h3>
             </div>
-            <div className="vn-active-list">
-              {activeOrders.map((order) => (
-                <article key={order.id} className="vn-active-row">
-                  <span className="vn-active-app" aria-hidden>
-                    {order.service.slice(0, 1)}
-                  </span>
-                  <div className="vn-active-meta">
-                    <strong>{order.number}</strong>
-                    <small>
-                      <span className="vn-pulse" />
-                      {order.status === 'waiting'
-                        ? 'Pending SMS'
-                        : order.status === 'received'
-                          ? `OTP ${order.otp ?? 'ready'}`
-                          : order.status}
-                      {order.service ? ` · ${order.service}` : ''}
-                    </small>
-                  </div>
-                  <button type="button" className="vn-inbox-btn">
-                    View Inbox <ChevronRight size={14} />
-                  </button>
-                </article>
-              ))}
-            </div>
+            {activeOrders.length === 0 ? (
+              <div className="vn-empty-state">
+                <p>You have no active numbers</p>
+                <small>Buy a number above to receive OTPs here.</small>
+              </div>
+            ) : (
+              <div className="vn-active-list">
+                {activeOrders.map((order) => (
+                  <article key={order.id} className="vn-active-row">
+                    <span className="vn-active-app" aria-hidden>
+                      {order.service.slice(0, 1)}
+                    </span>
+                    <div className="vn-active-meta">
+                      <strong>{order.number}</strong>
+                      <small>
+                        <span className="vn-pulse" />
+                        {order.status === 'waiting'
+                          ? 'Pending SMS'
+                          : order.status === 'received'
+                            ? `OTP ${order.otp ?? 'ready'}`
+                            : order.status}
+                        {order.service ? ` · ${order.service}` : ''}
+                      </small>
+                    </div>
+                    <button type="button" className="vn-inbox-btn">
+                      View Inbox <ChevronRight size={14} />
+                    </button>
+                  </article>
+                ))}
+              </div>
+            )}
           </section>
         </>
       )}
@@ -442,9 +442,10 @@ export function VirtualNumbersPage({
               <button
                 key={country.code}
                 type="button"
-                className="vn-list-item"
+                className="vn-list-row"
                 onClick={() => {
                   setSelectedCountry(country);
+                  setServiceQuery('');
                   setStep('services');
                 }}
               >
@@ -453,7 +454,7 @@ export function VirtualNumbersPage({
                   <strong>{country.name}</strong>
                   <small>{country.dial}</small>
                 </span>
-                <ChevronRight size={16} className="vn-chevron" />
+                <ChevronRight size={16} />
               </button>
             ))}
           </div>
@@ -473,7 +474,7 @@ export function VirtualNumbersPage({
             <input
               value={serviceQuery}
               onChange={(e) => setServiceQuery(e.target.value)}
-              placeholder="Search WhatsApp, Telegram…"
+              placeholder="Search WhatsApp, Telegram..."
               autoComplete="off"
             />
             {serviceQuery ? (
@@ -484,23 +485,15 @@ export function VirtualNumbersPage({
           </label>
           <div className="vn-list">
             {filteredServices.map((service) => (
-              <button
-                key={service.id}
-                type="button"
-                className="vn-list-item"
-                onClick={() => {
-                  void onOpenNotifications;
-                  void service;
-                }}
-              >
-                <span className={`vn-service-icon brand-${service.id}`}>
+              <button key={service.id} type="button" className="vn-list-row vn-service-row">
+                <span className="vn-service-logo">
                   <ServiceLogo id={service.id} />
                 </span>
                 <span className="vn-list-copy">
                   <strong>{service.name}</strong>
                   <small>From {formatNgn(selectedPool.fromNgn)} / OTP</small>
                 </span>
-                <ChevronRight size={16} className="vn-chevron" />
+                <ChevronRight size={16} />
               </button>
             ))}
           </div>
@@ -511,18 +504,29 @@ export function VirtualNumbersPage({
 }
 
 function PoolCard({ pool, onSelect }: { pool: Pool; onSelect: (p: Pool) => void }) {
-  const isUsa = pool.location === 'USA';
+  const tierClass =
+    pool.tier === 'ECO'
+      ? 'vn-tier-eco'
+      : pool.tier === 'STD'
+        ? 'vn-tier-std'
+        : pool.tier === 'FAST'
+          ? 'vn-tier-fast'
+          : 'vn-tier-premium';
   return (
     <button type="button" className="vn-pool-card" onClick={() => onSelect(pool)}>
       <div className="vn-pool-card-top">
-        <span className={`vn-pool-mark ${isUsa ? 'usa' : 'world'}`}>
-          {isUsa ? '🇺🇸' : <Globe2 size={16} />}
-        </span>
-        <span className={`vn-tier-badge tier-${pool.tier.toLowerCase()}`}>{pool.tier}</span>
+        {pool.location === 'USA' ? (
+          <span className="vn-flag" aria-hidden>
+            🇺🇸
+          </span>
+        ) : (
+          <Globe2 size={16} className="vn-globe" />
+        )}
+        <span className={`vn-tier ${tierClass}`}>{pool.tier}</span>
       </div>
-      <strong className="vn-pool-title">{pool.title}</strong>
-      <small className="vn-pool-hint">{pool.hint}</small>
-      <span className={`vn-price-pill tier-${pool.tier.toLowerCase()}`}>
+      <strong>{pool.title}</strong>
+      <p>{pool.hint}</p>
+      <span className={`vn-from ${tierClass}`}>
         From {formatNgn(pool.fromNgn)} / OTP
       </span>
     </button>
