@@ -36,32 +36,6 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
-.auth-skip {
-  position: absolute;
-  top: max(12px, env(safe-area-inset-top));
-  right: 14px;
-  z-index: 20;
-  width: 36px;
-  height: 36px;
-  border-radius: 999px;
-  border: 1px solid var(--vx-border);
-  background: var(--vx-surface);
-  color: var(--vx-sub);
-  display: grid;
-  place-items: center;
-  cursor: pointer;
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
-  transition: background 0.15s, color 0.15s, border-color 0.15s;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.auth-skip:hover,
-.auth-skip:active {
-  background: var(--vx-primary);
-  border-color: var(--vx-primary);
-  color: #FFFFFF;
-}
-
 .auth-body {
   flex: 1;
   display: flex;
@@ -102,15 +76,18 @@
   width: 36px;
   height: 36px;
   border-radius: 10px;
-  background: var(--vx-heading);
+  background: #0f172a;
   display: grid;
   place-items: center;
   flex-shrink: 0;
+  overflow: hidden;
 }
 
-.auth-brand-mark svg {
-  width: 20px;
-  height: 20px;
+.auth-brand-mark img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .auth-brand-name {
@@ -204,6 +181,9 @@
 .auth-optional {
   color: var(--vx-muted);
   font-weight: 500;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  margin-left: 6px;
 }
 
 .auth-input-wrap {
@@ -292,6 +272,11 @@
   transform: scale(0.985);
 }
 
+.auth-btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
 .auth-or {
   display: flex;
   align-items: center;
@@ -330,18 +315,23 @@
 }
 
 .auth-back {
-  background: none;
-  border: 0;
-  color: var(--vx-sub);
-  font-size: 14px;
-  font-weight: 600;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: 20px;
-  padding: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  border: 1px solid var(--vx-border);
+  background: var(--vx-surface);
+  color: var(--vx-heading);
+  display: grid;
+  place-items: center;
+  margin-bottom: 12px;
   cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  padding: 0;
   align-self: flex-start;
+}
+
+.auth-back:active {
+  background: #F1F5F9;
 }
 
 .pin-label {
@@ -357,7 +347,7 @@
   display: flex;
   justify-content: center;
   gap: 14px;
-  margin: 0 0 36px;
+  margin: 0 0 28px;
   width: 100%;
 }
 
@@ -411,6 +401,8 @@
   transition: background 0.1s, transform 0.08s;
   -webkit-tap-highlight-color: transparent;
   user-select: none;
+  display: grid;
+  place-items: center;
 }
 
 .pin-key:active {
@@ -418,16 +410,25 @@
   transform: scale(0.94);
 }
 
-.pin-key.delete {
-  background: #FEE2E2;
-  border-color: #FECACA;
-  color: var(--vx-danger);
-  font-size: 18px;
-  font-weight: 700;
+.pin-key--bio {
+  color: var(--vx-primary);
+  background: #EFF6FF;
+  border: 1px solid #BFDBFE;
 }
 
-.pin-key.delete:active {
-  background: #FECACA;
+.pin-key--bio:active {
+  background: #DBEAFE;
+}
+
+.pin-key--del {
+  color: #DC2626;
+  background: #FEF2F2;
+  border: 1px solid #FECACA;
+  font-size: 20px;
+}
+
+.pin-key--del:active {
+  background: #FEE2E2;
 }
 
 .pin-actions {
@@ -449,17 +450,8 @@
   padding: 10px 0;
 }
 
-.auth-success {
-  margin: 0 0 16px;
-  padding: 12px 14px;
-  border-radius: var(--vx-radius-sm);
-  background: var(--vx-success-bg);
-  border: 1px solid #A7F3D0;
-  color: #065F46;
-  font-size: 13.5px;
-  font-weight: 600;
-  text-align: center;
-  width: 100%;
+.pin-emoji {
+  font-size: 0.95em;
 }
 
 .auth-error {
@@ -475,11 +467,25 @@
   width: 100%;
 }
 
+.auth-bio-hint {
+  margin: 0 0 12px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: #EFF6FF;
+  color: #1D4ED8;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.4;
+  text-align: center;
+  max-width: 320px;
+  width: 100%;
+}
+
 .auth-section {
   margin: 18px 0 10px;
   font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0.07em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--vx-muted);
   width: 100%;
@@ -505,47 +511,11 @@
   text-decoration: none;
 }
 
-.auth-spinner {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  border: 3px solid var(--vx-border);
-  border-top-color: var(--vx-primary);
-  animation: auth-spin 0.7s linear infinite;
+.auth-terms a:hover {
+  text-decoration: underline;
 }
 
-@keyframes auth-spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.auth-success-icon {
-  width: 68px;
-  height: 68px;
-  border-radius: 50%;
-  background: var(--vx-success-bg);
-  border: 2px solid #A7F3D0;
-  display: grid;
-  place-items: center;
-  margin: 0 auto 20px;
-  color: var(--vx-success);
-  font-size: 28px;
-  font-weight: 700;
-}
-
-@media (min-width: 700px) {
-  .auth-root {
-    min-height: calc(100dvh - 64px);
-    margin-top: 32px;
-    border-radius: 24px;
-    box-shadow: 0 16px 48px rgba(15, 23, 42, 0.08);
-    overflow: hidden;
-    border: 1px solid var(--vx-border);
-  }
-}
-
-/* ——— Country code picker ——— */
+/* Country code picker */
 .auth-phone-row {
   display: flex;
   align-items: stretch;
@@ -592,11 +562,6 @@
 
 .auth-input-wrap--phone input {
   font-variant-numeric: tabular-nums;
-}
-
-.auth-hint--tight {
-  margin-top: -8px;
-  margin-bottom: 12px;
 }
 
 .cc-sheet {
@@ -741,8 +706,3 @@
   color: var(--vx-muted);
   font-size: 14px;
 }
-
-
-/* Official Verxor emblem on sign-in and sign-up screens. */
-.auth-brand-mark { overflow:hidden; background:#0f172a; }
-.auth-brand-mark img { display:block; width:100%; height:100%; object-fit:cover; }
