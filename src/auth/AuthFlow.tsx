@@ -5,8 +5,10 @@ import {
   ArrowLeft,
   Eye,
   EyeOff,
+  Fingerprint,
   Lock,
   Mail,
+  Phone,
   User,
 } from 'lucide-react';
 import {
@@ -20,6 +22,7 @@ import {
   type Country,
 } from './countries';
 import { CountryPickerSheet, PhoneField } from './phone-field';
+import { isBiometricEnabledLocally } from '../lib/webauthn';
 import './auth.css';
 
 export type AuthMethod = 'phone' | 'email';
@@ -64,6 +67,8 @@ const DEFAULT_MOCK: AuthSession = {
 
 type LastPhone = { iso: string; dial: string; national: string };
 
+type Step = 'boot' | 'signin' | 'signup' | 'pin' | 'forgot';
+
 function loadRemembered(): AuthSession {
   if (typeof window === 'undefined') return { ...DEFAULT_MOCK };
   try {
@@ -92,7 +97,14 @@ function loadRemembered(): AuthSession {
 
 function saveRemembered(session: AuthSession) {
   if (typeof window === 'undefined') return;
-  localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...session, authenticated: false }));
+  try {
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ ...session, authenticated: false }),
+    );
+  } catch {
+    /* ignore */
+  }
 }
 
 function loadLastPhone(): LastPhone | null {
@@ -113,11 +125,24 @@ function saveLastPhone(iso: string, dial: string, national: string) {
   try {
     localStorage.setItem(
       LAST_PHONE_KEY,
-      JSON.stringify({ iso, dial, national: normalizeNational(national, iso) }),
+      JSON.stringify({
+        iso,
+        dial,
+        national: normalizeNational(national, iso),
+      }),
     );
   } catch {
     /* ignore */
   }
+}
+
+function strongPassword(pw: string): boolean {
+  return (
+    pw.length >= 6 &&
+    /[A-Z]/.test(pw) &&
+    /[a-z]/.test(pw) &&
+    /\d/.test(pw)
+  );
 }
 
 function BrandMark() {
@@ -131,214 +156,338 @@ function BrandMark() {
   );
 }
 
-export function AuthFlow({ onAuthenticated }: { onAuthenticated: (session: AuthSession) => void }) {
+export function AuthFlow({
+  onAuthenticated,
+}: {
+  onAuthenticated: (session: AuthSession) => void;
+}) {
   const [remembered, setRemembered] = useState<AuthSession>(DEFAULT_MOCK);
-  const [step, setStep] = useState<
-    | 'boot'
-    | 'welcome'
-    | 'signin'
-    | 'signup'
-    | 'pin'
-    | 'forgot'
-    | 'forgot-new-pin'
-    | 'forgot-success'
-  >('boot');
+  const [step, setStep] = useState<Step>('boot');
   const [method, setMethod] = useState<AuthMethod>('phone');
   const [country, setCountry] = useState<Country>(DEFAULT_COUNTRY);
   const [national, setNational] = useState('');
   const [email, setEmail] = useState('');
-  const [name, setName] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [password, setPassword] = useState('');
   const [showPass, setShowPass] = useState(false);
+  const [showPinField, setShowPinField] = useState(false);
+  const [signupPin, setSignupPin] = useState('');
+  const [referral, setReferral] = useState('');
   const [pin, setPin] = useState('');
   const [newPin, setNewPin] = useState('');
   const [confirmNewPin, setConfirmNewPin] = useState('');
   const [pickerOpen, setPickerOpen] = useState(false);
   const [error, setError] = useState('');
-  const [successMsg, setSuccessMsg] = useState('');
+  const [bioHint, setBioHint] = useState('');
+  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     const s = loadRemembered();
     setRemembered(s);
+
+    try {
+      const inbound = sessionStorage.getItem('verxor-inbound-ref');
+      if (inbound) setReferral(inbound);
+    } catch {
+      /* ignore */
+    }
+
     try {
       if (sessionStorage.getItem('verxor-force-signin') === '1') {
         sessionStorage.removeItem('verxor-force-signin');
         setStep('signin');
         if (s.method) setMethod(s.method);
         if (s.phoneCountry) setCountry(findCountry(s.phoneCountry));
-        if (s.method === 'email') setEmail(s.contact || s.email || '');
-        else if (s.contact) setNational(displayNational(s.phoneCountry || 'NG', s.contact));
+        if (s.method === 'email') {
+          setEmail(s.contact || s.email || '');
+        } else if (s.contact) {
+          setNational(displayNational(s.phoneCountry || 'NG', s.contact));
+        }
         return;
       }
     } catch {
       /* ignore */
     }
+
     if (s.contact && s.pin) {
       setStep('pin');
       setMethod(s.method || 'phone');
-      setName(s.name || '');
       if (s.phoneCountry) setCountry(findCountry(s.phoneCountry));
-    } else {
-      setStep('welcome');
+      if (s.method === 'email') {
+        setEmail(s.contact || s.email || '');
+      } else if (s.contact) {
+        setNational(displayNational(s.phoneCountry || 'NG', s.contact));
+      }
+      return;
     }
+
+    const last = loadLastPhone();
+    if (last) {
+      setCountry(findCountry(last.iso));
+      setNational(displayNational(last.iso, last.national));
+      setMethod('phone');
+      setStep('signin');
+      return;
+    }
+
+    setStep('signup');
   }, []);
 
-  const finish = (session: AuthSession) => {
-    saveRemembered(session);
-    onAuthenticated({ ...session, authenticated: true });
-  };
+  function finish(session: AuthSession) {
+    const iso = session.phoneCountry || country.iso;
+    const full: AuthSession = {
+      ...session,
+      authenticated: true,
+      phoneCountry: iso,
+      dialCode: session.dialCode || findCountry(iso).dial,
+      homeCurrency: session.homeCurrency || homeCurrencyFor(iso),
+      vtuEligible:
+        typeof session.vtuEligible === 'boolean'
+          ? session.vtuEligible
+          : isVtuEligible(iso),
+    };
+    saveRemembered(full);
+    if (full.method === 'phone' && full.contact) {
+      saveLastPhone(
+        iso,
+        full.dialCode || findCountry(iso).dial,
+        displayNational(iso, full.contact),
+      );
+    }
+    setRemembered(full);
+    onAuthenticated(full);
+  }
 
-  const handleNationalChange = (v: string) => {
-    setNational(v);
-    if (error) setError('');
-  };
+  function contactLabel(): string {
+    if (method === 'email') {
+      return email.trim() || remembered.contact || remembered.email || '';
+    }
+    const n =
+      national || displayNational(country.iso, remembered.contact || '');
+    if (!n) return remembered.contact || '';
+    return n.startsWith('0') || country.iso !== 'NG' ? n : `0${n}`;
+  }
 
-  const goToPin = () => {
+  function handleContinueSignIn() {
     setError('');
-    const stored = loadRemembered();
     if (method === 'phone') {
-      const n = national.trim();
-      if (!n) {
-        setError('Enter your phone number');
+      const digits = normalizeNational(national, country.iso);
+      if (digits.length < 7) {
+        setError('Enter a valid phone number');
         return;
       }
-      const display = displayNational(country.iso, n);
-      const contactValue =
-        country.iso === 'NG' ? display : `+${toE164(country.iso, country.dial, n)}`;
-      if (stored.password && password) {
-        if (password !== stored.password) {
-          setError('Wrong password');
+      const e164 = toE164(country.iso, country.dial, national);
+      saveLastPhone(country.iso, country.dial, national);
+
+      const stored = loadRemembered();
+      if (stored.contact && stored.pin) {
+        const storedNorm =
+          stored.method === 'phone'
+            ? stored.contact.replace(/\D/g, '')
+            : stored.contact.toLowerCase();
+        const inputNorm = e164.replace(/\D/g, '');
+        if (storedNorm === inputNorm || stored.contact === e164) {
+          setRemembered(stored);
+          setPin('');
+          setStep('pin');
           return;
         }
-      } else if (!password || password.length < 4) {
-        setError('Enter your password');
-        return;
       }
-      if (stored.pin) {
-        setRemembered({
-          ...stored,
-          method: 'phone',
-          contact: contactValue || stored.contact,
-          phoneCountry: country.iso,
-          dialCode: country.dial,
-        });
-        setPin('');
-        setStep('pin');
-        return;
-      }
-      const next: AuthSession = {
-        ...stored,
+      setRemembered({
+        ...DEFAULT_MOCK,
         method: 'phone',
-        contact: contactValue,
-        password: password || stored.password,
+        contact: e164,
         phoneCountry: country.iso,
         dialCode: country.dial,
         homeCurrency: homeCurrencyFor(country.iso),
         vtuEligible: isVtuEligible(country.iso),
-        authenticated: true,
-      };
-      finish(next);
-      return;
-    }
-    const em = email.trim().toLowerCase();
-    if (!em) {
-      setError('Enter your email');
-      return;
-    }
-    if (!password || password.length < 4) {
-      setError('Enter your password');
-      return;
-    }
-    if (stored.password && password !== stored.password) {
-      setError('Wrong password');
-      return;
-    }
-    if (stored.pin) {
-      setRemembered({ ...stored, method: 'email', contact: em, email: em });
+        pin: stored.pin || '',
+        name: stored.name || '',
+        password: stored.password || '',
+        email: stored.email || '',
+      });
       setPin('');
       setStep('pin');
       return;
     }
-    finish({
-      ...stored,
+
+    const em = email.trim().toLowerCase();
+    if (!/[^\s@]+@[^\s@]+\.[^\s@]+/.test(em)) {
+      setError('Enter a valid email address');
+      return;
+    }
+    const stored = loadRemembered();
+    if (stored.contact && stored.pin) {
+      const match =
+        stored.method === 'email' &&
+        (stored.contact.toLowerCase() === em ||
+          (stored.email || '').toLowerCase() === em);
+      if (match) {
+        setRemembered(stored);
+        setPin('');
+        setStep('pin');
+        return;
+      }
+    }
+    setRemembered({
+      ...DEFAULT_MOCK,
       method: 'email',
       contact: em,
       email: em,
-      password,
-      authenticated: true,
+      pin: stored.pin || '',
+      name: stored.name || '',
+      password: stored.password || '',
     });
-  };
+    setPin('');
+    setStep('pin');
+  }
 
-  const submitPin = () => {
+  function handleSignup() {
     setError('');
-    const stored = loadRemembered();
-    if (!stored.pin || pin !== stored.pin) {
-      setError('Incorrect PIN');
+    const fn = firstName.trim();
+    const ln = lastName.trim();
+    if (!fn) {
+      setError('Enter your first name');
       return;
     }
-    finish({ ...stored, ...remembered, authenticated: true });
-  };
-
-  const handleSignUp = () => {
-    setError('');
-    const nm = name.trim();
-    if (nm.length < 2) {
-      setError('Enter your full name');
+    if (!ln) {
+      setError('Enter your last name');
       return;
     }
-    let contactValue = '';
-    if (method === 'phone') {
-      const n = national.trim();
-      if (!n) {
-        setError('Enter a valid phone');
-        return;
-      }
-      const display = displayNational(country.iso, n);
-      contactValue =
-        country.iso === 'NG' ? display : `+${toE164(country.iso, country.dial, n)}`;
-      saveLastPhone(country.iso, country.dial, n);
-    } else {
-      contactValue = email.trim().toLowerCase();
-      if (!contactValue.includes('@')) {
-        setError('Enter a valid email');
-        return;
-      }
-    }
-    if (!password || password.length < 6) {
-      setError('Password too short - use 6 or more characters');
+    const digits = normalizeNational(national, country.iso);
+    if (digits.length < 7) {
+      setError('Enter a valid phone number');
       return;
     }
-    if (!/^\d{4}$/.test(pin)) {
+    const em = email.trim().toLowerCase();
+    if (!/[^\s@]+@[^\s@]+\.[^\s@]+/.test(em)) {
+      setError('Enter a valid email address');
+      return;
+    }
+    if (!strongPassword(password)) {
+      setError(
+        'Password must be at least 6 characters with uppercase, lowercase, and a number',
+      );
+      return;
+    }
+    if (!/^\d{4}$/.test(signupPin)) {
       setError('Create a 4-digit PIN');
       return;
     }
+
+    const e164 = toE164(country.iso, country.dial, national);
+    const fullName = `${fn} ${ln}`.replace(/\s+/g, ' ').trim();
     const session: AuthSession = {
-      ...DEFAULT_MOCK,
-      method,
-      contact: contactValue,
-      name: nm,
-      pin,
+      authenticated: false,
+      method: 'phone',
+      contact: e164,
+      name: fullName,
+      username: '',
+      pin: signupPin,
       password,
       phoneCountry: country.iso,
       dialCode: country.dial,
       homeCurrency: homeCurrencyFor(country.iso),
       vtuEligible: isVtuEligible(country.iso),
-      email: method === 'email' ? contactValue : '',
-      authenticated: true,
+      balanceNgn: 0,
+      balanceUsd: 0,
+      email: em,
     };
+    if (referral.trim()) {
+      try {
+        sessionStorage.setItem(
+          'verxor-inbound-ref',
+          referral.trim().toUpperCase(),
+        );
+      } catch {
+        /* ignore */
+      }
+    }
+    saveLastPhone(country.iso, country.dial, national);
     finish(session);
-  };
+  }
 
-  const finishForgotSuccess = () => {
+  function verifyPin(candidate: string) {
+    const stored = loadRemembered();
+    const expected = stored.pin || remembered.pin;
+    if (expected && candidate === expected) {
+      finish({
+        ...stored,
+        ...remembered,
+        pin: expected,
+        contact: remembered.contact || stored.contact,
+        method: remembered.method || stored.method,
+        name: remembered.name || stored.name,
+        email: remembered.email || stored.email,
+        authenticated: true,
+      });
+      return;
+    }
+    if (!expected && candidate.length === 4) {
+      setError('No account found for this contact. Create an account first.');
+      setPin('');
+      return;
+    }
+    setError('Incorrect PIN');
+    setPin('');
+  }
+
+  function onPinDigit(d: string) {
+    setPin((prev) => {
+      if (prev.length >= 4) return prev;
+      const next = prev + d;
+      if (next.length === 4) {
+        setTimeout(() => verifyPin(next), 60);
+      }
+      return next;
+    });
+    if (error) setError('');
+    if (bioHint) setBioHint('');
+  }
+
+  function onPinDelete() {
+    setPin((p) => p.slice(0, -1));
+    if (error) setError('');
+  }
+
+  function onFingerprintTap() {
+    if (isBiometricEnabledLocally()) {
+      setBioHint('Biometric login is ready. Enter your PIN for this session.');
+      return;
+    }
+    setBioHint('Enable biometric in Settings after you sign in.');
+  }
+
+  function handleForgotReset() {
+    setError('');
+    if (!/^\d{4}$/.test(newPin)) {
+      setError('Enter a new 4-digit PIN');
+      return;
+    }
+    if (newPin !== confirmNewPin) {
+      setError('PINs do not match');
+      return;
+    }
+    const stored = loadRemembered();
+    const next = { ...stored, ...remembered, pin: newPin };
+    saveRemembered(next);
+    setRemembered(next);
     setPin('');
     setNewPin('');
     setConfirmNewPin('');
-    setSuccessMsg('');
     setStep('pin');
-  };
+  }
 
   if (step === 'boot') {
-    return <div className="auth-root" />;
+    return (
+      <div className="auth-root">
+        <div className="auth-body auth-body--center">
+          <BrandMark />
+          <p className="auth-sub">Loading…</p>
+        </div>
+      </div>
+    );
   }
 
   if (step === 'signin') {
@@ -346,221 +495,108 @@ export function AuthFlow({ onAuthenticated }: { onAuthenticated: (session: AuthS
       <div className="auth-root">
         <div className="auth-body auth-body--signin">
           <BrandMark />
-          <h1 className="auth-title">Sign in</h1>
-          <p className="auth-sub">Welcome back to Verxor</p>
+          <h1 className="auth-title">Welcome back 👋</h1>
+          <p className="auth-sub">Sign in to your Verxor account</p>
+
           <div className="auth-tabs" role="tablist">
             <button
               type="button"
               role="tab"
-              className={`auth-tab ${method === 'phone' ? 'active' : ''}`}
               aria-selected={method === 'phone'}
+              className={`auth-tab ${method === 'phone' ? 'active' : ''}`}
               onClick={() => {
                 setMethod('phone');
                 setError('');
               }}
             >
-              Phone
+              <Phone size={15} strokeWidth={2.2} />
+              Phone Number
             </button>
             <button
               type="button"
               role="tab"
-              className={`auth-tab ${method === 'email' ? 'active' : ''}`}
               aria-selected={method === 'email'}
+              className={`auth-tab ${method === 'email' ? 'active' : ''}`}
               onClick={() => {
                 setMethod('email');
                 setError('');
               }}
             >
-              Email
+              <Mail size={15} strokeWidth={2.2} />
+              Email Address
             </button>
           </div>
+
           {method === 'phone' ? (
             <PhoneField
               id="signin-phone"
-              label="Phone number"
+              label="Phone Number"
               country={country}
               national={national}
+              onNationalChange={setNational}
               onOpenPicker={() => setPickerOpen(true)}
-              onNationalChange={handleNationalChange}
               placeholder="8012345678"
             />
           ) : (
             <div className="auth-field">
-              <label htmlFor="signin-email">Email</label>
+              <label htmlFor="signin-email">Email Address</label>
               <div className="auth-input-wrap">
-                <Mail size={16} />
+                <Mail size={18} strokeWidth={2} />
                 <input
                   id="signin-email"
                   type="email"
-                  value={email}
-                  onChange={(e) => {
-                    setEmail(e.target.value);
-                    if (error) setError('');
-                  }}
-                  placeholder="you@email.com"
+                  inputMode="email"
                   autoComplete="email"
+                  placeholder="you@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                 />
               </div>
             </div>
           )}
-          <div className="auth-field">
-            <label htmlFor="signin-pass">Password</label>
-            <div className="auth-input-wrap">
-              <Lock size={16} />
-              <input
-                id="signin-pass"
-                type={showPass ? 'text' : 'password'}
-                value={password}
-                onChange={(e) => {
-                  setPassword(e.target.value);
-                  if (error) setError('');
-                }}
-                placeholder="Password"
-                autoComplete="current-password"
-              />
-              <button
-                type="button"
-                className="auth-eye"
-                onClick={() => setShowPass((v) => !v)}
-                aria-label="Toggle password"
-              >
-                {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
-              </button>
-            </div>
-          </div>
+
           {error ? <p className="auth-error">{error}</p> : null}
-          <button type="button" className="auth-btn" onClick={goToPin}>
-            Continue
-          </button>
+
           <button
             type="button"
-            className="auth-footer-link"
+            className="auth-btn"
+            disabled={busy}
             onClick={() => {
-              setError('');
-              setStep('forgot');
+              setBusy(true);
+              handleContinueSignIn();
+              setBusy(false);
             }}
           >
-            Forgot PIN?
+            Continue
           </button>
-          <p className="auth-hint">
-            New here?{' '}
+
+          <div className="auth-or">
+            <span>or</span>
+          </div>
+
+          <p className="auth-footer-link">
+            Don&apos;t have an account?{' '}
             <button
               type="button"
-              className="auth-footer-link"
               onClick={() => {
                 setError('');
                 setStep('signup');
               }}
             >
-              Create account
+              Create one free
             </button>
           </p>
-          <CountryPickerSheet
-            open={pickerOpen}
-            selectedIso={country.iso}
-            onSelect={(c) => {
-              setCountry(c);
-              setPickerOpen(false);
-            }}
-            onClose={() => setPickerOpen(false)}
-          />
         </div>
-      </div>
-    );
-  }
 
-  if (step === 'pin') {
-    const first = (remembered.name || name || '').trim().split(/\s+/)[0];
-    return (
-      <div className="auth-root">
-        <button
-          type="button"
-          className="auth-skip"
-          onClick={() => {
-            setPin('');
-            setError('');
-            setStep('signin');
+        <CountryPickerSheet
+          open={pickerOpen}
+          selectedIso={country.iso}
+          onClose={() => setPickerOpen(false)}
+          onSelect={(c) => {
+            setCountry(c);
+            setNational('');
           }}
-          aria-label="Back"
-        >
-          <ArrowLeft size={18} />
-        </button>
-        <div className="auth-body auth-body--pin">
-          <BrandMark />
-          <h1 className="auth-title auth-title--center">Enter PIN</h1>
-          <p className="auth-sub auth-sub--center">
-            Welcome back{first ? `, ${first}` : ''}
-          </p>
-          <div className="pin-boxes" aria-hidden>
-            {[0, 1, 2, 3].map((i) => (
-              <div key={i} className={`pin-box ${pin.length > i ? 'filled' : ''}`}>
-                {pin.length > i ? <span className="pin-dot" /> : null}
-              </div>
-            ))}
-          </div>
-          {error ? <p className="auth-error">{error}</p> : null}
-          <div className="pin-keypad">
-            {['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0', 'del'].map((key) => {
-              if (key === '') return <span key="sp" />;
-              if (key === 'del') {
-                return (
-                  <button
-                    key="del"
-                    type="button"
-                    className="pin-key"
-                    onClick={() => {
-                      setPin((p) => p.slice(0, -1));
-                      if (error) setError('');
-                    }}
-                    aria-label="Delete"
-                  >
-                    ←
-                  </button>
-                );
-              }
-              return (
-                <button
-                  key={key}
-                  type="button"
-                  className="pin-key"
-                  onClick={() => {
-                    setPin((p) => {
-                      const next = (p + key).slice(0, 4);
-                      if (next.length === 4) {
-                        setTimeout(() => {
-                          const stored = loadRemembered();
-                          if (stored.pin && next === stored.pin) {
-                            finish({ ...stored, ...remembered, authenticated: true });
-                          } else {
-                            setError('Incorrect PIN');
-                            setPin('');
-                          }
-                        }, 80);
-                      }
-                      return next;
-                    });
-                    if (error) setError('');
-                  }}
-                >
-                  {key}
-                </button>
-              );
-            })}
-          </div>
-          <div className="pin-actions">
-            <button
-              type="button"
-              className="auth-footer-link"
-              onClick={() => {
-                setPin('');
-                setError('');
-                setStep('signin');
-              }}
-            >
-              Use password instead
-            </button>
-          </div>
-        </div>
+        />
       </div>
     );
   }
@@ -568,173 +604,318 @@ export function AuthFlow({ onAuthenticated }: { onAuthenticated: (session: AuthS
   if (step === 'signup') {
     return (
       <div className="auth-root">
-        <button
-          type="button"
-          className="auth-skip"
-          onClick={() => setStep('welcome')}
-          aria-label="Back"
-        >
-          <ArrowLeft size={18} />
-        </button>
         <div className="auth-body">
-          <BrandMark />
-          <h1 className="auth-title">Create account</h1>
-          <p className="auth-sub">Join Verxor in under a minute</p>
+          <button
+            type="button"
+            className="auth-back"
+            onClick={() => {
+              setError('');
+              setStep('signin');
+            }}
+            aria-label="Back to sign in"
+          >
+            <ArrowLeft size={18} />
+          </button>
+
+          <h1 className="auth-title">Create your account 🚀</h1>
+          <p className="auth-sub">
+            Fill in your details below to get started for free
+          </p>
+
+          <p className="auth-section">PERSONAL INFO</p>
+
           <div className="auth-field">
-            <label htmlFor="su-name">Full name</label>
+            <label htmlFor="su-first">First Name</label>
             <div className="auth-input-wrap">
-              <User size={16} />
+              <User size={18} strokeWidth={2} />
               <input
-                id="su-name"
+                id="su-first"
                 type="text"
-                value={name}
-                onChange={(e) => {
-                  setName(e.target.value);
-                  if (error) setError('');
-                }}
-                placeholder="Full name"
-                autoComplete="name"
+                autoComplete="given-name"
+                placeholder="John"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
               />
             </div>
           </div>
-          <div className="auth-tabs" role="tablist">
-            <button
-              type="button"
-              role="tab"
-              className={`auth-tab ${method === 'phone' ? 'active' : ''}`}
-              aria-selected={method === 'phone'}
-              onClick={() => setMethod('phone')}
-            >
-              Phone
-            </button>
-            <button
-              type="button"
-              role="tab"
-              className={`auth-tab ${method === 'email' ? 'active' : ''}`}
-              aria-selected={method === 'email'}
-              onClick={() => setMethod('email')}
-            >
-              Email
-            </button>
-          </div>
-          {method === 'phone' ? (
-            <PhoneField
-              id="signup-phone"
-              label="Phone number"
-              country={country}
-              national={national}
-              onOpenPicker={() => setPickerOpen(true)}
-              onNationalChange={handleNationalChange}
-              placeholder="8012345678"
-            />
-          ) : (
-            <div className="auth-field">
-              <label htmlFor="su-email">Email</label>
-              <div className="auth-input-wrap">
-                <Mail size={16} />
-                <input
-                  id="su-email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@email.com"
-                  autoComplete="email"
-                />
-              </div>
+
+          <div className="auth-field">
+            <label htmlFor="su-last">Last Name</label>
+            <div className="auth-input-wrap">
+              <User size={18} strokeWidth={2} />
+              <input
+                id="su-last"
+                type="text"
+                autoComplete="family-name"
+                placeholder="Doe"
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+              />
             </div>
-          )}
+          </div>
+
+          <PhoneField
+            id="su-phone"
+            label="Phone Number"
+            country={country}
+            national={national}
+            onNationalChange={setNational}
+            onOpenPicker={() => setPickerOpen(true)}
+            placeholder="8012345678"
+          />
+
+          <div className="auth-field">
+            <label htmlFor="su-email">Email Address</label>
+            <div className="auth-input-wrap">
+              <Mail size={18} strokeWidth={2} />
+              <input
+                id="su-email"
+                type="email"
+                inputMode="email"
+                autoComplete="email"
+                placeholder="you@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <p className="auth-section">ACCOUNT SECURITY</p>
+
           <div className="auth-field">
             <label htmlFor="su-pass">Password</label>
             <div className="auth-input-wrap">
-              <Lock size={16} />
+              <Lock size={18} strokeWidth={2} />
               <input
                 id="su-pass"
                 type={showPass ? 'text' : 'password'}
+                autoComplete="new-password"
+                placeholder="Create a strong password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Min 6 characters"
-                autoComplete="new-password"
               />
               <button
                 type="button"
                 className="auth-eye"
                 onClick={() => setShowPass((v) => !v)}
-                aria-label="Toggle password"
+                aria-label={showPass ? 'Hide password' : 'Show password'}
               >
-                {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
+                {showPass ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
+            <p className="auth-hint">
+              Min 6 chars · must include uppercase, lowercase, and a number
+            </p>
           </div>
+
           <div className="auth-field">
-            <label htmlFor="su-pin">4-digit PIN</label>
+            <label htmlFor="su-pin">4-Digit Transaction PIN</label>
             <div className="auth-input-wrap">
-              <Lock size={16} />
+              <Lock size={18} strokeWidth={2} />
               <input
                 id="su-pin"
-                type="password"
+                type={showPinField ? 'text' : 'password'}
                 inputMode="numeric"
                 maxLength={4}
-                value={pin}
-                onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                placeholder="••••"
                 autoComplete="off"
+                placeholder="Enter 4-digit PIN"
+                value={signupPin}
+                onChange={(e) =>
+                  setSignupPin(e.target.value.replace(/\D/g, '').slice(0, 4))
+                }
+              />
+              <button
+                type="button"
+                className="auth-eye"
+                onClick={() => setShowPinField((v) => !v)}
+                aria-label={showPinField ? 'Hide PIN' : 'Show PIN'}
+              >
+                {showPinField ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
+            <p className="auth-hint">
+              Used to authorise transactions — keep it secret
+            </p>
+          </div>
+
+          <p className="auth-section">
+            REFERRAL <span className="auth-optional">Optional</span>
+          </p>
+
+          <div className="auth-field">
+            <label htmlFor="su-ref">Referral Code</label>
+            <div className="auth-input-wrap">
+              <input
+                id="su-ref"
+                type="text"
+                autoComplete="off"
+                placeholder="ENTER REFERRAL CODE"
+                value={referral}
+                onChange={(e) => setReferral(e.target.value.toUpperCase())}
               />
             </div>
+            <p className="auth-hint">
+              Have a friend&apos;s referral code? Enter it here.
+            </p>
           </div>
+
           {error ? <p className="auth-error">{error}</p> : null}
-          <button type="button" className="auth-btn" onClick={handleSignUp}>
-            Create account
+
+          <p className="auth-terms">
+            By creating an account, you agree to our{' '}
+            <a href="/terms" target="_blank" rel="noreferrer">
+              Terms of Service
+            </a>{' '}
+            and{' '}
+            <a href="/privacy" target="_blank" rel="noreferrer">
+              Privacy Policy
+            </a>
+            .
+          </p>
+
+          <button type="button" className="auth-btn" onClick={handleSignup}>
+            Create Account
           </button>
-          <p className="auth-hint">
+
+          <p className="auth-footer-link">
             Already have an account?{' '}
-            <button type="button" className="auth-footer-link" onClick={() => setStep('signin')}>
-              Sign in
+            <button
+              type="button"
+              onClick={() => {
+                setError('');
+                setStep('signin');
+              }}
+            >
+              Sign In
             </button>
           </p>
-          <CountryPickerSheet
-            open={pickerOpen}
-            selectedIso={country.iso}
-            onSelect={(c) => {
-              setCountry(c);
-              setPickerOpen(false);
-            }}
-            onClose={() => setPickerOpen(false)}
-          />
         </div>
+
+        <CountryPickerSheet
+          open={pickerOpen}
+          selectedIso={country.iso}
+          onClose={() => setPickerOpen(false)}
+          onSelect={(c) => {
+            setCountry(c);
+            setNational('');
+          }}
+        />
       </div>
     );
   }
 
-  if (step === 'welcome') {
+  if (step === 'pin') {
+    const label = contactLabel();
     return (
       <div className="auth-root">
-        <div className="auth-body auth-body--center">
-          <BrandMark />
-          <h1 className="auth-title auth-title--center">Welcome to Verxor</h1>
+        <div className="auth-body auth-body--pin">
+          <h1 className="auth-title auth-title--center">
+            Enter your PIN{' '}
+            <span aria-hidden className="pin-emoji">
+              🔐
+            </span>
+          </h1>
           <p className="auth-sub auth-sub--center">
-            Digital services, wallet and virtual numbers
+            Logging in as <strong>{label || '…'}</strong>
           </p>
-          <button
-            type="button"
-            className="auth-btn"
-            onClick={() => {
-              setError('');
-              setStep('signin');
-            }}
-          >
-            Sign in
-          </button>
-          <button
-            type="button"
-            className="auth-footer-link"
-            style={{ marginTop: 16 }}
-            onClick={() => {
-              setError('');
-              setStep('signup');
-            }}
-          >
-            Create account
-          </button>
+          <p className="pin-label">Enter your 4-digit PIN</p>
+
+          <div className="pin-boxes" aria-hidden>
+            {[0, 1, 2, 3].map((i) => (
+              <div
+                key={i}
+                className={`pin-box ${pin.length > i ? 'filled' : ''} ${
+                  pin.length === i ? 'active' : ''
+                }`}
+              >
+                {pin.length > i ? <span className="pin-dot" /> : null}
+              </div>
+            ))}
+          </div>
+
+          {error ? <p className="auth-error">{error}</p> : null}
+          {bioHint ? <p className="auth-bio-hint">{bioHint}</p> : null}
+
+          <div className="pin-keypad">
+            {(['1', '2', '3', '4', '5', '6', '7', '8', '9'] as const).map(
+              (key) => (
+                <button
+                  key={key}
+                  type="button"
+                  className="pin-key"
+                  onClick={() => onPinDigit(key)}
+                >
+                  {key}
+                </button>
+              ),
+            )}
+            <button
+              type="button"
+              className="pin-key pin-key--bio"
+              onClick={onFingerprintTap}
+              aria-label="Login with fingerprint or Face ID"
+            >
+              <Fingerprint size={26} strokeWidth={1.8} />
+            </button>
+            <button
+              type="button"
+              className="pin-key"
+              onClick={() => onPinDigit('0')}
+            >
+              0
+            </button>
+            <button
+              type="button"
+              className="pin-key pin-key--del"
+              onClick={onPinDelete}
+              aria-label="Delete"
+            >
+              ⌫
+            </button>
+          </div>
+
+          <div className="pin-actions">
+            <button
+              type="button"
+              onClick={() => {
+                setPin('');
+                setError('');
+                setBioHint('');
+                setStep('signin');
+              }}
+            >
+              ← Change {method === 'email' ? 'email' : 'number'}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setError('');
+                setNewPin('');
+                setConfirmNewPin('');
+                setStep('forgot');
+              }}
+            >
+              Forgot PIN?
+            </button>
+          </div>
+
+          <div className="auth-or">
+            <span>or</span>
+          </div>
+
+          <p className="auth-footer-link">
+            Don&apos;t have an account?{' '}
+            <button
+              type="button"
+              onClick={() => {
+                setError('');
+                setPin('');
+                setStep('signup');
+              }}
+            >
+              Create one free
+            </button>
+          </p>
         </div>
       </div>
     );
@@ -743,155 +924,62 @@ export function AuthFlow({ onAuthenticated }: { onAuthenticated: (session: AuthS
   if (step === 'forgot') {
     return (
       <div className="auth-root">
-        <button type="button" className="auth-skip" onClick={() => setStep('signin')} aria-label="Back">
-          <ArrowLeft size={18} />
-        </button>
         <div className="auth-body">
-          <BrandMark />
-          <h1 className="auth-title">Reset PIN</h1>
-          <p className="auth-sub">Confirm your password to set a new PIN</p>
-          <div className="auth-field">
-            <label htmlFor="fp-pass">Password</label>
-            <div className="auth-input-wrap">
-              <Lock size={16} />
-              <input
-                id="fp-pass"
-                type={showPass ? 'text' : 'password'}
-                value={password}
-                onChange={(e) => {
-                  setPassword(e.target.value);
-                  if (error) setError('');
-                }}
-                placeholder="Account password"
-              />
-              <button
-                type="button"
-                className="auth-eye"
-                onClick={() => setShowPass((v) => !v)}
-                aria-label="Toggle password"
-              >
-                {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
-              </button>
-            </div>
-          </div>
-          {error ? <p className="auth-error">{error}</p> : null}
           <button
             type="button"
-            className="auth-btn"
-            onClick={() => {
-              const stored = loadRemembered();
-              if (!password) {
-                setError('Enter your password');
-                return;
-              }
-              if (stored.password && password !== stored.password) {
-                setError('Wrong password');
-                return;
-              }
-              setError('');
-              setNewPin('');
-              setConfirmNewPin('');
-              setStep('forgot-new-pin');
-            }}
+            className="auth-back"
+            onClick={() => setStep('pin')}
+            aria-label="Back"
           >
-            Continue
+            <ArrowLeft size={18} />
           </button>
-        </div>
-      </div>
-    );
-  }
+          <h1 className="auth-title">Reset PIN</h1>
+          <p className="auth-sub">
+            Set a new 4-digit PIN for{' '}
+            <strong>{contactLabel() || 'your account'}</strong>
+          </p>
 
-  if (step === 'forgot-new-pin') {
-    return (
-      <div className="auth-root">
-        <button
-          type="button"
-          className="auth-skip"
-          onClick={() => setStep('forgot')}
-          aria-label="Back"
-        >
-          <ArrowLeft size={18} />
-        </button>
-        <div className="auth-body">
-          <BrandMark />
-          <h1 className="auth-title">New PIN</h1>
-          <p className="auth-sub">Choose a 4-digit PIN you will remember</p>
           <div className="auth-field">
-            <label htmlFor="np-pin">New PIN</label>
+            <label htmlFor="fp-new">New PIN</label>
             <div className="auth-input-wrap">
+              <Lock size={18} strokeWidth={2} />
               <input
-                id="np-pin"
+                id="fp-new"
                 type="password"
                 inputMode="numeric"
                 maxLength={4}
-                placeholder="••••"
+                placeholder="4-digit PIN"
                 value={newPin}
-                onChange={(e) => {
-                  setNewPin(e.target.value.replace(/[^0-9]/g, '').slice(0, 4));
-                  if (error) setError('');
-                }}
-                autoComplete="off"
+                onChange={(e) =>
+                  setNewPin(e.target.value.replace(/\D/g, '').slice(0, 4))
+                }
               />
             </div>
           </div>
+
           <div className="auth-field">
-            <label htmlFor="np-confirm">Confirm PIN</label>
+            <label htmlFor="fp-confirm">Confirm PIN</label>
             <div className="auth-input-wrap">
+              <Lock size={18} strokeWidth={2} />
               <input
-                id="np-confirm"
+                id="fp-confirm"
                 type="password"
                 inputMode="numeric"
                 maxLength={4}
-                placeholder="••••"
+                placeholder="Repeat PIN"
                 value={confirmNewPin}
-                onChange={(e) => {
-                  setConfirmNewPin(e.target.value.replace(/[^0-9]/g, '').slice(0, 4));
-                  if (error) setError('');
-                }}
-                autoComplete="off"
+                onChange={(e) =>
+                  setConfirmNewPin(e.target.value.replace(/\D/g, '').slice(0, 4))
+                }
               />
             </div>
           </div>
+
           {error ? <p className="auth-error">{error}</p> : null}
-          <button
-            type="button"
-            className="auth-btn"
-            onClick={() => {
-              if (!/^\d{4}$/.test(newPin)) {
-                setError('PIN must be exactly 4 digits');
-                return;
-              }
-              if (newPin !== confirmNewPin) {
-                setError('PINs do not match');
-                return;
-              }
-              const session = { ...remembered, pin: newPin };
-              saveRemembered(session);
-              setRemembered(session);
-              setSuccessMsg('PIN reset successful — enter PIN to login');
-              setStep('forgot-success');
-            }}
-          >
+
+          <button type="button" className="auth-btn" onClick={handleForgotReset}>
             Save new PIN
           </button>
-        </div>
-      </div>
-    );
-  }
-
-  if (step === 'forgot-success') {
-    return (
-      <div className="auth-root">
-        <div className="auth-body auth-body--center">
-          <div className="auth-success">
-            <h1 className="auth-title auth-title--center">PIN updated</h1>
-            <p className="auth-sub auth-sub--center">
-              {successMsg || 'Your PIN has been reset successfully.'}
-            </p>
-            <button type="button" className="auth-btn" onClick={finishForgotSuccess}>
-              Continue
-            </button>
-          </div>
         </div>
       </div>
     );
