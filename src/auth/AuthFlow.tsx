@@ -19,6 +19,7 @@ import {
   isVtuEligible,
   normalizeNational,
   toE164,
+  validatePhoneForCountry,
   type Country,
 } from './countries';
 import { CountryPickerSheet, PhoneField } from './phone-field';
@@ -167,8 +168,7 @@ export function AuthFlow({
   const [country, setCountry] = useState<Country>(DEFAULT_COUNTRY);
   const [national, setNational] = useState('');
   const [email, setEmail] = useState('');
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
+  const [fullName, setFullName] = useState('');
   const [password, setPassword] = useState('');
   const [showPass, setShowPass] = useState(false);
   const [showPinField, setShowPinField] = useState(false);
@@ -263,105 +263,81 @@ export function AuthFlow({
     if (method === 'email') {
       return email.trim() || remembered.contact || remembered.email || '';
     }
-    const n =
-      national || displayNational(country.iso, remembered.contact || '');
-    if (!n) return remembered.contact || '';
-    return n.startsWith('0') || country.iso !== 'NG' ? n : `0${n}`;
+    const iso = country.iso || remembered.phoneCountry || 'NG';
+    const n = national || displayNational(iso, remembered.contact || '');
+    return n || remembered.contact || '';
   }
 
   function handleContinueSignIn() {
     setError('');
     if (method === 'phone') {
-      const digits = normalizeNational(national, country.iso);
-      if (digits.length < 7) {
-        setError('Enter a valid phone number');
+      const phoneErr = validatePhoneForCountry(country.iso, national);
+      if (phoneErr) {
+        setError(phoneErr);
         return;
       }
       const e164 = toE164(country.iso, country.dial, national);
       saveLastPhone(country.iso, country.dial, national);
 
       const stored = loadRemembered();
-      if (stored.contact && stored.pin) {
-        const storedNorm =
-          stored.method === 'phone'
-            ? stored.contact.replace(/\D/g, '')
-            : stored.contact.toLowerCase();
-        const inputNorm = e164.replace(/\D/g, '');
-        if (storedNorm === inputNorm || stored.contact === e164) {
-          setRemembered(stored);
-          setPin('');
-          setStep('pin');
-          return;
-        }
+      const storedNorm =
+        stored.method === 'phone'
+          ? (stored.contact || '').replace(/\D/g, '')
+          : '';
+      const inputNorm = e164.replace(/\D/g, '');
+      const matched =
+        Boolean(stored.contact && stored.pin) &&
+        stored.method === 'phone' &&
+        (storedNorm === inputNorm || stored.contact === e164);
+
+      if (!matched) {
+        setError(
+          'No account found for this number. Check the number or create an account.',
+        );
+        return;
       }
-      setRemembered({
-        ...DEFAULT_MOCK,
-        method: 'phone',
-        contact: e164,
-        phoneCountry: country.iso,
-        dialCode: country.dial,
-        homeCurrency: homeCurrencyFor(country.iso),
-        vtuEligible: isVtuEligible(country.iso),
-        pin: stored.pin || '',
-        name: stored.name || '',
-        password: stored.password || '',
-        email: stored.email || '',
-      });
+      setRemembered(stored);
       setPin('');
       setStep('pin');
       return;
     }
 
     const em = email.trim().toLowerCase();
-    if (!/[^\s@]+@[^\s@]+\.[^\s@]+/.test(em)) {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)) {
       setError('Enter a valid email address');
       return;
     }
     const stored = loadRemembered();
-    if (stored.contact && stored.pin) {
-      const match =
-        stored.method === 'email' &&
-        (stored.contact.toLowerCase() === em ||
-          (stored.email || '').toLowerCase() === em);
-      if (match) {
-        setRemembered(stored);
-        setPin('');
-        setStep('pin');
-        return;
-      }
+    const match =
+      Boolean(stored.contact && stored.pin) &&
+      stored.method === 'email' &&
+      (stored.contact.toLowerCase() === em ||
+        (stored.email || '').toLowerCase() === em);
+    if (!match) {
+      setError(
+        'No account found for this email. Check the address or create an account.',
+      );
+      return;
     }
-    setRemembered({
-      ...DEFAULT_MOCK,
-      method: 'email',
-      contact: em,
-      email: em,
-      pin: stored.pin || '',
-      name: stored.name || '',
-      password: stored.password || '',
-    });
+    setRemembered(stored);
     setPin('');
     setStep('pin');
   }
 
   function handleSignup() {
     setError('');
-    const fn = firstName.trim();
-    const ln = lastName.trim();
-    if (!fn) {
-      setError('Enter your first name');
+    const name = fullName.trim().replace(/\s+/g, ' ');
+    if (!name || name.split(' ').length < 2) {
+      setError('Enter your full name (first and last)');
       return;
     }
-    if (!ln) {
-      setError('Enter your last name');
-      return;
-    }
-    const digits = normalizeNational(national, country.iso);
-    if (digits.length < 7) {
-      setError('Enter a valid phone number');
+    const phoneErr = validatePhoneForCountry(country.iso, national);
+    if (phoneErr) {
+      setError(phoneErr);
       return;
     }
     const em = email.trim().toLowerCase();
-    if (!/[^\s@]+@[^\s@]+\.[^\s@]+/.test(em)) {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)) {
       setError('Enter a valid email address');
       return;
     }
@@ -377,12 +353,11 @@ export function AuthFlow({
     }
 
     const e164 = toE164(country.iso, country.dial, national);
-    const fullName = `${fn} ${ln}`.replace(/\s+/g, ' ').trim();
     const session: AuthSession = {
       authenticated: false,
       method: 'phone',
       contact: e164,
-      name: fullName,
+      name,
       username: '',
       pin: signupPin,
       password,
@@ -575,7 +550,7 @@ export function AuthFlow({
           </div>
 
           <p className="auth-footer-link">
-            Don&apos;t have an account?{' '}
+            Don't have an account?{' '}
             <button
               type="button"
               onClick={() => {
@@ -625,31 +600,16 @@ export function AuthFlow({
           <p className="auth-section">PERSONAL INFO</p>
 
           <div className="auth-field">
-            <label htmlFor="su-first">First Name</label>
+            <label htmlFor="su-name">Full Name</label>
             <div className="auth-input-wrap">
               <User size={18} strokeWidth={2} />
               <input
-                id="su-first"
+                id="su-name"
                 type="text"
-                autoComplete="given-name"
-                placeholder="John"
-                value={firstName}
-                onChange={(e) => setFirstName(e.target.value)}
-              />
-            </div>
-          </div>
-
-          <div className="auth-field">
-            <label htmlFor="su-last">Last Name</label>
-            <div className="auth-input-wrap">
-              <User size={18} strokeWidth={2} />
-              <input
-                id="su-last"
-                type="text"
-                autoComplete="family-name"
-                placeholder="Doe"
-                value={lastName}
-                onChange={(e) => setLastName(e.target.value)}
+                autoComplete="name"
+                placeholder="Destiny Ikedichukwu"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
               />
             </div>
           </div>
@@ -755,7 +715,7 @@ export function AuthFlow({
               />
             </div>
             <p className="auth-hint">
-              Have a friend&apos;s referral code? Enter it here.
+              Have a friend's referral code? Enter it here.
             </p>
           </div>
 
@@ -904,7 +864,7 @@ export function AuthFlow({
           </div>
 
           <p className="auth-footer-link">
-            Don&apos;t have an account?{' '}
+            Don't have an account?{' '}
             <button
               type="button"
               onClick={() => {
