@@ -3,20 +3,16 @@
 import { useEffect, useState } from 'react';
 import {
   ArrowLeft,
-  ArrowRight,
   Eye,
   EyeOff,
-  Gift,
   Lock,
   Mail,
-  Phone,
   User,
 } from 'lucide-react';
 import {
   DEFAULT_COUNTRY,
   displayNational,
   findCountry,
-  flagEmoji,
   homeCurrencyFor,
   isVtuEligible,
   normalizeNational,
@@ -122,14 +118,6 @@ function saveLastPhone(iso: string, dial: string, national: string) {
   } catch {
     /* ignore */
   }
-}
-
-function formatContactDisplay(session: AuthSession, method: AuthMethod): string {
-  if (method === 'email') return session.contact || session.email || '';
-  const iso = session.phoneCountry || 'NG';
-  const national = displayNational(iso, session.contact);
-  if (national) return national.startsWith('0') ? national : `0${national}`;
-  return session.contact;
 }
 
 function BrandMark() {
