@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import type { AuthSession } from './auth/AuthFlow';
 import { AuthFlow } from './auth/AuthFlow';
+import { signOutAuth, supabaseAuthEnabled } from '../lib/supabase/auth';
 import { HomePage } from './page-home';
 import { ProfilePage } from './page-profile';
 import { FundPage } from './page-fund';
@@ -106,6 +107,9 @@ export default function VerxorApp() {
       sessionStorage.setItem('verxor-force-signin', '1');
     } catch {
       /* ignore */
+    }
+    if (supabaseAuthEnabled()) {
+      void signOutAuth();
     }
     setForceSignin(true);
   }, []);
