@@ -183,7 +183,7 @@ export default function VerxorApp() {
   } else if (service === 'faq') {
     content = <FaqPage onBack={closeService} />;
   } else if (service === 'feedback') {
-    content = <FeedbackPage onBack={closeService} />;
+    content = <FeedbackPage onBack={closeService} session={auth} />;
   } else if (service === 'edit-profile') {
     content = <EditProfilePage onBack={closeService} session={auth} />;
   } else if (service === 'rental') {
@@ -207,7 +207,7 @@ export default function VerxorApp() {
   } else if (service === 'electricity') {
     content = <ElectricityPage onBack={closeService} />;
   } else if (service === 'betting') {
-    content = <BettingPage onBack={closeService} />;
+    content = <BettingPage onBack={closeService} onOpenHistory={() => openService('history')} />;
   } else if (service === 'exam-pin') {
     content = <ExamPinPage onBack={closeService} />;
   } else if (service === 'gift-card') {
