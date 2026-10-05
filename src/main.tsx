@@ -1,2 +1,2 @@
-/** Legacy Vite entry — app boots from app/page.tsx via VerxorApp. */
-export { VerxorApp } from './VerxorApp';
+/** Legacy Vite entry — app boots from app/workspace via VerxorApp. */
+export { default as VerxorApp } from './VerxorApp';
