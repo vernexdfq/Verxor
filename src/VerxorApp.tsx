@@ -223,7 +223,11 @@ export function VerxorApp() {
         onBack={closeService}
         session={auth}
         onSaved={(patch) => {
-          setAuth((prev) => (prev ? { ...prev, name: patch.name } : prev));
+          setAuth((prev) =>
+            prev
+              ? { ...prev, name: patch.name, username: patch.username }
+              : prev,
+          );
         }}
       />
     );
