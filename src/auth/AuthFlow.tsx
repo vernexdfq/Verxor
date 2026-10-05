@@ -345,11 +345,7 @@ export function AuthFlow({
 
   function handleContinueSignIn() {
     setError('');
-    if (!signInPassword) {
-      setError('Enter your password to continue');
-      return;
-    }
-
+    // Primex-style: phone or email only — no password on daily login
     if (method === 'phone') {
       const phoneErr = validatePhoneForCountry(country.iso, national);
       if (phoneErr) {
@@ -361,12 +357,8 @@ export function AuthFlow({
       const account = findAccount({ phoneE164: e164 });
       if (!account || !account.pin) {
         setError(
-          'No account found for this number. Check the number or create an account.',
+          'No account found for this number on this device. Create an account or use the device where you registered.',
         );
-        return;
-      }
-      if (account.password && account.password !== signInPassword) {
-        setError('Incorrect password');
         return;
       }
       const session: AuthSession = {
@@ -390,12 +382,8 @@ export function AuthFlow({
     const account = findAccount({ email: em });
     if (!account || !account.pin) {
       setError(
-        'No account found for this email. Check the address or create an account.',
+        'No account found for this email on this device. Create an account or use the device where you registered.',
       );
-      return;
-    }
-    if (account.password && account.password !== signInPassword) {
-      setError('Incorrect password');
       return;
     }
     const session: AuthSession = {
@@ -482,18 +470,30 @@ export function AuthFlow({
   }
 
   function verifyPin(entered: string) {
-    const expected = remembered.pin || loadRemembered().pin;
-    if (!expected) {
+    const digits = (entered || '').replace(/\D/g, '').slice(0, 4);
+    let expected = (remembered.pin || loadRemembered().pin || '').replace(/\D/g, '');
+    // Also look up PIN from the multi-account store (same phone/email)
+    if (!expected || expected.length !== 4) {
+      const byPhone = findAccount({ phoneE164: remembered.contact });
+      const byEmail = findAccount({ email: remembered.email || remembered.contact });
+      expected = ((byPhone || byEmail)?.pin || '').replace(/\D/g, '');
+    }
+    if (!expected || expected.length !== 4) {
       setError('No PIN on file. Create an account or reset PIN.');
       setPin('');
       return;
     }
-    if (entered !== expected) {
+    if (digits !== expected) {
       setError('Incorrect PIN');
       setPin('');
       return;
     }
-    finish({ ...remembered, pin: expected, authenticated: true });
+    const base = remembered.contact
+      ? remembered
+      : findAccount({ phoneE164: remembered.contact }) ||
+        findAccount({ email: remembered.email }) ||
+        remembered;
+    finish({ ...base, ...remembered, pin: expected, authenticated: true });
   }
 
   function onFingerprintTap() {
@@ -551,7 +551,7 @@ export function AuthFlow({
         <div className="auth-body">
           <BrandMark />
           <h1 className="auth-title">Welcome back</h1>
-          <p className="auth-sub">Sign in with your phone or email</p>
+          <p className="auth-sub">Enter your phone or email, then your PIN</p>
 
           <div className="auth-tabs" role="tablist">
             <button
@@ -603,29 +603,6 @@ export function AuthFlow({
             </div>
           )}
 
-          <div className="auth-field">
-            <label htmlFor="si-pass">Password</label>
-            <div className="auth-input-wrap">
-              <Lock size={16} />
-              <input
-                id="si-pass"
-                type={showSignInPass ? 'text' : 'password'}
-                value={signInPassword}
-                onChange={(e) => setSignInPassword(e.target.value)}
-                placeholder="Your password"
-                autoComplete="current-password"
-              />
-              <button
-                type="button"
-                className="auth-eye"
-                onClick={() => setShowSignInPass((v) => !v)}
-                aria-label={showSignInPass ? 'Hide password' : 'Show password'}
-              >
-                {showSignInPass ? <EyeOff size={16} /> : <Eye size={16} />}
-              </button>
-            </div>
-          </div>
-
           {error ? <p className="auth-error">{error}</p> : null}
 
           <button type="button" className="auth-primary" onClick={handleContinueSignIn}>
@@ -663,11 +640,10 @@ export function AuthFlow({
               setError('');
               setStep('signin');
             }}
-            aria-label="Back to sign in"
+            aria-label="Back"
           >
             <ArrowLeft size={18} />
           </button>
-
           <h1 className="auth-title">Create your account</h1>
           <p className="auth-sub">Fill in your details to get started</p>
 
@@ -677,7 +653,7 @@ export function AuthFlow({
               id="su-name"
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
-              placeholder="First Last"
+              placeholder="First and last name"
               autoComplete="name"
             />
           </div>
@@ -694,25 +670,29 @@ export function AuthFlow({
 
           <div className="auth-field">
             <label htmlFor="su-email">Email</label>
-            <input
-              id="su-email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@email.com"
-              autoComplete="email"
-            />
+            <div className="auth-input-wrap">
+              <Mail size={16} />
+              <input
+                id="su-email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@email.com"
+                autoComplete="email"
+              />
+            </div>
           </div>
 
           <div className="auth-field">
             <label htmlFor="su-pass">Password</label>
             <div className="auth-input-wrap">
+              <Lock size={16} />
               <input
                 id="su-pass"
                 type={showPass ? 'text' : 'password'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Min 6 chars, A-z + number"
+                placeholder="Create a strong password"
                 autoComplete="new-password"
               />
               <button
@@ -724,19 +704,26 @@ export function AuthFlow({
                 {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
             </div>
+            <p className="auth-hint">Min 6 chars · uppercase, lowercase, and a number</p>
           </div>
 
           <div className="auth-field">
             <label htmlFor="su-pin">4-digit PIN</label>
-            <input
-              id="su-pin"
-              inputMode="numeric"
-              maxLength={4}
-              value={signupPin}
-              onChange={(e) => setSignupPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
-              placeholder="••••"
-              autoComplete="off"
-            />
+            <div className="auth-input-wrap">
+              <Lock size={16} />
+              <input
+                id="su-pin"
+                inputMode="numeric"
+                maxLength={4}
+                value={signupPin}
+                onChange={(e) =>
+                  setSignupPin(e.target.value.replace(/\D/g, '').slice(0, 4))
+                }
+                placeholder="••••"
+                autoComplete="off"
+              />
+            </div>
+            <p className="auth-hint">Used to unlock the app — keep it secret</p>
           </div>
 
           {error ? <p className="auth-error">{error}</p> : null}
@@ -744,6 +731,13 @@ export function AuthFlow({
           <button type="button" className="auth-primary" onClick={handleSignup}>
             Create account
           </button>
+
+          <p className="auth-footer-link">
+            Already have an account?{' '}
+            <button type="button" onClick={() => { setError(''); setStep('signin'); }}>
+              Sign in
+            </button>
+          </p>
         </div>
         <CountryPickerSheet
           open={pickerOpen}
@@ -759,7 +753,6 @@ export function AuthFlow({
   }
 
   if (step === 'pin') {
-    const label = contactLabel();
     return (
       <div className="auth-root">
         <div className="auth-body auth-body--pin">
@@ -776,16 +769,11 @@ export function AuthFlow({
             <ArrowLeft size={18} />
           </button>
           <BrandMark />
-          <h1 className="auth-title auth-title--center">Enter your PIN 🔐</h1>
-          <p className="auth-sub auth-sub--center">
-            {label ? (
-              <>
-                Logging in as <strong>{label}</strong>
-              </>
-            ) : (
-              'Logging in to your Verxor account'
-            )}
+          <h1 className="auth-title">Enter your PIN</h1>
+          <p className="auth-sub">
+            Logging in as <strong>{contactLabel()}</strong>
           </p>
+
           <p className="pin-label">Enter your 4-digit PIN</p>
 
           <div className="pin-boxes" aria-hidden>
@@ -794,53 +782,35 @@ export function AuthFlow({
                 key={i}
                 className={`pin-box${pin.length > i ? ' filled' : ''}${pin.length === i ? ' active' : ''}`}
               >
-                {pin.length > i ? <span className="pin-dot" /> : null}
+                {pin.length > i ? '•' : ''}
               </div>
             ))}
           </div>
 
           {error ? <p className="auth-error">{error}</p> : null}
-          {bioHint ? <p className="auth-bio-hint">{bioHint}</p> : null}
+          {bioHint ? <p className="auth-hint">{bioHint}</p> : null}
 
-          <div className="pin-keypad">
+          <div className="pin-pad">
             {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((d) => (
-              <button
-                key={d}
-                type="button"
-                className="pin-key"
-                onClick={() => onPinDigit(d)}
-              >
+              <button key={d} type="button" className="pin-key" onClick={() => onPinDigit(d)}>
                 {d}
               </button>
             ))}
-            <button
-              type="button"
-              className="pin-key pin-key--bio"
-              onClick={onFingerprintTap}
-              aria-label="Biometric"
-            >
-              <Fingerprint size={22} strokeWidth={2} />
+            <button type="button" className="pin-key pin-key--ghost" onClick={onFingerprintTap} aria-label="Biometric">
+              <Fingerprint size={22} />
             </button>
-            <button
-              type="button"
-              className="pin-key"
-              onClick={() => onPinDigit('0')}
-            >
+            <button type="button" className="pin-key" onClick={() => onPinDigit('0')}>
               0
             </button>
-            <button
-              type="button"
-              className="pin-key pin-key--del"
-              onClick={onPinDelete}
-              aria-label="Delete"
-            >
+            <button type="button" className="pin-key pin-key--ghost" onClick={onPinDelete} aria-label="Delete">
               ⌫
             </button>
           </div>
 
-          <div className="pin-actions">
+          <div className="pin-footer">
             <button
               type="button"
+              className="auth-text-btn"
               onClick={() => {
                 setError('');
                 setPin('');
@@ -851,35 +821,18 @@ export function AuthFlow({
             </button>
             <button
               type="button"
+              className="auth-text-btn"
               onClick={() => {
                 setError('');
+                setForgotPassword('');
                 setNewPin('');
                 setConfirmNewPin('');
-                setForgotPassword('');
                 setStep('forgot');
               }}
             >
               Forgot PIN?
             </button>
           </div>
-
-          <div className="auth-or">
-            <span>or</span>
-          </div>
-
-          <p className="auth-footer-link">
-            Don't have an account?{' '}
-            <button
-              type="button"
-              onClick={() => {
-                setError('');
-                setPin('');
-                setStep('signup');
-              }}
-            >
-              Create one free
-            </button>
-          </p>
         </div>
       </div>
     );
@@ -894,9 +847,6 @@ export function AuthFlow({
             className="auth-back"
             onClick={() => {
               setError('');
-              setForgotPassword('');
-              setNewPin('');
-              setConfirmNewPin('');
               setStep('pin');
             }}
             aria-label="Back"
@@ -904,23 +854,27 @@ export function AuthFlow({
             <ArrowLeft size={18} />
           </button>
           <h1 className="auth-title">Reset PIN</h1>
-          <p className="auth-sub">Confirm your password, then set a new 4-digit PIN</p>
+          <p className="auth-sub">Confirm your password, then set a new PIN</p>
 
           <div className="auth-field">
-            <label htmlFor="fp-pass">Account password</label>
-            <input
-              id="fp-pass"
-              type="password"
-              value={forgotPassword}
-              onChange={(e) => setForgotPassword(e.target.value)}
-              placeholder="Your password"
-              autoComplete="current-password"
-            />
+            <label htmlFor="fp-pass">Password</label>
+            <div className="auth-input-wrap">
+              <Lock size={16} />
+              <input
+                id="fp-pass"
+                type="password"
+                value={forgotPassword}
+                onChange={(e) => setForgotPassword(e.target.value)}
+                placeholder="Account password"
+                autoComplete="current-password"
+              />
+            </div>
           </div>
+
           <div className="auth-field">
-            <label htmlFor="fp-new">New PIN</label>
+            <label htmlFor="fp-pin">New PIN</label>
             <input
-              id="fp-new"
+              id="fp-pin"
               inputMode="numeric"
               maxLength={4}
               value={newPin}
@@ -928,6 +882,7 @@ export function AuthFlow({
               placeholder="••••"
             />
           </div>
+
           <div className="auth-field">
             <label htmlFor="fp-confirm">Confirm PIN</label>
             <input
