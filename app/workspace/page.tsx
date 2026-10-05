@@ -1,4 +1,4 @@
-import { VerxorApp } from '../../src/VerxorApp';
+import VerxorApp from '../../src/VerxorApp';
 
 export default function WorkspacePage() {
   return <VerxorApp />;
