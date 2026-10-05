@@ -1,7 +1,7 @@
 {
   "name": "verxor",
   "private": true,
-  "version": "0.2.7",
+  "version": "0.2.8",
   "engines": {
     "node": ">=20.0.0 <25"
   },
@@ -15,6 +15,7 @@
     "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.49.1",
     "lucide-react": "^0.544.0",
     "next": "15.5.27",
     "react": "18.3.1",
