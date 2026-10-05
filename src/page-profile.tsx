@@ -35,10 +35,8 @@ export function ProfilePage({
     session?.contact ||
     '';
   const initial = name.charAt(0).toUpperCase() || 'U';
-  const handle = (session?.username || '').trim().toLowerCase();
   const USER = {
     name,
-    handle: handle ? `@${handle}` : '',
     email: email || 'No contact on file',
     role: 'Member',
     memberSince: '',
@@ -62,7 +60,6 @@ export function ProfilePage({
           </div>
           <div className="prof-hero-meta">
             <strong className="prof-name">{USER.name}</strong>
-            {USER.handle ? <span className="prof-handle">{USER.handle}</span> : null}
             <span className="prof-email">{USER.email}</span>
             <span className="prof-role">{USER.role}</span>
             {USER.memberSince ? <span className="prof-since">{USER.memberSince}</span> : null}
