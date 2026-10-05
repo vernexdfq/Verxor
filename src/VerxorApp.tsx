@@ -22,10 +22,13 @@ import { DataPage } from './data-page';
 import { ElectricityPage } from './electricity-page';
 import { BettingPage } from './betting-page';
 import { ExamPinPage } from './exam-pin-page';
-import { GiftcardPage } from './giftcard-page';
+import { GiftCardPage } from './giftcard-page';
 import { ActivityLogsPage } from './activity-logs';
+import type { ServiceView as CatalogServiceView } from './service-pages';
+import type { Page } from './types';
 
-type ServiceView =
+/** Local app service keys (subset used by this shell). */
+type AppService =
   | null
   | 'fund'
   | 'history'
@@ -43,8 +46,16 @@ type ServiceView =
   | 'electricity'
   | 'betting'
   | 'exam-pin'
-  | 'giftcard'
-  | 'activity';
+  | 'gift-card'
+  | 'activity'
+  | 'referral'
+  | 'security'
+  | 'settings'
+  | 'privacy'
+  | 'support-center'
+  | 'notifications-prefs'
+  | 'child-panel'
+  | 'api-keys';
 
 const STORAGE_KEY = 'verxor-auth-session';
 
@@ -61,11 +72,18 @@ function loadSession(): AuthSession | null {
   }
 }
 
+function mapCatalogService(view: CatalogServiceView): AppService {
+  if (view === 'gift-card') return 'gift-card';
+  if (view === 'bet-wallet') return 'betting';
+  if (view === 'help') return 'faq';
+  return view as AppService;
+}
+
 export default function VerxorApp() {
   const [auth, setAuth] = useState<AuthSession | null>(null);
   const [hydrated, setHydrated] = useState(false);
   const [forceSignin, setForceSignin] = useState(false);
-  const [service, setService] = useState<ServiceView>(null);
+  const [service, setService] = useState<AppService>(null);
   const [tab, setTab] = useState<'home' | 'profile'>('home');
   const boot = useRef(false);
 
@@ -114,8 +132,38 @@ export default function VerxorApp() {
     setForceSignin(true);
   }, []);
 
-  const openService = (v: ServiceView) => setService(v);
-  const closeService = () => setService(null);
+  const openService = useCallback((view: CatalogServiceView | AppService) => {
+    if (view === 'fund' || view === 'history') {
+      setService(view);
+      return;
+    }
+    setService(mapCatalogService(view as CatalogServiceView));
+  }, []);
+
+  const closeService = useCallback(() => setService(null), []);
+
+  const go = useCallback((page: Page) => {
+    if (page === 'home') {
+      setService(null);
+      setTab('home');
+      return;
+    }
+    if (page === 'profile') {
+      setService(null);
+      setTab('profile');
+      return;
+    }
+    if (page === 'fund') {
+      setService('fund');
+      return;
+    }
+    if (page === 'history') {
+      setService('history');
+      return;
+    }
+    setService(null);
+    setTab('home');
+  }, []);
 
   if (!hydrated) {
     return <div className="vx-boot" aria-busy="true" />;
@@ -127,10 +175,10 @@ export default function VerxorApp() {
 
   let content: ReactNode = null;
   if (service === 'fund') {
-    content = <FundPage onBack={closeService} session={auth} />;
+    content = <FundPage session={auth} />;
   } else if (service === 'history') {
-    content = <HistoryPage onBack={closeService} />;
-  } else if (service === 'alerts') {
+    content = <HistoryPage userId={auth.contact} />;
+  } else if (service === 'alerts' || service === 'notifications-prefs') {
     content = <NotificationsPage onBack={closeService} />;
   } else if (service === 'faq') {
     content = <FaqPage onBack={closeService} />;
@@ -162,25 +210,26 @@ export default function VerxorApp() {
     content = <BettingPage onBack={closeService} />;
   } else if (service === 'exam-pin') {
     content = <ExamPinPage onBack={closeService} />;
-  } else if (service === 'giftcard') {
-    content = <GiftcardPage onBack={closeService} />;
+  } else if (service === 'gift-card') {
+    content = <GiftCardPage onBack={closeService} />;
   } else if (service === 'esim') {
     content = <EsimPage onBack={closeService} />;
   } else if (service === 'activity') {
-    content = <ActivityLogsPage onBack={closeService} />;
+    content = <ActivityLogsPage />;
   } else if (tab === 'profile') {
     content = (
       <ProfilePage
+        openService={openService}
         session={auth}
         onLogout={handleLogout}
-        onOpen={(s) => openService(s as ServiceView)}
       />
     );
   } else {
     content = (
       <HomePage
+        go={go}
+        openService={openService}
         session={auth}
-        onOpenService={(s) => openService(s as ServiceView)}
       />
     );
   }
@@ -193,14 +242,20 @@ export default function VerxorApp() {
           <button
             type="button"
             className={tab === 'home' ? 'active' : ''}
-            onClick={() => setTab('home')}
+            onClick={() => {
+              setTab('home');
+              setService(null);
+            }}
           >
             Home
           </button>
           <button
             type="button"
             className={tab === 'profile' ? 'active' : ''}
-            onClick={() => setTab('profile')}
+            onClick={() => {
+              setTab('profile');
+              setService(null);
+            }}
           >
             Profile
           </button>
