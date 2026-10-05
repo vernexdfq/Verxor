@@ -79,28 +79,19 @@ export const COUNTRIES: Country[] = [
   { iso: 'CO', name: 'Colombia', dial: '57' },
   { iso: 'CL', name: 'Chile', dial: '56' },
   { iso: 'PE', name: 'Peru', dial: '51' },
-  { iso: 'JP', name: 'Japan', dial: '81' },
-  { iso: 'KR', name: 'South Korea', dial: '82' },
-  { iso: 'SG', name: 'Singapore', dial: '65' },
-  { iso: 'MY', name: 'Malaysia', dial: '60' },
-  { iso: 'ID', name: 'Indonesia', dial: '62' },
   { iso: 'PH', name: 'Philippines', dial: '63' },
+  { iso: 'ID', name: 'Indonesia', dial: '62' },
+  { iso: 'MY', name: 'Malaysia', dial: '60' },
+  { iso: 'SG', name: 'Singapore', dial: '65' },
   { iso: 'TH', name: 'Thailand', dial: '66' },
   { iso: 'VN', name: 'Vietnam', dial: '84' },
   { iso: 'PK', name: 'Pakistan', dial: '92' },
   { iso: 'BD', name: 'Bangladesh', dial: '880' },
-  { iso: 'LK', name: 'Sri Lanka', dial: '94' },
   { iso: 'NP', name: 'Nepal', dial: '977' },
+  { iso: 'LK', name: 'Sri Lanka', dial: '94' },
+  { iso: 'JP', name: 'Japan', dial: '81' },
+  { iso: 'KR', name: 'South Korea', dial: '82' },
   { iso: 'NZ', name: 'New Zealand', dial: '64' },
-  { iso: 'RU', name: 'Russia', dial: '7' },
-  { iso: 'UA', name: 'Ukraine', dial: '380' },
-  { iso: 'IL', name: 'Israel', dial: '972' },
-  { iso: 'JO', name: 'Jordan', dial: '962' },
-  { iso: 'LB', name: 'Lebanon', dial: '961' },
-  { iso: 'IQ', name: 'Iraq', dial: '964' },
-  { iso: 'IR', name: 'Iran', dial: '98' },
-  { iso: 'HK', name: 'Hong Kong', dial: '852' },
-  { iso: 'TW', name: 'Taiwan', dial: '886' },
   { iso: 'JM', name: 'Jamaica', dial: '1876' },
   { iso: 'TT', name: 'Trinidad and Tobago', dial: '1868' },
   { iso: 'BB', name: 'Barbados', dial: '1246' },
@@ -126,14 +117,84 @@ export function toE164(iso: string, dial: string, nationalRaw: string): string {
   return `${dial}${national}`;
 }
 
-/** Display helper for remembered local numbers */
+/** Display helper for remembered local numbers (never includes dial code). */
 export function displayNational(iso: string, nationalOrFull: string): string {
   let d = nationalOrFull.replace(/\D/g, '');
+  const c = findCountry(iso);
+  // Strip leading country dial if the value was stored as full E.164
+  if (c.dial && d.startsWith(c.dial) && d.length > c.dial.length + 5) {
+    d = d.slice(c.dial.length);
+  }
   if (iso === 'NG') {
-    if (d.startsWith('234') && d.length >= 13) d = '0' + d.slice(3);
+    if (d.startsWith('234') && d.length >= 13) d = d.slice(3);
+    // Show Nigerian numbers with leading 0 for familiarity
     if (d.length === 10 && !d.startsWith('0')) d = '0' + d;
   }
   return d;
+}
+
+/**
+ * Country-aware national-number length rules (WhatsApp-style).
+ * Returns null when valid, or a user-facing error string.
+ */
+const NATIONAL_LEN: Record<string, { min: number; max: number }> = {
+  NG: { min: 10, max: 10 }, // 8012345678 (after strip leading 0 → 10)
+  US: { min: 10, max: 10 },
+  CA: { min: 10, max: 10 },
+  GB: { min: 10, max: 11 },
+  GH: { min: 9, max: 10 },
+  KE: { min: 9, max: 10 },
+  ZA: { min: 9, max: 9 },
+  AE: { min: 9, max: 9 },
+  IN: { min: 10, max: 10 },
+  AU: { min: 9, max: 9 },
+  DE: { min: 10, max: 12 },
+  FR: { min: 9, max: 9 },
+  EG: { min: 10, max: 10 },
+  TZ: { min: 9, max: 9 },
+  UG: { min: 9, max: 9 },
+  RW: { min: 9, max: 9 },
+  CM: { min: 9, max: 9 },
+  SN: { min: 9, max: 9 },
+  BR: { min: 10, max: 11 },
+  MX: { min: 10, max: 10 },
+};
+
+export function validatePhoneForCountry(
+  iso: string,
+  nationalRaw: string,
+): string | null {
+  const c = findCountry(iso);
+  let d = nationalRaw.replace(/\D/g, '');
+  // Reject if user pasted full international into national field
+  if (c.dial && d.startsWith(c.dial) && d.length > c.dial.length + 6) {
+    return `Enter the local number only — without +${c.dial}`;
+  }
+  // Normalize NG leading 0 for length check
+  const forLen = iso === 'NG' && d.startsWith('0') ? d.slice(1) : d;
+  if (!forLen) {
+    return 'Enter a phone number';
+  }
+  const rule = NATIONAL_LEN[iso] || { min: 7, max: 12 };
+  if (forLen.length < rule.min || forLen.length > rule.max) {
+    const label =
+      rule.min === rule.max
+        ? `${rule.min} digits`
+        : `${rule.min}–${rule.max} digits`;
+    return `This is not a valid ${c.name} number. Use ${label} for ${c.name}.`;
+  }
+  // NG mobile: after strip 0, must start with 7, 8, or 9
+  if (iso === 'NG') {
+    const n = forLen;
+    if (!/^[789]/.test(n)) {
+      return 'Nigerian mobile numbers start with 070, 080, 081, 090, or 091.';
+    }
+  }
+  // US/CA: area code cannot start with 0 or 1
+  if ((iso === 'US' || iso === 'CA') && /^[01]/.test(forLen)) {
+    return `This is not a valid ${c.name} number.`;
+  }
+  return null;
 }
 
 export function homeCurrencyFor(iso: string): 'NGN' | 'USD' {
