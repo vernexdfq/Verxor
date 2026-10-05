@@ -14,7 +14,6 @@ import {
   DEFAULT_COUNTRY,
   displayNational,
   findCountry,
-  flagEmoji,
   homeCurrencyFor,
   isVtuEligible,
   normalizeNational,
@@ -140,11 +139,9 @@ export function AuthFlow({ onAuthenticated }: { onAuthenticated: (session: AuthS
   const [error, setError] = useState<string | null>(null);
   const [country, setCountry] = useState<Country>(DEFAULT_COUNTRY);
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [remembered, setRemembered] = useState<AuthSession | null>(null);
 
   useEffect(() => {
     const s = loadRemembered();
-    setRemembered(s.contact ? s : null);
     try {
       if (sessionStorage.getItem('verxor-force-signin') === '1') {
         sessionStorage.removeItem('verxor-force-signin');
@@ -236,7 +233,7 @@ export function AuthFlow({ onAuthenticated }: { onAuthenticated: (session: AuthS
       return;
     }
     if (!password || password.length < 6) {
-      setError('Password must be at least 6 characters');
+      setError('Password too short - use 6 or more characters');
       return;
     }
     if (!/^\d{4}$/.test(pin)) {
@@ -267,7 +264,7 @@ export function AuthFlow({ onAuthenticated }: { onAuthenticated: (session: AuthS
       <div className="auth-page">
         <BrandMark />
         <h1>Welcome to Verxor</h1>
-        <p className="auth-sub">Digital services, wallet & virtual numbers</p>
+        <p className="auth-sub">Digital services, wallet and virtual numbers</p>
         <button type="button" className="auth-primary" onClick={() => setStep('signin')}>
           Sign in
         </button>
@@ -292,7 +289,7 @@ export function AuthFlow({ onAuthenticated }: { onAuthenticated: (session: AuthS
             maxLength={4}
             value={pin}
             onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
-            placeholder="••••"
+            placeholder="PIN"
             autoFocus
           />
         </div>
