@@ -25,6 +25,7 @@ import { SupportCenterPage } from './support-center-page';
 import { SecurityPage } from './security-page';
 import { AdminPage } from './admin-page';
 import { AuthFlow, type AuthSession } from './auth/AuthFlow';
+import { signOutAuth, supabaseAuthEnabled } from '../lib/supabase/auth';
 import type { Page } from './types';
 
 type NavState = {
@@ -50,21 +51,17 @@ function isFaqService(s: ServiceView | null): s is 'faq' | 'help' {
 
 /**
  * IMPORTANT (fintech rule):
- * Cookies/localStorage may remember contact, method, name, and PIN hash,
- * but they must NEVER auto-admit the user into the dashboard.
- * Every open of /workspace requires a successful 4-digit PIN entry.
- * Authentication lives only in React state for the current tab session.
+ * Supabase Auth session may persist across reloads, but the dashboard
+ * still requires a successful 4-digit PIN entry every tab session.
  */
 export function VerxorApp() {
   const [page, setPage] = useState<Page>('home');
   const [service, setService] = useState<ServiceView | null>(null);
   const [dark, setDark] = useState(false);
   const [admin, setAdmin] = useState(false);
-  /** Session is in-memory only — never restored from localStorage as authenticated */
   const [auth, setAuth] = useState<AuthSession | null>(null);
   const [authReady, setAuthReady] = useState(false);
 
-  /** Skip pushState when restoring from popstate */
   const skipPushRef = useRef(false);
   const pageRef = useRef(page);
   const serviceRef = useRef(service);
@@ -101,7 +98,6 @@ export function VerxorApp() {
     [pushNav],
   );
 
-  /** UI Back on service screens — go one step in browser history when possible */
   const closeService = useCallback(() => {
     if (typeof window !== 'undefined' && window.history.state?.service) {
       window.history.back();
@@ -155,6 +151,9 @@ export function VerxorApp() {
       sessionStorage.setItem('verxor-force-signin', '1');
     } catch {
       /* ignore */
+    }
+    if (supabaseAuthEnabled()) {
+      void signOutAuth();
     }
     setAuth(null);
     setService(null);
