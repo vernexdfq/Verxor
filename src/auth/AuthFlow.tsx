@@ -194,9 +194,6 @@ export function AuthFlow({ onAuthenticated }: { onAuthenticated: (session: AuthS
       setError('Enter your phone or email');
       return;
     }
-    if (method === 'phone' && contactNorm !== stored.contact && stored.method === 'phone') {
-      /* allow */
-    }
     if (!password || password.length < 4) {
       setError('Enter your password');
       return;
@@ -239,7 +236,8 @@ export function AuthFlow({ onAuthenticated }: { onAuthenticated: (session: AuthS
       return;
     }
     if (!password || password.length < 6) {
-      setError('Password must be at least 6 characters');\n      return;
+      setError('Password must be at least 6 characters');
+      return;
     }
     if (!/^\d{4}$/.test(pin)) {
       setError('Create a 4-digit PIN');
