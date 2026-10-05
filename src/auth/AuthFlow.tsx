@@ -330,10 +330,13 @@ export function AuthFlow({ onAuthenticated }: { onAuthenticated: (session: AuthS
         </div>
         {method === 'phone' ? (
           <PhoneField
+            id="signin-phone"
+            label="Phone number"
             country={country}
             national={displayNational(country.iso, contact) || contact}
-            onChangeNational={setContact}
+            onNationalChange={setContact}
             onOpenPicker={() => setPickerOpen(true)}
+            placeholder="8012345678"
           />
         ) : (
           <div className="auth-field">
@@ -364,16 +367,15 @@ export function AuthFlow({ onAuthenticated }: { onAuthenticated: (session: AuthS
         <button type="button" className="auth-primary" onClick={submitSignIn}>
           Sign in
         </button>
-        {pickerOpen && (
-          <CountryPickerSheet
-            selected={country.iso}
-            onSelect={(c) => {
-              setCountry(c);
-              setPickerOpen(false);
-            }}
-            onClose={() => setPickerOpen(false)}
-          />
-        )}
+        <CountryPickerSheet
+          open={pickerOpen}
+          selectedIso={country.iso}
+          onSelect={(c) => {
+            setCountry(c);
+            setPickerOpen(false);
+          }}
+          onClose={() => setPickerOpen(false)}
+        />
       </div>
     );
   }
@@ -406,10 +408,13 @@ export function AuthFlow({ onAuthenticated }: { onAuthenticated: (session: AuthS
         </div>
         {method === 'phone' ? (
           <PhoneField
+            id="signup-phone"
+            label="Phone number"
             country={country}
             national={contact}
-            onChangeNational={setContact}
+            onNationalChange={setContact}
             onOpenPicker={() => setPickerOpen(true)}
+            placeholder="8012345678"
           />
         ) : (
           <div className="auth-field">
@@ -451,16 +456,15 @@ export function AuthFlow({ onAuthenticated }: { onAuthenticated: (session: AuthS
         <button type="button" className="auth-primary" onClick={submitSignUp}>
           Create account
         </button>
-        {pickerOpen && (
-          <CountryPickerSheet
-            selected={country.iso}
-            onSelect={(c) => {
-              setCountry(c);
-              setPickerOpen(false);
-            }}
-            onClose={() => setPickerOpen(false)}
-          />
-        )}
+        <CountryPickerSheet
+          open={pickerOpen}
+          selectedIso={country.iso}
+          onSelect={(c) => {
+            setCountry(c);
+            setPickerOpen(false);
+          }}
+          onClose={() => setPickerOpen(false)}
+        />
       </div>
     );
   }
