@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import bcrypt from 'bcryptjs';
+import { hash as bcryptHash } from 'bcryptjs';
 
 function env(name: string) {
   return (process.env[name] || '').trim();
@@ -24,7 +24,6 @@ function anonKey() {
 /**
  * Server signup: creates confirmed Auth user (no email wait),
  * upserts profile, stores bcrypt pin_hash.
- * Returns session tokens when possible.
  */
 export async function POST(req: Request) {
   try {
@@ -96,7 +95,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Could not create account' }, { status: 500 });
     }
 
-    const pinHash = await bcrypt.hash(pin, 10);
+    const pinHash = await bcryptHash(pin, 10);
 
     const upsertRes = await fetch(`${base}/rest/v1/profiles?on_conflict=id`, {
       method: 'POST',
@@ -122,7 +121,6 @@ export async function POST(req: Request) {
       console.error('[auth/signup] profile', upsertRes.status, text.slice(0, 300));
     }
 
-    // Issue session tokens via password grant (user is confirmed)
     const anon = anonKey();
     let access_token: string | undefined;
     let refresh_token: string | undefined;

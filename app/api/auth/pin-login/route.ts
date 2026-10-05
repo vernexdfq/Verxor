@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import bcrypt from 'bcryptjs';
+import { compare as bcryptCompare } from 'bcryptjs';
 
 function env(name: string) {
   return (process.env[name] || '').trim();
@@ -88,7 +88,6 @@ async function sessionForEmail(
   anon: string,
   email: string,
 ): Promise<{ access_token?: string; refresh_token?: string; error?: string }> {
-  // Magic-link style session without sending email
   const linkRes = await fetch(`${base}/auth/v1/admin/generate_link`, {
     method: 'POST',
     headers: {
@@ -133,7 +132,6 @@ async function sessionForEmail(
   });
 
   if (!verifyRes.ok) {
-    // Fallback: try type email
     const verify2 = await fetch(`${base}/auth/v1/verify`, {
       method: 'POST',
       headers: {
@@ -170,10 +168,7 @@ async function sessionForEmail(
   };
 }
 
-/**
- * Primex / OPay style login: phone OR email + 4-digit PIN.
- * No password on the login screen.
- */
+/** Primex / OPay style: phone OR email + 4-digit PIN. */
 export async function POST(req: Request) {
   try {
     const body = await req.json();
@@ -207,13 +202,13 @@ export async function POST(req: Request) {
       return NextResponse.json(
         {
           error:
-            'PIN is not set for this account. Use Forgot PIN with your password, or create a new account.',
+            'PIN is not set for this account. Use Forgot PIN with your password, or sign up again.',
         },
         { status: 400 },
       );
     }
 
-    const ok = await bcrypt.compare(pin, profile.pin_hash);
+    const ok = await bcryptCompare(pin, profile.pin_hash);
     if (!ok) {
       return NextResponse.json({ error: 'Incorrect PIN' }, { status: 401 });
     }

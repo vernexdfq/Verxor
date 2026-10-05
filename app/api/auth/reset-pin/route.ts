@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import bcrypt from 'bcryptjs';
+import { hash as bcryptHash } from 'bcryptjs';
 
 function env(name: string) {
   return (process.env[name] || '').trim();
@@ -21,9 +21,7 @@ function anonKey() {
   return env('NEXT_PUBLIC_SUPABASE_ANON_KEY') || env('SUPABASE_ANON_KEY');
 }
 
-/**
- * Forgot PIN: verify account password, then set new pin_hash.
- */
+/** Forgot PIN: verify password, set new pin_hash. */
 export async function POST(req: Request) {
   try {
     const body = await req.json();
@@ -73,7 +71,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Account not found' }, { status: 404 });
     }
 
-    // Verify password by attempting password grant
     const tokenRes = await fetch(`${base}/auth/v1/token?grant_type=password`, {
       method: 'POST',
       headers: {
@@ -105,7 +102,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Account not found' }, { status: 404 });
     }
 
-    const pinHash = await bcrypt.hash(newPin, 10);
+    const pinHash = await bcryptHash(newPin, 10);
     const patchRes = await fetch(
       `${base}/rest/v1/profiles?id=eq.${encodeURIComponent(userId)}`,
       {

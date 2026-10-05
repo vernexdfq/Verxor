@@ -81,21 +81,21 @@ export function CountryPickerSheet({
 }
 
 export function PhoneField({
-  id,
-  label,
+  id = 'phone',
+  label = 'Phone Number',
   country,
   national,
   onOpenPicker,
   onNationalChange,
-  placeholder,
+  placeholder = '8012345678',
 }: {
-  id: string;
-  label: string;
+  id?: string;
+  label?: string;
   country: Country;
   national: string;
   onOpenPicker: () => void;
   onNationalChange: (v: string) => void;
-  placeholder: string;
+  placeholder?: string;
 }) {
   return (
     <div className="auth-field">
