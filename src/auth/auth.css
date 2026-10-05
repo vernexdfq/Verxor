@@ -16,7 +16,7 @@
   --vx-danger-bg: #FEF2F2;
   --vx-success: #059669;
   --vx-success-bg: #ECFDF5;
-  --vx-radius: 16px;
+  --vx-radius: 14px;
   --vx-radius-sm: 12px;
   --vx-shadow-cta: 0 4px 14px rgba(37, 99, 235, 0.28);
 }
@@ -40,8 +40,8 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  padding: max(20px, env(safe-area-inset-top)) 24px
-    max(28px, env(safe-area-inset-bottom));
+  padding: max(16px, env(safe-area-inset-top)) 22px
+    max(24px, env(safe-area-inset-bottom));
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
 }
@@ -98,11 +98,11 @@
 }
 
 .auth-title {
-  margin: 0 0 8px;
-  font-size: 28px;
+  margin: 0 0 6px;
+  font-size: 26px;
   font-weight: 800;
-  letter-spacing: -0.045em;
-  line-height: 1.15;
+  letter-spacing: -0.04em;
+  line-height: 1.18;
   color: var(--vx-heading);
 }
 
@@ -112,10 +112,10 @@
 }
 
 .auth-sub {
-  margin: 0 0 28px;
-  font-size: 15px;
+  margin: 0 0 20px;
+  font-size: 14.5px;
   color: var(--vx-sub);
-  line-height: 1.5;
+  line-height: 1.45;
   font-weight: 400;
 }
 
@@ -165,17 +165,18 @@
 }
 
 .auth-field {
-  margin-bottom: 16px;
+  margin-bottom: 14px;
   width: 100%;
   text-align: left;
 }
 
 .auth-field label {
   display: block;
-  margin-bottom: 8px;
-  font-size: 13.5px;
+  margin-bottom: 6px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--vx-heading);
+  letter-spacing: -0.01em;
 }
 
 .auth-optional {
@@ -190,12 +191,14 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  min-height: 54px;
-  padding: 0 16px;
+  height: 52px;
+  min-height: 52px;
+  padding: 0 14px;
   border: 1.5px solid var(--vx-border);
-  border-radius: var(--vx-radius);
+  border-radius: 14px;
   background: var(--vx-surface);
   transition: border-color 0.15s, box-shadow 0.15s;
+  box-sizing: border-box;
 }
 
 .auth-input-wrap:focus-within {
@@ -214,10 +217,12 @@
   outline: 0;
   background: transparent;
   color: var(--vx-heading);
-  font-size: 16px;
+  font-size: 15.5px;
   font-weight: 500;
   min-width: 0;
   letter-spacing: -0.01em;
+  height: 100%;
+  line-height: 1.2;
 }
 
 .auth-input-wrap input::placeholder {
@@ -237,21 +242,22 @@
 }
 
 .auth-hint {
-  margin: 7px 0 0;
-  font-size: 12px;
+  margin: 5px 0 0;
+  font-size: 11.5px;
   color: var(--vx-muted);
-  line-height: 1.4;
+  line-height: 1.35;
 }
 
 .auth-btn {
   width: 100%;
-  min-height: 54px;
-  margin-top: 8px;
+  height: 52px;
+  min-height: 52px;
+  margin-top: 10px;
   border: 0;
-  border-radius: var(--vx-radius);
+  border-radius: 14px;
   background: var(--vx-primary);
   color: #FFFFFF;
-  font-size: 16px;
+  font-size: 15.5px;
   font-weight: 700;
   letter-spacing: -0.01em;
   display: inline-flex;
@@ -262,6 +268,7 @@
   transition: background 0.15s, transform 0.1s;
   box-shadow: var(--vx-shadow-cta);
   -webkit-tap-highlight-color: transparent;
+  box-sizing: border-box;
 }
 
 .auth-btn:hover {
@@ -455,16 +462,17 @@
 }
 
 .auth-error {
-  margin: 0 0 16px;
-  padding: 12px 14px;
-  border-radius: var(--vx-radius-sm);
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
   background: var(--vx-danger-bg);
   border: 1px solid #FECACA;
   color: #991B1B;
-  font-size: 13.5px;
+  font-size: 13px;
   font-weight: 500;
   text-align: center;
   width: 100%;
+  line-height: 1.4;
 }
 
 .auth-bio-hint {
@@ -482,7 +490,9 @@
 }
 
 .auth-section {
-  margin: 18px 0 10px;
+  margin: 20px 0 12px;
+  padding-top: 14px;
+  border-top: 1px solid var(--vx-border);
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -490,17 +500,22 @@
   color: var(--vx-muted);
   width: 100%;
   text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .auth-section:first-of-type {
   margin-top: 2px;
+  padding-top: 0;
+  border-top: 0;
 }
 
 .auth-terms {
-  margin: 14px 0 6px;
-  font-size: 12.5px;
+  margin: 12px 0 4px;
+  font-size: 12px;
   color: var(--vx-sub);
-  line-height: 1.5;
+  line-height: 1.45;
   text-align: center;
   width: 100%;
 }
@@ -521,16 +536,18 @@
   align-items: stretch;
   gap: 8px;
   width: 100%;
+  height: 52px;
 }
 
 .cc-trigger {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  min-height: 54px;
+  gap: 5px;
+  height: 52px;
+  min-height: 52px;
   padding: 0 10px 0 12px;
   border: 1.5px solid var(--vx-border);
-  border-radius: var(--vx-radius);
+  border-radius: 14px;
   background: var(--vx-surface);
   color: var(--vx-heading);
   font-size: 14px;
@@ -539,6 +556,7 @@
   flex-shrink: 0;
   transition: border-color 0.15s, box-shadow 0.15s;
   -webkit-tap-highlight-color: transparent;
+  box-sizing: border-box;
 }
 
 .cc-trigger:active {
