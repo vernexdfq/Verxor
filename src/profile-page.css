@@ -1,31 +1,21 @@
-/* Profile / Settings — matches reference mock */
-
 .prof-page {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  max-width: 480px;
+  padding: 8px 16px 28px;
+  max-width: 520px;
   margin: 0 auto;
-  padding-bottom: 20px;
-}
-
-.prof-page-head {
-  margin-bottom: 2px;
 }
 
 .prof-page-head h1 {
-  margin: 0;
-  font-size: 20px;
+  margin: 4px 0 2px;
+  font-size: 22px;
   font-weight: 800;
-  letter-spacing: -0.03em;
   color: #0f172a;
-  line-height: 1.2;
+  letter-spacing: -0.02em;
 }
 
 .prof-page-head p {
-  margin: 4px 0 0;
+  margin: 0 0 16px;
   font-size: 13px;
-  color: #475569;
+  color: #64748b;
   font-weight: 500;
 }
 
@@ -36,9 +26,10 @@
   gap: 12px;
   padding: 16px;
   border-radius: 18px;
-  background: linear-gradient(135deg, #0f172a 0%, #1e293b 60%, #0f172a 100%);
-  color: #fff;
-  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.28);
+  background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
+  margin-bottom: 14px;
 }
 
 .prof-hero-left {
@@ -46,278 +37,242 @@
   align-items: center;
   gap: 12px;
   min-width: 0;
-  flex: 1;
 }
 
 .prof-avatar-wrap {
   position: relative;
-  flex: none;
+  flex-shrink: 0;
 }
 
 .prof-avatar {
-  width: 56px;
-  height: 56px;
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  background: linear-gradient(145deg, #2563eb, #1d4ed8);
+  color: #fff;
   display: grid;
   place-items: center;
-  border-radius: 999px;
-  background: linear-gradient(145deg, #3b82f6, #1d4ed8);
-  color: #fff;
-  font-size: 22px;
+  font-size: 20px;
   font-weight: 800;
-  border: 2px solid rgba(255, 255, 255, 0.25);
 }
 
 .prof-pro-badge {
   position: absolute;
-  left: 50%;
+  right: -6px;
   bottom: -4px;
-  transform: translateX(-50%);
-  padding: 1px 7px;
-  border-radius: 999px;
-  background: #f59e0b;
-  color: #0f172a;
   font-size: 9px;
-  font-weight: 900;
+  font-weight: 800;
   letter-spacing: 0.04em;
-  line-height: 14px;
-  border: 1.5px solid #0f172a;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: #0f172a;
+  color: #fff;
 }
 
 .prof-hero-meta {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
   min-width: 0;
 }
 
 .prof-name {
+  display: block;
   font-size: 16px;
   font-weight: 800;
-  letter-spacing: -0.02em;
-  color: #fff;
+  color: #0f172a;
+  line-height: 1.25;
+}
+
+.prof-handle {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: #2563EB;
+  margin-top: 2px;
 }
 
 .prof-email {
-  font-size: 11px;
-  color: #94a3b8;
-  font-weight: 500;
-  white-space: nowrap;
+  display: block;
+  font-size: 12.5px;
+  color: #64748b;
+  margin-top: 2px;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 180px;
 }
 
-.prof-role,
-.prof-since {
+.prof-role {
+  display: inline-block;
+  margin-top: 6px;
   font-size: 11px;
-  color: #64748b;
-  font-weight: 500;
+  font-weight: 700;
+  color: #2563eb;
+  background: #eff6ff;
+  padding: 3px 8px;
+  border-radius: 999px;
+}
+
+.prof-since {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  color: #94a3b8;
 }
 
 .prof-edit-pill {
-  flex: none;
+  flex-shrink: 0;
   display: inline-flex;
   align-items: center;
   gap: 2px;
-  height: 34px;
-  padding: 0 12px;
+  padding: 8px 12px;
   border-radius: 999px;
-  border: none;
-  background: #2563eb;
-  color: #fff;
+  border: 1px solid #dbeafe;
+  background: #eff6ff;
+  color: #1d4ed8;
   font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.02em;
-  white-space: nowrap;
-}
-
-.prof-edit-pill:active {
-  background: #1d4ed8;
 }
 
 .prof-refer {
+  width: 100%;
   display: flex;
   align-items: center;
   gap: 12px;
-  width: 100%;
-  padding: 14px;
-  text-align: left;
+  padding: 14px 16px;
   border-radius: 16px;
-  border: 1px solid #e2e8f0;
-  background: #fff;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  border: 1px solid #fde68a;
+  background: linear-gradient(135deg, #fffbeb, #fef3c7);
+  margin-bottom: 18px;
+  text-align: left;
 }
 
 .prof-refer-icon {
-  width: 44px;
-  height: 44px;
-  flex: none;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: #fff;
   display: grid;
   place-items: center;
-  border-radius: 12px;
-  background: #ecfdf5;
-  color: #059669;
+  color: #d97706;
+  flex-shrink: 0;
 }
 
 .prof-refer-copy {
   flex: 1;
   min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
 }
 
 .prof-refer-copy strong {
+  display: block;
   font-size: 14px;
   font-weight: 800;
-  color: #0f172a;
+  color: #92400e;
 }
 
 .prof-refer-copy small {
-  font-size: 11px;
-  line-height: 14px;
-  color: #475569;
-  font-weight: 500;
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  color: #a16207;
 }
 
 .prof-refer-cta {
-  flex: none;
-  height: 34px;
-  padding: 0 16px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 10px;
-  background: #10b981;
-  color: #fff;
-  font-size: 13px;
-  font-weight: 700;
+  font-size: 12px;
+  font-weight: 800;
+  color: #92400e;
+  background: #fff;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid #fcd34d;
 }
 
 .prof-group {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+  margin-bottom: 18px;
 }
 
 .prof-group-title {
-  margin: 4px 0 0;
+  margin: 0 0 8px 4px;
   font-size: 11px;
   font-weight: 800;
-  letter-spacing: 0.07em;
-  color: #64748b;
+  letter-spacing: 0.06em;
+  color: #94a3b8;
 }
 
 .prof-list {
   display: flex;
   flex-direction: column;
-  border-radius: 16px;
-  border: 1px solid #e2e8f0;
-  background: #fff;
-  overflow: hidden;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  gap: 8px;
 }
 
 .prof-item {
+  width: 100%;
   display: flex;
   align-items: center;
   gap: 12px;
-  width: 100%;
-  padding: 13px 14px;
-  text-align: left;
-  border: none;
-  border-bottom: 1px solid #f1f5f9;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid #e2e8f0;
   background: #fff;
-  color: #0f172a;
-}
-
-.prof-item:last-child {
-  border-bottom: none;
+  text-align: left;
 }
 
 .prof-item:active {
   background: #f8fafc;
+  transform: scale(0.99);
 }
 
 .prof-item-icon {
   width: 40px;
   height: 40px;
-  flex: none;
+  border-radius: 12px;
   display: grid;
   place-items: center;
-  border-radius: 12px;
+  flex-shrink: 0;
 }
 
-.tone-blue {
-  background: #eff6ff;
-  color: #2563eb;
-}
-.tone-purple {
-  background: #f5f3ff;
-  color: #7c3aed;
-}
-.tone-green {
-  background: #ecfdf5;
-  color: #059669;
-}
-.tone-slate {
-  background: #f1f5f9;
-  color: #475569;
-}
-.tone-violet {
-  background: #f5f3ff;
-  color: #7c3aed;
-}
-.tone-amber {
-  background: #fffbeb;
-  color: #d97706;
-}
-.tone-sky {
-  background: #f0f9ff;
-  color: #0284c7;
-}
-.tone-teal {
-  background: #f0fdfa;
-  color: #0d9488;
-}
-.tone-rose {
-  background: #fff1f2;
-  color: #e11d48;
-}
+.tone-blue { background: #eff6ff; color: #2563eb; }
+.tone-green { background: #ecfdf5; color: #059669; }
+.tone-indigo { background: #eef2ff; color: #4f46e5; }
+.tone-slate { background: #f1f5f9; color: #475569; }
+.tone-violet { background: #f5f3ff; color: #7c3aed; }
+.tone-amber { background: #fffbeb; color: #d97706; }
+.tone-sky { background: #f0f9ff; color: #0284c7; }
+.tone-teal { background: #f0fdfa; color: #0d9488; }
+.tone-rose { background: #fff1f2; color: #e11d48; }
 
 .prof-item-copy {
   flex: 1;
   min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
 }
 
 .prof-item-copy strong {
+  display: block;
   font-size: 14px;
   font-weight: 700;
   color: #0f172a;
 }
 
 .prof-item-copy small {
+  display: block;
+  margin-top: 2px;
   font-size: 12px;
-  color: #475569;
-  font-weight: 500;
-  line-height: 15px;
+  color: #64748b;
 }
 
 .prof-item-arrow {
-  flex: none;
   color: #cbd5e1;
+  flex-shrink: 0;
 }
 
 .prof-logout {
+  width: 100%;
+  margin-top: 8px;
+  margin-bottom: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  width: 100%;
-  min-height: 48px;
-  margin-top: 4px;
+  padding: 14px;
   border-radius: 14px;
   border: 1px solid #fecdd3;
   background: #fff1f2;
