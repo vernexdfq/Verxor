@@ -48,6 +48,8 @@ export type AuthSession = {
 
 const STORAGE_KEY = 'verxor-auth-session';
 const LAST_PHONE_KEY = 'verxor-last-phone';
+/** Multi-account registry so phone OR email can find the same user on this device. */
+const ACCOUNTS_KEY = 'verxor-accounts';
 
 const DEFAULT_MOCK: AuthSession = {
   authenticated: false,
@@ -137,6 +139,93 @@ function saveLastPhone(iso: string, dial: string, national: string) {
   }
 }
 
+type StoredAccount = AuthSession & { id: string };
+
+function loadAccounts(): StoredAccount[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(ACCOUNTS_KEY);
+    if (!raw) return [];
+    const list = JSON.parse(raw) as StoredAccount[];
+    return Array.isArray(list) ? list : [];
+  } catch {
+    return [];
+  }
+}
+
+function persistAccounts(list: StoredAccount[]) {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(list));
+  } catch {
+    /* ignore */
+  }
+}
+
+function phoneDigits(v: string): string {
+  return (v || '').replace(/\D/g, '');
+}
+
+function emailsMatch(a?: string, b?: string): boolean {
+  const x = (a || '').trim().toLowerCase();
+  const y = (b || '').trim().toLowerCase();
+  return Boolean(x && y && x === y);
+}
+
+/** Find registered account by E.164 phone or by email (either works). */
+function findAccount(opts: {
+  phoneE164?: string;
+  email?: string;
+}): StoredAccount | null {
+  const list = loadAccounts();
+  const phone = phoneDigits(opts.phoneE164 || '');
+  const em = (opts.email || '').trim().toLowerCase();
+
+  for (const acc of list) {
+    if (phone && phoneDigits(acc.contact) === phone) return acc;
+    if (em && emailsMatch(acc.email, em)) return acc;
+    if (em && acc.method === 'email' && emailsMatch(acc.contact, em)) return acc;
+  }
+
+  // Fallback: single remembered session (older installs before multi-account registry)
+  const stored = loadRemembered();
+  if (stored.contact && stored.pin) {
+    if (phone && phoneDigits(stored.contact) === phone) {
+      return { ...stored, id: 'legacy' };
+    }
+    if (
+      em &&
+      (emailsMatch(stored.email, em) ||
+        (stored.method === 'email' && emailsMatch(stored.contact, em)))
+    ) {
+      return { ...stored, id: 'legacy' };
+    }
+  }
+  return null;
+}
+
+function upsertAccount(session: AuthSession): StoredAccount {
+  const list = loadAccounts();
+  const phone = phoneDigits(session.contact);
+  const em = (session.email || '').trim().toLowerCase();
+  const idx = list.findIndex((a) => {
+    if (phone && phoneDigits(a.contact) === phone) return true;
+    if (em && emailsMatch(a.email, em)) return true;
+    return false;
+  });
+  const id = idx >= 0 ? list[idx].id : `acc_${Date.now().toString(36)}`;
+  const row: StoredAccount = {
+    ...session,
+    id,
+    authenticated: false,
+    email: em || session.email || '',
+  };
+  if (idx >= 0) list[idx] = row;
+  else list.push(row);
+  persistAccounts(list);
+  return row;
+}
+
 function strongPassword(pw: string): boolean {
   return (
     pw.length >= 6 &&
@@ -185,6 +274,10 @@ export function AuthFlow({
   useEffect(() => {
     const s = loadRemembered();
     setRemembered(s);
+    // Migrate single legacy session into multi-account registry (once).
+    if (s.contact && s.pin) {
+      upsertAccount(s);
+    }
 
     try {
       const inbound = sessionStorage.getItem('verxor-inbound-ref');
@@ -248,6 +341,7 @@ export function AuthFlow({
           : isVtuEligible(iso),
     };
     saveRemembered(full);
+    upsertAccount(full);
     if (full.method === 'phone' && full.contact) {
       saveLastPhone(
         iso,
@@ -279,24 +373,21 @@ export function AuthFlow({
       const e164 = toE164(country.iso, country.dial, national);
       saveLastPhone(country.iso, country.dial, national);
 
-      const stored = loadRemembered();
-      const storedNorm =
-        stored.method === 'phone'
-          ? (stored.contact || '').replace(/\D/g, '')
-          : '';
-      const inputNorm = e164.replace(/\D/g, '');
-      const matched =
-        Boolean(stored.contact && stored.pin) &&
-        stored.method === 'phone' &&
-        (storedNorm === inputNorm || stored.contact === e164);
-
-      if (!matched) {
+      const account = findAccount({ phoneE164: e164 });
+      if (!account || !account.pin) {
         setError(
           'No account found for this number. Check the number or create an account.',
         );
         return;
       }
-      setRemembered(stored);
+      const session: AuthSession = {
+        ...account,
+        method: 'phone',
+        contact: account.contact || e164,
+        authenticated: false,
+      };
+      saveRemembered(session);
+      setRemembered(session);
       setPin('');
       setStep('pin');
       return;
@@ -307,19 +398,22 @@ export function AuthFlow({
       setError('Enter a valid email address');
       return;
     }
-    const stored = loadRemembered();
-    const match =
-      Boolean(stored.contact && stored.pin) &&
-      stored.method === 'email' &&
-      (stored.contact.toLowerCase() === em ||
-        (stored.email || '').toLowerCase() === em);
-    if (!match) {
+    const account = findAccount({ email: em });
+    if (!account || !account.pin) {
       setError(
         'No account found for this email. Check the address or create an account.',
       );
       return;
     }
-    setRemembered(stored);
+    const session: AuthSession = {
+      ...account,
+      method: 'email',
+      contact: account.contact,
+      email: account.email || em,
+      authenticated: false,
+    };
+    saveRemembered(session);
+    setRemembered(session);
     setPin('');
     setStep('pin');
   }
@@ -380,6 +474,7 @@ export function AuthFlow({
       }
     }
     saveLastPhone(country.iso, country.dial, national);
+    upsertAccount(session);
     finish(session);
   }
 
@@ -447,6 +542,7 @@ export function AuthFlow({
     const stored = loadRemembered();
     const next = { ...stored, ...remembered, pin: newPin };
     saveRemembered(next);
+    upsertAccount(next);
     setRemembered(next);
     setPin('');
     setNewPin('');
@@ -660,7 +756,11 @@ export function AuthFlow({
                 onClick={() => setShowPass((v) => !v)}
                 aria-label={showPass ? 'Hide password' : 'Show password'}
               >
-                {showPass ? <EyeOff size={18} /> : <Eye size={18} />}
+                {showPass ? (
+                  <EyeOff size={18} strokeWidth={2} />
+                ) : (
+                  <Eye size={18} strokeWidth={2} />
+                )}
               </button>
             </div>
             <p className="auth-hint">
@@ -676,8 +776,8 @@ export function AuthFlow({
                 id="su-pin"
                 type={showPinField ? 'text' : 'password'}
                 inputMode="numeric"
-                maxLength={4}
                 autoComplete="off"
+                maxLength={4}
                 placeholder="Enter 4-digit PIN"
                 value={signupPin}
                 onChange={(e) =>
@@ -690,7 +790,11 @@ export function AuthFlow({
                 onClick={() => setShowPinField((v) => !v)}
                 aria-label={showPinField ? 'Hide PIN' : 'Show PIN'}
               >
-                {showPinField ? <EyeOff size={18} /> : <Eye size={18} />}
+                {showPinField ? (
+                  <EyeOff size={18} strokeWidth={2} />
+                ) : (
+                  <Eye size={18} strokeWidth={2} />
+                )}
               </button>
             </div>
             <p className="auth-hint">
@@ -723,7 +827,7 @@ export function AuthFlow({
 
           <p className="auth-terms">
             By creating an account, you agree to our{' '}
-            <a href="/terms" target="_blank" rel="noreferrer">
+            <a href="/privacy" target="_blank" rel="noreferrer">
               Terms of Service
             </a>{' '}
             and{' '}
@@ -733,11 +837,20 @@ export function AuthFlow({
             .
           </p>
 
-          <button type="button" className="auth-btn" onClick={handleSignup}>
+          <button
+            type="button"
+            className="auth-btn"
+            disabled={busy}
+            onClick={() => {
+              setBusy(true);
+              handleSignup();
+              setBusy(false);
+            }}
+          >
             Create Account
           </button>
 
-          <p className="auth-footer-link">
+          <p className="auth-footer-link" style={{ marginTop: 16 }}>
             Already have an account?{' '}
             <button
               type="button"
@@ -769,24 +882,23 @@ export function AuthFlow({
     return (
       <div className="auth-root">
         <div className="auth-body auth-body--pin">
-          <h1 className="auth-title auth-title--center">
-            Enter your PIN{' '}
-            <span aria-hidden className="pin-emoji">
-              🔐
-            </span>
-          </h1>
+          <BrandMark />
+          <h1 className="auth-title auth-title--center">Enter PIN</h1>
           <p className="auth-sub auth-sub--center">
-            Logging in as <strong>{label || '…'}</strong>
+            {label ? (
+              <>
+                For <strong>{label}</strong>
+              </>
+            ) : (
+              'Enter your 4-digit transaction PIN'
+            )}
           </p>
-          <p className="pin-label">Enter your 4-digit PIN</p>
 
           <div className="pin-boxes" aria-hidden>
             {[0, 1, 2, 3].map((i) => (
               <div
                 key={i}
-                className={`pin-box ${pin.length > i ? 'filled' : ''} ${
-                  pin.length === i ? 'active' : ''
-                }`}
+                className={`pin-box${pin.length > i ? ' filled' : ''}${pin.length === i ? ' active' : ''}`}
               >
                 {pin.length > i ? <span className="pin-dot" /> : null}
               </div>
@@ -797,25 +909,25 @@ export function AuthFlow({
           {bioHint ? <p className="auth-bio-hint">{bioHint}</p> : null}
 
           <div className="pin-keypad">
-            {(['1', '2', '3', '4', '5', '6', '7', '8', '9'] as const).map(
-              (key) => (
-                <button
-                  key={key}
-                  type="button"
-                  className="pin-key"
-                  onClick={() => onPinDigit(key)}
-                >
-                  {key}
-                </button>
-              ),
-            )}
+            {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((d) => (
+              <button
+                key={d}
+                type="button"
+                className="pin-key"
+                onClick={() => onPinDigit(d)}
+              >
+                {d}
+              </button>
+            ))}
             <button
               type="button"
               className="pin-key pin-key--bio"
               onClick={onFingerprintTap}
-              aria-label="Login with fingerprint or Face ID"
+              aria-label="Biometric"
             >
-              <Fingerprint size={26} strokeWidth={1.8} />
+              <span className="pin-emoji" aria-hidden>
+                🫆
+              </span>
             </button>
             <button
               type="button"
@@ -838,13 +950,12 @@ export function AuthFlow({
             <button
               type="button"
               onClick={() => {
-                setPin('');
                 setError('');
-                setBioHint('');
+                setPin('');
                 setStep('signin');
               }}
             >
-              ← Change {method === 'email' ? 'email' : 'number'}
+              Change number / email
             </button>
             <button
               type="button"
@@ -858,24 +969,6 @@ export function AuthFlow({
               Forgot PIN?
             </button>
           </div>
-
-          <div className="auth-or">
-            <span>or</span>
-          </div>
-
-          <p className="auth-footer-link">
-            Don't have an account?{' '}
-            <button
-              type="button"
-              onClick={() => {
-                setError('');
-                setPin('');
-                setStep('signup');
-              }}
-            >
-              Create one free
-            </button>
-          </p>
         </div>
       </div>
     );
@@ -888,23 +981,23 @@ export function AuthFlow({
           <button
             type="button"
             className="auth-back"
-            onClick={() => setStep('pin')}
+            onClick={() => {
+              setError('');
+              setStep('pin');
+            }}
             aria-label="Back"
           >
             <ArrowLeft size={18} />
           </button>
           <h1 className="auth-title">Reset PIN</h1>
-          <p className="auth-sub">
-            Set a new 4-digit PIN for{' '}
-            <strong>{contactLabel() || 'your account'}</strong>
-          </p>
+          <p className="auth-sub">Create a new 4-digit transaction PIN</p>
 
           <div className="auth-field">
-            <label htmlFor="fp-new">New PIN</label>
+            <label htmlFor="new-pin">New PIN</label>
             <div className="auth-input-wrap">
               <Lock size={18} strokeWidth={2} />
               <input
-                id="fp-new"
+                id="new-pin"
                 type="password"
                 inputMode="numeric"
                 maxLength={4}
@@ -918,11 +1011,11 @@ export function AuthFlow({
           </div>
 
           <div className="auth-field">
-            <label htmlFor="fp-confirm">Confirm PIN</label>
+            <label htmlFor="confirm-pin">Confirm PIN</label>
             <div className="auth-input-wrap">
               <Lock size={18} strokeWidth={2} />
               <input
-                id="fp-confirm"
+                id="confirm-pin"
                 type="password"
                 inputMode="numeric"
                 maxLength={4}
