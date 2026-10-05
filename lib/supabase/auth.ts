@@ -51,6 +51,15 @@ export async function fetchOwnProfile(): Promise<ProfileRow | null> {
   return data as ProfileRow | null;
 }
 
+async function applySessionTokens(access_token?: string, refresh_token?: string) {
+  const sb = getSupabaseBrowser();
+  if (!sb || !access_token || !refresh_token) return { error: 'No session tokens' };
+  const { error } = await sb.auth.setSession({ access_token, refresh_token });
+  if (error) return { error: error.message };
+  return { error: null as string | null };
+}
+
+/** Server signup: confirmed user + pin_hash (no email-confirm wait). */
 export async function signUpWithEmail(opts: {
   email: string;
   password: string;
@@ -59,52 +68,124 @@ export async function signUpWithEmail(opts: {
   phoneCountry: string;
   pin: string;
 }) {
-  const sb = getSupabaseBrowser();
-  if (!sb) return { error: 'Supabase is not configured' };
-
-  const { data, error } = await sb.auth.signUp({
-    email: opts.email,
-    password: opts.password,
-    options: {
-      data: {
-        full_name: opts.fullName,
-        phone: opts.phoneE164,
-        phone_country: opts.phoneCountry,
-      },
-    },
-  });
-  if (error) return { error: error.message };
-  if (!data.user) return { error: 'Could not create account' };
-
-  await sb.from('profiles').upsert(
-    {
-      id: data.user.id,
-      full_name: opts.fullName,
-      phone: opts.phoneE164,
-      email: opts.email,
-      phone_country: opts.phoneCountry,
-      updated_at: new Date().toISOString(),
-    },
-    { onConflict: 'id' },
-  );
-
-  if (data.session) {
-    const pinRes = await sb.rpc('set_transaction_pin', { p_pin: opts.pin });
-    if (pinRes.error) {
-      const pinRes2 = await sb.rpc('set_transaction_pin', { new_pin: opts.pin });
-      if (pinRes2.error) {
-        return {
-          error: `Account created but PIN could not be saved: ${pinRes2.error.message}`,
-          user: data.user,
-          session: data.session,
-        };
-      }
-    }
+  if (!isSupabaseBrowserConfigured()) {
+    return { error: 'Supabase is not configured' };
   }
 
-  return { user: data.user, session: data.session, error: null as string | null };
+  const res = await fetch('/api/auth/signup', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      email: opts.email,
+      password: opts.password,
+      fullName: opts.fullName,
+      phone: opts.phoneE164,
+      phoneCountry: opts.phoneCountry,
+      pin: opts.pin,
+    }),
+  });
+
+  const body = (await res.json().catch(() => ({}))) as {
+    error?: string;
+    access_token?: string;
+    refresh_token?: string;
+    email?: string;
+    phone?: string;
+  };
+
+  if (!res.ok) {
+    return { error: body.error || 'Sign up failed', session: null };
+  }
+
+  if (body.access_token && body.refresh_token) {
+    const applied = await applySessionTokens(body.access_token, body.refresh_token);
+    if (applied.error) {
+      return { error: applied.error, session: null };
+    }
+    const session = await getAuthSession();
+    return { error: null as string | null, session, user: session?.user ?? null };
+  }
+
+  return { error: null as string | null, session: null, user: null };
 }
 
+/** Primex-style: phone or email + 4-digit PIN → session. */
+export async function signInWithPin(opts: {
+  phone?: string;
+  email?: string;
+  pin: string;
+}) {
+  if (!isSupabaseBrowserConfigured()) {
+    return { error: 'Supabase is not configured' };
+  }
+
+  const res = await fetch('/api/auth/pin-login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      phone: opts.phone || '',
+      email: opts.email || '',
+      pin: opts.pin,
+    }),
+  });
+
+  const body = (await res.json().catch(() => ({}))) as {
+    error?: string;
+    access_token?: string;
+    refresh_token?: string;
+    profile?: ProfileRow & { full_name?: string | null };
+  };
+
+  if (!res.ok) {
+    return { error: body.error || 'Incorrect PIN', profile: null };
+  }
+
+  const applied = await applySessionTokens(body.access_token, body.refresh_token);
+  if (applied.error) {
+    return { error: applied.error, profile: null };
+  }
+
+  return {
+    error: null as string | null,
+    profile: body.profile || null,
+  };
+}
+
+export async function resetPinWithPassword(opts: {
+  email?: string;
+  phone?: string;
+  password: string;
+  newPin: string;
+}) {
+  if (!isSupabaseBrowserConfigured()) {
+    return { ok: false, error: 'Supabase is not configured' };
+  }
+
+  const res = await fetch('/api/auth/reset-pin', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      email: opts.email || '',
+      phone: opts.phone || '',
+      password: opts.password,
+      newPin: opts.newPin,
+    }),
+  });
+
+  const body = (await res.json().catch(() => ({}))) as { error?: string };
+  if (!res.ok) {
+    return { ok: false, error: body.error || 'Could not reset PIN' };
+  }
+  return { ok: true, error: null as string | null };
+}
+
+export async function signOutAuth() {
+  const sb = getSupabaseBrowser();
+  if (!sb) return;
+  await sb.auth.signOut();
+}
+
+/** @deprecated Prefer signInWithPin for daily login */
 export async function signInWithEmail(email: string, password: string) {
   const sb = getSupabaseBrowser();
   if (!sb) return { error: 'Supabase is not configured' };
@@ -113,7 +194,7 @@ export async function signInWithEmail(email: string, password: string) {
   return { session: data.session, user: data.user, error: null as string | null };
 }
 
-/** Phone + password via API (resolves phone → email server-side). */
+/** @deprecated Prefer signInWithPin */
 export async function signInWithPhone(phoneE164: string, password: string) {
   const res = await fetch('/api/auth/signin', {
     method: 'POST',
@@ -124,66 +205,13 @@ export async function signInWithPhone(phoneE164: string, password: string) {
   if (!res.ok) {
     return { error: (body as { error?: string }).error || 'Sign in failed' };
   }
-  const sb = getSupabaseBrowser();
   const access_token = (body as { access_token?: string }).access_token;
   const refresh_token = (body as { refresh_token?: string }).refresh_token;
-  if (sb && access_token && refresh_token) {
-    const { error } = await sb.auth.setSession({ access_token, refresh_token });
-    if (error) return { error: error.message };
-    return { error: null as string | null };
-  }
-  const email = (body as { email?: string }).email;
-  if (email) {
-    return signInWithEmail(email, password);
-  }
-  return { error: 'Sign in failed' };
+  return applySessionTokens(access_token, refresh_token);
 }
 
-export async function signOutAuth() {
-  const sb = getSupabaseBrowser();
-  if (!sb) return;
-  await sb.auth.signOut();
-}
-
-export async function verifyPinRpc(pin: string): Promise<{ ok: boolean; error?: string }> {
-  const sb = getSupabaseBrowser();
-  if (!sb) return { ok: false, error: 'Supabase is not configured' };
-  let { data, error } = await sb.rpc('verify_transaction_pin', { input_pin: pin });
-  if (error) {
-    const second = await sb.rpc('verify_transaction_pin', { p_pin: pin });
-    data = second.data;
-    error = second.error;
-  }
-  if (error) return { ok: false, error: error.message };
-  return { ok: data === true };
-}
-
-export async function setPinRpc(pin: string): Promise<{ ok: boolean; error?: string }> {
-  const sb = getSupabaseBrowser();
-  if (!sb) return { ok: false, error: 'Supabase is not configured' };
-  let { error } = await sb.rpc('set_transaction_pin', { p_pin: pin });
-  if (error) {
-    const second = await sb.rpc('set_transaction_pin', { new_pin: pin });
-    error = second.error;
-  }
-  if (error) return { ok: false, error: error.message };
-  return { ok: true };
-}
-
-export async function resetPinWithPassword(opts: {
-  email?: string;
-  phone?: string;
-  password: string;
-  newPin: string;
-}): Promise<{ ok: boolean; error?: string }> {
-  if (opts.email) {
-    const r = await signInWithEmail(opts.email, opts.password);
-    if (r.error) return { ok: false, error: 'Incorrect password' };
-  } else if (opts.phone) {
-    const r = await signInWithPhone(opts.phone, opts.password);
-    if (r.error) return { ok: false, error: 'Incorrect password' };
-  } else {
-    return { ok: false, error: 'Missing account identifier' };
-  }
-  return setPinRpc(opts.newPin);
+export async function verifyPinRpc(candidate: string) {
+  // Daily unlock after session already exists is not used in Primex flow;
+  // PIN login goes through /api/auth/pin-login.
+  return { ok: false, error: 'Use PIN login' };
 }
