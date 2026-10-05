@@ -14,6 +14,9 @@ import {
 import type { AuthSession } from './auth/AuthFlow';
 import './edit-profile-page.css';
 
+const SESSION_KEY = 'verxor-auth-session';
+const USERNAME_REGISTRY_KEY = 'verxor-username-registry';
+
 function formatPhone(raw: string): string {
   let digits = raw.replace(/\D/g, '');
   if (digits.startsWith('234') && digits.length >= 13) {
@@ -35,6 +38,48 @@ function deriveUsername(name: string, contact: string): string {
   return base ? `${base}${tail}` : `user${tail || '001'}`;
 }
 
+/** Map of lowercase username → contact (owner). */
+function loadRegistry(): Record<string, string> {
+  if (typeof window === 'undefined') return {};
+  try {
+    const raw = localStorage.getItem(USERNAME_REGISTRY_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as Record<string, string>;
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveRegistry(reg: Record<string, string>) {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(USERNAME_REGISTRY_KEY, JSON.stringify(reg));
+  } catch {
+    /* ignore */
+  }
+}
+
+function isUsernameTaken(username: string, ownerContact: string): boolean {
+  const key = username.trim().toLowerCase();
+  if (!key) return false;
+  const reg = loadRegistry();
+  const holder = reg[key];
+  if (!holder) return false;
+  return holder !== ownerContact;
+}
+
+function claimUsername(username: string, ownerContact: string, previous?: string) {
+  const key = username.trim().toLowerCase();
+  const reg = loadRegistry();
+  if (previous) {
+    const prev = previous.trim().toLowerCase();
+    if (prev && reg[prev] === ownerContact) delete reg[prev];
+  }
+  if (key) reg[key] = ownerContact;
+  saveRegistry(reg);
+}
+
 export function EditProfilePage({
   onBack,
   session,
@@ -46,13 +91,14 @@ export function EditProfilePage({
 }) {
   const phone = useMemo(() => {
     if (session.method === 'phone') return formatPhone(session.contact);
-    return formatPhone(session.contact) || '08141620644';
+    return formatPhone(session.contact) || '—';
   }, [session]);
 
   const email = useMemo(() => {
     if (session.method === 'email') return session.contact;
+    if (session.email) return session.email;
     try {
-      const raw = localStorage.getItem('verxor-auth-session');
+      const raw = localStorage.getItem(SESSION_KEY);
       if (raw) {
         const p = JSON.parse(raw) as { email?: string };
         if (p.email) return p.email;
@@ -60,23 +106,25 @@ export function EditProfilePage({
     } catch {
       /* ignore */
     }
-    return 'vernexdfq@gmail.com';
+    return '—';
+  }, [session]);
+
+  const initialUser = useMemo(() => {
+    if (session.username && /^[a-zA-Z0-9._]{3,20}$/.test(session.username)) {
+      return session.username.toLowerCase();
+    }
+    return deriveUsername(session.name || 'user', session.contact);
   }, [session]);
 
   const [fullName, setFullName] = useState(session.name || '');
-  const [username, setUsername] = useState(() =>
-    deriveUsername(session.name || 'user', session.contact),
-  );
+  const [username, setUsername] = useState(initialUser);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState('');
 
   const initialName = session.name || '';
-  const initialUser = useMemo(
-    () => deriveUsername(session.name || 'user', session.contact),
-    [session],
-  );
 
   const dirty =
     fullName.trim() !== initialName.trim() ||
@@ -88,24 +136,41 @@ export function EditProfilePage({
 
   const save = async () => {
     if (!canSave) return;
+    setError(null);
     setSaving(true);
-    await new Promise((r) => setTimeout(r, 700));
+
+    const nextName = fullName.trim();
+    const nextUser = username.trim().toLowerCase();
+
+    if (isUsernameTaken(nextUser, session.contact)) {
+      setSaving(false);
+      setError('That username is already taken. Try another.');
+      return;
+    }
+
+    await new Promise((r) => setTimeout(r, 450));
+
     try {
-      const raw = localStorage.getItem('verxor-auth-session');
+      claimUsername(nextUser, session.contact, initialUser);
+
+      const raw = localStorage.getItem(SESSION_KEY);
       const prev = raw ? (JSON.parse(raw) as Record<string, unknown>) : {};
       localStorage.setItem(
-        'verxor-auth-session',
+        SESSION_KEY,
         JSON.stringify({
           ...prev,
-          name: fullName.trim(),
-          username: username.trim().toLowerCase(),
+          name: nextName,
+          username: nextUser,
           authenticated: false,
         }),
       );
     } catch {
-      /* ignore */
+      setSaving(false);
+      setError('Could not save. Please try again.');
+      return;
     }
-    onSaved?.({ name: fullName.trim(), username: username.trim().toLowerCase() });
+
+    onSaved?.({ name: nextName, username: nextUser });
     setSaving(false);
     setToast('Profile updated');
     window.setTimeout(() => setToast(null), 2200);
@@ -134,13 +199,17 @@ export function EditProfilePage({
               type="text"
               autoComplete="name"
               value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
+              onChange={(e) => {
+                setFullName(e.target.value);
+                setError(null);
+              }}
               placeholder="Your full name"
             />
           </div>
           {!nameOk && fullName.length > 0 && (
             <span className="ep-hint err">Enter at least 2 characters</span>
           )}
+          <span className="ep-hint">Homepage greets you with your first name only</span>
         </div>
 
         <div className="ep-field">
@@ -152,14 +221,18 @@ export function EditProfilePage({
               type="text"
               autoComplete="username"
               value={username}
-              onChange={(e) =>
-                setUsername(e.target.value.replace(/[^a-zA-Z0-9._]/g, '').slice(0, 20))
-              }
+              onChange={(e) => {
+                setUsername(e.target.value.replace(/[^a-zA-Z0-9._]/g, '').slice(0, 20));
+                setError(null);
+              }}
               placeholder="username"
             />
           </div>
           {!userOk && username.length > 0 && (
             <span className="ep-hint err">3–20 letters, numbers, . or _</span>
+          )}
+          {userOk && (
+            <span className="ep-hint">@{username.trim().toLowerCase()} — must be unique</span>
           )}
         </div>
 
@@ -184,6 +257,12 @@ export function EditProfilePage({
             <Lock size={14} className="ep-lock" aria-hidden />
           </div>
         </div>
+
+        {error && (
+          <div className="ep-error" role="alert">
+            {error}
+          </div>
+        )}
 
         <button type="button" className="ep-save" disabled={!canSave} onClick={save}>
           {saving ? 'Saving…' : 'Save Changes'}
