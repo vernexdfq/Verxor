@@ -256,8 +256,6 @@ export function AuthFlow({
   const [newPin, setNewPin] = useState('');
   const [confirmNewPin, setConfirmNewPin] = useState('');
   const [forgotPassword, setForgotPassword] = useState('');
-  const [signInPassword, setSignInPassword] = useState('');
-  const [showSignInPass, setShowSignInPass] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [error, setError] = useState('');
   const [bioHint, setBioHint] = useState('');
@@ -472,7 +470,6 @@ export function AuthFlow({
   function verifyPin(entered: string) {
     const digits = (entered || '').replace(/\D/g, '').slice(0, 4);
     let expected = (remembered.pin || loadRemembered().pin || '').replace(/\D/g, '');
-    // Also look up PIN from the multi-account store (same phone/email)
     if (!expected || expected.length !== 4) {
       const byPhone = findAccount({ phoneE164: remembered.contact });
       const byEmail = findAccount({ email: remembered.email || remembered.contact });
@@ -551,7 +548,7 @@ export function AuthFlow({
         <div className="auth-body">
           <BrandMark />
           <h1 className="auth-title">Welcome back</h1>
-          <p className="auth-sub">Enter your phone or email, then your PIN</p>
+          <p className="auth-sub">Sign in to your Verxor account</p>
 
           <div className="auth-tabs" role="tablist">
             <button
@@ -562,7 +559,7 @@ export function AuthFlow({
                 setError('');
               }}
             >
-              <Phone size={14} /> Phone
+              <Phone size={14} /> Phone Number
             </button>
             <button
               type="button"
@@ -572,13 +569,13 @@ export function AuthFlow({
                 setError('');
               }}
             >
-              <Mail size={14} /> Email
+              <Mail size={14} /> Email Address
             </button>
           </div>
 
           {method === 'phone' ? (
             <div className="auth-field">
-              <label>Phone number</label>
+              <label>Phone Number</label>
               <PhoneField
                 country={country}
                 national={national}
@@ -588,7 +585,7 @@ export function AuthFlow({
             </div>
           ) : (
             <div className="auth-field">
-              <label htmlFor="si-email">Email</label>
+              <label htmlFor="si-email">Email Address</label>
               <div className="auth-input-wrap">
                 <Mail size={16} />
                 <input
@@ -610,7 +607,7 @@ export function AuthFlow({
           </button>
 
           <p className="auth-footer-link">
-            Don't have an account?{' '}
+            Don&apos;t have an account?{' '}
             <button type="button" onClick={() => { setError(''); setStep('signup'); }}>
               Create one free
             </button>
@@ -659,7 +656,7 @@ export function AuthFlow({
           </div>
 
           <div className="auth-field">
-            <label>Phone number</label>
+            <label>Phone Number</label>
             <PhoneField
               country={country}
               national={national}
