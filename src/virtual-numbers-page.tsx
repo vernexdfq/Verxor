@@ -130,7 +130,7 @@ type Step = 'pools' | 'country' | 'services';
 
 function formatNgn(n: number) {
   const v = Number.isFinite(n) ? Math.max(0, Math.round(n)) : 0;
-  return `₦${v.toLocaleString('en-NG')}`;
+  return '\u20A6' + v.toLocaleString('en-NG');
 }
 
 /** Brand-colored official-style marks for each service. */
@@ -355,7 +355,7 @@ export function VirtualNumbersPage({
 
           <section className="vn-promo" aria-label="Promotions">
             <div className="vn-promo-slide">
-              <img className="vn-promo-logo" src="/brand/verxor-logo.svg" alt="Verxor" width="28" height="28" />
+              <img className="vn-promo-logo" src="/brand/verxor-logo.svg" alt="Verxor" width={28} height={28} />
               <div className="vn-promo-copy">
                 <strong>{promo.title}</strong>
                 <span>{promo.subtitle}</span>
@@ -383,7 +383,7 @@ export function VirtualNumbersPage({
               <h3 id="vn-active-title">Your Active Numbers & OTP Inboxes</h3>
             </div>
             {activeOrders.length === 0 ? (
-              <div className="vn-empty-state">
+              <div className="vn-active-empty">
                 <p>You have no active numbers</p>
                 <small>Buy a number above to receive OTPs here.</small>
               </div>
@@ -442,7 +442,7 @@ export function VirtualNumbersPage({
               <button
                 key={country.code}
                 type="button"
-                className="vn-list-row"
+                className="vn-list-item"
                 onClick={() => {
                   setSelectedCountry(country);
                   setServiceQuery('');
@@ -485,8 +485,8 @@ export function VirtualNumbersPage({
           </label>
           <div className="vn-list">
             {filteredServices.map((service) => (
-              <button key={service.id} type="button" className="vn-list-row vn-service-row">
-                <span className="vn-service-logo">
+              <button key={service.id} type="button" className="vn-list-item">
+                <span className="vn-service-icon">
                   <ServiceLogo id={service.id} />
                 </span>
                 <span className="vn-list-copy">
@@ -506,12 +506,12 @@ export function VirtualNumbersPage({
 function PoolCard({ pool, onSelect }: { pool: Pool; onSelect: (p: Pool) => void }) {
   const tierClass =
     pool.tier === 'ECO'
-      ? 'vn-tier-eco'
+      ? 'tier-eco'
       : pool.tier === 'STD'
-        ? 'vn-tier-std'
+        ? 'tier-std'
         : pool.tier === 'FAST'
-          ? 'vn-tier-fast'
-          : 'vn-tier-premium';
+          ? 'tier-fast'
+          : 'tier-premium';
   return (
     <button type="button" className="vn-pool-card" onClick={() => onSelect(pool)}>
       <div className="vn-pool-card-top">
@@ -520,13 +520,15 @@ function PoolCard({ pool, onSelect }: { pool: Pool; onSelect: (p: Pool) => void 
             🇺🇸
           </span>
         ) : (
-          <Globe2 size={16} className="vn-globe" />
+          <span className="vn-pool-mark" aria-hidden>
+            <Globe2 size={16} />
+          </span>
         )}
-        <span className={`vn-tier ${tierClass}`}>{pool.tier}</span>
+        <span className={`vn-tier-badge ${tierClass}`}>{pool.tier}</span>
       </div>
-      <strong>{pool.title}</strong>
-      <p>{pool.hint}</p>
-      <span className={`vn-from ${tierClass}`}>
+      <strong className="vn-pool-title">{pool.title}</strong>
+      <p className="vn-pool-hint">{pool.hint}</p>
+      <span className={`vn-price-pill ${tierClass}`}>
         From {formatNgn(pool.fromNgn)} / OTP
       </span>
     </button>
