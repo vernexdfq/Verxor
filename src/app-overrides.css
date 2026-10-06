@@ -1,3 +1,12 @@
+.vx-shell {
+  max-width: 480px;
+  margin: 0 auto;
+  min-height: 100dvh;
+  padding: 12px 16px 96px;
+  background: var(--vx-canvas, #f8fafc);
+  box-sizing: border-box;
+}
+
 /* Verxor Home — fintech mobile dashboard */
 
 :root {
@@ -23,6 +32,92 @@
   max-width: 480px;
   margin: 0 auto;
 }
+
+/* —— Home greeting hero —— */
+.vx-home-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 4px 0 14px;
+  padding: 0 2px;
+}
+.vx-home-hero-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.vx-home-mark {
+  width: 40px;
+  height: 40px;
+  flex: none;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #0f172a;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.18);
+}
+.vx-home-mark img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.vx-home-greet {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.vx-home-greet > span {
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.25;
+  color: #0f172a;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.vx-home-emoji {
+  font-weight: 400;
+  font-size: 14px;
+}
+.vx-home-greet small {
+  font-size: 11px;
+  line-height: 1.2;
+  color: #94a3b8;
+  font-weight: 500;
+}
+.vx-home-bell {
+  position: relative;
+  width: 42px;
+  height: 42px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  color: #0f172a;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+.vx-home-bell:active {
+  transform: scale(0.96);
+  background: #f8fafc;
+}
+
+/* Force naira glyph with fonts that include U+20A6 */
+.vx-naira,
+.vx-balance-text {
+  font-family: "Inter", "Segoe UI", "Roboto", "Noto Sans", "Helvetica Neue", Arial, sans-serif;
+  font-feature-settings: "tnum" 1;
+}
+.vx-naira {
+  font-weight: 700;
+  margin-right: 1px;
+}
+
 
 /* —— Top bar (Home) —— */
 .topbar-home {
@@ -457,11 +552,6 @@
 .nav-item.active { color: #1877f2; }
 .nav-item small { font-size: 10px; }
 
-/*
- * Deep service pages:
- * Balanced 16px side gutters for most services.
- * eSIM / Betting / Edit Profile / Referral / Privacy / Feedback / FAQ / Support / Security / Exam PIN / TV / Airtime / Electricity own edge-tight layout.
- */
 .app-frame.deep-service .bottom-nav {
   display: none;
 }
