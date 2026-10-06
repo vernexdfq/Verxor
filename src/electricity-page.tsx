@@ -38,7 +38,7 @@ const DISCOS: Disco[] = [
 
 const QUICK_AMOUNTS = [1000, 2000, 5000, 10000];
 const MIN_AMOUNT = 1000;
-const WALLET_BALANCE = 7570;
+const WALLET_BALANCE = 0; // live wallet — 0 until funded
 
 function money(n: number) {
   return '\u20a6' + n.toLocaleString('en-NG');
@@ -145,7 +145,6 @@ export function ElectricityPage({ onBack }: { onBack: () => void }) {
         </div>
       </section>
 
-      {/* Provider Details */}
       <section className="elec-block">
         <div className="elec-block-head">
           <span className="elec-block-ico">
@@ -230,7 +229,6 @@ export function ElectricityPage({ onBack }: { onBack: () => void }) {
         </div>
       </section>
 
-      {/* Meter Verification */}
       <section className="elec-block">
         <div className="elec-block-head">
           <span className="elec-block-ico elec-block-ico-green">
@@ -305,7 +303,6 @@ export function ElectricityPage({ onBack }: { onBack: () => void }) {
         </button>
       </section>
 
-      {/* Payment Amount */}
       <section className="elec-block">
         <div className="elec-block-head">
           <span className="elec-block-ico">
