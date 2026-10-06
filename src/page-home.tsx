@@ -2,6 +2,7 @@
 
 import {
   ArrowRight,
+  Bell,
   Clock3,
   CreditCard,
   Eye,
@@ -16,7 +17,7 @@ import {
   Rocket,
   ShieldCheck,
 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { Page } from './types';
 import type { ServiceView } from './service-pages';
 import type { AuthSession } from './auth/AuthFlow';
@@ -123,6 +124,14 @@ const PROMO_SLIDES: {
   },
 ];
 
+function greetingLine(name: string) {
+  const h = new Date().getHours();
+  const first = (name || 'User').trim().split(/\s+/)[0] || 'User';
+  if (h < 12) return { text: `Good morning, ${first}`, emoji: '\u2600\uFE0F' };
+  if (h < 17) return { text: `Good afternoon, ${first}`, emoji: '\u26C5' };
+  return { text: `Good evening, ${first}`, emoji: '\uD83C\uDF19' };
+}
+
 export function HomePage({
   go,
   openService,
@@ -141,6 +150,11 @@ export function HomePage({
   const [promoIndex, setPromoIndex] = useState(0);
   const [paused, setPaused] = useState(false);
 
+  const greet = useMemo(
+    () => greetingLine(session?.name || session?.contact || 'User'),
+    [session?.name, session?.contact],
+  );
+
   useEffect(() => {
     if (paused) return;
     const t = setInterval(() => {
@@ -157,6 +171,28 @@ export function HomePage({
 
   return (
     <div className="vx-home">
+      <header className="vx-home-hero">
+        <div className="vx-home-hero-left">
+          <div className="vx-home-mark" aria-hidden>
+            <img src="/brand/verxor-logo.svg" alt="" width={40} height={40} />
+          </div>
+          <div className="vx-home-greet">
+            <span>
+              {greet.text} <span className="vx-home-emoji">{greet.emoji}</span>
+            </span>
+            <small>Your Verxor Dashboard</small>
+          </div>
+        </div>
+        <button
+          type="button"
+          className="vx-home-bell"
+          aria-label="Notifications"
+          onClick={() => openService('alerts')}
+        >
+          <Bell size={18} strokeWidth={2} />
+        </button>
+      </header>
+
       <section className="vx-wallet" aria-label="Available balance">
         <div className="vx-wallet-top">
           <span className="vx-wallet-label">AVAILABLE BALANCE</span>
@@ -165,15 +201,15 @@ export function HomePage({
           </span>
         </div>
         <div className="vx-wallet-amount">
-          <strong>
+          <strong className="vx-balance-text">
             {showBalance ? (
               <>
-                {balance.symbol}
+                <span className="vx-naira">{balance.symbol}</span>
                 {balance.amount}
               </>
             ) : (
               <>
-                {balance.symbol}
+                <span className="vx-naira">{balance.symbol}</span>
                 ••••••
               </>
             )}
@@ -226,7 +262,7 @@ export function HomePage({
         onMouseLeave={() => setPaused(false)}
       >
         <button type="button" className={`vx-promo-card ${promo.accent}`} onClick={openPromo}>
-          <img className="vx-promo-logo" src="/brand/verxor-logo.svg" alt="Verxor" width={28} height={28} />
+          <img className="vx-promo-logo" src="/brand/verxor-logo.svg" alt="" width={28} height={28} />
           <div className="vx-promo-copy">
             <span className="vx-promo-badge">{promo.badge}</span>
             <strong className="vx-promo-headline">{promo.headline}</strong>
