@@ -23,7 +23,8 @@ function anonKey() {
 
 /**
  * Server signup: creates confirmed Auth user (no email wait),
- * upserts profile, stores bcrypt pin_hash.
+ * upserts profile with pin_hash.
+ * Only writes columns that exist on public.profiles in our schema.
  */
 export async function POST(req: Request) {
   try {
@@ -96,30 +97,124 @@ export async function POST(req: Request) {
     }
 
     const pinHash = await bcryptHash(pin, 10);
+    const now = new Date().toISOString();
 
-    const upsertRes = await fetch(`${base}/rest/v1/profiles?on_conflict=id`, {
+    const profileRow: Record<string, unknown> = {
+      id: userId,
+      email,
+      full_name: fullName,
+      phone,
+      pin_hash: pinHash,
+      country_code: phoneCountry,
+      updated_at: now,
+    };
+
+    async function writeProfile(row: Record<string, unknown>) {
+      const res = await fetch(`${base}/rest/v1/profiles?on_conflict=id`, {
+        method: 'POST',
+        headers: {
+          apikey: service,
+          Authorization: `Bearer ${service}`,
+          'Content-Type': 'application/json',
+          Prefer: 'resolution=merge-duplicates,return=representation',
+        },
+        body: JSON.stringify(row),
+      });
+      const text = await res.text().catch(() => '');
+      return { ok: res.ok, status: res.status, text };
+    }
+
+    let written = await writeProfile(profileRow);
+
+    if (!written.ok && /phone_country|PGRST204|column/i.test(written.text)) {
+      written = await writeProfile({
+        id: userId,
+        email,
+        full_name: fullName,
+        phone,
+        pin_hash: pinHash,
+        updated_at: now,
+      });
+    }
+
+    if (!written.ok) {
+      const patchRes = await fetch(
+        `${base}/rest/v1/profiles?id=eq.${encodeURIComponent(userId)}`,
+        {
+          method: 'PATCH',
+          headers: {
+            apikey: service,
+            Authorization: `Bearer ${service}`,
+            'Content-Type': 'application/json',
+            Prefer: 'return=representation',
+          },
+          body: JSON.stringify({
+            email,
+            full_name: fullName,
+            phone,
+            pin_hash: pinHash,
+            country_code: phoneCountry,
+            updated_at: now,
+          }),
+        },
+      );
+      const patchText = await patchRes.text().catch(() => '');
+      if (patchRes.ok && patchText && patchText !== '[]') {
+        written = { ok: true, status: patchRes.status, text: patchText };
+      } else {
+        const ins = await fetch(`${base}/rest/v1/profiles`, {
+          method: 'POST',
+          headers: {
+            apikey: service,
+            Authorization: `Bearer ${service}`,
+            'Content-Type': 'application/json',
+            Prefer: 'return=representation',
+          },
+          body: JSON.stringify({
+            id: userId,
+            email,
+            full_name: fullName,
+            phone,
+            pin_hash: pinHash,
+            updated_at: now,
+          }),
+        });
+        written = {
+          ok: ins.ok,
+          status: ins.status,
+          text: await ins.text().catch(() => ''),
+        };
+      }
+    }
+
+    if (!written.ok) {
+      console.error('[auth/signup] profile write failed', written.status, written.text.slice(0, 400));
+      return NextResponse.json(
+        {
+          error:
+            'Account was created but profile could not be saved. Run the Verxor SQL schema in Supabase (profiles.pin_hash), then contact support.',
+          detail: written.text.slice(0, 200),
+          user_id: userId,
+        },
+        { status: 500 },
+      );
+    }
+
+    await fetch(`${base}/rest/v1/wallets?on_conflict=user_id`, {
       method: 'POST',
       headers: {
         apikey: service,
         Authorization: `Bearer ${service}`,
         'Content-Type': 'application/json',
-        Prefer: 'resolution=merge-duplicates,return=minimal',
+        Prefer: 'resolution=ignore-duplicates,return=minimal',
       },
       body: JSON.stringify({
-        id: userId,
-        email,
-        full_name: fullName,
-        phone,
-        phone_country: phoneCountry,
-        pin_hash: pinHash,
-        updated_at: new Date().toISOString(),
+        user_id: userId,
+        balance_usd: 0,
+        balance_ngn: 0,
+        updated_at: now,
       }),
-    });
-
-    if (!upsertRes.ok) {
-      const text = await upsertRes.text().catch(() => '');
-      console.error('[auth/signup] profile', upsertRes.status, text.slice(0, 300));
-    }
+    }).catch(() => null);
 
     const anon = anonKey();
     let access_token: string | undefined;
