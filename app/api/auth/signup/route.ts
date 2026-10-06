@@ -21,10 +21,88 @@ function anonKey() {
   return env('NEXT_PUBLIC_SUPABASE_ANON_KEY') || env('SUPABASE_ANON_KEY');
 }
 
+function phoneVariants(phone: string): string[] {
+  const raw = phone.trim();
+  const digits = raw.replace(/\D/g, '');
+  let ng = digits;
+  if (ng.startsWith('0') && ng.length === 11) ng = '234' + ng.slice(1);
+  if (ng.startsWith('2340') && ng.length === 14) ng = '234' + ng.slice(4);
+  return Array.from(
+    new Set(
+      [
+        raw,
+        raw.startsWith('+') ? raw : `+${digits}`,
+        digits,
+        `+${digits}`,
+        ng,
+        `+${ng}`,
+        digits.startsWith('234') ? '0' + digits.slice(3) : '',
+        ng.startsWith('234') ? '0' + ng.slice(3) : '',
+      ].filter(Boolean),
+    ),
+  );
+}
+
+async function profileExists(
+  base: string,
+  service: string,
+  opts: { email?: string; phone?: string },
+): Promise<{ emailTaken: boolean; phoneTaken: boolean }> {
+  let emailTaken = false;
+  let phoneTaken = false;
+
+  if (opts.email) {
+    const em = opts.email.trim().toLowerCase();
+    const res = await fetch(
+      `${base}/rest/v1/profiles?email=eq.${encodeURIComponent(em)}&select=id&limit=1`,
+      {
+        headers: { apikey: service, Authorization: `Bearer ${service}` },
+        cache: 'no-store',
+      },
+    );
+    if (res.ok) {
+      const rows = (await res.json()) as Array<{ id: string }>;
+      if (rows[0]) emailTaken = true;
+    }
+  }
+
+  if (opts.phone) {
+    for (const p of phoneVariants(opts.phone)) {
+      const res = await fetch(
+        `${base}/rest/v1/profiles?phone=eq.${encodeURIComponent(p)}&select=id&limit=1`,
+        {
+          headers: { apikey: service, Authorization: `Bearer ${service}` },
+          cache: 'no-store',
+        },
+      );
+      if (!res.ok) continue;
+      const rows = (await res.json()) as Array<{ id: string }>;
+      if (rows[0]) {
+        phoneTaken = true;
+        break;
+      }
+    }
+  }
+
+  return { emailTaken, phoneTaken };
+}
+
+function friendlyDbError(text: string): string | null {
+  if (/profiles_phone_unique|phone.*unique/i.test(text)) {
+    return 'This phone number is already registered. Sign in instead, or use a different number.';
+  }
+  if (/profiles_email_unique|email.*unique/i.test(text)) {
+    return 'This email is already registered. Sign in instead.';
+  }
+  if (/duplicate key|unique constraint/i.test(text)) {
+    return 'An account with these details already exists. Sign in instead.';
+  }
+  return null;
+}
+
 /**
  * Server signup: creates confirmed Auth user (no email wait),
  * upserts profile with pin_hash.
- * Only writes columns that exist on public.profiles in our schema.
  */
 export async function POST(req: Request) {
   try {
@@ -32,21 +110,51 @@ export async function POST(req: Request) {
     const email = String(body.email || '').trim().toLowerCase();
     const password = String(body.password || '');
     const fullName = String(body.fullName || body.full_name || '').trim();
-    const phone = String(body.phone || '').trim();
+    const phoneRaw = String(body.phone || '').trim();
     const phoneCountry = String(body.phoneCountry || body.phone_country || 'NG');
     const pin = String(body.pin || '').trim();
 
-    if (!email || !password || !fullName || !phone || !/^\d{4}$/.test(pin)) {
+    if (!email || !password || !fullName || !phoneRaw || !/^\d{4}$/.test(pin)) {
       return NextResponse.json(
         { error: 'Name, phone, email, password, and 4-digit PIN are required' },
         { status: 400 },
       );
     }
 
+    // Normalize Nigerian numbers to +234...
+    const digits = phoneRaw.replace(/\D/g, '');
+    let phone = phoneRaw.startsWith('+') ? `+${digits}` : phoneRaw;
+    if (phoneCountry === 'NG' || digits.startsWith('234') || (digits.startsWith('0') && digits.length === 11)) {
+      let ng = digits;
+      if (ng.startsWith('0') && ng.length === 11) ng = '234' + ng.slice(1);
+      if (!ng.startsWith('234') && ng.length === 10) ng = '234' + ng;
+      phone = `+${ng}`;
+    } else if (!phone.startsWith('+')) {
+      phone = `+${digits}`;
+    }
+
     const base = baseUrl();
     const service = serviceKey();
     if (!base || !service) {
       return NextResponse.json({ error: 'Auth is not configured' }, { status: 503 });
+    }
+
+    // Pre-check so we don't create Auth users we can't profile
+    const taken = await profileExists(base, service, { email, phone });
+    if (taken.emailTaken) {
+      return NextResponse.json(
+        { error: 'This email is already registered. Sign in instead.' },
+        { status: 409 },
+      );
+    }
+    if (taken.phoneTaken) {
+      return NextResponse.json(
+        {
+          error:
+            'This phone number is already registered. Sign in with that number, or use a different phone.',
+        },
+        { status: 409 },
+      );
     }
 
     const createRes = await fetch(`${base}/auth/v1/admin/users`, {
@@ -189,14 +297,16 @@ export async function POST(req: Request) {
 
     if (!written.ok) {
       console.error('[auth/signup] profile write failed', written.status, written.text.slice(0, 400));
+      const friendly = friendlyDbError(written.text);
       return NextResponse.json(
         {
           error:
-            'Account was created but profile could not be saved. Run the Verxor SQL schema in Supabase (profiles.pin_hash), then contact support.',
+            friendly ||
+            'Account was created but profile could not be saved. Sign in if you already registered this phone, or try a different number.',
           detail: written.text.slice(0, 200),
           user_id: userId,
         },
-        { status: 500 },
+        { status: friendly ? 409 : 500 },
       );
     }
 
