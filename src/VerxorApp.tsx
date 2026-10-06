@@ -28,7 +28,7 @@ import { TvPage } from './tv-page';
 import { ProxiesPage } from './proxies-page';
 import { VirtualCardPage } from './virtual-card-page';
 import { ServicesHub } from './services-hub';
-import type { ServiceView as CatalogServiceView } from './service-pages';
+import { ServicePage, type ServiceView as CatalogServiceView } from './service-pages';
 import type { Page } from './types';
 import { Home, LayoutGrid, WalletCards, Clock3, UserRound } from 'lucide-react';
 
@@ -64,6 +64,18 @@ type AppService =
   | 'tv-cable'
   | 'proxies'
   | 'virtual-card';
+
+const PROFILE_SERVICE_VIEWS = new Set<
+  Exclude<AppService, null | 'fund' | 'history'>
+>([
+  'referral',
+  'security',
+  'settings',
+  'privacy',
+  'support-center',
+  'child-panel',
+  'api-keys',
+]);
 
 const STORAGE_KEY = 'verxor-auth-session';
 
@@ -174,6 +186,8 @@ function VerxorApp() {
   }
 
   let content: ReactNode = null;
+
+  // Service / deep pages first
   if (service === 'fund') {
     content = <FundPage session={auth} />;
   } else if (service === 'history') {
@@ -222,6 +236,14 @@ function VerxorApp() {
     content = <VirtualCardPage onBack={closeService} />;
   } else if (service === 'activity') {
     content = <ActivityLogsPage />;
+  } else if (service && PROFILE_SERVICE_VIEWS.has(service)) {
+    // Security, Settings, Privacy, Referral, Child Panel, API Keys, Support
+    content = (
+      <ServicePage
+        view={service as Exclude<CatalogServiceView, 'services'>}
+        onBack={closeService}
+      />
+    );
   } else if (tab === 'profile') {
     content = (
       <ProfilePage
@@ -237,9 +259,9 @@ function VerxorApp() {
         onBack={() => go('home')}
       />
     );
-  } else if (tab === 'fund' || service === 'fund') {
+  } else if (tab === 'fund') {
     content = <FundPage session={auth} />;
-  } else if (tab === 'history' || service === 'history') {
+  } else if (tab === 'history') {
     content = <HistoryPage userId={auth.contact} />;
   } else {
     content = (
