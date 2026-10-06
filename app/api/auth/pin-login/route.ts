@@ -28,6 +28,7 @@ type ProfileHit = {
   full_name?: string | null;
   pin_hash?: string | null;
   phone_country?: string | null;
+  country_code?: string | null;
   balance_ngn?: number | null;
   balance_usd?: number | null;
   username?: string | null;
@@ -38,44 +39,62 @@ async function findProfile(
   service: string,
   opts: { phone?: string; email?: string },
 ): Promise<ProfileHit | null> {
-  const select =
-    'id,email,phone,full_name,pin_hash,phone_country,balance_ngn,balance_usd,username';
+  // Try richer selects first; fall back if columns are missing in this project.
+  const selects = [
+    'id,email,phone,full_name,pin_hash,phone_country,balance_ngn,balance_usd,username',
+    'id,email,phone,full_name,pin_hash,country_code,username',
+    'id,email,phone,full_name,pin_hash',
+    'id,email,phone,full_name',
+  ];
 
-  if (opts.email) {
-    const em = opts.email.trim().toLowerCase();
+  async function query(filter: string, select: string): Promise<ProfileHit | null> {
     const res = await fetch(
-      `${base}/rest/v1/profiles?email=eq.${encodeURIComponent(em)}&select=${select}&limit=1`,
+      `${base}/rest/v1/profiles?${filter}&select=${select}&limit=1`,
       {
         headers: { apikey: service, Authorization: `Bearer ${service}` },
         cache: 'no-store',
       },
     );
-    if (res.ok) {
-      const rows = (await res.json()) as ProfileHit[];
-      if (rows[0]) return rows[0];
-    }
+    if (!res.ok) return null;
+    const rows = (await res.json()) as ProfileHit[];
+    return rows[0] || null;
   }
 
-  if (opts.phone) {
-    const digits = opts.phone.replace(/\D/g, '');
-    const variants = Array.from(
-      new Set([
-        opts.phone.startsWith('+') ? opts.phone : `+${digits}`,
-        digits,
-        `+${digits}`,
-      ]),
-    );
-    for (const p of variants) {
-      const res = await fetch(
-        `${base}/rest/v1/profiles?phone=eq.${encodeURIComponent(p)}&select=${select}&limit=1`,
-        {
-          headers: { apikey: service, Authorization: `Bearer ${service}` },
-          cache: 'no-store',
-        },
+  for (const select of selects) {
+    if (opts.email) {
+      const em = opts.email.trim().toLowerCase();
+      const hit =
+        (await query(`email=eq.${encodeURIComponent(em)}`, select)) ||
+        (await query(`email=ilike.${encodeURIComponent(em)}`, select));
+      if (hit) return hit;
+    }
+
+    if (opts.phone) {
+      const raw = opts.phone.trim();
+      const digits = raw.replace(/\D/g, '');
+      let ng = digits;
+      if (ng.startsWith('0') && ng.length === 11) ng = '234' + ng.slice(1);
+      if (ng.startsWith('2340') && ng.length === 14) ng = '234' + ng.slice(4);
+
+      const variants = Array.from(
+        new Set(
+          [
+            raw,
+            raw.startsWith('+') ? raw : `+${digits}`,
+            digits,
+            `+${digits}`,
+            ng,
+            `+${ng}`,
+            digits.startsWith('234') ? '0' + digits.slice(3) : '',
+            ng.startsWith('234') ? '0' + ng.slice(3) : '',
+          ].filter(Boolean),
+        ),
       );
-      if (!res.ok) continue;
-      const rows = (await res.json()) as ProfileHit[];
-      if (rows[0]) return rows[0];
+
+      for (const p of variants) {
+        const hit = await query(`phone=eq.${encodeURIComponent(p)}`, select);
+        if (hit) return hit;
+      }
     }
   }
 
@@ -249,7 +268,7 @@ export async function POST(req: Request) {
         phone: profile.phone,
         full_name: profile.full_name,
         username: profile.username,
-        phone_country: profile.phone_country,
+        phone_country: profile.phone_country || profile.country_code || 'NG',
         balance_ngn: profile.balance_ngn ?? 0,
         balance_usd: profile.balance_usd ?? 0,
       },
