@@ -2,7 +2,6 @@
 
 import {
   ArrowRight,
-  Bell,
   Clock3,
   CreditCard,
   Eye,
@@ -17,11 +16,11 @@ import {
   Rocket,
   ShieldCheck,
 } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { Page } from './types';
 import type { ServiceView } from './service-pages';
 import type { AuthSession } from './auth/AuthFlow';
-import { formatNgn, formatUsd } from './lib/wallet-ui';
+import { formatHomeBalance } from './lib/wallet-ui';
 
 /** Global services only — Nigerian VTU lives on Services page */
 const QUICK_ACTIONS: {
@@ -124,14 +123,6 @@ const PROMO_SLIDES: {
   },
 ];
 
-function greetingLine(name: string) {
-  const h = new Date().getHours();
-  const first = (name || 'User').trim().split(/\s+/)[0] || 'User';
-  if (h < 12) return { text: `Good morning, ${first}`, emoji: '☀️' };
-  if (h < 17) return { text: `Good afternoon, ${first}`, emoji: '⛅' };
-  return { text: `Good evening, ${first}`, emoji: '🌙' };
-}
-
 export function HomePage({
   go,
   openService,
@@ -141,20 +132,14 @@ export function HomePage({
   openService: (view: ServiceView) => void;
   session?: AuthSession | null;
 }) {
-  const isUsd = session?.homeCurrency === 'USD';
-  const raw = isUsd ? session?.balanceUsd ?? 0 : session?.balanceNgn ?? 0;
-  const amountStr = isUsd ? formatUsd(raw) : formatNgn(raw);
-  /** Always use explicit Naira codepoint so mobile fonts never fall back to plain "N". */
-  const symbol = isUsd ? '$' : '\u20A6';
-
+  const balance = formatHomeBalance(
+    session?.balanceNgn ?? 0,
+    session?.balanceUsd ?? 0,
+    session?.homeCurrency === 'USD' ? 'USD' : 'NGN',
+  );
   const [showBalance, setShowBalance] = useState(true);
   const [promoIndex, setPromoIndex] = useState(0);
   const [paused, setPaused] = useState(false);
-
-  const greet = useMemo(
-    () => greetingLine(session?.name || session?.contact || 'User'),
-    [session?.name, session?.contact],
-  );
 
   useEffect(() => {
     if (paused) return;
@@ -172,30 +157,6 @@ export function HomePage({
 
   return (
     <div className="vx-home">
-      {/* Greeting header — Primex-style */}
-      <header className="vx-home-hero">
-        <div className="vx-home-hero-left">
-          <div className="vx-home-mark" aria-hidden>
-            <img src="/brand/verxor-logo.svg" alt="" width={40} height={40} />
-          </div>
-          <div className="vx-home-greet">
-            <span>
-              {greet.text} <span className="vx-home-emoji">{greet.emoji}</span>
-            </span>
-            <small>Your Verxor Dashboard</small>
-          </div>
-        </div>
-        <button
-          type="button"
-          className="vx-home-bell"
-          aria-label="Notifications"
-          onClick={() => openService('alerts')}
-        >
-          <Bell size={18} strokeWidth={2} />
-        </button>
-      </header>
-
-      {/* Wallet card */}
       <section className="vx-wallet" aria-label="Available balance">
         <div className="vx-wallet-top">
           <span className="vx-wallet-label">AVAILABLE BALANCE</span>
@@ -204,19 +165,15 @@ export function HomePage({
           </span>
         </div>
         <div className="vx-wallet-amount">
-          <strong className="vx-balance-text">
+          <strong>
             {showBalance ? (
               <>
-                <span className="vx-naira" aria-hidden>
-                  {symbol}
-                </span>
-                {amountStr}
+                {balance.symbol}
+                {balance.amount}
               </>
             ) : (
               <>
-                <span className="vx-naira" aria-hidden>
-                  {symbol}
-                </span>
+                {balance.symbol}
                 ••••••
               </>
             )}
@@ -240,7 +197,6 @@ export function HomePage({
         </div>
       </section>
 
-      {/* Quick actions */}
       <section className="vx-quick" aria-label="Quick actions">
         <p className="vx-section-label">QUICK ACTIONS</p>
         <div className="vx-quick-grid">
@@ -263,23 +219,20 @@ export function HomePage({
         </div>
       </section>
 
-      {/* Promo carousel */}
       <section
         className="vx-promo"
         aria-label="Promotions"
         onMouseEnter={() => setPaused(true)}
         onMouseLeave={() => setPaused(false)}
-        onTouchStart={() => setPaused(true)}
-        onTouchEnd={() => setPaused(false)}
       >
         <button type="button" className={`vx-promo-card ${promo.accent}`} onClick={openPromo}>
-          <img className="vx-promo-logo" src="/brand/verxor-logo.svg" alt="" width={28} height={28} />
+          <img className="vx-promo-logo" src="/brand/verxor-logo.svg" alt="Verxor" width={28} height={28} />
           <div className="vx-promo-copy">
             <span className="vx-promo-badge">{promo.badge}</span>
             <strong className="vx-promo-headline">{promo.headline}</strong>
             <p className="vx-promo-sub">{promo.subtext}</p>
             <span className="vx-promo-cta">
-              {promo.cta} <ArrowRight size={14} strokeWidth={2.4} />
+              {promo.cta} <ArrowRight size={16} />
             </span>
           </div>
           <div className="vx-promo-glow" aria-hidden />
@@ -298,7 +251,6 @@ export function HomePage({
         </div>
       </section>
 
-      {/* Recent activity */}
       <section className="vx-activity" aria-label="Recent activity">
         <div className="vx-activity-head">
           <p className="vx-section-label" style={{ margin: 0 }}>
