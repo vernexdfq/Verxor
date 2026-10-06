@@ -240,11 +240,11 @@ function VerxorApp() {
   } else if (service === 'support-center') {
     content = <SupportCenterPage onBack={closeService} />;
   } else if (service === 'settings' || service === 'child-panel' || service === 'api-keys') {
-    content = <ServicePage view={service} onBack={closeService} />;
+    content = <ServicePage view={service as 'settings' | 'child-panel' | 'api-keys'} onBack={closeService} />;
   } else if (tab === 'profile') {
     content = (
       <ProfilePage
-        openService={openService}
+        openService={(v) => openService(v)}
         session={auth}
         onLogout={handleLogout}
       />
@@ -264,7 +264,7 @@ function VerxorApp() {
     content = (
       <HomePage
         go={go}
-        openService={openService}
+        openService={(v) => openService(v)}
         session={auth}
       />
     );
