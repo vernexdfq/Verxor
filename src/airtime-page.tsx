@@ -41,7 +41,7 @@ function detectNetwork(raw: string): NetworkId | null {
 }
 
 function money(n: number) {
-  return '\u20a6' + n.toLocaleString('en-NG');
+  return '₦' + n.toLocaleString('en-NG');
 }
 
 function NetworkLogo({ id, size = 28 }: { id: NetworkId; size?: number }) {
@@ -124,8 +124,8 @@ export function AirtimePage({ onBack }: { onBack: () => void }) {
   else if (!phoneDigits) ctaLabel = 'Enter phone number';
   else if (!phoneValid) ctaLabel = 'Enter a valid number';
   else if (amount <= 0) ctaLabel = 'Enter amount';
-  else if (amount < 50) ctaLabel = 'Minimum is \u20a650';
-  else if (amount > 50000) ctaLabel = 'Maximum is \u20a650,000';
+  else if (amount < 50) ctaLabel = 'Minimum is ₦50';
+  else if (amount > 50000) ctaLabel = 'Maximum is ₦50,000';
   else if (submitting) ctaLabel = 'Processing...';
 
   return (
@@ -134,75 +134,108 @@ export function AirtimePage({ onBack }: { onBack: () => void }) {
         <button type="button" className="air-back" onClick={onBack} aria-label="Back">
           <ArrowLeft size={18} />
         </button>
-        <div className="air-topbar-copy">
-          <strong>Airtime</strong>
-          <small>Top up Nigerian networks</small>
+        <div className="air-title-wrap">
+          <h1 className="air-title">Airtime</h1>
+          <p className="air-subtitle">Top up Nigerian networks</p>
         </div>
-        <div className="air-balance" aria-label="Wallet balance">
-          <Wallet size={14} />
-          <span>{money(WALLET_BALANCE)}</span>
+        <div
+          className="air-wallet-btn"
+          aria-label={`Wallet balance ${money(WALLET_BALANCE)}`}
+          title={money(WALLET_BALANCE)}
+        >
+          <Wallet size={16} />
         </div>
       </header>
 
       <section className="air-section">
-        <p className="air-label">Select network</p>
+        <div className="air-section-head">
+          <h2>Select network</h2>
+          <p>Choose MTN, Airtel, Glo or 9mobile</p>
+        </div>
         <div className="air-networks">
           {NETWORKS.map((n) => (
             <button
               key={n.id}
               type="button"
-              className={`air-net ${networkId === n.id ? 'on' : ''}`}
+              className={`air-net ${networkId === n.id ? 'selected' : ''}`}
               onClick={() => {
                 setNetworkId(n.id);
                 setAutoDetected(false);
               }}
             >
-              <NetworkLogo id={n.id} />
-              <span>{n.label}</span>
+              {networkId === n.id && (
+                <span className="air-net-check" aria-hidden>
+                  <Check size={10} strokeWidth={3} />
+                </span>
+              )}
+              <span className="air-net-logo">
+                <NetworkLogo id={n.id} size={36} />
+              </span>
+              <span className="air-net-label">{n.label}</span>
             </button>
           ))}
         </div>
         {autoDetected && networkId && (
-          <p className="air-hint">Auto-detected {NETWORKS.find((n) => n.id === networkId)?.label}</p>
+          <p className="air-field-error" style={{ color: '#047857' }}>
+            Auto-detected {NETWORKS.find((n) => n.id === networkId)?.label}
+          </p>
         )}
       </section>
 
       <section className="air-section">
-        <p className="air-label">Phone number</p>
-        <div className="air-phone-row">
-          <Phone size={16} className="air-phone-ico" />
-          <input
-            className="air-input"
-            inputMode="numeric"
-            placeholder="0801 234 5678"
-            value={phone}
-            onChange={(e) => applyPhone(e.target.value)}
-            maxLength={14}
-          />
+        <div className="air-section-head">
+          <h2>Phone number</h2>
+          <p>Enter the number to top up</p>
         </div>
-        <button type="button" className="air-use-mine" onClick={() => applyPhone(MY_NUMBER)}>
-          Use my number
-        </button>
+        <div className="air-field">
+          <div className="air-input-wrap">
+            <Phone size={16} className="air-input-icon" />
+            <input
+              inputMode="numeric"
+              placeholder="0801 234 5678"
+              value={phone}
+              onChange={(e) => applyPhone(e.target.value)}
+              maxLength={14}
+              aria-label="Phone number"
+            />
+            <button type="button" className="air-use-mine" onClick={() => applyPhone(MY_NUMBER)}>
+              Use mine
+            </button>
+          </div>
+        </div>
       </section>
 
       <section className="air-section">
-        <p className="air-label">Amount</p>
-        <div className="air-amount-wrap">
-          <span className="air-naira">\u20a6</span>
-          <input
-            className="air-input air-amount"
-            inputMode="numeric"
-            placeholder="0"
-            value={amountStr}
-            onChange={(e) => setAmountStr(e.target.value.replace(/[^\d.,]/g, ''))}
-          />
+        <div className="air-section-head">
+          <h2>Amount</h2>
+          <p>Minimum ₦50 · Maximum ₦50,000</p>
+        </div>
+        <div className="air-field">
+          <div className="air-input-wrap">
+            <span className="air-naira">₦</span>
+            <input
+              inputMode="numeric"
+              placeholder="0"
+              value={amountStr}
+              onChange={(e) => setAmountStr(e.target.value.replace(/[^\d.,]/g, ''))}
+              aria-label="Amount"
+            />
+          </div>
         </div>
         <div className="air-quick">
-          {QUICK_AMOUNTS.map((n) => (
-            <button key={n} type="button" className="air-chip" onClick={() => setAmountStr(String(n))}>
-              {money(n)}
-            </button>
-          ))}
+          <span className="air-quick-label">Quick amounts</span>
+          <div className="air-quick-row">
+            {QUICK_AMOUNTS.map((n) => (
+              <button
+                key={n}
+                type="button"
+                className={`air-chip ${amountStr === String(n) ? 'active' : ''}`}
+                onClick={() => setAmountStr(String(n))}
+              >
+                {money(n)}
+              </button>
+            ))}
+          </div>
         </div>
       </section>
 
