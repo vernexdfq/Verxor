@@ -184,7 +184,7 @@ export function AirtimePage({ onBack }: { onBack: () => void }) {
   const phoneValid = /^0[7-9]\d{9}$/.test(phoneDigits);
 
   const insufficient = amount > 0 && amount > WALLET_BALANCE;
-  const formReady = !!networkId && phoneValid && amount >= 50 && amount <= 50000;
+  const formReady = !!networkId && phoneValid && amount >= 100 && amount <= 50000;
 
   const showToast = useCallback((msg: string) => {
     setToast(msg);
@@ -226,15 +226,33 @@ export function AirtimePage({ onBack }: { onBack: () => void }) {
   };
 
   const handleBuy = async () => {
-    if (!formReady || insufficient || submitting) return;
+    if (!formReady || insufficient || submitting || !networkId) return;
     setSubmitting(true);
-    await new Promise((r) => setTimeout(r, 900));
-    setSubmitting(false);
-    setPhone('');
-    setAmountStr('');
-    setNetworkId('');
-    setAutoDetected(false);
-    showToast('Airtime purchase successful');
+    try {
+      const res = await fetch('/api/v1/airtime', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          network: networkId,
+          phone: phoneDigits,
+          amount,
+        }),
+      });
+      const data = await res.json().catch(() => ({} as { ok?: boolean; error?: string; order?: { message?: string } }));
+      if (!res.ok || !data.ok) {
+        showToast(data.error || 'Airtime purchase failed');
+        return;
+      }
+      setPhone('');
+      setAmountStr('');
+      setNetworkId('');
+      setAutoDetected(false);
+      showToast(data.order?.message || 'Airtime purchase successful');
+    } catch {
+      showToast('Network error — try again');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleFund = async () => {
@@ -259,8 +277,8 @@ export function AirtimePage({ onBack }: { onBack: () => void }) {
     ctaLabel = 'Enter a valid number';
   } else if (amount <= 0) {
     ctaLabel = 'Enter amount';
-  } else if (amount < 50) {
-    ctaLabel = 'Minimum is \u20a650';
+  } else if (amount < 100) {
+    ctaLabel = 'Minimum is \u20a6100';
   } else if (amount > 50000) {
     ctaLabel = 'Maximum is \u20a650,000';
   } else if (submitting) {
@@ -426,7 +444,7 @@ export function AirtimePage({ onBack }: { onBack: () => void }) {
         </div>
       )}
 
-      <button type="button" className={ctaClass} disabled={ctaDisabled} onClick={ctaAction}>
+      <button type="button" className={ctaClass} disabled={ctaDisabled} onClick={() => void ctaAction()}>
         {insufficient && formReady ? (
           <>
             <Wallet size={18} strokeWidth={2.2} /> {ctaLabel}
