@@ -9,6 +9,7 @@ export async function GET() {
       grizzly: Boolean(process.env.GRIZZLYSMS_API_KEY),
       smsbower: Boolean(process.env.SMSBOWER_API_KEY),
       pvapins: Boolean(process.env.PVAPINS_API_KEY),
+      smeapi: Boolean(process.env.SMEAPI_KEY),
       supabase: Boolean(
         (process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL) &&
           process.env.SUPABASE_SERVICE_ROLE_KEY,
