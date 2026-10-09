@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import {
   ArrowLeft,
   ArrowRight,
@@ -13,25 +13,16 @@ import {
 } from 'lucide-react';
 import './data-page.css';
 
-/* ──────────────────────────────────────────
-   Types
-────────────────────────────────────────── */
 type NetworkId = 'mtn' | 'airtel' | 'glo' | '9mobile';
 
-type PlanType =
-  | 'SME'
-  | 'SME2'
-  | 'GIFTING'
-  | 'SHARE'
-  | 'CORPORATE'
-  | 'COUPON';
-
-type DataPlan = {
-  id: string;
-  size: string;
-  validity: string;
+type LivePlan = {
+  id: number;
+  networkId: number;
+  network: string;
+  name: string;
+  type: string;
+  days: string;
   price: number;
-  badge?: 'Best Value' | 'Hot' | 'Popular';
 };
 
 type Network = {
@@ -41,9 +32,6 @@ type Network = {
   bg: string;
 };
 
-/* ──────────────────────────────────────────
-   Constants
-────────────────────────────────────────── */
 const NETWORKS: Network[] = [
   { id: 'mtn', label: 'MTN', color: '#1A1A1A', bg: '#FFCC00' },
   { id: 'airtel', label: 'Airtel', color: '#FFFFFF', bg: '#E60000' },
@@ -51,108 +39,9 @@ const NETWORKS: Network[] = [
   { id: '9mobile', label: '9mobile', color: '#FFFFFF', bg: '#006F3C' },
 ];
 
-/** Dynamic tabs per network — only render what exists */
-const NETWORK_PLAN_TYPES: Record<NetworkId, PlanType[]> = {
-  mtn: ['SME', 'SME2', 'GIFTING', 'SHARE', 'CORPORATE', 'COUPON'],
-  airtel: ['SME', 'GIFTING', 'SHARE', 'CORPORATE', 'COUPON'],
-  glo: ['SME', 'GIFTING', 'CORPORATE'],
-  '9mobile': ['SME', 'GIFTING', 'CORPORATE'],
-};
-
-/** Sample catalogue — replace with live API payload in Phase 1 */
-const DATA_CATALOG: Record<NetworkId, Partial<Record<PlanType, DataPlan[]>>> = {
-  mtn: {
-    SME: [
-      { id: 'mtn-sme-1', size: '1GB', validity: '30 Days', price: 280, badge: 'Best Value' },
-      { id: 'mtn-sme-2', size: '2GB', validity: '30 Days', price: 560, badge: 'Best Value' },
-      { id: 'mtn-sme-5', size: '5GB', validity: '30 Days', price: 1400 },
-      { id: 'mtn-sme-10', size: '10GB', validity: '30 Days', price: 2800 },
-      { id: 'mtn-sme-15', size: '15GB', validity: '30 Days', price: 4200 },
-      { id: 'mtn-sme-20', size: '20GB', validity: '30 Days', price: 5500 },
-    ],
-    SME2: [
-      { id: 'mtn-sme2-1', size: '1.5GB', validity: '30 Days', price: 350 },
-      { id: 'mtn-sme2-3', size: '3GB', validity: '30 Days', price: 700 },
-    ],
-    GIFTING: [
-      { id: 'mtn-gift-1', size: '1GB', validity: '7 Days', price: 350 },
-      { id: 'mtn-gift-3', size: '3.5GB', validity: '30 Days', price: 1200 },
-      { id: 'mtn-gift-5', size: '5GB', validity: '30 Days', price: 1800 },
-    ],
-    SHARE: [
-      { id: 'mtn-share-1', size: '1GB', validity: '30 Days', price: 300 },
-      { id: 'mtn-share-2', size: '2GB', validity: '30 Days', price: 600 },
-    ],
-    CORPORATE: [
-      { id: 'mtn-corp-1', size: '1GB', validity: '30 Days', price: 290 },
-      { id: 'mtn-corp-5', size: '5GB', validity: '30 Days', price: 1450 },
-      { id: 'mtn-corp-10', size: '10GB', validity: '30 Days', price: 2900 },
-    ],
-    COUPON: [
-      { id: 'mtn-cpn-1', size: '1GB', validity: '30 Days', price: 275 },
-      { id: 'mtn-cpn-2', size: '2GB', validity: '30 Days', price: 540 },
-    ],
-  },
-  airtel: {
-    SME: [
-      { id: 'air-sme-1', size: '1GB', validity: '30 Days', price: 285, badge: 'Best Value' },
-      { id: 'air-sme-2', size: '2GB', validity: '30 Days', price: 570, badge: 'Best Value' },
-      { id: 'air-sme-5', size: '5GB', validity: '30 Days', price: 1425 },
-      { id: 'air-sme-10', size: '10GB', validity: '30 Days', price: 2850 },
-    ],
-    GIFTING: [
-      { id: 'air-gift-1', size: '1GB', validity: '7 Days', price: 360 },
-      { id: 'air-gift-3', size: '3GB', validity: '30 Days', price: 1100 },
-    ],
-    SHARE: [
-      { id: 'air-share-1', size: '1GB', validity: '30 Days', price: 310 },
-    ],
-    CORPORATE: [
-      { id: 'air-corp-1', size: '1GB', validity: '30 Days', price: 295 },
-      { id: 'air-corp-5', size: '5GB', validity: '30 Days', price: 1475 },
-    ],
-    COUPON: [
-      { id: 'air-cpn-1', size: '1GB', validity: '30 Days', price: 280 },
-    ],
-  },
-  glo: {
-    SME: [
-      { id: 'glo-sme-1', size: '1GB', validity: '30 Days', price: 275, badge: 'Best Value' },
-      { id: 'glo-sme-2', size: '2GB', validity: '30 Days', price: 550 },
-      { id: 'glo-sme-5', size: '5GB', validity: '30 Days', price: 1375 },
-      { id: 'glo-sme-10', size: '10GB', validity: '30 Days', price: 2750 },
-    ],
-    GIFTING: [
-      { id: 'glo-gift-1', size: '1GB', validity: '14 Days', price: 340 },
-      { id: 'glo-gift-3', size: '3GB', validity: '30 Days', price: 1050 },
-    ],
-    CORPORATE: [
-      { id: 'glo-corp-1', size: '1GB', validity: '30 Days', price: 285 },
-      { id: 'glo-corp-5', size: '5GB', validity: '30 Days', price: 1420 },
-    ],
-  },
-  '9mobile': {
-    SME: [
-      { id: '9m-sme-1', size: '1GB', validity: '30 Days', price: 290, badge: 'Best Value' },
-      { id: '9m-sme-2', size: '2GB', validity: '30 Days', price: 580 },
-      { id: '9m-sme-5', size: '5GB', validity: '30 Days', price: 1450 },
-    ],
-    GIFTING: [
-      { id: '9m-gift-1', size: '1GB', validity: '7 Days', price: 370 },
-    ],
-    CORPORATE: [
-      { id: '9m-corp-1', size: '1GB', validity: '30 Days', price: 300 },
-      { id: '9m-corp-5', size: '5GB', validity: '30 Days', price: 1500 },
-    ],
-  },
-};
-
 const MY_NUMBER = '08141620644';
 const WALLET_BALANCE = 7570;
 
-/* ──────────────────────────────────────────
-   Utils
-────────────────────────────────────────── */
 function detectNetwork(raw: string): NetworkId | null {
   let clean = raw.replace(/\D/g, '');
   if (clean.startsWith('234')) clean = '0' + clean.slice(3);
@@ -190,9 +79,22 @@ function moneyFull(n: number) {
   );
 }
 
-/* ──────────────────────────────────────────
-   Network logo (inline SVG — always defined `s`)
-────────────────────────────────────────── */
+function normalizeType(raw: string): string {
+  const t = String(raw || 'SME').trim().toUpperCase();
+  if (t.includes('SME') && t.includes('2')) return 'SME2';
+  if (t.includes('GIFT')) return 'GIFTING';
+  if (t.includes('SHARE')) return 'SHARE';
+  if (t.includes('CORP')) return 'CORPORATE';
+  if (t.includes('COUP')) return 'COUPON';
+  if (t.includes('SME')) return 'SME';
+  return t || 'SME';
+}
+
+function typeLabel(t: string): string {
+  if (t === 'SME2') return 'SME 2';
+  return t.charAt(0) + t.slice(1).toLowerCase();
+}
+
 function NetworkLogo({ id, size = 28 }: { id: NetworkId; size?: number }) {
   const s = { width: size, height: size, viewBox: '0 0 40 40' };
   switch (id) {
@@ -239,32 +141,97 @@ function NetworkLogo({ id, size = 28 }: { id: NetworkId; size?: number }) {
   }
 }
 
-/* ──────────────────────────────────────────
-   Page
-────────────────────────────────────────── */
 export function DataPage({ onBack }: { onBack: () => void }) {
   const [networkId, setNetworkId] = useState<NetworkId>('mtn');
-  const [planType, setPlanType] = useState<PlanType>('SME');
-  const [selectedPlanId, setSelectedPlanId] = useState<string>('');
+  const [planType, setPlanType] = useState<string>('SME');
+  const [selectedPlanId, setSelectedPlanId] = useState<number | null>(null);
   const [phone, setPhone] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [loadingPlans, setLoadingPlans] = useState(false);
+  const [plansError, setPlansError] = useState<string | null>(null);
+  const [livePlans, setLivePlans] = useState<LivePlan[]>([]);
   const [toast, setToast] = useState<string | null>(null);
   const [autoDetected, setAutoDetected] = useState(false);
 
-  const availableTypes = NETWORK_PLAN_TYPES[networkId];
-  const plans = DATA_CATALOG[networkId]?.[planType] ?? [];
+  const showToast = useCallback((msg: string) => {
+    setToast(msg);
+    window.setTimeout(() => setToast(null), 3200);
+  }, []);
+
+  /** Load live plans whenever network changes */
+  useEffect(() => {
+    let cancelled = false;
+    setLoadingPlans(true);
+    setPlansError(null);
+    setSelectedPlanId(null);
+
+    fetch(`/api/v1/data/plans?network=${networkId}`)
+      .then(async (res) => {
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.ok) {
+          throw new Error(data.error || 'Failed to load plans');
+        }
+        return (data.plans || []) as LivePlan[];
+      })
+      .then((plans) => {
+        if (cancelled) return;
+        setLivePlans(plans);
+        const types = Array.from(
+          new Set(plans.map((p) => normalizeType(p.type))),
+        );
+        const nextType = types.includes(planType) ? planType : types[0] || 'SME';
+        setPlanType(nextType);
+        const filtered = plans.filter((p) => normalizeType(p.type) === nextType);
+        if (filtered[0]) setSelectedPlanId(filtered[0].id);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setLivePlans([]);
+        setPlansError(err instanceof Error ? err.message : 'Failed to load plans');
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingPlans(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [networkId]);
+
+  const availableTypes = useMemo(() => {
+    const types = Array.from(new Set(livePlans.map((p) => normalizeType(p.type))));
+    return types.length > 0 ? types : ['SME'];
+  }, [livePlans]);
+
+  const plans = useMemo(
+    () => livePlans.filter((p) => normalizeType(p.type) === planType),
+    [livePlans, planType],
+  );
+
   const selectedPlan = plans.find((p) => p.id === selectedPlanId) ?? null;
+
+  useEffect(() => {
+    if (!availableTypes.includes(planType)) {
+      setPlanType(availableTypes[0]);
+    }
+  }, [availableTypes, planType]);
+
+  useEffect(() => {
+    if (plans.length > 0) {
+      if (!plans.some((p) => p.id === selectedPlanId)) {
+        setSelectedPlanId(plans[0].id);
+      }
+    } else {
+      setSelectedPlanId(null);
+    }
+  }, [plans, selectedPlanId]);
 
   const phoneDigits = formatPhone(phone);
   const phoneValid = /^0[7-9]\d{9}$/.test(phoneDigits);
   const price = selectedPlan?.price ?? 0;
   const insufficient = price > 0 && price > WALLET_BALANCE;
   const formReady = phoneValid && !!selectedPlan;
-
-  const showToast = useCallback((msg: string) => {
-    setToast(msg);
-    window.setTimeout(() => setToast(null), 2800);
-  }, []);
 
   useEffect(() => {
     if (phoneDigits.length < 4) {
@@ -277,20 +244,6 @@ export function DataPage({ onBack }: { onBack: () => void }) {
       setAutoDetected(true);
     }
   }, [phoneDigits]);
-
-  useEffect(() => {
-    if (!availableTypes.includes(planType)) {
-      setPlanType(availableTypes[0]);
-    }
-  }, [networkId, availableTypes, planType]);
-
-  useEffect(() => {
-    if (plans.length > 0) {
-      setSelectedPlanId(plans[0].id);
-    } else {
-      setSelectedPlanId('');
-    }
-  }, [networkId, planType]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handlePhoneChange = (v: string) => {
     setPhone(v.replace(/[^\d+]/g, ''));
@@ -311,21 +264,38 @@ export function DataPage({ onBack }: { onBack: () => void }) {
   };
 
   const handlePurchase = async () => {
-    if (!formReady || insufficient || submitting) return;
+    if (!formReady || insufficient || submitting || !selectedPlan) return;
     setSubmitting(true);
-    await new Promise((r) => setTimeout(r, 900));
-    setSubmitting(false);
-    showToast(`${selectedPlan?.size} sent to ${phoneDigits}`);
-    setPhone('');
-    setSelectedPlanId('');
-    setAutoDetected(false);
+    try {
+      const res = await fetch('/api/v1/data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          network: networkId,
+          phone: phoneDigits,
+          dataPlanId: selectedPlan.id,
+        }),
+      });
+      const data = await res.json().catch(() => ({} as { ok?: boolean; error?: string; order?: { message?: string } }));
+      if (!res.ok || !data.ok) {
+        showToast(data.error || 'Data purchase failed');
+        return;
+      }
+      showToast(data.order?.message || `${selectedPlan.name} sent to ${phoneDigits}`);
+      setPhone('');
+      setAutoDetected(false);
+    } catch {
+      showToast('Network error — try again');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleFund = () => showToast('Opening Fund Wallet...');
 
   let ctaLabel = 'Purchase Data Plan';
   let ctaAction: () => void | Promise<void> = handlePurchase;
-  let ctaDisabled = submitting || !formReady;
+  let ctaDisabled = submitting || !formReady || loadingPlans;
   let ctaClass = 'data-cta';
 
   if (insufficient && formReady) {
@@ -338,7 +308,7 @@ export function DataPage({ onBack }: { onBack: () => void }) {
   } else if (!phoneValid) {
     ctaLabel = 'Enter a valid number';
   } else if (!selectedPlan) {
-    ctaLabel = 'Select a data plan';
+    ctaLabel = loadingPlans ? 'Loading plans...' : 'Select a data plan';
   } else if (submitting) {
     ctaLabel = 'Processing...';
   }
@@ -351,7 +321,7 @@ export function DataPage({ onBack }: { onBack: () => void }) {
         </button>
         <div className="data-title-wrap">
           <h1 className="data-title">Buy Data Bundle</h1>
-          <p className="data-subtitle">Fast • Secure • Reliable</p>
+          <p className="data-subtitle">Fast · Secure · Live prices</p>
         </div>
         <button type="button" className="data-wallet-btn" aria-label="Wallet" onClick={handleFund}>
           <Wallet size={18} strokeWidth={2.2} />
@@ -420,7 +390,7 @@ export function DataPage({ onBack }: { onBack: () => void }) {
             className={planType === type ? 'data-seg-btn active' : 'data-seg-btn'}
             onClick={() => setPlanType(type)}
           >
-            {type === 'SME2' ? 'SME 2' : type.charAt(0) + type.slice(1).toLowerCase()}
+            {typeLabel(type)}
           </button>
         ))}
       </div>
@@ -455,17 +425,29 @@ export function DataPage({ onBack }: { onBack: () => void }) {
       <section className="data-section">
         <div className="data-section-head">
           <h2>Data Bundles</h2>
-          <p>Select a bundle and get online instantly</p>
+          <p>
+            {loadingPlans
+              ? 'Loading live prices from provider…'
+              : 'Select a bundle and get online instantly'}
+          </p>
         </div>
 
-        {plans.length === 0 ? (
+        {loadingPlans ? (
+          <div className="data-empty">Loading plans…</div>
+        ) : plansError ? (
+          <div className="data-empty">{plansError}</div>
+        ) : plans.length === 0 ? (
           <div className="data-empty">
-            No {planType} plans available for this network right now.
+            No {typeLabel(planType)} plans available for this network right now.
           </div>
         ) : (
           <div className="data-plans-grid">
             {plans.map((plan) => {
               const active = selectedPlanId === plan.id;
+              const validity =
+                plan.days && plan.days !== '0'
+                  ? `${plan.days} Day${plan.days === '1' ? '' : 's'}`
+                  : 'Standard';
               return (
                 <button
                   key={plan.id}
@@ -473,12 +455,11 @@ export function DataPage({ onBack }: { onBack: () => void }) {
                   className={active ? 'data-plan-card active' : 'data-plan-card'}
                   onClick={() => setSelectedPlanId(plan.id)}
                 >
-                  {plan.badge && <span className="data-plan-badge">{plan.badge}</span>}
                   <span className="data-plan-icon" aria-hidden>
                     <Globe2 size={14} strokeWidth={2.2} />
                   </span>
-                  <strong className="data-plan-size">{plan.size}</strong>
-                  <span className="data-plan-validity">{plan.validity}</span>
+                  <strong className="data-plan-size">{plan.name}</strong>
+                  <span className="data-plan-validity">{validity}</span>
                   <span className="data-plan-price">{money(plan.price)}</span>
                   <span className="data-plan-arrow" aria-hidden>
                     <ArrowRight size={14} />
@@ -490,7 +471,12 @@ export function DataPage({ onBack }: { onBack: () => void }) {
         )}
       </section>
 
-      <button type="button" className={ctaClass} disabled={ctaDisabled} onClick={ctaAction}>
+      <button
+        type="button"
+        className={ctaClass}
+        disabled={ctaDisabled}
+        onClick={() => void ctaAction()}
+      >
         {insufficient && formReady ? (
           <>
             <Wallet size={18} strokeWidth={2.2} /> {ctaLabel}
