@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import './virtual-numbers-page.css';
 
-/* Virtual Numbers — complete page restored for clean deploy */
+/* Virtual Numbers — complete page with copy number / SMS code */
 
 type PoolId =
   | 'usa-economy'
@@ -306,8 +306,8 @@ export function VirtualNumbersPage({
     country: Country;
     pool: Pool;
   } | null>(null);
-  const [copied, setCopied] = useState(false);
   const [, setTick] = useState(0);
+  const [copyToast, setCopyToast] = useState<string | null>(null);
 
   useEffect(() => {
     const t = setInterval(() => setTick((n) => n + 1), 1000);
@@ -411,17 +411,27 @@ export function VirtualNumbersPage({
     setConfirmSheet(null);
     setPriceSheet(null);
     setStep('activations');
+
+    // Demo: simulate SMS arrival so copy-code UI can be tested (replace with real provider webhook later)
+    const orderId = order.id;
+    setTimeout(() => {
+      const demoOtp = String(Math.floor(100000 + Math.random() * 900000));
+      setLocalOrders((prev) =>
+        prev.map((o) => (o.id === orderId ? { ...o, status: 'received' as const, otp: demoOtp } : o)),
+      );
+      setInboxOrder((cur) => (cur && cur.id === orderId ? { ...cur, status: 'received', otp: demoOtp } : cur));
+    }, 8000);
   };
 
   const cancelOrder = (id: string) => {
     setLocalOrders((prev) => prev.map((o) => (o.id === id ? { ...o, status: 'cancelled' as const } : o)));
   };
 
-  const copyOtp = async (otp: string) => {
+  const copyText = async (value: string, label: string) => {
     try {
-      await navigator.clipboard.writeText(otp);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
+      await navigator.clipboard.writeText(value.replace(/\s/g, ''));
+      setCopyToast(label);
+      setTimeout(() => setCopyToast(null), 1800);
     } catch {
       /* ignore */
     }
@@ -534,7 +544,17 @@ export function VirtualNumbersPage({
                 {activeOrders.map((order) => (
                   <article key={order.id} className="vn-active-card">
                     <div className="vn-active-top">
-                      <strong>{order.number}</strong>
+                      <div className="vn-number-row">
+                        <strong className="vn-number">{order.number}</strong>
+                        <button
+                          type="button"
+                          className="vn-copy-icon"
+                          aria-label="Copy number"
+                          onClick={() => copyText(order.number, 'Number copied')}
+                        >
+                          <Copy size={14} />
+                        </button>
+                      </div>
                       <span className="vn-timer">
                         <Clock3 size={12} /> {formatTimer(order.expiresAt - Date.now())}
                       </span>
@@ -542,6 +562,20 @@ export function VirtualNumbersPage({
                     <small>
                       {order.service} · {order.country} · {order.poolTitle}
                     </small>
+                    {order.otp && (
+                      <div className="vn-sms-row">
+                        <span className="vn-sms-label">SMS code</span>
+                        <strong className="vn-sms-code">{order.otp}</strong>
+                        <button
+                          type="button"
+                          className="vn-copy-icon"
+                          aria-label="Copy code"
+                          onClick={() => copyText(order.otp!, 'Code copied')}
+                        >
+                          <Copy size={14} />
+                        </button>
+                      </div>
+                    )}
                     <div className="vn-active-actions">
                       <button
                         type="button"
@@ -663,7 +697,17 @@ export function VirtualNumbersPage({
               {activeOrders.map((order) => (
                 <article key={order.id} className="vn-active-card">
                   <div className="vn-active-top">
-                    <strong>{order.number}</strong>
+                    <div className="vn-number-row">
+                      <strong className="vn-number">{order.number}</strong>
+                      <button
+                        type="button"
+                        className="vn-copy-icon"
+                        aria-label="Copy number"
+                        onClick={() => copyText(order.number, 'Number copied')}
+                      >
+                        <Copy size={14} />
+                      </button>
+                    </div>
                     <span className="vn-timer">
                       <Clock3 size={12} /> {formatTimer(order.expiresAt - Date.now())}
                     </span>
@@ -671,6 +715,20 @@ export function VirtualNumbersPage({
                   <small>
                     {order.service} · {order.country}
                   </small>
+                  {order.otp && (
+                    <div className="vn-sms-row">
+                      <span className="vn-sms-label">SMS code</span>
+                      <strong className="vn-sms-code">{order.otp}</strong>
+                      <button
+                        type="button"
+                        className="vn-copy-icon"
+                        aria-label="Copy code"
+                        onClick={() => copyText(order.otp!, 'Code copied')}
+                      >
+                        <Copy size={14} />
+                      </button>
+                    </div>
+                  )}
                   <div className="vn-active-actions">
                     <button
                       type="button"
@@ -703,12 +761,50 @@ export function VirtualNumbersPage({
               {[...activeOrders, ...pastOrders].map((order) => (
                 <article key={order.id} className="vn-active-card">
                   <div className="vn-active-top">
-                    <strong>{order.number}</strong>
-                    <span className="vn-status">{order.status}</span>
+                    <div className="vn-number-row">
+                      <strong className="vn-number">{order.number}</strong>
+                      <button
+                        type="button"
+                        className="vn-copy-icon"
+                        aria-label="Copy number"
+                        onClick={() => copyText(order.number, 'Number copied')}
+                      >
+                        <Copy size={14} />
+                      </button>
+                    </div>
+                    <span className={`vn-status status-${order.status}`}>{order.status}</span>
                   </div>
                   <small>
                     {order.service} · {formatNgn(order.priceNgn)}
                   </small>
+                  {order.otp && (
+                    <div className="vn-sms-row">
+                      <span className="vn-sms-label">SMS code</span>
+                      <strong className="vn-sms-code">{order.otp}</strong>
+                      <button
+                        type="button"
+                        className="vn-copy-icon"
+                        aria-label="Copy code"
+                        onClick={() => copyText(order.otp!, 'Code copied')}
+                      >
+                        <Copy size={14} />
+                      </button>
+                    </div>
+                  )}
+                  {(order.status === 'waiting' || order.status === 'received') && (
+                    <div className="vn-active-actions">
+                      <button
+                        type="button"
+                        className="vn-inbox-btn"
+                        onClick={() => {
+                          setInboxOrder(order);
+                          setStep('inbox');
+                        }}
+                      >
+                        View Inbox
+                      </button>
+                    </div>
+                  )}
                 </article>
               ))}
             </div>
@@ -718,18 +814,75 @@ export function VirtualNumbersPage({
 
       {step === 'inbox' && inboxOrder && (
         <section className="vn-orders-section">
-          <h3>Inbox — {inboxOrder.number}</h3>
-          <p className="vn-active-empty">
-            {inboxOrder.otp
-              ? `OTP: ${inboxOrder.otp}`
-              : 'Waiting for SMS… Last OTP received for this number will appear here.'}
-          </p>
-          {inboxOrder.otp && (
-            <button type="button" className="vn-confirm-btn" onClick={() => copyOtp(inboxOrder.otp!)}>
-              <Copy size={14} /> {copied ? 'Copied' : 'Copy OTP'}
-            </button>
-          )}
+          <h3>Inbox</h3>
+          <article className="vn-active-card vn-inbox-card">
+            <div className="vn-inbox-service">
+              <span className={`vn-service-icon brand-${inboxOrder.serviceId}`}>
+                <ServiceLogo id={inboxOrder.serviceId} />
+              </span>
+              <div>
+                <strong>{inboxOrder.service}</strong>
+                <small>
+                  {inboxOrder.country} · {inboxOrder.poolTitle}
+                </small>
+              </div>
+              <span className={`vn-status status-${inboxOrder.status}`}>
+                {inboxOrder.status === 'waiting' ? 'Waiting for SMS' : inboxOrder.status}
+              </span>
+            </div>
+
+            <div className="vn-inbox-field">
+              <span className="vn-sms-label">Number</span>
+              <div className="vn-number-row">
+                <strong className="vn-number">{inboxOrder.number}</strong>
+                <button
+                  type="button"
+                  className="vn-copy-icon"
+                  aria-label="Copy number"
+                  onClick={() => copyText(inboxOrder.number, 'Number copied')}
+                >
+                  <Copy size={15} />
+                </button>
+              </div>
+            </div>
+
+            <div className="vn-inbox-field">
+              <span className="vn-sms-label">SMS code</span>
+              {inboxOrder.otp ? (
+                <div className="vn-number-row">
+                  <strong className="vn-sms-code vn-sms-code-lg">{inboxOrder.otp}</strong>
+                  <button
+                    type="button"
+                    className="vn-copy-icon"
+                    aria-label="Copy code"
+                    onClick={() => copyText(inboxOrder.otp!, 'Code copied')}
+                  >
+                    <Copy size={15} />
+                  </button>
+                </div>
+              ) : (
+                <p className="vn-waiting-msg">Waiting for SMS… The code will appear here when it arrives.</p>
+              )}
+            </div>
+
+            {inboxOrder.status === 'waiting' && (
+              <div className="vn-active-actions">
+                <span className="vn-timer">
+                  <Clock3 size={12} /> {formatTimer(inboxOrder.expiresAt - Date.now())}
+                </span>
+                <button type="button" className="vn-cancel-link" onClick={() => cancelOrder(inboxOrder.id)}>
+                  Cancel
+                </button>
+              </div>
+            )}
+          </article>
         </section>
+      )}
+
+      {copyToast && (
+        <div className="vn-copy-toast" role="status">
+          {copyToast}
+        </div>
       )}
 
       {priceSheet && (
