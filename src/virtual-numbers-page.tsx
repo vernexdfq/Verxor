@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import './virtual-numbers-page.css';
 
-/* Virtual Numbers — grade-1 fintech catalog: full categories, live counts, real logos */
+/* Virtual Numbers — complete page restored for clean deploy */
 
 type PoolId =
   | 'usa-economy'
@@ -150,50 +150,658 @@ const SERVICES: Service[] = [
   { id: 'viber', name: 'Viber', category: 'messengers' },
   { id: 'wechat', name: 'WeChat', category: 'messengers' },
   { id: 'line', name: 'LINE', category: 'messengers' },
-  { id: 'skype', name: 'Skype', category: 'messengers' },
   { id: 'facebook', name: 'Facebook', category: 'social' },
   { id: 'instagram', name: 'Instagram + Threads', category: 'social' },
   { id: 'tiktok', name: 'TikTok', category: 'social' },
   { id: 'twitter', name: 'X (Twitter)', category: 'social' },
   { id: 'snapchat', name: 'Snapchat', category: 'social' },
   { id: 'linkedin', name: 'LinkedIn', category: 'social' },
-  { id: 'reddit', name: 'Reddit', category: 'social' },
   { id: 'tinder', name: 'Tinder', category: 'dating' },
   { id: 'badoo', name: 'Badoo', category: 'dating' },
   { id: 'bumble', name: 'Bumble', category: 'dating' },
-  { id: 'hinge', name: 'Hinge', category: 'dating' },
   { id: 'steam', name: 'Steam', category: 'games' },
   { id: 'pubg', name: 'PUBG Mobile', category: 'games' },
-  { id: 'mobilelegends', name: 'Mobile Legends', category: 'games' },
-  { id: 'freefire', name: 'Free Fire', category: 'games' },
   { id: 'roblox', name: 'Roblox', category: 'games' },
   { id: 'amazon', name: 'Amazon', category: 'marketplace' },
   { id: 'ebay', name: 'eBay', category: 'marketplace' },
   { id: 'alibaba', name: 'Alibaba', category: 'marketplace' },
-  { id: 'etsy', name: 'Etsy', category: 'marketplace' },
   { id: 'paypal', name: 'PayPal', category: 'payments' },
   { id: 'googlepay', name: 'Google Pay', category: 'payments' },
   { id: 'wise', name: 'Wise', category: 'payments' },
-  { id: 'revolut', name: 'Revolut', category: 'payments' },
-  { id: 'cashapp', name: 'Cash App', category: 'payments' },
   { id: 'ubereats', name: 'Uber Eats', category: 'food' },
   { id: 'doordash', name: 'DoorDash', category: 'food' },
-  { id: 'deliveroo', name: 'Deliveroo', category: 'food' },
   { id: 'walmart', name: 'Walmart', category: 'shops' },
   { id: 'nike', name: 'Nike', category: 'shops' },
-  { id: 'shopify', name: 'Shopify', category: 'shops' },
   { id: 'bet365', name: 'Bet365', category: 'betting' },
-  { id: 'betway', name: 'Betway', category: 'betting' },
   { id: '1xbet', name: '1xBet', category: 'betting' },
   { id: 'uber', name: 'Uber', category: 'taxi' },
-  { id: 'lyft', name: 'Lyft', category: 'taxi' },
   { id: 'bolt', name: 'Bolt', category: 'taxi' },
-  { id: 'grab', name: 'Grab', category: 'taxi' },
   { id: 'google', name: 'Google / Gmail / YouTube', category: 'other' },
   { id: 'microsoft', name: 'Microsoft / Outlook', category: 'other' },
   { id: 'apple', name: 'Apple', category: 'other' },
   { id: 'netflix', name: 'Netflix', category: 'other' },
   { id: 'spotify', name: 'Spotify', category: 'other' },
   { id: 'openai', name: 'OpenAI / ChatGPT', category: 'other' },
-  { id: 'twitch', name: 'Twitch', category: 'other' },
 ];
+
+const PROMO_SLIDES = [
+  { id: 'web', title: 'Do you need a custom website or mobile app?', subtitle: 'Get a website today!', cta: 'Get Started →' },
+  { id: 'panel', title: 'Own a Whitelabel Reseller Panel', subtitle: 'Powered by Verxor — sell numbers under your brand.', cta: 'Own a Panel →' },
+  { id: 'otp', title: 'Receive OTPs in 60 Seconds', subtitle: 'Instant verification for all your social media & app accounts!', cta: 'Verify Now →' },
+];
+
+function mockPrices(pool: Pool, _serviceId: string, _countryCode: string): PriceOption[] {
+  const all: PriceOption[] = [
+    { id: 'p1', provider: 'Grizzly', priceUsd: 0.15, priceNgn: 150, stock: 37417 },
+    { id: 'p2', provider: '5sim', priceUsd: 0.32, priceNgn: 280, stock: 91044 },
+    { id: 'p3', provider: 'SMSBower', priceUsd: 0.44, priceNgn: 380, stock: 8652 },
+    { id: 'p4', provider: 'PVAPins', priceUsd: 0.65, priceNgn: 450, stock: 12400 },
+    { id: 'p5', provider: 'Grizzly', priceUsd: 0.9, priceNgn: 620, stock: 8300 },
+    { id: 'p6', provider: '5sim', priceUsd: 1.2, priceNgn: 750, stock: 4100 },
+    { id: 'p7', provider: 'SMSBower', priceUsd: 1.8, priceNgn: 990, stock: 2200 },
+    { id: 'p8', provider: 'PVAPins', priceUsd: 2.5, priceNgn: 1100, stock: 980 },
+    { id: 'p9', provider: 'Grizzly', priceUsd: 3.2, priceNgn: 1400, stock: 410 },
+  ];
+  return all.filter((p) => {
+    if (pool.tier === 'ECO') return p.priceUsd < 0.5;
+    if (pool.tier === 'STD') return p.priceUsd >= 0.5 && p.priceUsd < 1;
+    if (pool.tier === 'FAST') return p.priceUsd >= 1 && p.priceUsd < 2;
+    return p.priceUsd >= 2;
+  });
+}
+
+function formatNgn(n: number) {
+  return `₦${n.toLocaleString('en-NG')}`;
+}
+
+function formatUsd(n: number) {
+  return `$${n.toFixed(2)}`;
+}
+
+function formatTimer(ms: number) {
+  const s = Math.max(0, Math.floor(ms / 1000));
+  const m = Math.floor(s / 60);
+  const r = s % 60;
+  return `${String(m).padStart(2, '0')}:${String(r).padStart(2, '0')}`;
+}
+
+function ServiceLogo({ id }: { id: string }) {
+  const colors: Record<string, string> = {
+    whatsapp: '#25D366', telegram: '#26A5E4', facebook: '#1877F2', instagram: '#E4405F',
+    tiktok: '#000000', twitter: '#0F1419', discord: '#5865F2', paypal: '#003087',
+    google: '#4285F4', googlepay: '#4285F4', linkedin: '#0A66C2', snapchat: '#FFFC00',
+    tinder: '#FE3C72', steam: '#1B2838', netflix: '#E50914', spotify: '#1DB954',
+    uber: '#000000', ubereats: '#06C167', apple: '#111111', microsoft: '#00A4EF',
+    amazon: '#FF9900', openai: '#10A37F', signal: '#3A76F0', viber: '#7360F2',
+    wechat: '#07C160', line: '#06C755', bolt: '#34D186', bet365: '#1B7A3D',
+  };
+  const bg = colors[id] || '#2563EB';
+  const letter = (id || '?').slice(0, 1).toUpperCase();
+  return (
+    <span
+      className="vn-service-letter"
+      style={{
+        background: bg,
+        color: '#fff',
+        width: 28,
+        height: 28,
+        borderRadius: 8,
+        display: 'grid',
+        placeItems: 'center',
+        fontSize: 13,
+        fontWeight: 800,
+      }}
+    >
+      {letter}
+    </span>
+  );
+}
+
+function PoolCard({ pool, onSelect }: { pool: Pool; onSelect: (p: Pool) => void }) {
+  const tierClass =
+    pool.tier === 'ECO' ? 'tier-eco' : pool.tier === 'STD' ? 'tier-std' : pool.tier === 'FAST' ? 'tier-fast' : 'tier-premium';
+  return (
+    <button type="button" className="vn-pool-card" onClick={() => onSelect(pool)}>
+      <div className="vn-pool-card-top">
+        <span className="vn-pool-mark">{pool.location === 'USA' ? '🇺🇸' : '🌍'}</span>
+        <span className={`vn-tier-badge ${tierClass}`}>{pool.tier}</span>
+      </div>
+      <span className="vn-pool-title">{pool.title}</span>
+      <span className="vn-pool-hint">{pool.hint}</span>
+      <span className={`vn-price-pill ${tierClass}`}>From {formatNgn(pool.fromNgn)}</span>
+    </button>
+  );
+}
+
+export function VirtualNumbersPage({
+  onBack,
+  onOpenNotifications: _onOpenNotifications,
+  orders: externalOrders = [],
+}: {
+  onBack: () => void;
+  onOpenNotifications: () => void;
+  orders?: CustomerNumberOrder[];
+}) {
+  const [step, setStep] = useState<Step>('pools');
+  const [selectedPool, setSelectedPool] = useState<Pool | null>(null);
+  const [selectedService, setSelectedService] = useState<Service | null>(null);
+  const [selectedCountry, setSelectedCountry] = useState<Country | null>(null);
+  const [category, setCategory] = useState<ServiceCategory>('all');
+  const [serviceQuery, setServiceQuery] = useState('');
+  const [countryQuery, setCountryQuery] = useState('');
+  const [promoIndex, setPromoIndex] = useState(0);
+  const [balance] = useState(7570);
+  const [localOrders, setLocalOrders] = useState<CustomerNumberOrder[]>(externalOrders);
+  const [inboxOrder, setInboxOrder] = useState<CustomerNumberOrder | null>(null);
+  const [priceSheet, setPriceSheet] = useState<{
+    open: boolean;
+    options: PriceOption[];
+    service: Service;
+    country: Country;
+    pool: Pool;
+  } | null>(null);
+  const [confirmSheet, setConfirmSheet] = useState<{
+    option: PriceOption;
+    service: Service;
+    country: Country;
+    pool: Pool;
+  } | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [, setTick] = useState(0);
+
+  useEffect(() => {
+    const t = setInterval(() => setTick((n) => n + 1), 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  useEffect(() => {
+    const t = setInterval(() => setPromoIndex((i) => (i + 1) % PROMO_SLIDES.length), 4500);
+    return () => clearInterval(t);
+  }, []);
+
+  const activeOrders = useMemo(
+    () => localOrders.filter((o) => o.status === 'waiting' || o.status === 'received'),
+    [localOrders],
+  );
+  const pastOrders = useMemo(
+    () => localOrders.filter((o) => o.status === 'completed' || o.status === 'cancelled' || o.status === 'received'),
+    [localOrders],
+  );
+
+  const filteredServices = useMemo(() => {
+    let list = SERVICES;
+    if (category !== 'all') list = list.filter((s) => s.category === category);
+    const q = serviceQuery.trim().toLowerCase();
+    if (q) list = list.filter((s) => s.name.toLowerCase().includes(q));
+    return list;
+  }, [category, serviceQuery]);
+
+  const categoryCounts = useMemo(() => {
+    const counts: Record<string, number> = { all: SERVICES.length };
+    for (const s of SERVICES) counts[s.category] = (counts[s.category] || 0) + 1;
+    return counts;
+  }, []);
+
+  const filteredCountries = useMemo(() => {
+    const q = countryQuery.trim().toLowerCase();
+    if (!q) return WORLDWIDE_COUNTRIES;
+    return WORLDWIDE_COUNTRIES.filter((c) =>
+      [c.name, c.code, c.dial].some((v) => v.toLowerCase().includes(q)),
+    );
+  }, [countryQuery]);
+
+  const selectPool = (pool: Pool) => {
+    setSelectedPool(pool);
+    setSelectedService(null);
+    setSelectedCountry(pool.location === 'USA' ? USA_COUNTRY : null);
+    setServiceQuery('');
+    setCountryQuery('');
+    setCategory('all');
+    setStep('services');
+  };
+
+  const selectService = (service: Service) => {
+    if (!selectedPool) return;
+    setSelectedService(service);
+    if (selectedPool.location === 'USA') {
+      const options = mockPrices(selectedPool, service.id, 'US');
+      setPriceSheet({ open: true, options, service, country: USA_COUNTRY, pool: selectedPool });
+    } else {
+      setCountryQuery('');
+      setStep('countries');
+    }
+  };
+
+  const selectCountry = (country: Country) => {
+    if (!selectedPool || !selectedService) return;
+    setSelectedCountry(country);
+    const options = mockPrices(selectedPool, selectedService.id, country.code);
+    setPriceSheet({ open: true, options, service: selectedService, country, pool: selectedPool });
+  };
+
+  const openConfirm = (option: PriceOption) => {
+    if (!priceSheet) return;
+    setConfirmSheet({
+      option,
+      service: priceSheet.service,
+      country: priceSheet.country,
+      pool: priceSheet.pool,
+    });
+  };
+
+  const confirmPurchase = () => {
+    if (!confirmSheet) return;
+    const { option, service, country, pool } = confirmSheet;
+    const order: CustomerNumberOrder = {
+      id: `ord-${Date.now()}`,
+      number:
+        country.dial +
+        ' ' +
+        String(Math.floor(100000000 + Math.random() * 899999999)).replace(/(\d{3})(\d{3})(\d{3})/, '$1 $2 $3'),
+      service: service.name,
+      serviceId: service.id,
+      country: country.name,
+      poolTitle: pool.title,
+      status: 'waiting',
+      priceNgn: option.priceNgn,
+      expiresAt: Date.now() + 20 * 60 * 1000,
+      createdAt: new Date().toISOString(),
+    };
+    setLocalOrders((prev) => [order, ...prev]);
+    setConfirmSheet(null);
+    setPriceSheet(null);
+    setStep('activations');
+  };
+
+  const cancelOrder = (id: string) => {
+    setLocalOrders((prev) => prev.map((o) => (o.id === id ? { ...o, status: 'cancelled' as const } : o)));
+  };
+
+  const copyOtp = async (otp: string) => {
+    try {
+      await navigator.clipboard.writeText(otp);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      /* ignore */
+    }
+  };
+
+  const goBack = () => {
+    if (step === 'services') setStep('pools');
+    else if (step === 'countries') setStep('services');
+    else if (step === 'activations' || step === 'orders' || step === 'inbox') setStep('pools');
+    else onBack();
+  };
+
+  const promo = PROMO_SLIDES[promoIndex];
+
+  return (
+    <div className="vn-page">
+      <header className="vn-topbar">
+        <button type="button" className="vn-back" onClick={goBack} aria-label="Back">
+          <ArrowLeft size={18} />
+        </button>
+        <div className="vn-topbar-copy">
+          <strong>
+            {step === 'services'
+              ? 'All services'
+              : step === 'countries'
+                ? selectedService?.name ?? 'Select country'
+                : step === 'activations'
+                  ? 'Current activations'
+                  : step === 'orders'
+                    ? 'My Orders'
+                    : step === 'inbox'
+                      ? 'Inbox'
+                      : 'Virtual Numbers (OTP)'}
+          </strong>
+          <small>
+            {step === 'services' && selectedPool
+              ? selectedPool.title
+              : step === 'countries'
+                ? 'Select country'
+                : step === 'activations'
+                  ? 'Waiting for SMS'
+                  : step === 'orders'
+                    ? 'Purchase history'
+                    : 'Get verified with global numbers'}
+          </small>
+        </div>
+        <button type="button" className="vn-balance" aria-label="Wallet balance">
+          <WalletCards size={14} />
+          <span>{formatNgn(balance)}</span>
+        </button>
+      </header>
+
+      {step === 'pools' && (
+        <>
+          <div className="vn-info-banner">
+            <Info size={15} strokeWidth={2.2} />
+            <span>Choose a server route based on compatibility, speed, and pricing.</span>
+          </div>
+
+          <section className="vn-server-block" aria-labelledby="vn-s1">
+            <div className="vn-server-head">
+              <Database size={16} className="vn-server-icon" />
+              <h2 id="vn-s1">Server 1 — Economy & Standard Routes</h2>
+            </div>
+            <div className="vn-card-grid">
+              {SERVER1_POOLS.map((pool) => (
+                <PoolCard key={pool.id} pool={pool} onSelect={selectPool} />
+              ))}
+            </div>
+          </section>
+
+          <section className="vn-server-block" aria-labelledby="vn-s2">
+            <div className="vn-server-head">
+              <Zap size={16} className="vn-server-icon-zap" />
+              <h2 id="vn-s2">Server 2 — Fast & Premium Routes</h2>
+            </div>
+            <div className="vn-card-grid">
+              {SERVER2_POOLS.map((pool) => (
+                <PoolCard key={pool.id} pool={pool} onSelect={selectPool} />
+              ))}
+            </div>
+          </section>
+
+          <section className="vn-promo" aria-label="Promo">
+            <div className="vn-promo-card">
+              <strong>{promo.title}</strong>
+              <p>{promo.subtitle}</p>
+              <span className="vn-promo-cta">{promo.cta}</span>
+            </div>
+            <div className="vn-promo-dots">
+              {PROMO_SLIDES.map((s, i) => (
+                <span key={s.id} className={i === promoIndex ? 'active' : ''} />
+              ))}
+            </div>
+          </section>
+
+          <section className="vn-activations-section">
+            <div className="vn-section-head">
+              <h3>
+                <Radio size={14} /> Current activations
+              </h3>
+              <button type="button" className="vn-link-btn" onClick={() => setStep('orders')}>
+                My Orders <ChevronRight size={14} />
+              </button>
+            </div>
+            {activeOrders.length === 0 ? (
+              <p className="vn-active-empty">No active numbers. Buy a number to receive SMS here.</p>
+            ) : (
+              <div className="vn-active-list">
+                {activeOrders.map((order) => (
+                  <article key={order.id} className="vn-active-card">
+                    <div className="vn-active-top">
+                      <strong>{order.number}</strong>
+                      <span className="vn-timer">
+                        <Clock3 size={12} /> {formatTimer(order.expiresAt - Date.now())}
+                      </span>
+                    </div>
+                    <small>
+                      {order.service} · {order.country} · {order.poolTitle}
+                    </small>
+                    <div className="vn-active-actions">
+                      <button
+                        type="button"
+                        className="vn-inbox-btn"
+                        onClick={() => {
+                          setInboxOrder(order);
+                          setStep('inbox');
+                        }}
+                      >
+                        View Inbox
+                      </button>
+                      <button type="button" className="vn-cancel-link" onClick={() => cancelOrder(order.id)}>
+                        Cancel
+                      </button>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
+          </section>
+        </>
+      )}
+
+      {step === 'services' && selectedPool && (
+        <section className="vn-step vn-services-step">
+          <label className="vn-search">
+            <Search size={16} />
+            <input
+              value={serviceQuery}
+              onChange={(e) => setServiceQuery(e.target.value)}
+              placeholder="Search services"
+              autoComplete="off"
+            />
+            <span className="vn-search-count">{filteredServices.length} services</span>
+          </label>
+
+          <div className="vn-cats" role="tablist">
+            {CATEGORIES.map((c) => (
+              <button
+                key={c.id}
+                type="button"
+                role="tab"
+                aria-selected={category === c.id}
+                className={`vn-cat ${category === c.id ? 'active' : ''}`}
+                onClick={() => setCategory(c.id)}
+              >
+                <span className="vn-cat-label">{c.label}</span>
+                <span className="vn-cat-count">{categoryCounts[c.id] ?? 0}</span>
+              </button>
+            ))}
+          </div>
+
+          <div className="vn-list">
+            {filteredServices.map((service) => (
+              <button key={service.id} type="button" className="vn-list-item" onClick={() => selectService(service)}>
+                <span className={`vn-service-icon brand-${service.id}`}>
+                  <ServiceLogo id={service.id} />
+                </span>
+                <span className="vn-list-copy">
+                  <strong>{service.name}</strong>
+                </span>
+                <ChevronRight size={16} className="vn-chevron" />
+              </button>
+            ))}
+            {filteredServices.length === 0 && <p className="vn-active-empty">No services match your search.</p>}
+          </div>
+        </section>
+      )}
+
+      {step === 'countries' && selectedPool && selectedService && (
+        <section className="vn-step">
+          <label className="vn-search">
+            <Search size={16} />
+            <input
+              value={countryQuery}
+              onChange={(e) => setCountryQuery(e.target.value)}
+              placeholder="Search countries"
+              autoComplete="off"
+            />
+          </label>
+          <div className="vn-list">
+            {filteredCountries.map((country) => (
+              <button key={country.code} type="button" className="vn-list-item" onClick={() => selectCountry(country)}>
+                <span className="vn-flag">
+                  <img
+                    src={`https://flagcdn.com/w40/${country.code.toLowerCase()}.png`}
+                    srcSet={`https://flagcdn.com/w80/${country.code.toLowerCase()}.png 2x`}
+                    width={28}
+                    height={20}
+                    alt=""
+                    loading="lazy"
+                  />
+                </span>
+                <span className="vn-list-copy">
+                  <strong>{country.name}</strong>
+                  <small>{country.dial}</small>
+                </span>
+                <ChevronRight size={16} className="vn-chevron" />
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {step === 'activations' && (
+        <section className="vn-activations-section">
+          <div className="vn-section-head">
+            <h3>
+              <Radio size={14} /> Current activations
+            </h3>
+            <button type="button" className="vn-link-btn" onClick={() => setStep('orders')}>
+              My Orders <ChevronRight size={14} />
+            </button>
+          </div>
+          {activeOrders.length === 0 ? (
+            <p className="vn-active-empty">No active numbers.</p>
+          ) : (
+            <div className="vn-active-list">
+              {activeOrders.map((order) => (
+                <article key={order.id} className="vn-active-card">
+                  <div className="vn-active-top">
+                    <strong>{order.number}</strong>
+                    <span className="vn-timer">
+                      <Clock3 size={12} /> {formatTimer(order.expiresAt - Date.now())}
+                    </span>
+                  </div>
+                  <small>
+                    {order.service} · {order.country}
+                  </small>
+                  <div className="vn-active-actions">
+                    <button
+                      type="button"
+                      className="vn-inbox-btn"
+                      onClick={() => {
+                        setInboxOrder(order);
+                        setStep('inbox');
+                      }}
+                    >
+                      View Inbox
+                    </button>
+                    <button type="button" className="vn-cancel-link" onClick={() => cancelOrder(order.id)}>
+                      Cancel
+                    </button>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
+
+      {step === 'orders' && (
+        <section className="vn-orders-section">
+          <h3>My Orders</h3>
+          {pastOrders.length === 0 && activeOrders.length === 0 ? (
+            <p className="vn-active-empty">No orders yet.</p>
+          ) : (
+            <div className="vn-active-list">
+              {[...activeOrders, ...pastOrders].map((order) => (
+                <article key={order.id} className="vn-active-card">
+                  <div className="vn-active-top">
+                    <strong>{order.number}</strong>
+                    <span className="vn-status">{order.status}</span>
+                  </div>
+                  <small>
+                    {order.service} · {formatNgn(order.priceNgn)}
+                  </small>
+                </article>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
+
+      {step === 'inbox' && inboxOrder && (
+        <section className="vn-orders-section">
+          <h3>Inbox — {inboxOrder.number}</h3>
+          <p className="vn-active-empty">
+            {inboxOrder.otp
+              ? `OTP: ${inboxOrder.otp}`
+              : 'Waiting for SMS… Last OTP received for this number will appear here.'}
+          </p>
+          {inboxOrder.otp && (
+            <button type="button" className="vn-confirm-btn" onClick={() => copyOtp(inboxOrder.otp!)}>
+              <Copy size={14} /> {copied ? 'Copied' : 'Copy OTP'}
+            </button>
+          )}
+        </section>
+      )}
+
+      {priceSheet && (
+        <div className="vn-sheet-backdrop" onClick={() => setPriceSheet(null)} role="presentation">
+          <div className="vn-sheet" role="dialog" aria-label="Price options" onClick={(e) => e.stopPropagation()}>
+            <div className="vn-sheet-handle" />
+            <div className="vn-sheet-head">
+              <strong>
+                {priceSheet.service.name} · {priceSheet.country.name}
+              </strong>
+              <button type="button" className="vn-sheet-close" onClick={() => setPriceSheet(null)} aria-label="Close">
+                <X size={14} />
+              </button>
+            </div>
+            {priceSheet.options.length === 0 ? (
+              <p className="vn-active-empty">No numbers available in this tier right now.</p>
+            ) : (
+              <div className="vn-price-list">
+                {priceSheet.options.map((opt) => (
+                  <button key={opt.id} type="button" className="vn-price-row" onClick={() => openConfirm(opt)}>
+                    <span className="vn-price-stock">{opt.stock.toLocaleString()} pcs.</span>
+                    <span className="vn-price-tag">
+                      {formatNgn(opt.priceNgn)}
+                      <small>{formatUsd(opt.priceUsd)}</small>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {confirmSheet && (
+        <div className="vn-sheet-backdrop" onClick={() => setConfirmSheet(null)} role="presentation">
+          <div
+            className="vn-sheet vn-confirm-sheet"
+            role="dialog"
+            aria-label="Confirm purchase"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="vn-sheet-handle" />
+            <h3 className="vn-confirm-title">Confirm purchase</h3>
+            <div className="vn-confirm-rows">
+              <div className="vn-confirm-row">
+                <span>Service</span>
+                <strong>{confirmSheet.service.name}</strong>
+              </div>
+              <div className="vn-confirm-row">
+                <span>Country</span>
+                <strong>
+                  {confirmSheet.country.flag} {confirmSheet.country.name}
+                </strong>
+              </div>
+              <div className="vn-confirm-row">
+                <span>Price</span>
+                <strong>{formatNgn(confirmSheet.option.priceNgn)}</strong>
+              </div>
+            </div>
+            <p className="vn-confirm-note">
+              The amount in your account will be frozen. If no SMS is received on your number, the cost will be returned
+              to your balance.
+            </p>
+            <button type="button" className="vn-confirm-btn" onClick={confirmPurchase}>
+              Confirm purchase
+            </button>
+            <button type="button" className="vn-cancel-link" onClick={() => setConfirmSheet(null)}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
