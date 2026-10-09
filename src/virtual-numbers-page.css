@@ -104,13 +104,8 @@
   gap: 8px;
 }
 
-.vn-server-icon {
-  color: #2563eb;
-}
-
-.vn-server-icon-zap {
-  color: #d97706;
-}
+.vn-server-icon { color: #2563eb; }
+.vn-server-icon-zap { color: #d97706; }
 
 .vn-server-head h2 {
   margin: 0;
@@ -305,9 +300,7 @@
   -webkit-overflow-scrolling: touch;
 }
 
-.vn-cats::-webkit-scrollbar {
-  display: none;
-}
+.vn-cats::-webkit-scrollbar { display: none; }
 
 .vn-cat {
   flex: none;
@@ -325,9 +318,7 @@
   cursor: pointer;
 }
 
-.vn-cat-label {
-  line-height: 1;
-}
+.vn-cat-label { line-height: 1; }
 
 .vn-cat-count {
   min-width: 18px;
@@ -378,13 +369,8 @@
   cursor: pointer;
 }
 
-.vn-list-item:last-child {
-  border-bottom: none;
-}
-
-.vn-list-item:active {
-  background: #f8fafc;
-}
+.vn-list-item:last-child { border-bottom: none; }
+.vn-list-item:active { background: #f8fafc; }
 
 .vn-service-icon {
   width: 40px;
@@ -428,10 +414,7 @@
   color: #64748b;
 }
 
-.vn-chevron {
-  color: #94a3b8;
-  flex: none;
-}
+.vn-chevron { color: #94a3b8; flex: none; }
 
 .vn-flag {
   width: 36px;
@@ -522,12 +505,6 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-}
-
-.vn-active-top strong {
-  font-size: 14px;
-  font-weight: 800;
-  color: #0f172a;
 }
 
 .vn-timer {
@@ -725,4 +702,125 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+/* Number + SMS copy rows (Grizzly-style) */
+.vn-number-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.vn-number {
+  font-size: 15px;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+}
+
+.vn-copy-icon {
+  width: 32px;
+  height: 32px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  color: #2563eb;
+  cursor: pointer;
+}
+
+.vn-copy-icon:active {
+  background: #eff6ff;
+  transform: scale(0.96);
+}
+
+.vn-sms-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+}
+
+.vn-sms-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.vn-sms-code {
+  flex: 1;
+  font-size: 16px;
+  font-weight: 800;
+  color: #047857;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.06em;
+}
+
+.vn-sms-code-lg {
+  font-size: 22px;
+  letter-spacing: 0.1em;
+}
+
+.vn-inbox-card { gap: 14px; }
+
+.vn-inbox-service {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.vn-inbox-service strong {
+  display: block;
+  font-size: 14px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.vn-inbox-service small {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.vn-inbox-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.vn-waiting-msg {
+  margin: 0;
+  font-size: 13px;
+  color: #64748b;
+  line-height: 1.4;
+}
+
+.vn-status.status-waiting { color: #d97706; }
+.vn-status.status-received,
+.vn-status.status-completed { color: #059669; }
+.vn-status.status-cancelled { color: #94a3b8; }
+
+.vn-copy-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 88px;
+  transform: translateX(-50%);
+  z-index: 80;
+  padding: 12px 20px;
+  border-radius: 12px;
+  background: #0f172a;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.25);
+  white-space: nowrap;
 }
