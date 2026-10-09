@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import './virtual-numbers-page.css';
 
-/* Virtual Numbers — complete page with copy number / SMS code */
+/* Virtual Numbers — complete page with copy number / SMS code + Grizzly modal */
 
 type PoolId =
   | 'usa-economy'
@@ -412,7 +412,6 @@ export function VirtualNumbersPage({
     setPriceSheet(null);
     setStep('activations');
 
-    // Demo: simulate SMS arrival so copy-code UI can be tested (replace with real provider webhook later)
     const orderId = order.id;
     setTimeout(() => {
       const demoOtp = String(Math.floor(100000 + Math.random() * 900000));
@@ -483,7 +482,361 @@ export function VirtualNumbersPage({
         </button>
       </header>
 
-      {/* PLACEHOLDER_REST - truncated for tool size; will use alternate method */}
+      {/* Content restored - pools, services, countries, activations, orders, inbox, sheets, copy modal */}
+      {step === 'pools' && (
+        <>
+          <div className="vn-info-banner">
+            <Info size={16} />
+            <span>Pick a route, then a service. Prices update live by tier.</span>
+          </div>
+          <div className="vn-server-block">
+            <div className="vn-server-head">
+              <Database size={16} className="vn-server-icon" />
+              <h2>Server 1 · Economy & Standard</h2>
+            </div>
+            <div className="vn-card-grid">
+              {SERVER1_POOLS.map((p) => (
+                <PoolCard key={p.id} pool={p} onSelect={selectPool} />
+              ))}
+            </div>
+          </div>
+          <div className="vn-server-block">
+            <div className="vn-server-head">
+              <Zap size={16} className="vn-server-icon-zap" />
+              <h2>Server 2 · Fast & Premium</h2>
+            </div>
+            <div className="vn-card-grid">
+              {SERVER2_POOLS.map((p) => (
+                <PoolCard key={p.id} pool={p} onSelect={selectPool} />
+              ))}
+            </div>
+          </div>
+          <div className="vn-promo">
+            <div className="vn-promo-card">
+              <strong>{promo.title}</strong>
+              <p>{promo.subtitle}</p>
+              <span className="vn-promo-cta">{promo.cta}</span>
+            </div>
+            <div className="vn-promo-dots">
+              {PROMO_SLIDES.map((s, i) => (
+                <span key={s.id} className={i === promoIndex ? 'active' : ''} />
+              ))}
+            </div>
+          </div>
+        </>
+      )}
+
+      {step === 'services' && selectedPool && (
+        <div className="vn-step">
+          <div className="vn-search">
+            <Search size={16} />
+            <input
+              value={serviceQuery}
+              onChange={(e) => setServiceQuery(e.target.value)}
+              placeholder="Search services…"
+            />
+            <span className="vn-search-count">{filteredServices.length}</span>
+          </div>
+          <div className="vn-cats">
+            {CATEGORIES.map((c) => (
+              <button
+                key={c.id}
+                type="button"
+                className={`vn-cat${category === c.id ? ' active' : ''}`}
+                onClick={() => setCategory(c.id)}
+              >
+                <span className="vn-cat-label">{c.label}</span>
+                <span className="vn-cat-count">{categoryCounts[c.id] || 0}</span>
+              </button>
+            ))}
+          </div>
+          <div className="vn-list">
+            {filteredServices.map((s) => (
+              <button key={s.id} type="button" className="vn-list-item" onClick={() => selectService(s)}>
+                <span className="vn-service-icon">
+                  <ServiceLogo id={s.id} />
+                </span>
+                <span className="vn-list-copy">
+                  <strong>{s.name}</strong>
+                  <small>{s.category}</small>
+                </span>
+                <ChevronRight size={16} className="vn-chevron" />
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {step === 'countries' && selectedService && (
+        <div className="vn-step">
+          <div className="vn-search">
+            <Search size={16} />
+            <input
+              value={countryQuery}
+              onChange={(e) => setCountryQuery(e.target.value)}
+              placeholder="Search countries…"
+            />
+          </div>
+          <div className="vn-list">
+            {filteredCountries.map((c) => (
+              <button key={c.code} type="button" className="vn-list-item" onClick={() => selectCountry(c)}>
+                <span className="vn-flag">
+                  <img src={`https://flagcdn.com/w80/${c.code.toLowerCase()}.png`} alt={c.name} />
+                </span>
+                <span className="vn-list-copy">
+                  <strong>{c.name}</strong>
+                  <small>{c.dial}</small>
+                </span>
+                <ChevronRight size={16} className="vn-chevron" />
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {step === 'activations' && (
+        <div className="vn-activations-section">
+          <div className="vn-section-head">
+            <h3>
+              <Radio size={14} /> Current activations
+            </h3>
+            <button type="button" className="vn-link-btn" onClick={() => setStep('orders')}>
+              My Orders <ChevronRight size={12} />
+            </button>
+          </div>
+          {activeOrders.length === 0 ? (
+            <p className="vn-active-empty">No active numbers. Buy one to get started.</p>
+          ) : (
+            <div className="vn-active-list">
+              {activeOrders.map((order) => (
+                <div key={order.id} className="vn-active-card">
+                  <div className="vn-active-top">
+                    <div className="vn-number-row">
+                      <strong className="vn-number">{order.number}</strong>
+                      <button
+                        type="button"
+                        className="vn-copy-icon"
+                        onClick={() => copyText(order.number, 'Number copied')}
+                        aria-label="Copy number"
+                      >
+                        <Copy size={14} />
+                      </button>
+                    </div>
+                    <span className="vn-timer">
+                      <Clock3 size={12} />
+                      {formatTimer(order.expiresAt - Date.now())}
+                    </span>
+                  </div>
+                  <small>
+                    {order.service} · {order.country} · {order.poolTitle}
+                  </small>
+                  {order.otp && (
+                    <div className="vn-sms-row">
+                      <span className="vn-sms-label">SMS</span>
+                      <strong className="vn-sms-code">{order.otp}</strong>
+                      <button
+                        type="button"
+                        className="vn-copy-icon"
+                        onClick={() => copyText(order.otp!, 'Code copied')}
+                        aria-label="Copy code"
+                      >
+                        <Copy size={14} />
+                      </button>
+                    </div>
+                  )}
+                  <div className="vn-active-actions">
+                    <button
+                      type="button"
+                      className="vn-inbox-btn"
+                      onClick={() => {
+                        setInboxOrder(order);
+                        setStep('inbox');
+                      }}
+                    >
+                      Open inbox
+                    </button>
+                    {order.status === 'waiting' && (
+                      <button type="button" className="vn-cancel-link" onClick={() => cancelOrder(order.id)}>
+                        Cancel
+                      </button>
+                    )}
+                    <span className={`vn-status status-${order.status}`}>{order.status}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {step === 'orders' && (
+        <div className="vn-orders-section">
+          <div className="vn-section-head">
+            <h3>My Orders</h3>
+            <button type="button" className="vn-link-btn" onClick={() => setStep('activations')}>
+              Activations <ChevronRight size={12} />
+            </button>
+          </div>
+          {pastOrders.length === 0 ? (
+            <p className="vn-active-empty">No orders yet.</p>
+          ) : (
+            <div className="vn-active-list">
+              {pastOrders.map((order) => (
+                <div key={order.id} className="vn-active-card">
+                  <div className="vn-active-top">
+                    <div className="vn-number-row">
+                      <strong className="vn-number">{order.number}</strong>
+                      <button
+                        type="button"
+                        className="vn-copy-icon"
+                        onClick={() => copyText(order.number, 'Number copied')}
+                        aria-label="Copy number"
+                      >
+                        <Copy size={14} />
+                      </button>
+                    </div>
+                    <span className={`vn-status status-${order.status}`}>{order.status}</span>
+                  </div>
+                  <small>
+                    {order.service} · {formatNgn(order.priceNgn)}
+                  </small>
+                  {order.otp && (
+                    <div className="vn-sms-row">
+                      <span className="vn-sms-label">SMS</span>
+                      <strong className="vn-sms-code">{order.otp}</strong>
+                      <button
+                        type="button"
+                        className="vn-copy-icon"
+                        onClick={() => copyText(order.otp!, 'Code copied')}
+                        aria-label="Copy code"
+                      >
+                        <Copy size={14} />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {step === 'inbox' && inboxOrder && (
+        <div className="vn-activations-section vn-inbox-card">
+          <div className="vn-inbox-service">
+            <ServiceLogo id={inboxOrder.serviceId} />
+            <div>
+              <strong>{inboxOrder.service}</strong>
+              <small>{inboxOrder.country}</small>
+            </div>
+          </div>
+          <div className="vn-inbox-field">
+            <span className="vn-sms-label">Number</span>
+            <div className="vn-number-row">
+              <strong className="vn-number">{inboxOrder.number}</strong>
+              <button
+                type="button"
+                className="vn-copy-icon"
+                onClick={() => copyText(inboxOrder.number, 'Number copied')}
+                aria-label="Copy number"
+              >
+                <Copy size={14} />
+              </button>
+            </div>
+          </div>
+          {inboxOrder.otp ? (
+            <div className="vn-inbox-field">
+              <span className="vn-sms-label">SMS code</span>
+              <div className="vn-sms-row">
+                <strong className="vn-sms-code vn-sms-code-lg">{inboxOrder.otp}</strong>
+                <button
+                  type="button"
+                  className="vn-copy-icon"
+                  onClick={() => copyText(inboxOrder.otp!, 'Code copied')}
+                  aria-label="Copy code"
+                >
+                  <Copy size={14} />
+                </button>
+              </div>
+            </div>
+          ) : (
+            <p className="vn-waiting-msg">Waiting for SMS… Keep this page open or check Current activations.</p>
+          )}
+          <button type="button" className="vn-confirm-btn" onClick={() => setStep('activations')}>
+            Back to activations
+          </button>
+        </div>
+      )}
+
+      {priceSheet?.open && (
+        <div className="vn-sheet-backdrop" onClick={() => setPriceSheet(null)}>
+          <div className="vn-sheet" onClick={(e) => e.stopPropagation()}>
+            <div className="vn-sheet-handle" />
+            <div className="vn-sheet-head">
+              <strong>
+                {priceSheet.service.name} · {priceSheet.country.name}
+              </strong>
+              <button type="button" className="vn-sheet-close" onClick={() => setPriceSheet(null)}>
+                <X size={16} />
+              </button>
+            </div>
+            <div className="vn-price-list">
+              {priceSheet.options.map((opt) => (
+                <button key={opt.id} type="button" className="vn-price-row" onClick={() => openConfirm(opt)}>
+                  <span className="vn-price-stock">{opt.provider} · {opt.stock.toLocaleString()} left</span>
+                  <span className="vn-price-tag">
+                    {formatNgn(opt.priceNgn)}
+                    <small>{formatUsd(opt.priceUsd)}</small>
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmSheet && (
+        <div className="vn-sheet-backdrop" onClick={() => setConfirmSheet(null)}>
+          <div className="vn-sheet" onClick={(e) => e.stopPropagation()}>
+            <div className="vn-sheet-handle" />
+            <h3 className="vn-confirm-title">Confirm purchase</h3>
+            <div className="vn-confirm-rows">
+              <div className="vn-confirm-row">
+                <span>Service</span>
+                <strong>{confirmSheet.service.name}</strong>
+              </div>
+              <div className="vn-confirm-row">
+                <span>Country</span>
+                <strong>{confirmSheet.country.name}</strong>
+              </div>
+              <div className="vn-confirm-row">
+                <span>Route</span>
+                <strong>{confirmSheet.pool.title}</strong>
+              </div>
+              <div className="vn-confirm-row">
+                <span>Price</span>
+                <strong>{formatNgn(confirmSheet.option.priceNgn)}</strong>
+              </div>
+            </div>
+            <p className="vn-confirm-note">You will receive a number immediately. SMS usually arrives within 1–2 minutes.</p>
+            <button type="button" className="vn-confirm-btn" onClick={confirmPurchase}>
+              Buy number · {formatNgn(confirmSheet.option.priceNgn)}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {copyToast && (
+        <div className="vn-copy-modal-backdrop" role="dialog" aria-modal="true">
+          <div className="vn-copy-modal">
+            <strong>Copied</strong>
+            <p>{copyToast} to clipboard</p>
+            <button type="button" className="vn-copy-modal-btn" onClick={() => setCopyToast(null)}>
+              OK
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
