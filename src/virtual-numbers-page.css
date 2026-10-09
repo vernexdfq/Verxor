@@ -1,1 +1,24 @@
-PLACEHOLDER
+/* Virtual Numbers (OTP) — Grizzly-style flow, Verxor brand */
+
+.vn-page {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 0 0 28px;
+  min-height: 100%;
+  background: #f8fafc; /* soft cool grey — easier on eyes than pure white */
+}
+
+.vn-topbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  padding: 4px 0 8px;
+  background: rgba(248, 250, 252, 0.92);
+  backdrop-filter: blur(10px);
+}
