@@ -52,13 +52,13 @@ const SERVICE_BRANDS: Record<string, { slug: string; color: string }> = {
   openai: { slug: 'openai', color: '10A37F' },
 };
 
-export function ServiceLogo({ id }: { id: string }) {
+export function ServiceLogo({ id, compact = false }: { id: string; compact?: boolean }) {
   const brand = SERVICE_BRANDS[id.toLowerCase()];
   const [failed, setFailed] = useState(false);
 
   return (
     <span
-      className="vn-service-logo"
+      className={`vn-service-logo${compact ? " vn-service-logo--compact" : ""}`}
       aria-label={id}
       title={id}
       style={{ '--vn-logo-color': brand ? `#${brand.color}` : '#64748b' } as CSSProperties}
@@ -72,7 +72,7 @@ export function ServiceLogo({ id }: { id: string }) {
           onError={() => setFailed(true)}
         />
       ) : (
-        <AppWindow size={19} strokeWidth={1.8} aria-hidden="true" />
+        <AppWindow size={compact ? 16 : 19} strokeWidth={1.8} aria-hidden="true" />
       )}
     </span>
   );
