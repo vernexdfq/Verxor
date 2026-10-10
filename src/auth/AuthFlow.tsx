@@ -593,53 +593,75 @@ export function AuthFlow({
   if (step === 'pin') {
     return (
       <div className="auth-root">
-        <div className="auth-body auth-body--center">
+        <div className="auth-body auth-body--pin">
           <BrandMark />
-          <h1 className="auth-title">Enter your PIN</h1>
-          <p className="auth-sub">Logging in as {remembered.contact || email || national}</p>
-          <div className="auth-pin-dots" aria-hidden>
+          <h1 className="auth-title auth-title--center">Enter your PIN</h1>
+          <p className="auth-sub auth-sub--center">
+            Logging in as {remembered.contact || email || national}
+          </p>
+          <div className="pin-boxes" aria-hidden>
             {[0, 1, 2, 3].map((i) => (
-              <span key={i} className={pin.length > i ? 'filled' : ''} />
+              <div key={i} className={`pin-box ${pin.length > i ? 'filled' : ''}`}>
+                {pin.length > i ? <span className="pin-dot" /> : null}
+              </div>
             ))}
           </div>
           {error ? <p className="auth-error">{error}</p> : null}
-          {bioHint ? <p className="auth-sub">{bioHint}</p> : null}
-          <div className="auth-keypad">
+          {bioHint ? <p className="auth-bio-hint">{bioHint}</p> : null}
+          <div className="pin-keypad">
             {['1', '2', '3', '4', '5', '6', '7', '8', '9', 'bio', '0', 'del'].map((k) => {
               if (k === 'bio') {
                 return (
-                  <button key={k} type="button" className="auth-key auth-key-bio" onClick={onFingerprintTap}>
+                  <button
+                    key={k}
+                    type="button"
+                    className="pin-key pin-key--bio"
+                    onClick={onFingerprintTap}
+                    aria-label="Biometric"
+                  >
                     <Fingerprint size={22} />
                   </button>
                 );
               }
               if (k === 'del') {
                 return (
-                  <button key={k} type="button" className="auth-key auth-key-del" onClick={onPinDelete}>
+                  <button
+                    key={k}
+                    type="button"
+                    className="pin-key pin-key--del"
+                    onClick={onPinDelete}
+                    aria-label="Delete"
+                  >
                     ⌫
                   </button>
                 );
               }
               return (
-                <button key={k} type="button" className="auth-key" onClick={() => onPinDigit(k)}>
+                <button
+                  key={k}
+                  type="button"
+                  className="pin-key"
+                  onClick={() => onPinDigit(k)}
+                >
                   {k}
                 </button>
               );
             })}
           </div>
-          <button type="button" className="auth-link" onClick={() => setStep('forgot')}>
-            Forgot PIN?
-          </button>
-          <button
-            type="button"
-            className="auth-link"
-            onClick={() => {
-              clearSessionUnlock();
-              setStep('signin');
-            }}
-          >
-            Change number
-          </button>
+          <div className="pin-actions">
+            <button type="button" onClick={() => setStep('forgot')}>
+              Forgot PIN?
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                clearSessionUnlock();
+                setStep('signin');
+              }}
+            >
+              Change number
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -664,32 +686,47 @@ export function AuthFlow({
                 value={forgotPassword}
                 onChange={(e) => setForgotPassword(e.target.value)}
               />
-              <button type="button" onClick={() => setShowForgotPass((v) => !v)}>
+              <button
+                type="button"
+                className="auth-eye"
+                onClick={() => setShowForgotPass((v) => !v)}
+                aria-label="Toggle password"
+              >
                 {showForgotPass ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
             </div>
           </div>
           <div className="auth-field">
-            <label>New PIN</label>
-            <input
-              inputMode="numeric"
-              maxLength={4}
-              value={newPin}
-              onChange={(e) => setNewPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
-            />
+            <label>New 4-digit PIN</label>
+            <div className="auth-input-wrap">
+              <Lock size={18} />
+              <input
+                inputMode="numeric"
+                maxLength={4}
+                value={newPin}
+                onChange={(e) => setNewPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                placeholder="••••"
+              />
+            </div>
           </div>
           <div className="auth-field">
             <label>Confirm new PIN</label>
-            <input
-              inputMode="numeric"
-              maxLength={4}
-              value={confirmNewPin}
-              onChange={(e) => setConfirmNewPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
-            />
+            <div className="auth-input-wrap">
+              <Lock size={18} />
+              <input
+                inputMode="numeric"
+                maxLength={4}
+                value={confirmNewPin}
+                onChange={(e) =>
+                  setConfirmNewPin(e.target.value.replace(/\D/g, '').slice(0, 4))
+                }
+                placeholder="••••"
+              />
+            </div>
           </div>
           {error ? <p className="auth-error">{error}</p> : null}
-          <button type="button" className="auth-primary" onClick={handleForgotReset}>
-            Save new PIN
+          <button type="button" className="auth-btn" onClick={handleForgotReset}>
+            Reset PIN
           </button>
         </div>
       </div>
@@ -752,10 +789,10 @@ export function AuthFlow({
             </div>
           )}
           {error ? <p className="auth-error">{error}</p> : null}
-          <button type="button" className="auth-primary" onClick={handleContinueSignIn}>
+          <button type="button" className="auth-btn" onClick={handleContinueSignIn}>
             Continue
           </button>
-          <button type="button" className="auth-link" onClick={() => setStep('signup')}>
+          <button type="button" className="auth-footer-link" onClick={() => setStep('signup')}>
             Create account
           </button>
         </div>
@@ -810,25 +847,30 @@ export function AuthFlow({
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
-            <button type="button" onClick={() => setShowPass((v) => !v)}>
+            <button type="button" className="auth-eye" onClick={() => setShowPass((v) => !v)} aria-label="Toggle password">
               {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
             </button>
           </div>
         </div>
         <div className="auth-field">
           <label>Create 4-digit PIN</label>
-          <input
-            inputMode="numeric"
-            maxLength={4}
-            value={signupPin}
-            onChange={(e) => setSignupPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
-          />
+          <div className="auth-input-wrap">
+            <Lock size={18} />
+            <input
+              inputMode="numeric"
+              maxLength={4}
+              value={signupPin}
+              onChange={(e) => setSignupPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+              placeholder="••••"
+              autoComplete="new-password"
+            />
+          </div>
         </div>
         {error ? <p className="auth-error">{error}</p> : null}
-        <button type="button" className="auth-primary" onClick={handleSignup} disabled={busy}>
+        <button type="button" className="auth-btn" onClick={handleSignup} disabled={busy}>
           Create account
         </button>
-        <button type="button" className="auth-link" onClick={() => setStep('signin')}>
+        <button type="button" className="auth-footer-link" onClick={() => setStep('signin')}>
           Already have an account? Sign in
         </button>
       </div>
