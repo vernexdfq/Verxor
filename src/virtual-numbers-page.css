@@ -200,47 +200,78 @@
 .vn-price-pill.tier-fast { background: #fef3c7; color: #b45309; }
 .vn-price-pill.tier-premium { background: #ffe4e6; color: #be123c; }
 
-/* Advertisement strip */
+/* Premium promotional strip */
 .vn-promo {
+  position: relative;
+  isolation: isolate;
   display: flex;
   flex-direction: column;
+  justify-content: flex-end;
   gap: 8px;
+  min-height: 188px;
   margin-top: 4px;
-  padding: 18px 16px;
-  border-radius: 16px;
-  background: #0f172a;
+  overflow: hidden;
+  padding: 22px 18px 16px;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 18px;
+  background: #252a31 url('/banners/virtual-numbers.svg') center / cover no-repeat;
   color: #fff;
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.12);
+}
+
+.vn-promo::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(90deg, rgba(15, 23, 42, 0.9) 0%, rgba(15, 23, 42, 0.66) 48%, rgba(15, 23, 42, 0.08) 100%),
+    linear-gradient(0deg, rgba(15, 23, 42, 0.48), transparent 70%);
+}
+
+.vn-promo-copy {
+  position: relative;
+  z-index: 1;
+  max-width: 76%;
 }
 
 .vn-promo-copy strong {
-  font-size: 14px;
+  display: block;
+  font-size: clamp(15px, 4vw, 19px);
   font-weight: 800;
-  line-height: 19px;
+  letter-spacing: -0.025em;
+  line-height: 1.2;
+  text-wrap: balance;
 }
 
 .vn-promo-copy p {
-  margin: 6px 0 0;
+  margin: 7px 0 0;
+  max-width: 290px;
   font-size: 12px;
-  opacity: 0.85;
-  line-height: 16px;
+  color: rgba(255, 255, 255, 0.86);
+  line-height: 1.5;
 }
 
 .vn-promo-cta {
   display: inline-flex;
-  margin-top: 10px;
+  align-items: center;
+  margin-top: 12px;
+  padding: 8px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.52);
+  border-radius: 999px;
   font-size: 12px;
   font-weight: 700;
-  color: #93c5fd;
-  background: transparent;
-  border: none;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(8px);
   cursor: pointer;
-  padding: 0;
 }
 
 .vn-promo-dots {
+  position: relative;
+  z-index: 1;
   display: flex;
   gap: 6px;
-  justify-content: center;
+  align-items: center;
   margin-top: 8px;
 }
 
@@ -248,15 +279,20 @@
   width: 6px;
   height: 6px;
   border-radius: 999px;
-  background: #475569;
+  background: rgba(255, 255, 255, 0.5);
   border: none;
   padding: 0;
   cursor: pointer;
 }
 
 .vn-promo-dots button.active {
-  background: #2563eb;
-  width: 16px;
+  background: #fff;
+  width: 18px;
+}
+
+@media (max-width: 360px) {
+  .vn-promo { min-height: 176px; padding: 18px 14px 14px; }
+  .vn-promo-copy { max-width: 88%; }
 }
 
 .vn-search-row {
