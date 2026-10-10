@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { AppWindow, type LucideIcon } from 'lucide-react';
+import { useState, type CSSProperties } from 'react';
+import { AppWindow } from 'lucide-react';
 import { type Pool } from './virtual-numbers-data';
 import { formatNgn } from './virtual-numbers-data';
 
@@ -61,7 +61,7 @@ export function ServiceLogo({ id }: { id: string }) {
       className="vn-service-logo"
       aria-label={id}
       title={id}
-      style={{ '--vn-logo-color': brand ? `#${brand.color}` : '#64748b' } as React.CSSProperties}
+      style={{ '--vn-logo-color': brand ? `#${brand.color}` : '#64748b' } as CSSProperties}
     >
       {brand && !failed ? (
         <img
