@@ -104,8 +104,9 @@ export function VirtualNumbersPage({
     [localOrders],
   );
 
+  // Only the single latest waiting/received order on the pools page strip
   const previewOrders = useMemo(
-    () => visibleOrders.filter((o) => o.status === 'waiting' || o.status === 'received').slice(0, 2),
+    () => visibleOrders.filter((o) => o.status === 'waiting' || o.status === 'received').slice(0, 1),
     [visibleOrders],
   );
 
@@ -558,22 +559,28 @@ export function VirtualNumbersPage({
         <div className="vn-sheet-backdrop" onClick={() => setPriceSheet(null)}>
           <div className="vn-sheet" onClick={(e) => e.stopPropagation()}>
             <div className="vn-sheet-head">
-              <strong>{priceSheet.service.name}</strong>
-              <button type="button" onClick={() => setPriceSheet(null)}>
-                <X size={18} />
+              <strong>
+                {priceSheet.service.name} · {priceSheet.country.name}
+              </strong>
+              <button type="button" onClick={() => setPriceSheet(null)} aria-label="Close">
+                <X size={16} />
               </button>
             </div>
-            <p className="vn-sheet-sub">
-              {priceSheet.country.flag} {priceSheet.country.name} · {priceSheet.pool.title}
-            </p>
+            <p className="vn-sheet-sub">{priceSheet.pool.title} — choose a provider</p>
             <div className="vn-price-options">
               {priceSheet.options.map((opt) => (
-                <button key={opt.id} type="button" className="vn-price-option" onClick={() => openConfirm(opt)}>
+                <button
+                  key={opt.id}
+                  type="button"
+                  className="vn-price-option"
+                  onClick={() => openConfirm(opt)}
+                >
                   <span>{opt.provider}</span>
-                  <strong>{formatNgn(opt.priceNgn)}</strong>
-                  <small>
-                    {formatUsd(opt.priceUsd)} · {opt.stock.toLocaleString()} left
-                  </small>
+                  <strong>
+                    {formatNgn(opt.priceNgn)}{' '}
+                    <small style={{ fontWeight: 500, color: '#64748b' }}>({formatUsd(opt.priceUsd)})</small>
+                  </strong>
+                  <small>{opt.stock.toLocaleString()} in stock</small>
                 </button>
               ))}
             </div>
@@ -586,16 +593,27 @@ export function VirtualNumbersPage({
           <div className="vn-sheet" onClick={(e) => e.stopPropagation()}>
             <div className="vn-sheet-head">
               <strong>Confirm purchase</strong>
-              <button type="button" onClick={() => setConfirmSheet(null)}>
-                <X size={18} />
+              <button type="button" onClick={() => setConfirmSheet(null)} aria-label="Close">
+                <X size={16} />
               </button>
             </div>
-            <p>
-              Buy {confirmSheet.service.name} number for {confirmSheet.country.name}?
+            <p className="vn-sheet-sub">
+              {confirmSheet.service.name} · {confirmSheet.country.name} · {confirmSheet.pool.title}
             </p>
-            <p className="vn-confirm-price">{formatNgn(confirmSheet.option.priceNgn)}</p>
+            <div className="vn-confirm-price">{formatNgn(confirmSheet.option.priceNgn)}</div>
             <button type="button" className="vn-confirm-btn" onClick={confirmPurchase}>
-              Confirm & Buy
+              Buy number
+            </button>
+          </div>
+        </div>
+      )}
+
+      {copyToast && (
+        <div className="vn-copy-modal" onClick={() => setCopyToast(null)}>
+          <div className="vn-copy-modal-card" onClick={(e) => e.stopPropagation()}>
+            <strong>{copyToast}</strong>
+            <button type="button" onClick={() => setCopyToast(null)}>
+              OK
             </button>
           </div>
         </div>
@@ -606,37 +624,25 @@ export function VirtualNumbersPage({
           <div className="vn-sheet" onClick={(e) => e.stopPropagation()}>
             <div className="vn-sheet-head">
               <strong>About SMS delivery</strong>
-              <button type="button" onClick={() => setAboutOpen(false)}>
-                <X size={18} />
+              <button type="button" onClick={() => setAboutOpen(false)} aria-label="Close">
+                <X size={16} />
               </button>
             </div>
             <div className="vn-about-body">
               <p>
-                After you buy a number we start two timers. The short lock prevents accidental cancellations
-                while the provider is still delivering the first SMS. Once that lock ends you can cancel if
-                no code has arrived.
+                After you buy a number, the SMS code usually arrives within 1–3 minutes. A short lock
+                period protects the activation so the number is not cancelled too early.
               </p>
               <p>
-                The longer lifetime timer protects the number pool. If the code never arrives and you do not
-                cancel, the order is released automatically when the lifetime ends — even if you have left
-                the site.
+                Once the small timer ends you can cancel if no code has arrived. If the big lifetime
+                timer reaches zero and no SMS was received, the order is automatically cancelled and
+                removed.
               </p>
               <p>
-                The moment an SMS arrives both timers disappear, the status becomes <strong>Received</strong>,
-                and the cancel button is gone permanently for that order.
+                When a code arrives both timers disappear, the status becomes Received, and you can
+                copy the code. Cancelled numbers are not kept in your order history.
               </p>
             </div>
-          </div>
-        </div>
-      )}
-
-      {copyToast && (
-        <div className="vn-copy-modal">
-          <div className="vn-copy-modal-card">
-            <strong>{copyToast}</strong>
-            <button type="button" onClick={() => setCopyToast(null)}>
-              OK
-            </button>
           </div>
         </div>
       )}
