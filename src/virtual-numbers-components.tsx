@@ -61,11 +61,11 @@ export function ServiceLogo({ id, compact = false }: { id: string; compact?: boo
       className={`vn-service-logo${compact ? " vn-service-logo--compact" : ""}`}
       aria-label={id}
       title={id}
-      style={{ '--vn-logo-color': brand ? `#${brand.color}` : '#64748b' } as CSSProperties}
+      style={{ '--vn-logo-color': brand ? `#${brand.color}` : '#64748b', backgroundColor: brand ? `#${brand.color}` : '#f1f5f9' } as CSSProperties}
     >
       {brand && !failed ? (
         <img
-          src={`https://cdn.simpleicons.org/${brand.slug}/${brand.color}`}
+          src={`https://cdn.simpleicons.org/${brand.slug}/ffffff`}
           alt=""
           loading="lazy"
           decoding="async"
