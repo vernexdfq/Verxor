@@ -590,7 +590,6 @@ export function AuthFlow({
     );
   }
 
-  // Screens continue in AuthFlowScreens — inline minimal pin for unlock path
   if (step === 'pin') {
     return (
       <div className="auth-root">
@@ -762,6 +761,7 @@ export function AuthFlow({
         </div>
         <CountryPickerSheet
           open={pickerOpen}
+          selectedIso={country.iso}
           onClose={() => setPickerOpen(false)}
           onSelect={(c) => {
             setCountry(c);
@@ -772,7 +772,6 @@ export function AuthFlow({
     );
   }
 
-  // signup
   return (
     <div className="auth-root">
       <div className="auth-body">
@@ -835,6 +834,7 @@ export function AuthFlow({
       </div>
       <CountryPickerSheet
         open={pickerOpen}
+        selectedIso={country.iso}
         onClose={() => setPickerOpen(false)}
         onSelect={(c) => {
           setCountry(c);
