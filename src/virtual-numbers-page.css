@@ -892,7 +892,7 @@
 }
 
 
-/* Real service brand marks in the All services list */
+/* Compact, app-style brand tiles matching the approved reference */
 .vn-service-logo {
   width: 42px;
   height: 42px;
@@ -900,38 +900,39 @@
   display: grid;
   place-items: center;
   border-radius: 12px;
-  border: 1px solid #e2e8f0;
-  background: #fff;
-  color: var(--vn-logo-color, #64748b);
+  border: 0;
+  background: #f1f5f9;
+  color: #fff;
   overflow: hidden;
 }
 
 .vn-service-logo img {
   display: block;
-  width: 21px;
-  height: 21px;
+  width: 26px;
+  height: 26px;
   object-fit: contain;
+  filter: brightness(0) invert(1);
 }
 
 .vn-service-logo--compact {
-  width: 34px;
-  height: 34px;
-  flex-basis: 34px;
-  border-radius: 10px;
-  border-color: #edf0f4;
+  width: 42px;
+  height: 42px;
+  flex-basis: 42px;
+  border-radius: 12px;
 }
 
 .vn-service-logo--compact img {
-  width: 19px;
-  height: 19px;
+  width: 27px;
+  height: 27px;
 }
 
 .vn-service-row {
   min-height: 58px;
-  gap: 11px;
-  padding: 9px 13px;
+  gap: 14px;
+  padding: 9px 14px;
   font-size: 14px;
   font-weight: 600;
+  text-align: left;
   transition: background 140ms ease;
 }
 
@@ -952,14 +953,14 @@
 
 @media (max-width: 360px) {
   .vn-service-logo--compact {
-    width: 32px;
-    height: 32px;
-    flex-basis: 32px;
-    border-radius: 9px;
+    width: 38px;
+    height: 38px;
+    flex-basis: 38px;
+    border-radius: 11px;
   }
 
   .vn-service-logo--compact img {
-    width: 18px;
-    height: 18px;
+    width: 24px;
+    height: 24px;
   }
 }
