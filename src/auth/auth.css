@@ -724,3 +724,29 @@
   color: var(--vx-muted);
   font-size: 14px;
 }
+
+/* Footer link used as a button (Create account / Sign in / Forgot) */
+button.auth-footer-link {
+  display: block;
+  width: 100%;
+  margin-top: 14px;
+  background: none;
+  border: 0;
+  color: var(--vx-link);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 10px 0;
+  text-align: center;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button.auth-footer-link:active {
+  opacity: 0.75;
+}
+
+/* Center brand on PIN screen */
+.auth-body--pin .auth-brand {
+  align-self: center;
+  margin-bottom: 24px;
+}
