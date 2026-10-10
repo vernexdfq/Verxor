@@ -398,7 +398,7 @@ export function VirtualNumbersPage({
           <div className="vn-service-list">
             {filteredServices.map((s) => (
               <button key={s.id} type="button" className="vn-service-row" onClick={() => selectService(s)}>
-                <ServiceLogo id={s.id} />
+                <ServiceLogo id={s.id} compact />
                 <span>{s.name}</span>
                 <ChevronRight size={16} />
               </button>
