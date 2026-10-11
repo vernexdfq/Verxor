@@ -274,57 +274,74 @@ export function AuthFlow({ onAuthenticated }: { onAuthenticated: (session: AuthS
     setError('');
     setBusy(true);
     try {
-      if (backendConfigured()) {
-        try {
-          const isEmail = remembered.method === 'email' || Boolean(remembered.email);
-          const body = isEmail
-            ? { email: remembered.email || remembered.contact, pin: candidate }
-            : { phone: remembered.contact, pin: candidate };
-          const res = await fetch('/api/auth/pin-login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(body),
-          });
-          const b = (await res.json()) as {
-            ok?: boolean;
-            error?: string;
-            access_token?: string;
-            refresh_token?: string;
-            email?: string;
-            phone?: string;
-            fullName?: string;
-            phoneCountry?: string;
-            balanceNgn?: number;
-            balanceUsd?: number;
-          };
-          if (res.ok && b.ok) {
-            if (b.access_token && b.refresh_token) {
-              const sb = getSupabaseBrowser();
-              if (sb) await sb.auth.setSession({ access_token: b.access_token, refresh_token: b.refresh_token });
-            }
-            finish({
-              ...DEFAULT_MOCK,
-              ...remembered,
-              authenticated: true,
-              method: isEmail ? 'email' : 'phone',
-              contact: b.phone || remembered.contact,
-              name: b.fullName || remembered.name,
-              email: b.email || remembered.email,
-              phoneCountry: b.phoneCountry || remembered.phoneCountry || country.iso,
-              pin: '',
-              password: '',
-              balanceNgn: b.balanceNgn ?? 0,
-              balanceUsd: b.balanceUsd ?? 0,
-            });
-            return;
-          }
-          setError(b.error || 'Incorrect PIN');
-          setPin('');
-          return;
-        } catch {
-          /* fall through */
-        }
+      if (!backendConfigured()) {
+        setError('Could not verify PIN. Try again.');
+        setPin('');
+        return;
       }
+      const isEmail = remembered.method === 'email' || Boolean(remembered.email);
+      const body = isEmail
+        ? { email: remembered.email || remembered.contact, pin: candidate }
+        : { phone: remembered.contact, pin: candidate };
+      const res = await fetch('/api/auth/pin-login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const b = (await res.json()) as {
+        ok?: boolean;
+        error?: string;
+        access_token?: string;
+        refresh_token?: string;
+        email?: string;
+        phone?: string;
+        fullName?: string;
+        phoneCountry?: string;
+        balanceNgn?: number;
+        balanceUsd?: number;
+      };
+      if (res.ok && b.ok) {
+        // Persist tokens + set Supabase session in background so UI unlocks immediately.
+        if (b.access_token && b.refresh_token) {
+          try {
+            const { saveSessionTokens } = await import('./session-unlock');
+            saveSessionTokens({ access_token: b.access_token, refresh_token: b.refresh_token });
+          } catch {
+            /* ignore */
+          }
+          void (async () => {
+            try {
+              const sb = getSupabaseBrowser();
+              if (sb) {
+                await sb.auth.setSession({
+                  access_token: b.access_token!,
+                  refresh_token: b.refresh_token!,
+                });
+              }
+            } catch {
+              /* ignore */
+            }
+          })();
+        }
+        finish({
+          ...DEFAULT_MOCK,
+          ...remembered,
+          authenticated: true,
+          method: isEmail ? 'email' : 'phone',
+          contact: b.phone || remembered.contact,
+          name: b.fullName || remembered.name,
+          email: b.email || remembered.email,
+          phoneCountry: b.phoneCountry || remembered.phoneCountry || country.iso,
+          pin: '',
+          password: '',
+          balanceNgn: b.balanceNgn ?? 0,
+          balanceUsd: b.balanceUsd ?? 0,
+        });
+        return;
+      }
+      setError(b.error || 'Incorrect PIN');
+      setPin('');
+    } catch {
       setError('Could not verify PIN. Try again.');
       setPin('');
     } finally {
