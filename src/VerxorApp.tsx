@@ -31,6 +31,8 @@ import {
   loadSessionProfile,
   loadSessionTokens,
   isSessionUnlocked,
+  saveSessionProfile,
+  touchSessionUnlock,
 } from './auth/session-unlock';
 import type { Page } from './types';
 
@@ -164,7 +166,6 @@ export function VerxorApp() {
           balanceUsd: profile.balanceUsd ?? 0,
         });
 
-        // Best-effort restore Supabase client session from stored tokens
         const tokens = loadSessionTokens();
         if (tokens?.access_token && tokens?.refresh_token && supabaseAuthEnabled()) {
           void (async () => {
@@ -183,7 +184,6 @@ export function VerxorApp() {
           })();
         }
 
-        // Restore last in-app page
         try {
           const raw = sessionStorage.getItem('verxor-nav');
           if (raw) {
@@ -228,10 +228,25 @@ export function VerxorApp() {
   }, []);
 
   const handleAuth = useCallback((s: AuthSession) => {
-    setAuth({
+    const next = {
       ...s,
       balanceNgn: s.balanceNgn ?? 0,
       balanceUsd: s.balanceUsd ?? 0,
+    };
+    setAuth(next);
+    // Persist soft session so a refresh keeps the user inside the app (1 hour).
+    touchSessionUnlock();
+    saveSessionProfile({
+      name: next.name,
+      contact: next.contact,
+      email: next.email,
+      method: next.method,
+      phoneCountry: next.phoneCountry,
+      dialCode: next.dialCode,
+      homeCurrency: next.homeCurrency,
+      vtuEligible: next.vtuEligible,
+      balanceNgn: next.balanceNgn,
+      balanceUsd: next.balanceUsd,
     });
     try {
       const raw = sessionStorage.getItem('verxor-nav');
