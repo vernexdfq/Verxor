@@ -130,27 +130,29 @@
   font-weight: 700;
 }
 
+/* Primex-style tabs: soft track, white elevated active pill */
 .auth-tabs {
   display: flex;
   gap: 0;
   margin-bottom: 22px;
   width: 100%;
-  padding: 4px;
-  background: #EEF2F7;
+  padding: 3px;
+  background: #F1F5F9;
   border-radius: 999px;
+  border: 1px solid #E2E8F0;
 }
 
 .auth-tab {
   flex: 1;
-  min-height: 44px;
+  min-height: 42px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 7px;
   border-radius: 999px;
   border: 0;
   background: transparent;
-  color: var(--vx-sub);
+  color: #64748B;
   font-size: 13.5px;
   font-weight: 600;
   cursor: pointer;
@@ -158,10 +160,21 @@
   -webkit-tap-highlight-color: transparent;
 }
 
+.auth-tab svg {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+}
+
 .auth-tab.active {
-  background: var(--vx-primary);
-  color: #FFFFFF;
-  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.32);
+  background: #FFFFFF;
+  color: #1E40AF;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08), 0 1px 2px rgba(15, 23, 42, 0.04);
+  font-weight: 700;
+}
+
+.auth-tab.active svg {
+  color: #2563EB;
 }
 
 .auth-field {
@@ -530,7 +543,6 @@
   text-decoration: underline;
 }
 
-/* Country code picker */
 .auth-phone-row {
   display: flex;
   align-items: stretch;
@@ -725,7 +737,6 @@
   font-size: 14px;
 }
 
-/* Footer link used as a button (Create account / Sign in / Forgot) */
 button.auth-footer-link {
   display: block;
   width: 100%;
@@ -745,7 +756,6 @@ button.auth-footer-link:active {
   opacity: 0.75;
 }
 
-/* Center brand on PIN screen */
 .auth-body--pin .auth-brand {
   align-self: center;
   margin-bottom: 24px;
