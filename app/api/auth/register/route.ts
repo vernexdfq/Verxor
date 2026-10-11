@@ -44,13 +44,16 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Auth backend is not configured' }, { status: 503 });
     }
 
+    const hdr = {
+      apikey: serviceKey,
+      Authorization: `Bearer ${serviceKey}`,
+      'Content-Type': 'application/json',
+    };
+
     for (const p of [phoneE164, phoneRaw, `+${phoneRaw}`]) {
       const check = await fetch(
         `${base}/rest/v1/profiles?phone=eq.${encodeURIComponent(p)}&select=id&limit=1`,
-        {
-          headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` },
-          cache: 'no-store',
-        },
+        { headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` }, cache: 'no-store' },
       );
       if (check.ok) {
         const rows = (await check.json()) as unknown[];
@@ -65,11 +68,7 @@ export async function POST(req: Request) {
 
     const createRes = await fetch(`${base}/auth/v1/admin/users`, {
       method: 'POST',
-      headers: {
-        apikey: serviceKey,
-        Authorization: `Bearer ${serviceKey}`,
-        'Content-Type': 'application/json',
-      },
+      headers: hdr,
       body: JSON.stringify({
         email,
         password,
@@ -103,20 +102,20 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Account created but user id missing' }, { status: 500 });
     }
 
-    const pinHashRes = await fetch(`${base}/rest/v1/rpc/hash_pin`, {
-      method: 'POST',
-      headers: {
-        apikey: serviceKey,
-        Authorization: `Bearer ${serviceKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ plain: pin }),
-    });
-
     let pinHash: string | null = null;
-    if (pinHashRes.ok) {
-      const hashed = await pinHashRes.json();
-      pinHash = typeof hashed === 'string' ? hashed : null;
+    for (const payload of [{ plain: pin }, { p_plain: pin }]) {
+      const pinHashRes = await fetch(`${base}/rest/v1/rpc/hash_pin`, {
+        method: 'POST',
+        headers: hdr,
+        body: JSON.stringify(payload),
+      });
+      if (pinHashRes.ok) {
+        const hashed = await pinHashRes.json();
+        if (typeof hashed === 'string' && hashed.length > 10) {
+          pinHash = hashed;
+          break;
+        }
+      }
     }
 
     const profileBody: Record<string, unknown> = {
@@ -136,20 +135,36 @@ export async function POST(req: Request) {
     await fetch(`${base}/rest/v1/profiles`, {
       method: 'POST',
       headers: {
-        apikey: serviceKey,
-        Authorization: `Bearer ${serviceKey}`,
-        'Content-Type': 'application/json',
+        ...hdr,
         Prefer: 'resolution=merge-duplicates,return=minimal',
       },
       body: JSON.stringify(profileBody),
     });
 
+    // Always force-write PIN (trigger may have created profile without hash)
+    if (pinHash) {
+      await fetch(`${base}/rest/v1/profiles?id=eq.${userId}`, {
+        method: 'PATCH',
+        headers: {
+          ...hdr,
+          Prefer: 'return=minimal',
+        },
+        body: JSON.stringify({
+          pin_hash: pinHash,
+          tx_pin_hash: pinHash,
+          phone: phoneE164,
+          phone_country: phoneCountry,
+          full_name: fullName,
+          email,
+          updated_at: new Date().toISOString(),
+        }),
+      });
+    }
+
     await fetch(`${base}/rest/v1/wallets`, {
       method: 'POST',
       headers: {
-        apikey: serviceKey,
-        Authorization: `Bearer ${serviceKey}`,
-        'Content-Type': 'application/json',
+        ...hdr,
         Prefer: 'resolution=ignore-duplicates,return=minimal',
       },
       body: JSON.stringify({ user_id: userId }),
@@ -164,24 +179,17 @@ export async function POST(req: Request) {
       if (tokenRes.ok) {
         const tokens = (await tokenRes.json()) as { access_token?: string };
         if (tokens.access_token) {
-          await fetch(`${base}/rest/v1/rpc/set_my_tx_pin`, {
-            method: 'POST',
-            headers: {
-              apikey: anonKey,
-              Authorization: `Bearer ${tokens.access_token}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ p_pin: pin }),
-          }).catch(() => null);
-          await fetch(`${base}/rest/v1/rpc/set_transaction_pin`, {
-            method: 'POST',
-            headers: {
-              apikey: anonKey,
-              Authorization: `Bearer ${tokens.access_token}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ p_pin: pin }),
-          }).catch(() => null);
+          for (const rpc of ['set_my_tx_pin', 'set_transaction_pin']) {
+            await fetch(`${base}/rest/v1/rpc/${rpc}`, {
+              method: 'POST',
+              headers: {
+                apikey: anonKey,
+                Authorization: `Bearer ${tokens.access_token}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ p_pin: pin }),
+            }).catch(() => null);
+          }
         }
       }
     }
