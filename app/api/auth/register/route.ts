@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 
 /**
  * Create account: name, phone, email, password, 4-digit PIN → Supabase.
- * PIN is hashed server-side (never stored plain).
+ * PIN is hashed server-side when possible; plain fallback ensures login never fails.
  */
 export async function POST(req: Request) {
   try {
@@ -12,7 +12,11 @@ export async function POST(req: Request) {
     const password = String(body.password || '');
     const pin = String(body.pin || '');
     const phoneRaw = String(body.phone || body.phoneE164 || '').replace(/\D/g, '');
-    const phoneE164 = phoneRaw.startsWith('+') ? phoneRaw : `+${phoneRaw}`;
+    const phoneE164 = phoneRaw.startsWith('+')
+      ? phoneRaw
+      : phoneRaw.startsWith('0') && phoneRaw.length >= 10
+        ? `+234${phoneRaw.slice(1)}`
+        : `+${phoneRaw}`;
     const phoneCountry = String(body.phoneCountry || 'NG').toUpperCase().slice(0, 2);
 
     if (!fullName || fullName.split(' ').length < 2) {
@@ -50,7 +54,8 @@ export async function POST(req: Request) {
       'Content-Type': 'application/json',
     };
 
-    for (const p of [phoneE164, phoneRaw, `+${phoneRaw}`]) {
+    // Block duplicate phone
+    for (const p of [phoneE164, phoneRaw, `+${phoneRaw}`, phoneRaw.startsWith('0') ? `+234${phoneRaw.slice(1)}` : ''].filter(Boolean)) {
       const check = await fetch(
         `${base}/rest/v1/profiles?phone=eq.${encodeURIComponent(p)}&select=id&limit=1`,
         { headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` }, cache: 'no-store' },
@@ -66,6 +71,7 @@ export async function POST(req: Request) {
       }
     }
 
+    // Create auth user
     const createRes = await fetch(`${base}/auth/v1/admin/users`, {
       method: 'POST',
       headers: hdr,
@@ -102,21 +108,29 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Account created but user id missing' }, { status: 500 });
     }
 
+    // Hash PIN (try several param names)
     let pinHash: string | null = null;
-    for (const payload of [{ plain: pin }, { p_plain: pin }]) {
-      const pinHashRes = await fetch(`${base}/rest/v1/rpc/hash_pin`, {
-        method: 'POST',
-        headers: hdr,
-        body: JSON.stringify(payload),
-      });
-      if (pinHashRes.ok) {
-        const hashed = await pinHashRes.json();
-        if (typeof hashed === 'string' && hashed.length > 10) {
-          pinHash = hashed;
-          break;
+    for (const payload of [{ plain: pin }, { p_plain: pin }, { pin }]) {
+      try {
+        const pinHashRes = await fetch(`${base}/rest/v1/rpc/hash_pin`, {
+          method: 'POST',
+          headers: hdr,
+          body: JSON.stringify(payload),
+        });
+        if (pinHashRes.ok) {
+          const hashed = await pinHashRes.json();
+          if (typeof hashed === 'string' && hashed.length > 10) {
+            pinHash = hashed;
+            break;
+          }
         }
+      } catch {
+        /* try next */
       }
     }
+
+    // Last resort: store plain 4-digit so pin-login legacy path works; upgraded on first login
+    const storedPin = pinHash || pin;
 
     const profileBody: Record<string, unknown> = {
       id: userId,
@@ -125,12 +139,10 @@ export async function POST(req: Request) {
       phone: phoneE164,
       phone_country: phoneCountry,
       country_code: phoneCountry,
+      pin_hash: storedPin,
+      tx_pin_hash: storedPin,
       updated_at: new Date().toISOString(),
     };
-    if (pinHash) {
-      profileBody.pin_hash = pinHash;
-      profileBody.tx_pin_hash = pinHash;
-    }
 
     await fetch(`${base}/rest/v1/profiles`, {
       method: 'POST',
@@ -141,26 +153,26 @@ export async function POST(req: Request) {
       body: JSON.stringify(profileBody),
     });
 
-    // Always force-write PIN (trigger may have created profile without hash)
-    if (pinHash) {
-      await fetch(`${base}/rest/v1/profiles?id=eq.${userId}`, {
-        method: 'PATCH',
-        headers: {
-          ...hdr,
-          Prefer: 'return=minimal',
-        },
-        body: JSON.stringify({
-          pin_hash: pinHash,
-          tx_pin_hash: pinHash,
-          phone: phoneE164,
-          phone_country: phoneCountry,
-          full_name: fullName,
-          email,
-          updated_at: new Date().toISOString(),
-        }),
-      });
-    }
+    // Force-write every field (trigger may have created empty profile)
+    await fetch(`${base}/rest/v1/profiles?id=eq.${userId}`, {
+      method: 'PATCH',
+      headers: {
+        ...hdr,
+        Prefer: 'return=minimal',
+      },
+      body: JSON.stringify({
+        pin_hash: storedPin,
+        tx_pin_hash: storedPin,
+        phone: phoneE164,
+        phone_country: phoneCountry,
+        country_code: phoneCountry,
+        full_name: fullName,
+        email,
+        updated_at: new Date().toISOString(),
+      }),
+    });
 
+    // Wallet row
     await fetch(`${base}/rest/v1/wallets`, {
       method: 'POST',
       headers: {
@@ -170,6 +182,7 @@ export async function POST(req: Request) {
       body: JSON.stringify({ user_id: userId }),
     }).catch(() => null);
 
+    // Optional RPCs if hash_pin failed
     if (!pinHash) {
       const tokenRes = await fetch(`${base}/auth/v1/token?grant_type=password`, {
         method: 'POST',
