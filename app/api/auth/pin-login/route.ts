@@ -56,7 +56,6 @@ export async function POST(req: Request) {
     }
 
     if (phoneRaw) {
-      // Build candidate formats: +234..., 234..., last 10 digits, etc.
       const candidates = new Set<string>();
       candidates.add(`+${phoneRaw}`);
       candidates.add(phoneRaw);
@@ -68,7 +67,6 @@ export async function POST(req: Request) {
         candidates.add(`+234${phoneRaw.slice(1)}`);
         candidates.add(`234${phoneRaw.slice(1)}`);
       }
-      // last 10 digits (Nigerian national without leading 0)
       const last10 = phoneRaw.slice(-10);
       if (last10.length === 10) {
         candidates.add(`+234${last10}`);
@@ -80,8 +78,6 @@ export async function POST(req: Request) {
         profile = await fetchProfile(`phone=eq.${encodeURIComponent(p)}`);
         if (profile) break;
       }
-
-      // Fallback: ilike on trailing digits
       if (!profile && last10.length >= 9) {
         profile = await fetchProfile(`phone=like.*${last10}`);
       }
@@ -98,7 +94,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const storedHash = profile.tx_pin_hash || profile.pin_hash;
+    const storedHash = (profile.tx_pin_hash || profile.pin_hash || '').trim();
     if (!storedHash) {
       return NextResponse.json(
         { error: 'PIN is not set for this account. Use Forgot PIN to set one.' },
@@ -106,28 +102,86 @@ export async function POST(req: Request) {
       );
     }
 
-    // Verify PIN — try both PostgREST param styles
+    function truthy(v: unknown): boolean {
+      return v === true || v === 'true' || v === 't' || v === 1 || v === '1';
+    }
+
     let pinOk = false;
-    for (const payload of [
-      { plain: pin, hashed: storedHash },
-      { p_plain: pin, p_hashed: storedHash },
-    ]) {
-      const verifyRes = await fetch(`${base}/rest/v1/rpc/verify_pin`, {
-        method: 'POST',
-        headers: { ...hdr, 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      if (verifyRes.ok) {
-        const result = await verifyRes.json();
-        if (result === true) {
-          pinOk = true;
-          break;
+
+    // 1) Legacy: plain 4-digit stored as the hash itself
+    if (storedHash === pin || (storedHash.length === 4 && /^\d{4}$/.test(storedHash) && storedHash === pin)) {
+      pinOk = true;
+    }
+
+    // 2) RPC verify_pin (both param styles)
+    if (!pinOk) {
+      for (const payload of [
+        { plain: pin, hashed: storedHash },
+        { p_plain: pin, p_hashed: storedHash },
+      ]) {
+        try {
+          const verifyRes = await fetch(`${base}/rest/v1/rpc/verify_pin`, {
+            method: 'POST',
+            headers: { ...hdr, 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+          if (verifyRes.ok) {
+            const result = await verifyRes.json();
+            if (truthy(result)) {
+              pinOk = true;
+              break;
+            }
+          }
+        } catch {
+          /* try next */
         }
+      }
+    }
+
+    // 3) Direct crypt via RPC hash comparison using extensions
+    if (!pinOk && storedHash.startsWith('$2')) {
+      try {
+        // crypt(plain, stored) should equal stored for bcrypt
+        const cryptRes = await fetch(`${base}/rest/v1/rpc/verify_pin`, {
+          method: 'POST',
+          headers: { ...hdr, 'Content-Type': 'application/json', Prefer: 'params=single-object' },
+          body: JSON.stringify({ plain: pin, hashed: storedHash }),
+        });
+        if (cryptRes.ok && truthy(await cryptRes.json())) pinOk = true;
+      } catch {
+        /* ignore */
       }
     }
 
     if (!pinOk) {
       return NextResponse.json({ error: 'Incorrect PIN' }, { status: 401 });
+    }
+
+    // If we matched a legacy plain PIN, upgrade to bcrypt hash
+    if (storedHash === pin || (storedHash.length === 4 && /^\d{4}$/.test(storedHash))) {
+      try {
+        const hashRes = await fetch(`${base}/rest/v1/rpc/hash_pin`, {
+          method: 'POST',
+          headers: { ...hdr, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ plain: pin }),
+        });
+        if (hashRes.ok) {
+          const newHash = await hashRes.json();
+          if (typeof newHash === 'string' && newHash.startsWith('$2')) {
+            await fetch(`${base}/rest/v1/profiles?id=eq.${profile.id}`, {
+              method: 'PATCH',
+              headers: {
+                ...hdr,
+                'Content-Type': 'application/json',
+                Prefer: 'return=minimal',
+              },
+              body: JSON.stringify({ pin_hash: newHash, tx_pin_hash: newHash, updated_at: new Date().toISOString() }),
+            });
+          }
+        }
+      } catch {
+        /* non-fatal */
+      }
     }
 
     let email = (profile.email || emailIn || '').trim().toLowerCase();
@@ -175,7 +229,7 @@ export async function POST(req: Request) {
     if (hashedToken) {
       const verifyOtp = await fetch(`${base}/auth/v1/verify`, {
         method: 'POST',
-        headers: { apikey: anonKey, 'Content-Type': 'application/json' },
+        headers: { apikey: anonKey!, 'Content-Type': 'application/json' },
         body: JSON.stringify({ type: 'magiclink', token_hash: hashedToken }),
       });
       if (verifyOtp.ok) {
@@ -188,7 +242,7 @@ export async function POST(req: Request) {
     if (!access_token && emailOtp) {
       const verifyOtp = await fetch(`${base}/auth/v1/verify`, {
         method: 'POST',
-        headers: { apikey: anonKey, 'Content-Type': 'application/json' },
+        headers: { apikey: anonKey!, 'Content-Type': 'application/json' },
         body: JSON.stringify({ type: 'email', email, token: emailOtp }),
       });
       if (verifyOtp.ok) {
