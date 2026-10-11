@@ -32,6 +32,7 @@ import {
   loadSessionTokens,
   isSessionUnlocked,
   saveSessionProfile,
+  saveSessionTokens,
   touchSessionUnlock,
 } from './auth/session-unlock';
 import type { Page } from './types';
@@ -40,6 +41,55 @@ type NavState = {
   page: Page;
   service: ServiceView | null;
 };
+
+/** 8 Home quick-actions — swipe-back always returns to Home */
+const HOME_SERVICES = new Set<ServiceView>([
+  'virtual-numbers',
+  'boost',
+  'accounts',
+  'rental',
+  'esim',
+  'proxies',
+  'gift-card',
+  'virtual-card',
+]);
+
+/** 6 VTU services — swipe-back always returns to Services tab */
+const VTU_SERVICES = new Set<ServiceView>([
+  'data',
+  'airtime',
+  'tv-cable',
+  'electricity',
+  'exam-pin',
+  'bet-wallet',
+]);
+
+/** Profile / settings children — swipe-back returns to Profile */
+const PROFILE_SERVICES = new Set<ServiceView>([
+  'edit-profile',
+  'security',
+  'referral',
+  'privacy',
+  'feedback',
+  'support-center',
+  'faq',
+  'help',
+  'alerts',
+  'settings',
+  'notifications-prefs',
+  'community',
+  'child-panel',
+  'api-keys',
+]);
+
+function parentPageForService(svc: ServiceView | null): Page {
+  if (!svc) return 'home';
+  if (HOME_SERVICES.has(svc)) return 'home';
+  if (VTU_SERVICES.has(svc)) return 'services';
+  if (PROFILE_SERVICES.has(svc)) return 'profile';
+  if (svc === 'services') return 'home';
+  return 'home';
+}
 
 function readNavState(raw: unknown): NavState | null {
   if (!raw || typeof raw !== 'object') return null;
@@ -94,10 +144,27 @@ export function VerxorApp() {
     }
   }, []);
 
+  const replaceNav = useCallback((next: NavState) => {
+    if (typeof window === 'undefined') return;
+    try {
+      sessionStorage.setItem('verxor-nav', JSON.stringify(next));
+    } catch {
+      /* ignore */
+    }
+    try {
+      window.history.replaceState(next, '', window.location.pathname + window.location.search);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  /** Open a service with the correct parent page so swipe-back is correct. */
   const openService = useCallback(
     (next: ServiceView) => {
+      const parent = parentPageForService(next);
+      setPage(parent);
       setService(next);
-      pushNav({ page: pageRef.current, service: next });
+      pushNav({ page: parent, service: next });
     },
     [pushNav],
   );
@@ -111,12 +178,21 @@ export function VerxorApp() {
     [pushNav],
   );
 
+  /** In-app ← uses real history when possible; otherwise clears service only. */
   const closeService = useCallback(() => {
     if (typeof window !== 'undefined' && window.history.state?.service) {
       window.history.back();
       return;
     }
     setService(null);
+    try {
+      sessionStorage.setItem(
+        'verxor-nav',
+        JSON.stringify({ page: pageRef.current, service: null }),
+      );
+    } catch {
+      /* ignore */
+    }
   }, []);
 
   // Restore soft session on first paint (refresh stays inside the app).
@@ -184,6 +260,7 @@ export function VerxorApp() {
           })();
         }
 
+        // Restore the exact page the user was on before refresh.
         try {
           const raw = sessionStorage.getItem('verxor-nav');
           if (raw) {
@@ -192,15 +269,7 @@ export function VerxorApp() {
               setPage(restored.page);
               setService(restored.service);
               skipPushRef.current = true;
-              try {
-                window.history.replaceState(
-                  restored,
-                  '',
-                  window.location.pathname + window.location.search,
-                );
-              } catch {
-                /* ignore */
-              }
+              replaceNav(restored);
             }
           }
         } catch {
@@ -210,8 +279,9 @@ export function VerxorApp() {
     }
 
     setAuthReady(true);
-  }, []);
+  }, [replaceNav]);
 
+  // System / swipe back — restore previous history entry.
   useEffect(() => {
     const onPop = (e: PopStateEvent) => {
       const restored = readNavState(e.state);
@@ -219,58 +289,63 @@ export function VerxorApp() {
       if (restored) {
         setPage(restored.page);
         setService(restored.service);
+        try {
+          sessionStorage.setItem('verxor-nav', JSON.stringify(restored));
+        } catch {
+          /* ignore */
+        }
       } else {
+        // No state → leave deep service and land on the correct parent.
+        const parent = parentPageForService(serviceRef.current);
         setService(null);
+        setPage(parent);
+        try {
+          sessionStorage.setItem('verxor-nav', JSON.stringify({ page: parent, service: null }));
+        } catch {
+          /* ignore */
+        }
       }
     };
     window.addEventListener('popstate', onPop);
     return () => window.removeEventListener('popstate', onPop);
   }, []);
 
-  const handleAuth = useCallback((s: AuthSession) => {
-    const next = {
-      ...s,
-      balanceNgn: s.balanceNgn ?? 0,
-      balanceUsd: s.balanceUsd ?? 0,
-    };
-    setAuth(next);
-    // Persist soft session so a refresh keeps the user inside the app (1 hour).
-    touchSessionUnlock();
-    saveSessionProfile({
-      name: next.name,
-      contact: next.contact,
-      email: next.email,
-      method: next.method,
-      phoneCountry: next.phoneCountry,
-      dialCode: next.dialCode,
-      homeCurrency: next.homeCurrency,
-      vtuEligible: next.vtuEligible,
-      balanceNgn: next.balanceNgn,
-      balanceUsd: next.balanceUsd,
-    });
-    try {
-      const raw = sessionStorage.getItem('verxor-nav');
-      if (raw) {
-        const restored = readNavState(JSON.parse(raw));
-        if (restored) {
-          setPage(restored.page);
-          setService(restored.service);
-          skipPushRef.current = true;
-          try {
-            window.history.replaceState(
-              restored,
-              '',
-              window.location.pathname + window.location.search,
-            );
-          } catch {
-            /* ignore */
-          }
-        }
+  /** Successful login / signup → always Home (ignore previous activity). */
+  const handleAuth = useCallback(
+    (s: AuthSession) => {
+      const next = {
+        ...s,
+        balanceNgn: s.balanceNgn ?? 0,
+        balanceUsd: s.balanceUsd ?? 0,
+      };
+      setAuth(next);
+      touchSessionUnlock();
+      saveSessionProfile({
+        name: next.name,
+        contact: next.contact,
+        email: next.email,
+        method: next.method,
+        phoneCountry: next.phoneCountry,
+        dialCode: next.dialCode,
+        homeCurrency: next.homeCurrency,
+        vtuEligible: next.vtuEligible,
+        balanceNgn: next.balanceNgn,
+        balanceUsd: next.balanceUsd,
+      });
+
+      // Always land on Home after login / create account.
+      setService(null);
+      setPage('home');
+      try {
+        sessionStorage.removeItem('verxor-nav');
+      } catch {
+        /* ignore */
       }
-    } catch {
-      /* ignore */
-    }
-  }, []);
+      skipPushRef.current = true;
+      replaceNav({ page: 'home', service: null });
+    },
+    [replaceNav],
+  );
 
   const handleLogout = useCallback(() => {
     try {
