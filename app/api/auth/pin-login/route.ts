@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server';
 
 /**
  * Primex-style login: phone OR email + 4-digit PIN → session tokens.
- * Password is NOT required for daily login.
  */
 export async function POST(req: Request) {
   try {
@@ -28,6 +27,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Auth backend is not configured' }, { status: 503 });
     }
 
+    const hdr = {
+      apikey: serviceKey,
+      Authorization: `Bearer ${serviceKey}`,
+    };
+
     type Profile = {
       id: string;
       email?: string | null;
@@ -41,36 +45,50 @@ export async function POST(req: Request) {
 
     let profile: Profile | null = null;
 
+    async function fetchProfile(query: string): Promise<Profile | null> {
+      const res = await fetch(
+        `${base}/rest/v1/profiles?${query}&select=id,email,phone,full_name,phone_country,country_code,pin_hash,tx_pin_hash&limit=1`,
+        { headers: hdr, cache: 'no-store' },
+      );
+      if (!res.ok) return null;
+      const rows = (await res.json()) as Profile[];
+      return rows[0] || null;
+    }
+
     if (phoneRaw) {
-      for (const p of [`+${phoneRaw}`, phoneRaw]) {
-        const res = await fetch(
-          `${base}/rest/v1/profiles?phone=eq.${encodeURIComponent(p)}&select=id,email,phone,full_name,phone_country,country_code,pin_hash,tx_pin_hash&limit=1`,
-          {
-            headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` },
-            cache: 'no-store',
-          },
-        );
-        if (!res.ok) continue;
-        const rows = (await res.json()) as Profile[];
-        if (rows[0]) {
-          profile = rows[0];
-          break;
-        }
+      // Build candidate formats: +234..., 234..., last 10 digits, etc.
+      const candidates = new Set<string>();
+      candidates.add(`+${phoneRaw}`);
+      candidates.add(phoneRaw);
+      if (phoneRaw.startsWith('234') && phoneRaw.length >= 13) {
+        candidates.add(`0${phoneRaw.slice(3)}`);
+        candidates.add(phoneRaw.slice(3));
+      }
+      if (phoneRaw.startsWith('0') && phoneRaw.length >= 11) {
+        candidates.add(`+234${phoneRaw.slice(1)}`);
+        candidates.add(`234${phoneRaw.slice(1)}`);
+      }
+      // last 10 digits (Nigerian national without leading 0)
+      const last10 = phoneRaw.slice(-10);
+      if (last10.length === 10) {
+        candidates.add(`+234${last10}`);
+        candidates.add(`234${last10}`);
+        candidates.add(`0${last10}`);
+      }
+
+      for (const p of candidates) {
+        profile = await fetchProfile(`phone=eq.${encodeURIComponent(p)}`);
+        if (profile) break;
+      }
+
+      // Fallback: ilike on trailing digits
+      if (!profile && last10.length >= 9) {
+        profile = await fetchProfile(`phone=like.*${last10}`);
       }
     }
 
     if (!profile && emailIn) {
-      const res = await fetch(
-        `${base}/rest/v1/profiles?email=eq.${encodeURIComponent(emailIn)}&select=id,email,phone,full_name,phone_country,country_code,pin_hash,tx_pin_hash&limit=1`,
-        {
-          headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` },
-          cache: 'no-store',
-        },
-      );
-      if (res.ok) {
-        const rows = (await res.json()) as Profile[];
-        if (rows[0]) profile = rows[0];
-      }
+      profile = await fetchProfile(`email=eq.${encodeURIComponent(emailIn)}`);
     }
 
     if (!profile) {
@@ -88,33 +106,23 @@ export async function POST(req: Request) {
       );
     }
 
-    const verifyRes = await fetch(`${base}/rest/v1/rpc/verify_pin`, {
-      method: 'POST',
-      headers: {
-        apikey: serviceKey,
-        Authorization: `Bearer ${serviceKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ plain: pin, hashed: storedHash }),
-    });
-
+    // Verify PIN — try both PostgREST param styles
     let pinOk = false;
-    if (verifyRes.ok) {
-      const result = await verifyRes.json();
-      pinOk = result === true;
-    } else {
-      const alt = await fetch(`${base}/rest/v1/rpc/verify_pin`, {
+    for (const payload of [
+      { plain: pin, hashed: storedHash },
+      { p_plain: pin, p_hashed: storedHash },
+    ]) {
+      const verifyRes = await fetch(`${base}/rest/v1/rpc/verify_pin`, {
         method: 'POST',
-        headers: {
-          apikey: serviceKey,
-          Authorization: `Bearer ${serviceKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ p_plain: pin, p_hashed: storedHash }),
+        headers: { ...hdr, 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
       });
-      if (alt.ok) {
-        const result = await alt.json();
-        pinOk = result === true;
+      if (verifyRes.ok) {
+        const result = await verifyRes.json();
+        if (result === true) {
+          pinOk = true;
+          break;
+        }
       }
     }
 
@@ -125,7 +133,7 @@ export async function POST(req: Request) {
     let email = (profile.email || emailIn || '').trim().toLowerCase();
     if (!email) {
       const userRes = await fetch(`${base}/auth/v1/admin/users/${profile.id}`, {
-        headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` },
+        headers: hdr,
         cache: 'no-store',
       });
       if (userRes.ok) {
@@ -143,11 +151,7 @@ export async function POST(req: Request) {
 
     const linkRes = await fetch(`${base}/auth/v1/admin/generate_link`, {
       method: 'POST',
-      headers: {
-        apikey: serviceKey,
-        Authorization: `Bearer ${serviceKey}`,
-        'Content-Type': 'application/json',
-      },
+      headers: { ...hdr, 'Content-Type': 'application/json' },
       body: JSON.stringify({ type: 'magiclink', email }),
     });
 
@@ -204,10 +208,7 @@ export async function POST(req: Request) {
     try {
       const wRes = await fetch(
         `${base}/rest/v1/wallets?user_id=eq.${profile.id}&select=balance_ngn,balance_usd&limit=1`,
-        {
-          headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` },
-          cache: 'no-store',
-        },
+        { headers: hdr, cache: 'no-store' },
       );
       if (wRes.ok) {
         const rows = (await wRes.json()) as Array<{ balance_ngn?: number; balance_usd?: number }>;
