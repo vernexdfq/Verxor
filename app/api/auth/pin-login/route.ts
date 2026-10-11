@@ -2,6 +2,10 @@ import { NextResponse } from 'next/server';
 
 /**
  * Primex-style login: phone OR email + 4-digit PIN → session tokens.
+ * Verification order:
+ *  1) public.check_pin(user_id, pin)  — preferred, runs crypt() in DB
+ *  2) public.verify_pin(plain, hashed)
+ *  3) legacy plain 4-digit stored as hash
  */
 export async function POST(req: Request) {
   try {
@@ -108,12 +112,26 @@ export async function POST(req: Request) {
 
     let pinOk = false;
 
-    // 1) Legacy: plain 4-digit stored as the hash itself
-    if (storedHash === pin || (storedHash.length === 4 && /^\d{4}$/.test(storedHash) && storedHash === pin)) {
+    // 1) Preferred: check_pin(user_id, pin) — runs crypt() against the row in DB
+    try {
+      const checkRes = await fetch(`${base}/rest/v1/rpc/check_pin`, {
+        method: 'POST',
+        headers: { ...hdr, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ p_id: profile.id, p_pin: pin }),
+      });
+      if (checkRes.ok && truthy(await checkRes.json())) {
+        pinOk = true;
+      }
+    } catch {
+      /* RPC may not exist yet */
+    }
+
+    // 2) Legacy: plain 4-digit stored as the hash itself
+    if (!pinOk && (storedHash === pin || (storedHash.length === 4 && /^\d{4}$/.test(storedHash) && storedHash === pin))) {
       pinOk = true;
     }
 
-    // 2) RPC verify_pin (both param styles)
+    // 3) RPC verify_pin (both param styles)
     if (!pinOk) {
       for (const payload of [
         { plain: pin, hashed: storedHash },
@@ -125,12 +143,9 @@ export async function POST(req: Request) {
             headers: { ...hdr, 'Content-Type': 'application/json' },
             body: JSON.stringify(payload),
           });
-          if (verifyRes.ok) {
-            const result = await verifyRes.json();
-            if (truthy(result)) {
-              pinOk = true;
-              break;
-            }
+          if (verifyRes.ok && truthy(await verifyRes.json())) {
+            pinOk = true;
+            break;
           }
         } catch {
           /* try next */
@@ -138,26 +153,11 @@ export async function POST(req: Request) {
       }
     }
 
-    // 3) Direct crypt via RPC hash comparison using extensions
-    if (!pinOk && storedHash.startsWith('$2')) {
-      try {
-        // crypt(plain, stored) should equal stored for bcrypt
-        const cryptRes = await fetch(`${base}/rest/v1/rpc/verify_pin`, {
-          method: 'POST',
-          headers: { ...hdr, 'Content-Type': 'application/json', Prefer: 'params=single-object' },
-          body: JSON.stringify({ plain: pin, hashed: storedHash }),
-        });
-        if (cryptRes.ok && truthy(await cryptRes.json())) pinOk = true;
-      } catch {
-        /* ignore */
-      }
-    }
-
     if (!pinOk) {
       return NextResponse.json({ error: 'Incorrect PIN' }, { status: 401 });
     }
 
-    // If we matched a legacy plain PIN, upgrade to bcrypt hash
+    // Upgrade legacy plain PIN to bcrypt
     if (storedHash === pin || (storedHash.length === 4 && /^\d{4}$/.test(storedHash))) {
       try {
         const hashRes = await fetch(`${base}/rest/v1/rpc/hash_pin`, {
@@ -175,7 +175,11 @@ export async function POST(req: Request) {
                 'Content-Type': 'application/json',
                 Prefer: 'return=minimal',
               },
-              body: JSON.stringify({ pin_hash: newHash, tx_pin_hash: newHash, updated_at: new Date().toISOString() }),
+              body: JSON.stringify({
+                pin_hash: newHash,
+                tx_pin_hash: newHash,
+                updated_at: new Date().toISOString(),
+              }),
             });
           }
         }
