@@ -26,6 +26,12 @@ import { SecurityPage } from './security-page';
 import { AdminPage } from './admin-page';
 import { AuthFlow, type AuthSession } from './auth/AuthFlow';
 import { signOutAuth, supabaseAuthEnabled } from '../lib/supabase/auth';
+import {
+  clearSessionUnlock,
+  loadSessionProfile,
+  loadSessionTokens,
+  isSessionUnlocked,
+} from './auth/session-unlock';
 import type { Page } from './types';
 
 type NavState = {
@@ -111,8 +117,10 @@ export function VerxorApp() {
     setService(null);
   }, []);
 
+  // Restore soft session on first paint (refresh stays inside the app).
   useEffect(() => {
     if (typeof window === 'undefined') return;
+
     const params = new URLSearchParams(window.location.search);
     if (params.get('admin') === '1') {
       setAdmin(true);
@@ -125,6 +133,82 @@ export function VerxorApp() {
         /* ignore */
       }
     }
+
+    let forceSignin = false;
+    try {
+      forceSignin = sessionStorage.getItem('verxor-force-signin') === '1';
+      if (forceSignin) {
+        sessionStorage.removeItem('verxor-force-signin');
+        clearSessionUnlock();
+      }
+    } catch {
+      /* ignore */
+    }
+
+    if (!forceSignin && isSessionUnlocked()) {
+      const profile = loadSessionProfile();
+      if (profile) {
+        setAuth({
+          authenticated: true,
+          method: profile.method || 'phone',
+          contact: profile.contact,
+          name: profile.name,
+          pin: '',
+          password: '',
+          email: profile.email || '',
+          phoneCountry: profile.phoneCountry || 'NG',
+          dialCode: profile.dialCode || '234',
+          homeCurrency: profile.homeCurrency || 'NGN',
+          vtuEligible: profile.vtuEligible ?? true,
+          balanceNgn: profile.balanceNgn ?? 0,
+          balanceUsd: profile.balanceUsd ?? 0,
+        });
+
+        // Best-effort restore Supabase client session from stored tokens
+        const tokens = loadSessionTokens();
+        if (tokens?.access_token && tokens?.refresh_token && supabaseAuthEnabled()) {
+          void (async () => {
+            try {
+              const { getSupabaseBrowser } = await import('../lib/supabase/client');
+              const sb = getSupabaseBrowser();
+              if (sb) {
+                await sb.auth.setSession({
+                  access_token: tokens.access_token!,
+                  refresh_token: tokens.refresh_token!,
+                });
+              }
+            } catch {
+              /* ignore */
+            }
+          })();
+        }
+
+        // Restore last in-app page
+        try {
+          const raw = sessionStorage.getItem('verxor-nav');
+          if (raw) {
+            const restored = readNavState(JSON.parse(raw));
+            if (restored) {
+              setPage(restored.page);
+              setService(restored.service);
+              skipPushRef.current = true;
+              try {
+                window.history.replaceState(
+                  restored,
+                  '',
+                  window.location.pathname + window.location.search,
+                );
+              } catch {
+                /* ignore */
+              }
+            }
+          }
+        } catch {
+          /* ignore */
+        }
+      }
+    }
+
     setAuthReady(true);
   }, []);
 
@@ -149,7 +233,6 @@ export function VerxorApp() {
       balanceNgn: s.balanceNgn ?? 0,
       balanceUsd: s.balanceUsd ?? 0,
     });
-    // Restore last in-app page after refresh so users stay where they were.
     try {
       const raw = sessionStorage.getItem('verxor-nav');
       if (raw) {
@@ -177,11 +260,11 @@ export function VerxorApp() {
   const handleLogout = useCallback(() => {
     try {
       sessionStorage.setItem('verxor-force-signin', '1');
-      sessionStorage.removeItem('verxor-session-unlock');
       sessionStorage.removeItem('verxor-nav');
     } catch {
       /* ignore */
     }
+    clearSessionUnlock();
     if (supabaseAuthEnabled()) {
       void signOutAuth();
     }
