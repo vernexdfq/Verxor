@@ -12,6 +12,7 @@ import {
   Zap,
 } from 'lucide-react';
 import './data-page.css';
+import type { AuthSession } from './auth/AuthFlow';
 
 type NetworkId = 'mtn' | 'airtel' | 'glo' | '9mobile';
 
@@ -40,7 +41,6 @@ const NETWORKS: Network[] = [
 ];
 
 const MY_NUMBER = '08141620644';
-const WALLET_BALANCE = 7570;
 
 function detectNetwork(raw: string): NetworkId | null {
   let clean = raw.replace(/\D/g, '');
@@ -141,7 +141,8 @@ function NetworkLogo({ id, size = 28 }: { id: NetworkId; size?: number }) {
   }
 }
 
-export function DataPage({ onBack }: { onBack: () => void }) {
+export function DataPage({ onBack, session }: { onBack: () => void; session?: AuthSession | null }) {
+  const walletBalance = session?.balanceNgn ?? 0;
   const [networkId, setNetworkId] = useState<NetworkId>('mtn');
   const [planType, setPlanType] = useState<string>('SME');
   const [selectedPlanId, setSelectedPlanId] = useState<number | null>(null);
@@ -230,7 +231,7 @@ export function DataPage({ onBack }: { onBack: () => void }) {
   const phoneDigits = formatPhone(phone);
   const phoneValid = /^0[7-9]\d{9}$/.test(phoneDigits);
   const price = selectedPlan?.price ?? 0;
-  const insufficient = price > 0 && price > WALLET_BALANCE;
+  const insufficient = price > 0 && price > walletBalance;
   const formReady = phoneValid && !!selectedPlan;
 
   useEffect(() => {
@@ -331,7 +332,7 @@ export function DataPage({ onBack }: { onBack: () => void }) {
       <section className="data-balance-card" aria-label="Wallet balance">
         <div className="data-balance-left">
           <span className="data-balance-label">Wallet Balance</span>
-          <strong className="data-balance-amount">{moneyFull(WALLET_BALANCE)}</strong>
+          <strong className="data-balance-amount">{moneyFull(walletBalance)}</strong>
           <button type="button" className="data-quick-topup" onClick={handleFund}>
             <Zap size={12} strokeWidth={2.5} /> Quick Topup
           </button>
@@ -494,7 +495,7 @@ export function DataPage({ onBack }: { onBack: () => void }) {
           <strong>{moneyFull(price)}</strong>
           {insufficient && (
             <p className="data-summary-warn">
-              Insufficient balance · Wallet {moneyFull(WALLET_BALANCE)}
+              Insufficient balance · Wallet {moneyFull(walletBalance)}
             </p>
           )}
         </div>
