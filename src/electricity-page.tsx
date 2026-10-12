@@ -38,7 +38,6 @@ const DISCOS: Disco[] = [
 
 const QUICK_AMOUNTS = [1000, 2000, 5000, 10000];
 const MIN_AMOUNT = 1000;
-const WALLET_BALANCE = 7570;
 
 function money(n: number) {
   return '\u20a6' + n.toLocaleString('en-NG');
@@ -48,7 +47,8 @@ function moneyFull(n: number) {
   return '\u20a6' + n.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-export function ElectricityPage({ onBack }: { onBack: () => void }) {
+export function ElectricityPage({ onBack, balanceNgn = 0 }: { onBack: () => void; balanceNgn?: number }) {
+  const WALLET_BALANCE = balanceNgn;
   const [discoId, setDiscoId] = useState('ikeja');
   const [discoOpen, setDiscoOpen] = useState(false);
   const [meterType, setMeterType] = useState<MeterType>('prepaid');
@@ -145,7 +145,6 @@ export function ElectricityPage({ onBack }: { onBack: () => void }) {
         </div>
       </section>
 
-      {/* Provider Details */}
       <section className="elec-block">
         <div className="elec-block-head">
           <span className="elec-block-ico">
@@ -230,7 +229,6 @@ export function ElectricityPage({ onBack }: { onBack: () => void }) {
         </div>
       </section>
 
-      {/* Meter Verification */}
       <section className="elec-block">
         <div className="elec-block-head">
           <span className="elec-block-ico elec-block-ico-green">
@@ -305,7 +303,6 @@ export function ElectricityPage({ onBack }: { onBack: () => void }) {
         </button>
       </section>
 
-      {/* Payment Amount */}
       <section className="elec-block">
         <div className="elec-block-head">
           <span className="elec-block-ico">
