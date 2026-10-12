@@ -300,18 +300,19 @@ export function VerxorApp() {
   } else if (service === 'virtual-numbers') {
     content = (
       <VirtualNumbersPage
+        session={auth}
         onBack={closeService}
         onOpenNotifications={() => openService('alerts')}
       />
     );
   } else if (service === 'accounts') {
-    content = <AccountsPage onBack={closeService} />;
+    content = <AccountsPage onBack={closeService} session={auth} />;
   } else if (service === 'boost') {
-    content = <BoostPage onBack={closeService} />;
+    content = <BoostPage onBack={closeService} session={auth} />;
   } else if (service === 'airtime') {
-    content = <AirtimePage onBack={closeService} />;
+    content = <AirtimePage onBack={closeService} session={auth} />;
   } else if (service === 'data') {
-    content = <DataPage onBack={closeService} />;
+    content = <DataPage onBack={closeService} session={auth} />;
   } else if (service === 'gift-card') {
     content = <GiftCardPage onBack={closeService} />;
   } else if (service === 'tv-cable') {
