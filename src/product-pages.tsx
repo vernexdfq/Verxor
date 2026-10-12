@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { Card, PrimaryButton } from './components/ui';
 import './product-pages.css';
+import type { AuthSession } from './auth/AuthFlow';
 
 /**
  * Buy Accounts & Logs — Verxor marketplace
@@ -498,7 +499,6 @@ const CATALOG: AccountProduct[] = [
 
 const money = (value: number) => `₦${value.toLocaleString('en-NG')}`;
 
-const WALLET_BALANCE = 7570;
 
 /** Official-style brand mark (inline SVG, brand colors) */
 function BrandLogo({ platform, size = 36 }: { platform: string; size?: number }) {
@@ -655,7 +655,8 @@ function platformKey(p: string) {
   return p;
 }
 
-export function AccountsPage({ onBack }: { onBack: () => void }) {
+export function AccountsPage({ onBack, session }: { onBack: () => void; session?: AuthSession | null }) {
+  const walletBalance = session?.balanceNgn ?? 0;
   const [query, setQuery] = useState('');
   const [platform, setPlatform] = useState<string>('All');
   const [selected, setSelected] = useState<AccountProduct | null>(null);
@@ -709,7 +710,7 @@ export function AccountsPage({ onBack }: { onBack: () => void }) {
         </div>
         <div className="accounts-wallet-badge" aria-label="Wallet balance">
           <Wallet size={14} />
-          <span>{money(WALLET_BALANCE)}</span>
+          <span>{money(walletBalance)}</span>
         </div>
       </header>
 
@@ -823,7 +824,7 @@ export function AccountsPage({ onBack }: { onBack: () => void }) {
       {selected && (
         <AccountDetail
           product={selected}
-          wallet={WALLET_BALANCE}
+          wallet={walletBalance}
           onClose={() => setSelected(null)}
           onCheckoutBlocked={(msg) => setToast(msg)}
         />
