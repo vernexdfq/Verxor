@@ -302,22 +302,23 @@ export function VerxorApp() {
       <VirtualNumbersPage
         onBack={closeService}
         onOpenNotifications={() => openService('alerts')}
+        balanceNgn={auth.balanceNgn ?? 0}
       />
     );
   } else if (service === 'accounts') {
-    content = <AccountsPage onBack={closeService} />;
+    content = <AccountsPage onBack={closeService} balanceNgn={auth.balanceNgn ?? 0} />;
   } else if (service === 'boost') {
-    content = <BoostPage onBack={closeService} />;
+    content = <BoostPage onBack={closeService} balanceNgn={auth.balanceNgn ?? 0} />;
   } else if (service === 'airtime') {
-    content = <AirtimePage onBack={closeService} />;
+    content = <AirtimePage onBack={closeService} balanceNgn={auth.balanceNgn ?? 0} />;
   } else if (service === 'data') {
-    content = <DataPage onBack={closeService} />;
+    content = <DataPage onBack={closeService} balanceNgn={auth.balanceNgn ?? 0} />;
   } else if (service === 'gift-card') {
     content = <GiftCardPage onBack={closeService} />;
   } else if (service === 'tv-cable') {
     content = <TvPage onBack={closeService} />;
   } else if (service === 'electricity') {
-    content = <ElectricityPage onBack={closeService} />;
+    content = <ElectricityPage onBack={closeService} balanceNgn={auth.balanceNgn ?? 0} />;
   } else if (service === 'esim') {
     content = <EsimPage onBack={closeService} />;
   } else if (service === 'bet-wallet') {
