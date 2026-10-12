@@ -33,8 +33,6 @@ const QUICK_AMOUNTS = [100, 200, 500, 1000, 2000, 5000];
 
 /** Session user phone (profile). Replace with auth context when wired. */
 const MY_NUMBER = '08141620644';
-const WALLET_BALANCE = 7570;
-
 /** Complete Nigerian mobile prefixes (incl. newer 091x series). */
 const NIGERIAN_PREFIXES: Record<NetworkId, string[]> = {
   mtn: [
@@ -167,7 +165,8 @@ function NetworkLogo({ id, size = 28 }: { id: NetworkId; size?: number }) {
   }
 }
 
-export function AirtimePage({ onBack }: { onBack: () => void }) {
+export function AirtimePage({ onBack, balanceNgn = 0 }: { onBack: () => void; balanceNgn?: number }) {
+  const WALLET_BALANCE = balanceNgn;
   const [networkId, setNetworkId] = useState<NetworkId | ''>('');
   const [phone, setPhone] = useState('');
   const [amountStr, setAmountStr] = useState('');
