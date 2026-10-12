@@ -164,7 +164,6 @@ export function VerxorApp() {
           balanceUsd: profile.balanceUsd ?? 0,
         });
 
-        // Best-effort restore Supabase client session from stored tokens
         const tokens = loadSessionTokens();
         if (tokens?.access_token && tokens?.refresh_token && supabaseAuthEnabled()) {
           void (async () => {
@@ -183,7 +182,6 @@ export function VerxorApp() {
           })();
         }
 
-        // Restore last in-app page
         try {
           const raw = sessionStorage.getItem('verxor-nav');
           if (raw) {
@@ -306,9 +304,9 @@ export function VerxorApp() {
       />
     );
   } else if (service === 'accounts') {
-    content = <AccountsPage onBack={closeService} balanceNgn={auth.balanceNgn ?? 0} />;
+    content = <AccountsPage onBack={closeService} />;
   } else if (service === 'boost') {
-    content = <BoostPage onBack={closeService} balanceNgn={auth.balanceNgn ?? 0} />;
+    content = <BoostPage onBack={closeService} />;
   } else if (service === 'airtime') {
     content = <AirtimePage onBack={closeService} balanceNgn={auth.balanceNgn ?? 0} />;
   } else if (service === 'data') {
@@ -318,7 +316,7 @@ export function VerxorApp() {
   } else if (service === 'tv-cable') {
     content = <TvPage onBack={closeService} />;
   } else if (service === 'electricity') {
-    content = <ElectricityPage onBack={closeService} balanceNgn={auth.balanceNgn ?? 0} />;
+    content = <ElectricityPage onBack={closeService} />;
   } else if (service === 'esim') {
     content = <EsimPage onBack={closeService} />;
   } else if (service === 'bet-wallet') {
