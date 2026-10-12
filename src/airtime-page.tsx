@@ -12,6 +12,7 @@ import {
   Zap,
 } from 'lucide-react';
 import './airtime-page.css';
+import type { AuthSession } from './auth/AuthFlow';
 
 type NetworkId = 'mtn' | 'airtel' | 'glo' | '9mobile';
 
@@ -33,7 +34,6 @@ const QUICK_AMOUNTS = [100, 200, 500, 1000, 2000, 5000];
 
 /** Session user phone (profile). Replace with auth context when wired. */
 const MY_NUMBER = '08141620644';
-const WALLET_BALANCE = 7570;
 
 /** Complete Nigerian mobile prefixes (incl. newer 091x series). */
 const NIGERIAN_PREFIXES: Record<NetworkId, string[]> = {
@@ -167,7 +167,8 @@ function NetworkLogo({ id, size = 28 }: { id: NetworkId; size?: number }) {
   }
 }
 
-export function AirtimePage({ onBack }: { onBack: () => void }) {
+export function AirtimePage({ onBack, session }: { onBack: () => void; session?: AuthSession | null }) {
+  const walletBalance = session?.balanceNgn ?? 0;
   const [networkId, setNetworkId] = useState<NetworkId | ''>('');
   const [phone, setPhone] = useState('');
   const [amountStr, setAmountStr] = useState('');
@@ -183,7 +184,7 @@ export function AirtimePage({ onBack }: { onBack: () => void }) {
   const phoneDigits = normalizePhone(phone);
   const phoneValid = /^0[7-9]\d{9}$/.test(phoneDigits);
 
-  const insufficient = amount > 0 && amount > WALLET_BALANCE;
+  const insufficient = amount > 0 && amount > walletBalance;
   const formReady = !!networkId && phoneValid && amount >= 100 && amount <= 50000;
 
   const showToast = useCallback((msg: string) => {
@@ -303,7 +304,7 @@ export function AirtimePage({ onBack }: { onBack: () => void }) {
       <section className="air-balance-card" aria-label="Wallet balance">
         <div className="air-balance-left">
           <span className="air-balance-label">Wallet Balance</span>
-          <strong className="air-balance-amount">{moneyFull(WALLET_BALANCE)}</strong>
+          <strong className="air-balance-amount">{moneyFull(walletBalance)}</strong>
           <button type="button" className="air-quick-topup" onClick={handleFund}>
             <Zap size={12} strokeWidth={2.5} /> Quick Topup
           </button>
@@ -438,7 +439,7 @@ export function AirtimePage({ onBack }: { onBack: () => void }) {
           <strong>{moneyFull(amount)}</strong>
           {insufficient && (
             <p className="air-summary-warn">
-              Insufficient balance · Wallet {moneyFull(WALLET_BALANCE)}
+              Insufficient balance · Wallet {moneyFull(walletBalance)}
             </p>
           )}
         </div>
