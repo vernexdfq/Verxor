@@ -19,6 +19,7 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import './boost-page.css';
+import type { AuthSession } from './auth/AuthFlow';
 
 type PlatformId =
   | 'tiktok'
@@ -101,7 +102,6 @@ const CATEGORY_CHIPS: { id: PlatformId; label: string }[] = [
   { id: 'audiomack', label: 'Audiomack Plays' },
 ];
 
-const WALLET_BALANCE = 0.27;
 
 function money(n: number) {
   return '\u20a6' + n.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -229,7 +229,8 @@ const STATUS_META: Record<OrderStatus, { label: string; className: string }> = {
   canceled: { label: 'Canceled', className: 'st-canceled' },
 };
 
-export function BoostPage({ onBack }: { onBack: () => void }) {
+export function BoostPage({ onBack, session }: { onBack: () => void; session?: AuthSession | null }) {
+  const walletBalance = session?.balanceNgn ?? 0;
   const [categoryId, setCategoryId] = useState<PlatformId | ''>('');
   const [serviceId, setServiceId] = useState('');
   const [link, setLink] = useState('');
@@ -281,7 +282,7 @@ export function BoostPage({ onBack }: { onBack: () => void }) {
   const qtyOutOfRange =
     selected && qtyValid ? qtyNum < selected.min || qtyNum > selected.max : false;
 
-  const insufficient = total > 0 && total > WALLET_BALANCE;
+  const insufficient = total > 0 && total > walletBalance;
   const formReady =
     !!selected && !!link.trim() && qtyValid && !qtyOutOfRange && !linkMismatch && total > 0;
 
@@ -373,7 +374,7 @@ export function BoostPage({ onBack }: { onBack: () => void }) {
         <h1 className="boost-title">Boost Account</h1>
         <span className="boost-balance-pill" aria-label="Wallet balance">
           <Wallet size={13} strokeWidth={2.4} />
-          {money(WALLET_BALANCE)}
+          {money(walletBalance)}
         </span>
       </header>
 
@@ -492,7 +493,7 @@ export function BoostPage({ onBack }: { onBack: () => void }) {
               </p>
             ) : null}
             <p className="boost-total-wallet">
-              Wallet Balance: <span>{money(WALLET_BALANCE)}</span>
+              Wallet Balance: <span>{money(walletBalance)}</span>
             </p>
           </div>
           <div className="boost-total-art" aria-hidden>
