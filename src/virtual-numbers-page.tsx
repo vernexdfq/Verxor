@@ -15,6 +15,7 @@ import {
   Zap,
 } from 'lucide-react';
 import './virtual-numbers-page.css';
+import type { AuthSession } from './auth/AuthFlow';
 import {
   type CustomerNumberOrder,
   type Pool,
@@ -45,10 +46,12 @@ export function VirtualNumbersPage({
   onBack,
   onOpenNotifications: _onOpenNotifications,
   orders: externalOrders = [],
+  session,
 }: {
   onBack: () => void;
   onOpenNotifications: () => void;
   orders?: CustomerNumberOrder[];
+  session?: AuthSession | null;
 }) {
   const [step, setStep] = useState<Step>('pools');
   const [selectedPool, setSelectedPool] = useState<Pool | null>(null);
@@ -58,7 +61,7 @@ export function VirtualNumbersPage({
   const [serviceQuery, setServiceQuery] = useState('');
   const [countryQuery, setCountryQuery] = useState('');
   const [promoIndex, setPromoIndex] = useState(0);
-  const [balance] = useState(7570);
+  const balance = session?.balanceNgn ?? 0;
   const [localOrders, setLocalOrders] = useState<CustomerNumberOrder[]>(() => {
     if (externalOrders && externalOrders.length > 0) return externalOrders;
     if (typeof window === 'undefined') return [];
