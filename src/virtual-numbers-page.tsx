@@ -45,10 +45,12 @@ export function VirtualNumbersPage({
   onBack,
   onOpenNotifications: _onOpenNotifications,
   orders: externalOrders = [],
+  balanceNgn = 0,
 }: {
   onBack: () => void;
   onOpenNotifications: () => void;
   orders?: CustomerNumberOrder[];
+  balanceNgn?: number;
 }) {
   const [step, setStep] = useState<Step>('pools');
   const [selectedPool, setSelectedPool] = useState<Pool | null>(null);
@@ -58,7 +60,7 @@ export function VirtualNumbersPage({
   const [serviceQuery, setServiceQuery] = useState('');
   const [countryQuery, setCountryQuery] = useState('');
   const [promoIndex, setPromoIndex] = useState(0);
-  const [balance] = useState(7570);
+  const balance = balanceNgn;
   const [localOrders, setLocalOrders] = useState<CustomerNumberOrder[]>(() => {
     if (externalOrders && externalOrders.length > 0) return externalOrders;
     if (typeof window === 'undefined') return [];
@@ -94,7 +96,6 @@ export function VirtualNumbersPage({
     return () => clearInterval(t);
   }, []);
 
-  // Persist orders so refresh keeps waiting / received numbers.
   useEffect(() => {
     if (typeof window === 'undefined') return;
     try {
@@ -109,7 +110,6 @@ export function VirtualNumbersPage({
     return () => clearInterval(t);
   }, []);
 
-  // Auto-cancel waiting orders whose big timer expired
   useEffect(() => {
     const now = Date.now();
     const hasExpired = localOrders.some((o) => o.status === 'waiting' && o.expiresAt <= now);
@@ -125,7 +125,6 @@ export function VirtualNumbersPage({
     [localOrders],
   );
 
-  // Only the single latest waiting/received order on the pools page strip
   const previewOrders = useMemo(
     () => visibleOrders.filter((o) => o.status === 'waiting' || o.status === 'received').slice(0, 1),
     [visibleOrders],
@@ -558,115 +557,22 @@ export function VirtualNumbersPage({
               <div className="vn-sms-row">
                 <span>SMS code</span>
                 <strong>{inboxOrder.otp}</strong>
-                <button
-                  type="button"
-                  className="vn-copy-icon"
-                  onClick={() => copyText(inboxOrder.otp!, 'Code copied')}
-                >
+                <button type="button" className="vn-copy-icon" onClick={() => copyText(inboxOrder.otp!, 'Code copied')} aria-label="Copy code">
                   <Copy size={14} />
                 </button>
               </div>
             ) : (
-              <div className="vn-waiting">
-                <Radio size={18} />
-                <span>Waiting for SMS… {formatTimer(inboxOrder.expiresAt - now)}</span>
-              </div>
+              <div className="vn-empty">Waiting for SMS...</div>
             )}
           </div>
         </div>
       )}
 
-      {priceSheet?.open && (
-        <div className="vn-sheet-backdrop" onClick={() => setPriceSheet(null)}>
-          <div className="vn-sheet" onClick={(e) => e.stopPropagation()}>
-            <div className="vn-sheet-head">
-              <strong>
-                {priceSheet.service.name} · {priceSheet.country.name}
-              </strong>
-              <button type="button" onClick={() => setPriceSheet(null)} aria-label="Close">
-                <X size={16} />
-              </button>
-            </div>
-            <p className="vn-sheet-sub">{priceSheet.pool.title} — choose a provider</p>
-            <div className="vn-price-options">
-              {priceSheet.options.map((opt) => (
-                <button
-                  key={opt.id}
-                  type="button"
-                  className="vn-price-option"
-                  onClick={() => openConfirm(opt)}
-                >
-                  <span>{opt.provider}</span>
-                  <strong>
-                    {formatNgn(opt.priceNgn)}{' '}
-                    <small style={{ fontWeight: 500, color: '#64748b' }}>({formatUsd(opt.priceUsd)})</small>
-                  </strong>
-                  <small>{opt.stock.toLocaleString()} in stock</small>
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {confirmSheet && (
-        <div className="vn-sheet-backdrop" onClick={() => setConfirmSheet(null)}>
-          <div className="vn-sheet" onClick={(e) => e.stopPropagation()}>
-            <div className="vn-sheet-head">
-              <strong>Confirm purchase</strong>
-              <button type="button" onClick={() => setConfirmSheet(null)} aria-label="Close">
-                <X size={16} />
-              </button>
-            </div>
-            <p className="vn-sheet-sub">
-              {confirmSheet.service.name} · {confirmSheet.country.name} · {confirmSheet.pool.title}
-            </p>
-            <div className="vn-confirm-price">{formatNgn(confirmSheet.option.priceNgn)}</div>
-            <button type="button" className="vn-confirm-btn" onClick={confirmPurchase}>
-              Buy number
-            </button>
-          </div>
-        </div>
-      )}
-
       {copyToast && (
-        <div className="vn-copy-modal" onClick={() => setCopyToast(null)}>
-          <div className="vn-copy-modal-card" onClick={(e) => e.stopPropagation()}>
-            <strong>{copyToast}</strong>
-            <button type="button" onClick={() => setCopyToast(null)}>
-              OK
-            </button>
-          </div>
-        </div>
-      )}
-
-      {aboutOpen && (
-        <div className="vn-sheet-backdrop" onClick={() => setAboutOpen(false)}>
-          <div className="vn-sheet" onClick={(e) => e.stopPropagation()}>
-            <div className="vn-sheet-head">
-              <strong>About SMS delivery</strong>
-              <button type="button" onClick={() => setAboutOpen(false)} aria-label="Close">
-                <X size={16} />
-              </button>
-            </div>
-            <div className="vn-about-body">
-              <p>
-                After you buy a number, the SMS code usually arrives within 1–3 minutes. A short lock
-                period protects the activation so the number is not cancelled too early.
-              </p>
-              <p>
-                Once the small timer ends you can cancel if no code has arrived. If the big lifetime
-                timer reaches zero and no SMS was received, the order is automatically cancelled and
-                removed.
-              </p>
-              <p>
-                When a code arrives both timers disappear, the status becomes Received, and you can
-                copy the code. Cancelled numbers are not kept in your order history.
-              </p>
-            </div>
-          </div>
-        </div>
+        <div className="vn-toast" role="status">{copyToast}</div>
       )}
     </div>
   );
 }
+
+export default VirtualNumbersPage;
