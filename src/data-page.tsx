@@ -40,8 +40,6 @@ const NETWORKS: Network[] = [
 ];
 
 const MY_NUMBER = '08141620644';
-const WALLET_BALANCE = 7570;
-
 function detectNetwork(raw: string): NetworkId | null {
   let clean = raw.replace(/\D/g, '');
   if (clean.startsWith('234')) clean = '0' + clean.slice(3);
@@ -141,7 +139,8 @@ function NetworkLogo({ id, size = 28 }: { id: NetworkId; size?: number }) {
   }
 }
 
-export function DataPage({ onBack }: { onBack: () => void }) {
+export function DataPage({ onBack, balanceNgn = 0 }: { onBack: () => void; balanceNgn?: number }) {
+  const WALLET_BALANCE = balanceNgn;
   const [networkId, setNetworkId] = useState<NetworkId>('mtn');
   const [planType, setPlanType] = useState<string>('SME');
   const [selectedPlanId, setSelectedPlanId] = useState<number | null>(null);
