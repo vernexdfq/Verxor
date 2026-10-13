@@ -45,9 +45,6 @@ export async function POST(req: Request) {
     }
 
     const cfg = getWebAuthnConfig();
-
-    // Look up only the credential presented by the authenticator. Do not load
-    // every user's credential records into an unauthenticated login request.
     const matches = await sbRequest<any[]>(
       `webauthn_credentials?credential_id=eq.${encodeURIComponent(rawId)}&select=id,user_id,credential_id,public_key,counter,transports,device_label&limit=1`,
     );
@@ -78,18 +75,19 @@ export async function POST(req: Request) {
     );
     if (!updated.length) throw new Error('CREDENTIAL_UPDATE_FAILED');
 
-    const c = {
-      base: (process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '').replace(/\\/rest\\/v1\\/?$/, '').replace(/\\/$/, ''),
-      key: process.env.SUPABASE_SERVICE_ROLE_KEY || '',
-      anon: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || '',
-    };
+    const base = (process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '')
+      .replace(/\/rest\/v1\/?$/, '')
+      .replace(/\/$/, '');
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || '';
+
     const profiles = await sbRequest<any[]>(
       `profiles?id=eq.${encodeURIComponent(stored.user_id)}&select=id,email,phone,full_name,country_code&limit=1`,
     );
     const profile = profiles[0];
-    if (!profile?.email || !c.base || !c.key || !c.anon) throw new Error('PROFILE_OR_AUTH_CONFIG_MISSING');
+    if (!profile?.email || !base || !serviceKey || !anonKey) throw new Error('PROFILE_OR_AUTH_CONFIG_MISSING');
 
-    const session = await issueSession(c.base, c.key, c.anon, profile.email);
+    const session = await issueSession(base, serviceKey, anonKey, profile.email);
     const wallets = await sbRequest<any[]>(
       `wallets?user_id=eq.${encodeURIComponent(profile.id)}&select=balance_ngn,balance_usd&limit=1`,
     );
