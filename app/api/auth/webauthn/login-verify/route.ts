@@ -80,14 +80,25 @@ export async function POST(req: Request) {
       .replace(/\/$/, '');
     const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
     const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || '';
+    if (!base || !serviceKey || !anonKey) throw new Error('PROFILE_OR_AUTH_CONFIG_MISSING');
+
+    // Resolve the account through Supabase Auth by the credential's user ID.
+    // Do not issue a session solely from a possibly stale profiles.email field.
+    const authUserResponse = await fetch(
+      `${base}/auth/v1/admin/users/${encodeURIComponent(stored.user_id)}`,
+      { headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` }, cache: 'no-store' },
+    );
+    if (!authUserResponse.ok) throw new Error('AUTH_USER_LOOKUP_FAILED');
+    const authUser = await authUserResponse.json() as { id?: string; email?: string };
+    if (authUser.id !== stored.user_id || !authUser.email) throw new Error('AUTH_USER_MISMATCH');
 
     const profiles = await sbRequest<any[]>(
       `profiles?id=eq.${encodeURIComponent(stored.user_id)}&select=id,email,phone,full_name,country_code&limit=1`,
     );
     const profile = profiles[0];
-    if (!profile?.email || !base || !serviceKey || !anonKey) throw new Error('PROFILE_OR_AUTH_CONFIG_MISSING');
+    if (!profile?.id || profile.id !== authUser.id) throw new Error('PROFILE_OR_AUTH_CONFIG_MISSING');
 
-    const session = await issueSession(base, serviceKey, anonKey, profile.email);
+    const session = await issueSession(base, serviceKey, anonKey, authUser.email);
     const wallets = await sbRequest<any[]>(
       `wallets?user_id=eq.${encodeURIComponent(profile.id)}&select=balance_ngn,balance_usd&limit=1`,
     );
@@ -95,13 +106,13 @@ export async function POST(req: Request) {
       ok: true,
       access_token: session.access_token,
       refresh_token: session.refresh_token,
-      email: profile.email,
+      email: authUser.email,
       phone: profile.phone || null,
       fullName: profile.full_name || '',
       phoneCountry: profile.country_code || 'NG',
       balanceNgn: Number(wallets[0]?.balance_ngn) || 0,
       balanceUsd: Number(wallets[0]?.balance_usd) || 0,
-      userId: profile.id,
+      userId: authUser.id,
     });
   } catch (error) {
     if (error instanceof Error && error.message === 'WEBAUTHN_NOT_CONFIGURED') return webauthnConfigResponse();
