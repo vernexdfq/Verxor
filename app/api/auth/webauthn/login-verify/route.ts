@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { verifyAuthenticationResponse } from '@simplewebauthn/server';
-import { consumeChallenge, findCredentials, getWebAuthnConfig, readJson, sbRequest, webauthnConfigResponse } from '../../../../../lib/webauthn-server';
+import { consumeChallenge, getWebAuthnConfig, readJson, sbRequest, webauthnConfigResponse } from '../../../../../lib/webauthn-server';
 
 export const runtime = 'nodejs';
 
@@ -39,14 +39,24 @@ export async function POST(req: Request) {
     const body = await readJson(req);
     const response = body.response;
     const expectedChallenge = String(body.expectedChallenge || '');
-    if (!response || !expectedChallenge) return NextResponse.json({ error: 'Authentication response is incomplete.' }, { status: 400 });
+    const rawId = String(response?.id || '');
+    if (!response || !expectedChallenge || !rawId) {
+      return NextResponse.json({ error: 'Authentication response is incomplete.' }, { status: 400 });
+    }
+
     const cfg = getWebAuthnConfig();
-    const credentials = await findCredentials();
-    const rawId = String(response.id || '');
-    const stored = credentials.find((c: any) => c.credential_id === rawId);
+
+    // Look up only the credential presented by the authenticator. Do not load
+    // every user's credential records into an unauthenticated login request.
+    const matches = await sbRequest<any[]>(
+      `webauthn_credentials?credential_id=eq.${encodeURIComponent(rawId)}&select=id,user_id,credential_id,public_key,counter,transports,device_label&limit=1`,
+    );
+    const stored = matches[0];
     if (!stored) return NextResponse.json({ error: 'This device is not registered. Use your PIN to sign in.' }, { status: 401 });
+
     const challengeOk = await consumeChallenge(expectedChallenge, 'authentication', null);
     if (!challengeOk) return NextResponse.json({ error: 'Login expired. Try fingerprint again.' }, { status: 400 });
+
     const verification = await verifyAuthenticationResponse({
       response,
       expectedChallenge,
@@ -61,6 +71,7 @@ export async function POST(req: Request) {
       requireUserVerification: true,
     });
     if (!verification.verified) return NextResponse.json({ error: 'Biometric verification failed.' }, { status: 401 });
+
     const updated = await sbRequest<any[]>(
       `webauthn_credentials?id=eq.${encodeURIComponent(stored.id)}&select=id`,
       { method: 'PATCH', body: JSON.stringify({ counter: verification.authenticationInfo.newCounter, last_used_at: new Date().toISOString() }) },
@@ -68,7 +79,7 @@ export async function POST(req: Request) {
     if (!updated.length) throw new Error('CREDENTIAL_UPDATE_FAILED');
 
     const c = {
-      base: (process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '').replace(/\/rest\/v1\/?$/, '').replace(/\/$/, ''),
+      base: (process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '').replace(/\\/rest\\/v1\\/?$/, '').replace(/\\/$/, ''),
       key: process.env.SUPABASE_SERVICE_ROLE_KEY || '',
       anon: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || '',
     };
@@ -77,6 +88,7 @@ export async function POST(req: Request) {
     );
     const profile = profiles[0];
     if (!profile?.email || !c.base || !c.key || !c.anon) throw new Error('PROFILE_OR_AUTH_CONFIG_MISSING');
+
     const session = await issueSession(c.base, c.key, c.anon, profile.email);
     const wallets = await sbRequest<any[]>(
       `wallets?user_id=eq.${encodeURIComponent(profile.id)}&select=balance_ngn,balance_usd&limit=1`,
