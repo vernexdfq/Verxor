@@ -31,6 +31,7 @@ import {
   loadSessionProfile,
   loadSessionTokens,
   isSessionUnlocked,
+  saveSessionProfile,
 } from './auth/session-unlock';
 import type { Page } from './types';
 
@@ -221,10 +222,25 @@ export function VerxorApp() {
   }, []);
 
   const handleAuth = useCallback((s: AuthSession) => {
-    setAuth({
+    const restoredSession: AuthSession = {
       ...s,
       balanceNgn: s.balanceNgn ?? 0,
       balanceUsd: s.balanceUsd ?? 0,
+    };
+    setAuth(restoredSession);
+    // Persist the minimal profile required to restore the authenticated app
+    // after refresh. Explicit logout removes this record.
+    saveSessionProfile({
+      name: restoredSession.name || 'User',
+      contact: restoredSession.contact || '',
+      email: restoredSession.email || '',
+      method: restoredSession.method || 'phone',
+      phoneCountry: restoredSession.phoneCountry || 'NG',
+      dialCode: restoredSession.dialCode || '234',
+      homeCurrency: restoredSession.homeCurrency || 'NGN',
+      vtuEligible: restoredSession.vtuEligible ?? true,
+      balanceNgn: restoredSession.balanceNgn ?? 0,
+      balanceUsd: restoredSession.balanceUsd ?? 0,
     });
     try {
       const raw = sessionStorage.getItem('verxor-nav');
