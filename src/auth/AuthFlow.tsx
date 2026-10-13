@@ -241,6 +241,24 @@ export function AuthFlow({ onAuthenticated }: { onAuthenticated: (session: AuthS
         return;
       }
     } catch {}
+    // Preserve the current public/auth screen across a browser refresh.
+    // This stores only the screen name, never the PIN or password.
+    try {
+      const savedStep = sessionStorage.getItem('verxor-auth-step');
+      if (savedStep === 'signin' || savedStep === 'signup' || savedStep === 'pin' || savedStep === 'forgot') {
+        if (savedStep === 'pin' && !(s.contact && s.pin)) {
+          // Without remembered login details, fall back to the normal sign-in flow.
+        } else {
+          setStep(savedStep);
+          setMethod(s.method || 'phone');
+          if (s.phoneCountry) setCountry(findCountry(s.phoneCountry));
+          if (s.method === 'email') setEmail(s.contact || s.email || '');
+          else if (s.contact) setNational(displayNational(s.phoneCountry || 'NG', s.contact));
+          return;
+        }
+      }
+    } catch {}
+
     if (s.contact && s.pin) {
       setStep('pin');
       setMethod(s.method || 'phone');
@@ -259,6 +277,13 @@ export function AuthFlow({ onAuthenticated }: { onAuthenticated: (session: AuthS
     }
     setStep('signup');
   }, []);
+
+  useEffect(() => {
+    if (step === 'boot') return;
+    try {
+      sessionStorage.setItem('verxor-auth-step', step);
+    } catch {}
+  }, [step]);
 
   function finish(session: AuthSession) {
     const iso = session.phoneCountry || country.iso;
