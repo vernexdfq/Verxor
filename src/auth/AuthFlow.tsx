@@ -15,6 +15,7 @@ import {
 } from './countries';
 import { CountryPickerSheet, PhoneField } from './phone-field';
 import { getSupabaseBrowser, isSupabaseBrowserConfigured } from '../../lib/supabase/client';
+import { authenticateWithBiometric } from '../lib/webauthn';
 import './auth.css';
 
 function backendConfigured() {
@@ -627,6 +628,41 @@ export function AuthFlow({ onAuthenticated }: { onAuthenticated: (session: AuthS
     setPin('');
   }
 
+  async function handleBiometricLogin() {
+    if (busy) return;
+    setError('');
+    setBusy(true);
+    try {
+      const result = await authenticateWithBiometric();
+      const b = result as {
+        access_token?: string; refresh_token?: string; email?: string; phone?: string;
+        fullName?: string; phoneCountry?: string; balanceNgn?: number; balanceUsd?: number;
+      };
+      if (!b.access_token || !b.refresh_token) throw new Error('Biometric login did not return a valid session.');
+      const sb = getSupabaseBrowser();
+      if (!sb) throw new Error('Auth service is unavailable. Use your PIN.');
+      const { error: sessionError } = await sb.auth.setSession({ access_token: b.access_token, refresh_token: b.refresh_token });
+      if (sessionError) throw sessionError;
+      finish({
+        ...DEFAULT_MOCK,
+        authenticated: true,
+        method: remembered.method || method,
+        contact: b.phone || remembered.contact,
+        name: b.fullName || remembered.name || 'User',
+        email: b.email || remembered.email,
+        phoneCountry: b.phoneCountry || remembered.phoneCountry || country.iso,
+        pin: '',
+        password: '',
+        balanceNgn: b.balanceNgn ?? 0,
+        balanceUsd: b.balanceUsd ?? 0,
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Biometric login failed. Use your PIN.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
   function onPinDigit(d: string) {
     if (busy) return;
     setError('');
@@ -748,7 +784,7 @@ export function AuthFlow({ onAuthenticated }: { onAuthenticated: (session: AuthS
                 {d}
               </button>
             ))}
-            <button type="button" className="pin-key pin-key--bio" aria-label="Biometric">
+            <button type="button" className="pin-key pin-key--bio" aria-label="Biometric login" onClick={() => void handleBiometricLogin()} disabled={busy}>
               <Fingerprint size={22} />
             </button>
             <button type="button" className="pin-key" onClick={() => onPinDigit('0')}>
