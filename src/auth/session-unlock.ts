@@ -1,11 +1,11 @@
-/** Soft session unlock — skip PIN for up to 1 hour after a successful unlock.
- *  Survives page refresh and tab close. Explicit logout clears it.
+/** Persistent soft session unlock.
+ * Survives browser refresh and tab close. Explicit logout clears it.
  */
 
 export const SESSION_UNLOCK_KEY = 'verxor-session-unlock';
 export const SESSION_PROFILE_KEY = 'verxor-session-profile';
 export const SESSION_TOKENS_KEY = 'verxor-session-tokens';
-export const SESSION_TTL_MS = 60 * 60 * 1000; // 1 hour
+// The user remains unlocked until explicit logout clears this key.
 
 function storage(): Storage | null {
   if (typeof window === 'undefined') return null;
@@ -33,8 +33,7 @@ export function isSessionUnlocked(): boolean {
     const raw = s.getItem(SESSION_UNLOCK_KEY);
     if (!raw) return false;
     const at = Number(raw);
-    if (!Number.isFinite(at) || at <= 0) return false;
-    return Date.now() - at < SESSION_TTL_MS;
+    return Number.isFinite(at) && at > 0;
   } catch {
     return false;
   }
