@@ -23,7 +23,8 @@ export async function POST(req: Request) {
       attestationType: 'none',
       authenticatorSelection: {
         authenticatorAttachment: 'platform',
-        residentKey: 'preferred',
+        // Login starts without a username, so require discoverable credentials.
+        residentKey: 'required',
         userVerification: 'required',
       },
       excludeCredentials: credentials.map((c: any) => ({
