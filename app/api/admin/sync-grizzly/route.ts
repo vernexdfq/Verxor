@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sbInsert, sbSelect, sbUpdate, supabaseConfigured } from '@/lib/supabase-admin';
 
-export const maxDuration = 60; // allow longer on Vercel Pro; still safe on Hobby for first run
+export const maxDuration = 60;
 
 const GRIZZLY_BASE = 'https://api.grizzlysms.com/stubs/handler_api.php';
 
-// Priority countries for the first price sync (so it finishes fast today)
 const PRIORITY_COUNTRIES = [
   '187', // USA
   '12',  // USA Virtual
@@ -25,7 +24,6 @@ const PRIORITY_COUNTRIES = [
   '175', // Australia
 ];
 
-// Services we mark as popular (shown first on frontend)
 const POPULAR_CODES = new Set([
   'wa', 'tg', 'ig', 'fb', 'go', 'lf', 'tw', 'ds', 'vi', 'ub',
   'mm', 'am', 'ot', 'ni', 'me', 'wb', 'ka', 'pm', 'mb', 'sn',
@@ -50,19 +48,20 @@ async function grizzly(action: string, extra: Record<string, string> = {}) {
   if (!key) throw new Error('GRIZZLYSMS_API_KEY is not set');
 
   const params = new URLSearchParams({ api_key: key, action, ...extra });
-  const res = await fetch(`\( {GRIZZLY_BASE}? \){params.toString()}`, {
+  const url = GRIZZLY_BASE + '?' + params.toString();
+  const res = await fetch(url, {
     cache: 'no-store',
     signal: AbortSignal.timeout(25000),
   });
   const text = await res.text();
-  if (!res.ok) throw new Error(`Grizzly ${action}: HTTP ${res.status}`);
+  if (!res.ok) throw new Error('Grizzly ' + action + ': HTTP ' + res.status);
   if (text.startsWith('BAD_') || text.startsWith('ERROR') || text === 'NO_KEY') {
-    throw new Error(`Grizzly ${action}: ${text}`);
+    throw new Error('Grizzly ' + action + ': ' + text);
   }
   try {
     return JSON.parse(text);
   } catch {
-    return text; // some actions return plain text
+    return text;
   }
 }
 
@@ -72,9 +71,11 @@ async function upsertService(row: {
   display_name: string;
   is_popular: boolean;
 }) {
-  // Try update first, then insert
   try {
-    const existing = await sbSelect('vn_services', `code=eq.${encodeURIComponent(row.code)}&select=id`);
+    const existing = await sbSelect(
+      'vn_services',
+      'code=eq.' + encodeURIComponent(row.code) + '&select=id',
+    );
     if (Array.isArray(existing) && existing.length > 0) {
       await sbUpdate('vn_services', { code: row.code }, {
         name: row.name,
@@ -85,7 +86,9 @@ async function upsertService(row: {
       });
       return existing[0].id as string;
     }
-  } catch { /* continue to insert */ }
+  } catch {
+    /* continue to insert */
+  }
 
   const inserted = await sbInsert('vn_services', {
     code: row.code,
@@ -104,7 +107,10 @@ async function upsertCountry(row: {
   is_virtual: boolean;
 }) {
   try {
-    const existing = await sbSelect('vn_countries', `code=eq.${encodeURIComponent(row.code)}&select=id`);
+    const existing = await sbSelect(
+      'vn_countries',
+      'code=eq.' + encodeURIComponent(row.code) + '&select=id',
+    );
     if (Array.isArray(existing) && existing.length > 0) {
       await sbUpdate('vn_countries', { code: row.code }, {
         name: row.name,
@@ -115,7 +121,9 @@ async function upsertCountry(row: {
       });
       return existing[0].id as string;
     }
-  } catch { /* continue */ }
+  } catch {
+    /* continue */
+  }
 
   const inserted = await sbInsert('vn_countries', {
     code: row.code,
@@ -127,14 +135,6 @@ async function upsertCountry(row: {
   return Array.isArray(inserted) ? inserted[0]?.id : null;
 }
 
-/**
- * GET  /api/admin/sync-grizzly?password=YOUR_ADMIN_PASSWORD&mode=full|services|prices
- * POST same (password in body or query)
- *
- * mode=services  → only services + countries
- * mode=prices    → only price options for priority countries
- * mode=full      → both (default)
- */
 export async function GET(req: NextRequest) {
   return runSync(req);
 }
@@ -174,7 +174,7 @@ async function runSync(req: NextRequest) {
   };
 
   try {
-    // ─── 1. Services ───────────────────────────────────────────────
+    // 1. Services
     if (mode === 'full' || mode === 'services') {
       const raw = await grizzly('getServicesList');
       const list: Array<{ code?: string; name?: string }> = Array.isArray(raw?.services)
@@ -196,12 +196,12 @@ async function runSync(req: NextRequest) {
           });
           stats.services += 1;
         } catch (e) {
-          stats.errors.push(`service ${code}: ${e instanceof Error ? e.message : 'fail'}`);
+          stats.errors.push('service ' + code + ': ' + (e instanceof Error ? e.message : 'fail'));
         }
       }
     }
 
-    // ─── 2. Countries ──────────────────────────────────────────────
+    // 2. Countries
     if (mode === 'full' || mode === 'services') {
       const raw = await grizzly('getCountries');
       const entries = typeof raw === 'object' && raw !== null ? Object.entries(raw) : [];
@@ -210,24 +210,30 @@ async function runSync(req: NextRequest) {
         if (!info || typeof info !== 'object') continue;
         const c = info as { eng?: string; name?: string; id?: number };
         const name = String(c.eng || c.name || code).trim();
-        const isVirtual = code === '12' || name.toLowerCase().includes('virtual') || name.includes('(2)');
+        const isVirtual =
+          code === '12' ||
+          name.toLowerCase().includes('virtual') ||
+          name.includes('(2)');
         try {
           await upsertCountry({
             code: String(code),
             name,
-            display_name: isVirtual ? 'United States (Virtual)' : name === 'USA' ? 'United States' : name,
+            display_name: isVirtual
+              ? 'United States (Virtual)'
+              : name === 'USA'
+                ? 'United States'
+                : name,
             is_virtual: isVirtual,
           });
           stats.countries += 1;
         } catch (e) {
-          stats.errors.push(`country ${code}: ${e instanceof Error ? e.message : 'fail'}`);
+          stats.errors.push('country ' + code + ': ' + (e instanceof Error ? e.message : 'fail'));
         }
       }
     }
 
-    // ─── 3. Price options (priority countries) ─────────────────────
+    // 3. Price options (priority countries)
     if (mode === 'full' || mode === 'prices') {
-      // Load id maps once
       const serviceRows = await sbSelect('vn_services', 'select=id,code&is_active=eq.true');
       const countryRows = await sbSelect('vn_countries', 'select=id,code&is_active=eq.true');
 
@@ -248,7 +254,9 @@ async function runSync(req: NextRequest) {
         try {
           priceData = await grizzly('getPricesV3', { country: countryCode });
         } catch (e) {
-          stats.errors.push(`prices country ${countryCode}: ${e instanceof Error ? e.message : 'fail'}`);
+          stats.errors.push(
+            'prices country ' + countryCode + ': ' + (e instanceof Error ? e.message : 'fail'),
+          );
           continue;
         }
 
@@ -271,10 +279,17 @@ async function runSync(req: NextRequest) {
               const isAvailable = stock > 0;
 
               try {
-                // Upsert by unique key (service + country + provider + cost)
                 const existing = await sbSelect(
                   'vn_price_options',
-                  `service_id=eq.\( {serviceId}&country_id=eq. \){countryId}&provider_code=eq.\( {encodeURIComponent(providerId)}&cost_usd=eq. \){costUsd}&select=id`,
+                  'service_id=eq.' +
+                    serviceId +
+                    '&country_id=eq.' +
+                    countryId +
+                    '&provider_code=eq.' +
+                    encodeURIComponent(providerId) +
+                    '&cost_usd=eq.' +
+                    costUsd +
+                    '&select=id',
                 );
 
                 if (Array.isArray(existing) && existing.length > 0) {
@@ -304,7 +319,14 @@ async function runSync(req: NextRequest) {
                 stats.priceOptions += 1;
               } catch (e) {
                 stats.errors.push(
-                  `price \( {serviceCode}/ \){countryCode}/${providerId}: ${e instanceof Error ? e.message : 'fail'}`,
+                  'price ' +
+                    serviceCode +
+                    '/' +
+                    countryCode +
+                    '/' +
+                    providerId +
+                    ': ' +
+                    (e instanceof Error ? e.message : 'fail'),
                 );
               }
             }
@@ -334,4 +356,4 @@ async function runSync(req: NextRequest) {
       { status: 500 },
     );
   }
-  }
+}
