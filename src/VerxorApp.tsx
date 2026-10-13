@@ -183,26 +183,19 @@ export function VerxorApp() {
           })();
         }
 
-        // Restore last in-app page
+        // On browser refresh, authenticated users start at the Home Dashboard.
+        // Keep the session, but discard the previous in-app subpage for this reload.
         try {
-          const raw = sessionStorage.getItem('verxor-nav');
-          if (raw) {
-            const restored = readNavState(JSON.parse(raw));
-            if (restored) {
-              setPage(restored.page);
-              setService(restored.service);
-              skipPushRef.current = true;
-              try {
-                window.history.replaceState(
-                  restored,
-                  '',
-                  window.location.pathname + window.location.search,
-                );
-              } catch {
-                /* ignore */
-              }
-            }
-          }
+          sessionStorage.removeItem('verxor-nav');
+          const homeState: NavState = { page: 'home', service: null };
+          setPage('home');
+          setService(null);
+          skipPushRef.current = true;
+          window.history.replaceState(
+            homeState,
+            '',
+            window.location.pathname + window.location.search,
+          );
         } catch {
           /* ignore */
         }
