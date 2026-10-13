@@ -19,6 +19,7 @@ import {
   isBiometricEnabledLocally,
   isPlatformBiometricAvailable,
 } from './lib/webauthn';
+import { getSupabaseBrowser } from '../lib/supabase/client';
 import './security-page.css';
 
 type Props = {
@@ -51,8 +52,20 @@ export function SecurityPage({ onBack, session }: Props) {
   const [pinError, setPinError] = useState<string | null>(null);
 
   useEffect(() => {
-    setBiometric(isBiometricEnabledLocally());
     void isPlatformBiometricAvailable().then(setBioSupported);
+    void (async () => {
+      try {
+        const sb = getSupabaseBrowser();
+        const { data } = await sb?.auth.getSession() || { data: { session: null } };
+        const token = data.session?.access_token;
+        if (!token) { setBiometric(false); return; }
+        const res = await fetch('/api/auth/webauthn/devices', { headers: { Authorization: `Bearer ${token}` } });
+        const body = await res.json().catch(() => ({}));
+        setBiometric(res.ok && Array.isArray(body.devices) && body.devices.length > 0);
+      } catch {
+        setBiometric(isBiometricEnabledLocally());
+      }
+    })();
   }, []);
 
   function flash(msg: string) {
@@ -62,37 +75,47 @@ export function SecurityPage({ onBack, session }: Props) {
 
   async function toggleBiometric() {
     if (bioBusy) return;
-
-    if (biometric) {
-      clearBiometricLocal();
-      setBiometric(false);
-      flash('Biometrics disabled');
-      return;
-    }
-
     setBioBusy(true);
-    // AuthSession stores phone or email in `contact` (no separate phone/email fields)
-    const userId = session?.contact || session?.name || 'verxor-user';
-    const displayName = session?.name || session?.contact || 'Verxor user';
-
-    const result = await enrollPlatformBiometric(userId, displayName);
-    setBioBusy(false);
-
-    if (result.ok) {
-      setBiometric(true);
-      flash('Biometrics enabled successfully!');
-      return;
+    try {
+      const sb = getSupabaseBrowser();
+      const { data } = await sb?.auth.getSession() || { data: { session: null } };
+      const token = data.session?.access_token;
+      if (!token) {
+        flash('Your secure session expired. Sign in again before changing biometric settings.');
+        return;
+      }
+      if (biometric) {
+        const res = await fetch('/api/auth/webauthn/devices', { headers: { Authorization: `Bearer ${token}` } });
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(body.error || 'Could not load registered devices.');
+        for (const device of (body.devices || [])) {
+          const removed = await fetch('/api/auth/webauthn/devices', {
+            method: 'DELETE',
+            headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: device.id }),
+          });
+          if (!removed.ok) throw new Error('Could not remove a registered device.');
+        }
+        clearBiometricLocal();
+        setBiometric(false);
+        flash('Biometric devices removed');
+        return;
+      }
+      const userId = session?.contact || session?.name || 'verxor-user';
+      const displayName = session?.name || session?.contact || 'Verxor user';
+      const result = await enrollPlatformBiometric(userId, displayName, token);
+      if (result.ok) {
+        setBiometric(true);
+        flash('This device is registered for biometric login.');
+      } else {
+        if (result.reason === 'unsupported') setBioSupported(false);
+        flash(result.message);
+      }
+    } catch (err) {
+      flash(err instanceof Error ? err.message : 'Could not update biometric settings.');
+    } finally {
+      setBioBusy(false);
     }
-
-    if (result.reason === 'cancelled') {
-      flash('Biometric setup cancelled');
-      return;
-    }
-
-    if (result.reason === 'unsupported') {
-      setBioSupported(false);
-    }
-    flash(result.message);
   }
 
   function submitPassword(e: React.FormEvent) {
