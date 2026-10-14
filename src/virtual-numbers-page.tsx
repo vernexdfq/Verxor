@@ -29,11 +29,9 @@ import {
   USA_COUNTRY,
   WORLDWIDE_COUNTRIES,
   CATEGORIES,
-  SERVICES,
   PROMO_SLIDES,
   LIFETIME_MS,
   CANCEL_LOCK_MS,
-  mockPrices,
   formatNgn,
   formatUsd,
   formatTimer,
@@ -60,6 +58,10 @@ export function VirtualNumbersPage({
   const [category, setCategory] = useState<ServiceCategory>('all');
   const [serviceQuery, setServiceQuery] = useState('');
   const [countryQuery, setCountryQuery] = useState('');
+  const [liveServices, setLiveServices] = useState<Service[]>([]);
+  const [servicesLoading, setServicesLoading] = useState(false);
+  const [servicesError, setServicesError] = useState<string | null>(null);
+  const [pricesLoading, setPricesLoading] = useState(false);
   const [promoIndex, setPromoIndex] = useState(0);
   const balance = session?.balanceNgn ?? 0;
   const [localOrders, setLocalOrders] = useState<CustomerNumberOrder[]>(() => {
@@ -97,7 +99,6 @@ export function VirtualNumbersPage({
     return () => clearInterval(t);
   }, []);
 
-  // Persist orders so refresh keeps waiting / received numbers.
   useEffect(() => {
     if (typeof window === 'undefined') return;
     try {
@@ -112,7 +113,6 @@ export function VirtualNumbersPage({
     return () => clearInterval(t);
   }, []);
 
-  // Auto-cancel waiting orders whose big timer expired
   useEffect(() => {
     const now = Date.now();
     const hasExpired = localOrders.some((o) => o.status === 'waiting' && o.expiresAt <= now);
@@ -128,25 +128,24 @@ export function VirtualNumbersPage({
     [localOrders],
   );
 
-  // Only the single latest waiting/received order on the pools page strip
   const previewOrders = useMemo(
     () => visibleOrders.filter((o) => o.status === 'waiting' || o.status === 'received').slice(0, 1),
     [visibleOrders],
   );
 
   const filteredServices = useMemo(() => {
-    let list = SERVICES;
+    let list = liveServices;
     if (category !== 'all') list = list.filter((s) => s.category === category);
     const q = serviceQuery.trim().toLowerCase();
     if (q) list = list.filter((s) => s.name.toLowerCase().includes(q));
     return list;
-  }, [category, serviceQuery]);
+  }, [liveServices, category, serviceQuery]);
 
   const categoryCounts = useMemo(() => {
-    const counts: Record<string, number> = { all: SERVICES.length };
-    for (const s of SERVICES) counts[s.category] = (counts[s.category] || 0) + 1;
+    const counts: Record<string, number> = { all: liveServices.length };
+    for (const s of liveServices) counts[s.category] = (counts[s.category] || 0) + 1;
     return counts;
-  }, []);
+  }, [liveServices]);
 
   const filteredCountries = useMemo(() => {
     const q = countryQuery.trim().toLowerCase();
@@ -156,7 +155,7 @@ export function VirtualNumbersPage({
     );
   }, [countryQuery]);
 
-  const selectPool = (pool: Pool) => {
+  const selectPool = async (pool: Pool) => {
     setSelectedPool(pool);
     setSelectedService(null);
     setSelectedCountry(pool.location === 'USA' ? USA_COUNTRY : null);
@@ -164,14 +163,64 @@ export function VirtualNumbersPage({
     setCountryQuery('');
     setCategory('all');
     setStep('services');
+    setServicesLoading(true);
+    setServicesError(null);
+    setLiveServices([]);
+    try {
+      const res = await fetch(`/api/v1/catalog?mode=services&pool=${encodeURIComponent(pool.id)}`);
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.reason || 'Failed to load services');
+      const mapped: Service[] = (data.services || []).map((s: any) => ({
+        id: s.code || s.id,
+        name: s.name,
+        category: (s.category || 'other') as ServiceCategory,
+      }));
+      setLiveServices(mapped);
+    } catch (e) {
+      setServicesError(e instanceof Error ? e.message : 'Failed to load services');
+    } finally {
+      setServicesLoading(false);
+    }
+  };
+
+  const loadPrices = async (pool: Pool, service: Service, country: Country) => {
+    setPricesLoading(true);
+    try {
+      const url =
+        `/api/v1/catalog?mode=prices` +
+        `&pool=${encodeURIComponent(pool.id)}` +
+        `&service=${encodeURIComponent(service.id)}` +
+        `&country=${encodeURIComponent(country.code)}`;
+      const res = await fetch(url);
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.reason || 'Failed to load prices');
+      const options: PriceOption[] = (data.options || []).map((o: any) => ({
+        id: o.id || o.optionId,
+        provider: '',
+        priceUsd: Number(o.priceUsd) || 0,
+        priceNgn: Number(o.priceNgn) || 0,
+        stock: Number(o.stock) || 0,
+      }));
+      setPriceSheet({ open: true, options, service, country, pool });
+    } catch (e) {
+      setPriceSheet({
+        open: true,
+        options: [],
+        service,
+        country,
+        pool,
+      });
+      setCopyToast(e instanceof Error ? e.message : 'Price load failed');
+    } finally {
+      setPricesLoading(false);
+    }
   };
 
   const selectService = (service: Service) => {
     if (!selectedPool) return;
     setSelectedService(service);
     if (selectedPool.location === 'USA') {
-      const options = mockPrices(selectedPool, service.id, 'US');
-      setPriceSheet({ open: true, options, service, country: USA_COUNTRY, pool: selectedPool });
+      void loadPrices(selectedPool, service, USA_COUNTRY);
     } else {
       setCountryQuery('');
       setStep('countries');
@@ -181,8 +230,7 @@ export function VirtualNumbersPage({
   const selectCountry = (country: Country) => {
     if (!selectedPool || !selectedService) return;
     setSelectedCountry(country);
-    const options = mockPrices(selectedPool, selectedService.id, country.code);
-    setPriceSheet({ open: true, options, service: selectedService, country, pool: selectedPool });
+    void loadPrices(selectedPool, selectedService, country);
   };
 
   const openConfirm = (option: PriceOption) => {
@@ -399,6 +447,11 @@ export function VirtualNumbersPage({
             ))}
           </div>
           <div className="vn-service-list">
+            {servicesLoading && <div className="vn-empty">Loading services from catalog…</div>}
+            {servicesError && !servicesLoading && <div className="vn-empty">{servicesError}</div>}
+            {!servicesLoading && !servicesError && filteredServices.length === 0 && (
+              <div className="vn-empty">No services in this tier yet. Try another pool.</div>
+            )}
             {filteredServices.map((s) => (
               <button key={s.id} type="button" className="vn-service-row" onClick={() => selectService(s)}>
                 <ServiceLogo id={s.id} compact />
@@ -565,15 +618,13 @@ export function VirtualNumbersPage({
                   type="button"
                   className="vn-copy-icon"
                   onClick={() => copyText(inboxOrder.otp!, 'Code copied')}
+                  aria-label="Copy code"
                 >
                   <Copy size={14} />
                 </button>
               </div>
             ) : (
-              <div className="vn-waiting">
-                <Radio size={18} />
-                <span>Waiting for SMS… {formatTimer(inboxOrder.expiresAt - now)}</span>
-              </div>
+              <div className="vn-empty">Waiting for SMS…</div>
             )}
           </div>
         </div>
@@ -587,24 +638,29 @@ export function VirtualNumbersPage({
                 {priceSheet.service.name} · {priceSheet.country.name}
               </strong>
               <button type="button" onClick={() => setPriceSheet(null)} aria-label="Close">
-                <X size={16} />
+                <X size={18} />
               </button>
             </div>
-            <p className="vn-sheet-sub">{priceSheet.pool.title} — choose a provider</p>
-            <div className="vn-price-options">
+            <p className="vn-sheet-sub">{priceSheet.pool.title}</p>
+            {pricesLoading && <div className="vn-empty">Loading prices…</div>}
+            {!pricesLoading && priceSheet.options.length === 0 && (
+              <div className="vn-empty">No routes in this tier right now.</div>
+            )}
+            <div className="vn-price-list">
               {priceSheet.options.map((opt) => (
                 <button
                   key={opt.id}
                   type="button"
-                  className="vn-price-option"
+                  className="vn-price-row"
                   onClick={() => openConfirm(opt)}
                 >
-                  <span>{opt.provider}</span>
-                  <strong>
-                    {formatNgn(opt.priceNgn)}{' '}
-                    <small style={{ fontWeight: 500, color: '#64748b' }}>({formatUsd(opt.priceUsd)})</small>
-                  </strong>
-                  <small>{opt.stock.toLocaleString()} in stock</small>
+                  <div>
+                    <strong>{formatNgn(opt.priceNgn)}</strong>
+                    <small>
+                      {formatUsd(opt.priceUsd)} · stock {opt.stock.toLocaleString()}
+                    </small>
+                  </div>
+                  <ChevronRight size={16} />
                 </button>
               ))}
             </div>
@@ -618,26 +674,17 @@ export function VirtualNumbersPage({
             <div className="vn-sheet-head">
               <strong>Confirm purchase</strong>
               <button type="button" onClick={() => setConfirmSheet(null)} aria-label="Close">
-                <X size={16} />
+                <X size={18} />
               </button>
             </div>
-            <p className="vn-sheet-sub">
-              {confirmSheet.service.name} · {confirmSheet.country.name} · {confirmSheet.pool.title}
+            <p>
+              {confirmSheet.service.name} · {confirmSheet.country.name}
+              <br />
+              {confirmSheet.pool.title}
             </p>
-            <div className="vn-confirm-price">{formatNgn(confirmSheet.option.priceNgn)}</div>
-            <button type="button" className="vn-confirm-btn" onClick={confirmPurchase}>
+            <p className="vn-confirm-price">{formatNgn(confirmSheet.option.priceNgn)}</p>
+            <button type="button" className="vn-confirm-buy" onClick={confirmPurchase}>
               Buy number
-            </button>
-          </div>
-        </div>
-      )}
-
-      {copyToast && (
-        <div className="vn-copy-modal" onClick={() => setCopyToast(null)}>
-          <div className="vn-copy-modal-card" onClick={(e) => e.stopPropagation()}>
-            <strong>{copyToast}</strong>
-            <button type="button" onClick={() => setCopyToast(null)}>
-              OK
             </button>
           </div>
         </div>
@@ -649,25 +696,21 @@ export function VirtualNumbersPage({
             <div className="vn-sheet-head">
               <strong>About SMS delivery</strong>
               <button type="button" onClick={() => setAboutOpen(false)} aria-label="Close">
-                <X size={16} />
+                <X size={18} />
               </button>
             </div>
-            <div className="vn-about-body">
-              <p>
-                After you buy a number, the SMS code usually arrives within 1–3 minutes. A short lock
-                period protects the activation so the number is not cancelled too early.
-              </p>
-              <p>
-                Once the small timer ends you can cancel if no code has arrived. If the big lifetime
-                timer reaches zero and no SMS was received, the order is automatically cancelled and
-                removed.
-              </p>
-              <p>
-                When a code arrives both timers disappear, the status becomes Received, and you can
-                copy the code. Cancelled numbers are not kept in your order history.
-              </p>
-            </div>
+            <p>
+              After you buy a number, keep the app open or return to My Orders. Most codes arrive in 1–3
+              minutes. You can cancel after the lock period if no SMS arrives. Unused numbers are released
+              automatically when the lifetime timer ends.
+            </p>
           </div>
+        </div>
+      )}
+
+      {copyToast && (
+        <div className="vn-toast" role="status">
+          {copyToast}
         </div>
       )}
     </div>
