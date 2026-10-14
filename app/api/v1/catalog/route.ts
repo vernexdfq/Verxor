@@ -28,27 +28,97 @@ const ISO_TO_GRIZZLY: Record<string, string[]> = {
   ES: ['56'],
   FR: ['78'],
   IT: ['86'],
-  PH: ['117'],
+  PH: ['4', '117'],
   AU: ['175'],
+  TH: ['52'],
+  TR: ['62'],
+  MX: ['54'],
+  CO: ['33'],
+  ZA: ['31'],
+  NG: ['19'],
+  PL: ['15'],
+  RO: ['32'],
+  SE: ['46'],
+  AT: ['50'],
+  CZ: ['63'],
+  BE: ['82'],
+  HU: ['84'],
+  GR: ['129'],
+  FI: ['141'],
+  NO: ['163'],
+  MA: ['37'],
+  SA: ['53'],
+  AE: ['95'],
+  BD: ['60'],
+  PK: ['66'],
+  MY: ['7'],
+  KE: ['8'],
+  GH: ['38'],
+  NZ: ['67'],
+  TW: ['55'],
+  HK: ['14'],
+  IE: ['23'],
+  AR: ['39'],
+  PE: ['65'],
+  EG: ['21'],
+  PT: ['114'],
 };
 
 const GRIZZLY_TO_ISO: Record<string, { code: string; name: string; flag: string; dial: string }> = {
-  '187': { code: 'US', name: 'United States', flag: '🇺🇸', dial: '+1' },
-  '12': { code: 'US', name: 'United States (Virtual)', flag: '🇺🇸', dial: '+1' },
-  '16': { code: 'GB', name: 'United Kingdom', flag: '🇬🇧', dial: '+44' },
-  '22': { code: 'IN', name: 'India', flag: '🇮🇳', dial: '+91' },
-  '6': { code: 'ID', name: 'Indonesia', flag: '🇮🇩', dial: '+62' },
-  '10': { code: 'VN', name: 'Vietnam', flag: '🇻🇳', dial: '+84' },
-  '73': { code: 'BR', name: 'Brazil', flag: '🇧🇷', dial: '+55' },
+  '0': { code: 'RU', name: 'Russia', flag: '🇷🇺', dial: '+7' },
   '1': { code: 'UA', name: 'Ukraine', flag: '🇺🇦', dial: '+380' },
+  '2': { code: 'KZ', name: 'Kazakhstan', flag: '🇰🇿', dial: '+7' },
+  '3': { code: 'CN', name: 'China', flag: '🇨🇳', dial: '+86' },
+  '4': { code: 'PH', name: 'Philippines', flag: '🇵🇭', dial: '+63' },
+  '6': { code: 'ID', name: 'Indonesia', flag: '🇮🇩', dial: '+62' },
+  '7': { code: 'MY', name: 'Malaysia', flag: '🇲🇾', dial: '+60' },
+  '8': { code: 'KE', name: 'Kenya', flag: '🇰🇪', dial: '+254' },
+  '9': { code: 'TZ', name: 'Tanzania', flag: '🇹🇿', dial: '+255' },
+  '10': { code: 'VN', name: 'Vietnam', flag: '🇻🇳', dial: '+84' },
+  '12': { code: 'US', name: 'United States (Virtual)', flag: '🇺🇸', dial: '+1' },
+  '13': { code: 'IL', name: 'Israel', flag: '🇮🇱', dial: '+972' },
+  '14': { code: 'HK', name: 'Hong Kong', flag: '🇭🇰', dial: '+852' },
+  '15': { code: 'PL', name: 'Poland', flag: '🇵🇱', dial: '+48' },
+  '16': { code: 'GB', name: 'United Kingdom', flag: '🇬🇧', dial: '+44' },
+  '19': { code: 'NG', name: 'Nigeria', flag: '🇳🇬', dial: '+234' },
+  '21': { code: 'EG', name: 'Egypt', flag: '🇪🇬', dial: '+20' },
+  '22': { code: 'IN', name: 'India', flag: '🇮🇳', dial: '+91' },
+  '23': { code: 'IE', name: 'Ireland', flag: '🇮🇪', dial: '+353' },
+  '31': { code: 'ZA', name: 'South Africa', flag: '🇿🇦', dial: '+27' },
+  '32': { code: 'RO', name: 'Romania', flag: '🇷🇴', dial: '+40' },
+  '33': { code: 'CO', name: 'Colombia', flag: '🇨🇴', dial: '+57' },
   '36': { code: 'CA', name: 'Canada', flag: '🇨🇦', dial: '+1' },
+  '37': { code: 'MA', name: 'Morocco', flag: '🇲🇦', dial: '+212' },
+  '38': { code: 'GH', name: 'Ghana', flag: '🇬🇭', dial: '+233' },
+  '39': { code: 'AR', name: 'Argentina', flag: '🇦🇷', dial: '+54' },
   '43': { code: 'DE', name: 'Germany', flag: '🇩🇪', dial: '+49' },
+  '46': { code: 'SE', name: 'Sweden', flag: '🇸🇪', dial: '+46' },
   '48': { code: 'NL', name: 'Netherlands', flag: '🇳🇱', dial: '+31' },
+  '50': { code: 'AT', name: 'Austria', flag: '🇦🇹', dial: '+43' },
+  '52': { code: 'TH', name: 'Thailand', flag: '🇹🇭', dial: '+66' },
+  '53': { code: 'SA', name: 'Saudi Arabia', flag: '🇸🇦', dial: '+966' },
+  '54': { code: 'MX', name: 'Mexico', flag: '🇲🇽', dial: '+52' },
+  '55': { code: 'TW', name: 'Taiwan', flag: '🇹🇼', dial: '+886' },
   '56': { code: 'ES', name: 'Spain', flag: '🇪🇸', dial: '+34' },
+  '60': { code: 'BD', name: 'Bangladesh', flag: '🇧🇩', dial: '+880' },
+  '62': { code: 'TR', name: 'Turkey', flag: '🇹🇷', dial: '+90' },
+  '63': { code: 'CZ', name: 'Czech Republic', flag: '🇨🇿', dial: '+420' },
+  '65': { code: 'PE', name: 'Peru', flag: '🇵🇪', dial: '+51' },
+  '66': { code: 'PK', name: 'Pakistan', flag: '🇵🇰', dial: '+92' },
+  '67': { code: 'NZ', name: 'New Zealand', flag: '🇳🇿', dial: '+64' },
+  '73': { code: 'BR', name: 'Brazil', flag: '🇧🇷', dial: '+55' },
   '78': { code: 'FR', name: 'France', flag: '🇫🇷', dial: '+33' },
+  '82': { code: 'BE', name: 'Belgium', flag: '🇧🇪', dial: '+32' },
+  '84': { code: 'HU', name: 'Hungary', flag: '🇭🇺', dial: '+36' },
   '86': { code: 'IT', name: 'Italy', flag: '🇮🇹', dial: '+39' },
+  '95': { code: 'AE', name: 'United Arab Emirates', flag: '🇦🇪', dial: '+971' },
+  '114': { code: 'PT', name: 'Portugal', flag: '🇵🇹', dial: '+351' },
   '117': { code: 'PH', name: 'Philippines', flag: '🇵🇭', dial: '+63' },
+  '129': { code: 'GR', name: 'Greece', flag: '🇬🇷', dial: '+30' },
+  '141': { code: 'FI', name: 'Finland', flag: '🇫🇮', dial: '+358' },
+  '163': { code: 'NO', name: 'Norway', flag: '🇳🇴', dial: '+47' },
   '175': { code: 'AU', name: 'Australia', flag: '🇦🇺', dial: '+61' },
+  '187': { code: 'US', name: 'United States', flag: '🇺🇸', dial: '+1' },
 };
 
 const SERVICE_META: Record<string, { category: string; logoId?: string }> = {
@@ -60,7 +130,7 @@ const SERVICE_META: Record<string, { category: string; logoId?: string }> = {
   go: { category: 'other', logoId: 'google' },
   ds: { category: 'messengers', logoId: 'discord' },
   vi: { category: 'messengers', logoId: 'viber' },
-  lf: { category: 'dating', logoId: 'tinder' },
+  lf: { category: 'social', logoId: 'tiktok' }, // TikTok / Douyin
   ok: { category: 'social' },
   vk: { category: 'social' },
   mm: { category: 'other' },
@@ -74,6 +144,8 @@ const SERVICE_META: Record<string, { category: string; logoId?: string }> = {
   mb: { category: 'other' },
   sn: { category: 'social', logoId: 'snapchat' },
   ot: { category: 'other' },
+  im: { category: 'messengers' },
+  fu: { category: 'social', logoId: 'snapchat' },
 };
 
 type PricingSettings = {
@@ -136,7 +208,9 @@ export async function GET(req: NextRequest) {
     if (mode === 'services') {
       const tier = poolId ? poolTier(poolId) : null;
       const region = poolId ? poolRegion(poolId) : null;
-      let priceQuery = 'select=service_id,country_id,cost_usd,stock,tier,is_available&is_available=eq.true&limit=10000';
+      // Higher limit after full catalog sync
+      let priceQuery =
+        'select=service_id,country_id,cost_usd,stock,tier,is_available&is_available=eq.true&limit=50000';
       if (tier) priceQuery += `&tier=eq.${tier}`;
       const prices = (await sbSelect('vn_price_options', priceQuery)) as Array<{
         service_id: string; country_id: string; cost_usd: number; stock: number; tier: string;
@@ -186,7 +260,7 @@ export async function GET(req: NextRequest) {
         list = list.filter((s) => s.name.toLowerCase().includes(q) || s.code.toLowerCase().includes(q));
       }
       const res = NextResponse.json({ ok: true, mode: 'services', pool: poolId || null, tier, region, count: list.length, rate, services: list });
-      res.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=120');
+      res.headers.set('Cache-Control', 'public, s-maxage=90, stale-while-revalidate=180');
       return res;
     }
 
@@ -204,7 +278,7 @@ export async function GET(req: NextRequest) {
       if (!svc) return NextResponse.json({ ok: true, countries: [], count: 0 });
       const prices = (await sbSelect(
         'vn_price_options',
-        `service_id=eq.${svc.id}&tier=eq.${tier}&is_available=eq.true&select=country_id,cost_usd,stock&limit=5000`,
+        `service_id=eq.${svc.id}&tier=eq.${tier}&is_available=eq.true&select=country_id,cost_usd,stock&limit=10000`,
       )) as Array<{ country_id: string; cost_usd: number; stock: number }>;
       const countries = (await sbSelect(
         'vn_countries',
@@ -218,17 +292,37 @@ export async function GET(req: NextRequest) {
         if (!c) continue;
         if (region === 'usa' && !usaCodes.has(c.code)) continue;
         if (region === 'worldwide' && usaCodes.has(c.code)) continue;
-        const meta = GRIZZLY_TO_ISO[c.code] || { code: c.code, name: c.display_name, flag: '🌍', dial: '' };
+        const meta = GRIZZLY_TO_ISO[c.code] || {
+          code: c.code,
+          name: c.display_name,
+          flag: '🌍',
+          dial: '',
+        };
         const key = meta.code + (c.code === '12' ? '-v' : '');
         const ngn = sellNgn(Number(p.cost_usd), tier, rate, mult);
         const prev = seen.get(key);
         if (!prev || ngn < prev.fromNgn) {
-          seen.set(key, { code: meta.code, name: meta.name, flag: meta.flag, dial: meta.dial, fromNgn: ngn, stock: Number(p.stock) || 0, grizzlyCode: c.code });
+          seen.set(key, {
+            code: meta.code,
+            name: meta.name,
+            flag: meta.flag,
+            dial: meta.dial,
+            fromNgn: ngn,
+            stock: Number(p.stock) || 0,
+            grizzlyCode: c.code,
+          });
         }
       }
       const list = Array.from(seen.values()).sort((a, b) => a.name.localeCompare(b.name));
-      const res = NextResponse.json({ ok: true, mode: 'countries', service: serviceCode, pool: poolId, count: list.length, countries: list });
-      res.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=120');
+      const res = NextResponse.json({
+        ok: true,
+        mode: 'countries',
+        service: serviceCode,
+        pool: poolId,
+        count: list.length,
+        countries: list,
+      });
+      res.headers.set('Cache-Control', 'public, s-maxage=90, stale-while-revalidate=180');
       return res;
     }
 
@@ -245,19 +339,23 @@ export async function GET(req: NextRequest) {
       const svc = svcRows?.[0];
       if (!svc) return NextResponse.json({ ok: true, options: [], count: 0 });
       let grizzlyCountryCodes: string[] = [];
-      if (region === 'usa' || countryParam === 'US' || countryParam === 'USA') grizzlyCountryCodes = ['187', '12'];
-      else if (countryParam && ISO_TO_GRIZZLY[countryParam]) grizzlyCountryCodes = ISO_TO_GRIZZLY[countryParam];
+      if (region === 'usa' || countryParam === 'US' || countryParam === 'USA')
+        grizzlyCountryCodes = ['187', '12'];
+      else if (countryParam && ISO_TO_GRIZZLY[countryParam])
+        grizzlyCountryCodes = ISO_TO_GRIZZLY[countryParam];
       else if (countryParam) grizzlyCountryCodes = [countryParam];
       const countries = (await sbSelect(
         'vn_countries',
         'select=id,code,display_name&is_active=eq.true&limit=500',
       )) as Array<{ id: string; code: string; display_name: string }>;
       const countryById = new Map(countries.map((c) => [c.id, c]));
-      const countryIds = countries.filter((c) => grizzlyCountryCodes.includes(c.code)).map((c) => c.id);
+      const countryIds = countries
+        .filter((c) => grizzlyCountryCodes.includes(c.code))
+        .map((c) => c.id);
       if (countryIds.length === 0) return NextResponse.json({ ok: true, options: [], count: 0 });
       const prices = (await sbSelect(
         'vn_price_options',
-        `service_id=eq.${svc.id}&tier=eq.${tier}&is_available=eq.true&select=id,country_id,cost_usd,stock,tier&order=cost_usd.asc&limit=500`,
+        `service_id=eq.${svc.id}&tier=eq.${tier}&is_available=eq.true&select=id,country_id,cost_usd,stock,tier&order=cost_usd.asc&limit=1000`,
       )) as Array<{ id: string; country_id: string; cost_usd: number; stock: number; tier: string }>;
       const idSet = new Set(countryIds);
       const options = (prices || [])
@@ -299,9 +397,12 @@ export async function GET(req: NextRequest) {
     if (mode === 'pools') {
       const prices = (await sbSelect(
         'vn_price_options',
-        'select=cost_usd,tier,country_id,is_available&is_available=eq.true&limit=10000',
+        'select=cost_usd,tier,country_id,is_available&is_available=eq.true&limit=50000',
       )) as Array<{ cost_usd: number; tier: string; country_id: string }>;
-      const countries = (await sbSelect('vn_countries', 'select=id,code&limit=500')) as Array<{ id: string; code: string }>;
+      const countries = (await sbSelect('vn_countries', 'select=id,code&limit=500')) as Array<{
+        id: string;
+        code: string;
+      }>;
       const codeById = new Map(countries.map((c) => [c.id, c.code]));
       const usaCodes = new Set(['187', '12']);
       const mins: Record<string, number> = {};
@@ -313,17 +414,37 @@ export async function GET(req: NextRequest) {
         const cost = Number(p.cost_usd);
         if (!mins[pool] || cost < mins[pool]) mins[pool] = cost;
       }
-      const poolIds = ['usa-economy','usa-standard','worldwide-economy','worldwide-standard','usa-fast','usa-premium','worldwide-fast','worldwide-premium'];
+      const poolIds = [
+        'usa-economy',
+        'usa-standard',
+        'worldwide-economy',
+        'worldwide-standard',
+        'usa-fast',
+        'usa-premium',
+        'worldwide-fast',
+        'worldwide-premium',
+      ];
       const pools = poolIds.map((id) => {
         const tier = poolTier(id);
         const cost = mins[id];
-        return { id, fromNgn: cost != null ? sellNgn(cost, tier, rate, mult) : null, fromUsd: cost != null ? Math.round(cost * 100) / 100 : null, live: cost != null };
+        return {
+          id,
+          fromNgn: cost != null ? sellNgn(cost, tier, rate, mult) : null,
+          fromUsd: cost != null ? Math.round(cost * 100) / 100 : null,
+          live: cost != null,
+        };
       });
       return NextResponse.json({ ok: true, mode: 'pools', rate, pools });
     }
 
-    return NextResponse.json({ ok: false, reason: 'Unknown mode. Use services | countries | prices | pools' }, { status: 400 });
+    return NextResponse.json(
+      { ok: false, reason: 'Unknown mode. Use services | countries | prices | pools' },
+      { status: 400 },
+    );
   } catch (err) {
-    return NextResponse.json({ ok: false, reason: err instanceof Error ? err.message : 'Catalog failed' }, { status: 500 });
+    return NextResponse.json(
+      { ok: false, reason: err instanceof Error ? err.message : 'Catalog failed' },
+      { status: 500 },
+    );
   }
 }
