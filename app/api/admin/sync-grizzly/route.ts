@@ -11,101 +11,20 @@ export const maxDuration = 300;
 const GRIZZLY_BASE = 'https://api.grizzlysms.com/stubs/handler_api.php';
 const BATCH = 150;
 /** How many getPricesV3 country calls to run at once. */
-const PRICE_CONCURRENCY = 8;
+const PRICE_CONCURRENCY = 6;
 
 /** High-demand first so partial runs still cover FB/IG/TikTok/WA well. */
 const PRIORITY_COUNTRIES = [
-  '187', // USA
-  '12', // USA Virtual
-  '16', // United Kingdom
-  '22', // India
-  '6', // Indonesia
-  '10', // Vietnam
-  '73', // Brazil
-  '1', // Ukraine
-  '36', // Canada
-  '43', // Germany
-  '48', // Netherlands
-  '56', // Spain
-  '78', // France
-  '86', // Italy
-  '117', // Philippines / Australia variant
-  '175', // Australia
-  '52', // Thailand
-  '62', // Turkey
-  '54', // Mexico
-  '33', // Colombia
-  '31', // South Africa
-  '19', // Nigeria
-  '4', // Philippines
-  '14', // Hong Kong
-  '15', // Poland
-  '32', // Romania
-  '46', // Sweden
-  '50', // Austria
-  '63', // Czech
-  '82', // Belgium
-  '84', // Hungary
-  '129', // Greece
-  '141', // Finland
-  '163', // Norway
-  '37', // Morocco
-  '53', // Saudi Arabia
-  '95', // UAE
-  '40', // Uzbekistan
-  '60', // Bangladesh
-  '66', // Pakistan
-  '64', // Sri Lanka
-  '81', // Nepal
-  '8', // Kenya
-  '38', // Ghana
-  '67', // New Zealand
-  '55', // Taiwan
-  '3', // China
-  '57', // Iran
-  '47', // Iraq
-  '13', // Israel
-  '0', // Russia
-  '2', // Kazakhstan
-  '7', // Malaysia
-  '9', // Tanzania
-  '11', // Kyrgyzstan
-  '17', // Madagascar
-  '18', // DR Congo
-  '20', // Macao
-  '21', // Egypt
-  '23', // Ireland
-  '24', // Cambodia
-  '25', // Laos
-  '29', // Serbia
-  '34', // Estonia
-  '35', // Azerbaijan
-  '39', // Argentina
-  '41', // Cameroon
-  '44', // Lithuania
-  '45', // Croatia
-  '49', // Latvia
-  '51', // Belarus
-  '58', // Algeria
-  '59', // Slovenia
-  '61', // Senegal
-  '65', // Peru
-  '70', // Venezuela
-  '71', // Ethiopia
-  '72', // Mongolia
-  '74', // Afghanistan
-  '75', // Uganda
-  '83', // Bulgaria
-  '85', // Moldova
-  '87', // Paraguay
-  '93', // Costa Rica
-  '94', // Guatemala
-  '103', // Jamaica
-  '105', // Ecuador
-  '109', // Dominican Republic
-  '114', // Portugal
-  '128', // Georgia
-  '131', // Lebanon
+  '187', '12', '16', '22', '6', '10', '73', '1', '36', '43',
+  '48', '56', '78', '86', '117', '175', '52', '62', '54', '33',
+  '31', '19', '4', '14', '15', '32', '46', '50', '63', '82',
+  '84', '129', '141', '163', '37', '53', '95', '40', '60', '66',
+  '64', '81', '8', '38', '67', '55', '3', '57', '47', '13',
+  '0', '2', '7', '9', '11', '17', '18', '20', '21', '23',
+  '24', '25', '29', '34', '35', '39', '41', '44', '45', '49',
+  '51', '58', '59', '61', '65', '70', '71', '72', '74', '75',
+  '83', '85', '87', '93', '94', '103', '105', '109', '114', '128',
+  '131',
 ];
 
 const POPULAR_CODES = new Set([
@@ -167,7 +86,6 @@ async function upsertInBatches(
   }
 }
 
-/** Keep one row per unique constraint key (last write wins). */
 function dedupePriceRows(rows: Record<string, unknown>[]) {
   const map = new Map<string, Record<string, unknown>>();
   for (const row of rows) {
@@ -184,7 +102,6 @@ function dedupePriceRows(rows: Record<string, unknown>[]) {
   return Array.from(map.values());
 }
 
-/** Simple concurrency pool. */
 async function mapPool<T, R>(
   items: T[],
   concurrency: number,
@@ -198,11 +115,21 @@ async function mapPool<T, R>(
       results[i] = await fn(items[i], i);
     }
   }
-  const workers = Array.from({ length: Math.min(concurrency, items.length) }, () => worker());
+  const workers = Array.from(
+    { length: Math.min(concurrency, items.length) },
+    () => worker(),
+  );
   await Promise.all(workers);
   return results;
 }
 
+/**
+ * Grizzly getPricesV3 shapes observed:
+ * A) { "187": { "wa": { cost, count, providers: { "1": { price, count } } } } }
+ * B) { "wa": { cost, count, providers: ... } }  when country= param is set
+ * C) providers.price can be number | number[] | string
+ * D) sometimes only top-level cost/count without providers
+ */
 function extractPriceRowsForCountry(
   countryCode: string,
   countryId: string,
@@ -210,28 +137,56 @@ function extractPriceRowsForCountry(
   serviceMap: Map<string, string>,
 ): Record<string, unknown>[] {
   const priceRows: Record<string, unknown>[] = [];
-  const countryBlock =
-    priceData?.[countryCode] || priceData?.[String(countryCode)] || priceData || {};
+
+  let countryBlock: any =
+    priceData?.[countryCode] ?? priceData?.[String(countryCode)] ?? null;
+
+  // If response is already service-keyed (no outer country), use whole object
+  if (!countryBlock || typeof countryBlock !== 'object') {
+    countryBlock = priceData;
+  }
+  // If still nested under the country key only, unwrap
+  if (
+    countryBlock &&
+    typeof countryBlock === 'object' &&
+    countryBlock[countryCode] &&
+    typeof countryBlock[countryCode] === 'object'
+  ) {
+    countryBlock = countryBlock[countryCode];
+  }
 
   if (!countryBlock || typeof countryBlock !== 'object') return priceRows;
 
   for (const [serviceCode, info] of Object.entries(countryBlock)) {
-    // skip nested country keys if API returns { "187": { wa: ... } } already unwrapped
-    if (serviceCode === countryCode) continue;
+    // skip nested pure-numeric country keys
+    if (/^\d+$/.test(serviceCode) && serviceCode === countryCode) continue;
+    if (!info || typeof info !== 'object') continue;
+
     const serviceId = serviceMap.get(String(serviceCode).toLowerCase());
-    if (!serviceId || !info || typeof info !== 'object') continue;
+    if (!serviceId) continue;
 
     const infoObj = info as any;
 
     if (infoObj.providers && typeof infoObj.providers === 'object') {
       for (const [providerId, pinfo] of Object.entries(infoObj.providers)) {
-        const p = pinfo as { count?: number; price?: number[] | number };
-        const prices = Array.isArray(p.price)
-          ? p.price
-          : p.price != null
-            ? [Number(p.price)]
-            : [];
-        const stock = Number(p.count || 0);
+        const p = pinfo as {
+          count?: number | string;
+          price?: number[] | number | string;
+          cost?: number | string;
+        };
+        let prices: number[] = [];
+        if (Array.isArray(p.price)) {
+          prices = p.price.map(Number);
+        } else if (p.price != null && p.price !== '') {
+          prices = [Number(p.price)];
+        } else if (p.cost != null && p.cost !== '') {
+          prices = [Number(p.cost)];
+        }
+        // also fall back to parent cost if provider has no price
+        if (prices.length === 0 && infoObj.cost != null) {
+          prices = [Number(infoObj.cost)];
+        }
+        const stock = Number(p.count ?? infoObj.count ?? 0);
         const seenCosts = new Set<number>();
         for (const cost of prices) {
           const costUsd = Number(cost);
@@ -245,24 +200,26 @@ function extractPriceRowsForCountry(
             cost_usd: costUsd,
             stock,
             tier: tierFromCost(costUsd),
-            is_available: stock > 0,
+            is_available: true, // show even if stock reported 0 (stock fluctuates)
             last_synced_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
           });
         }
       }
-    } else {
-      const costUsd = Number(infoObj.cost ?? infoObj.price ?? 0);
-      const stock = Number(infoObj.count ?? infoObj.qty ?? 0);
-      if (!Number.isFinite(costUsd) || costUsd <= 0) continue;
+    }
+
+    // Always also capture top-level cost if present (covers shape without providers)
+    const topCost = Number(infoObj.cost ?? infoObj.price ?? 0);
+    const topStock = Number(infoObj.count ?? infoObj.qty ?? 0);
+    if (Number.isFinite(topCost) && topCost > 0) {
       priceRows.push({
         service_id: serviceId,
         country_id: countryId,
         provider_code: 'grizzly',
-        cost_usd: costUsd,
-        stock,
-        tier: tierFromCost(costUsd),
-        is_available: stock > 0,
+        cost_usd: topCost,
+        stock: topStock,
+        tier: tierFromCost(topCost),
+        is_available: true,
         last_synced_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       });
@@ -309,7 +266,6 @@ async function runSync(req: NextRequest) {
   }
 
   const mode = (req.nextUrl.searchParams.get('mode') || 'full').toLowerCase();
-  // countries=all | priority | comma-list of grizzly codes
   const countriesParam = (req.nextUrl.searchParams.get('countries') || 'all').toLowerCase();
 
   const stats = {
@@ -322,6 +278,95 @@ async function runSync(req: NextRequest) {
   };
 
   try {
+    // Debug: inspect raw Grizzly prices for one country (no DB write)
+    if (mode === 'debug-prices') {
+      const country = req.nextUrl.searchParams.get('country') || '187';
+      const priceData = await grizzly('getPricesV3', { country });
+      const topKeys = priceData && typeof priceData === 'object' ? Object.keys(priceData).slice(0, 40) : [];
+      const nested =
+        priceData?.[country] && typeof priceData[country] === 'object'
+          ? Object.keys(priceData[country]).slice(0, 40)
+          : [];
+      const interesting = ['fb', 'ig', 'lf', 'wa', 'tg', 'go', 'tw', 'ds', 'vi'];
+      const samples: Record<string, unknown> = {};
+      const scan = (obj: any, prefix = '') => {
+        if (!obj || typeof obj !== 'object') return;
+        for (const k of Object.keys(obj)) {
+          if (interesting.includes(String(k).toLowerCase())) {
+            samples[prefix + k] = obj[k];
+          }
+        }
+        // one level nested under country
+        if (obj[country] && typeof obj[country] === 'object') {
+          for (const k of Object.keys(obj[country])) {
+            if (interesting.includes(String(k).toLowerCase())) {
+              samples['nested.' + k] = obj[country][k];
+            }
+          }
+        }
+      };
+      scan(priceData);
+
+      // Also test extraction against DB maps
+      const serviceRows = (await sbSelect(
+        'vn_services',
+        'select=id,code&is_active=eq.true&limit=5000',
+      )) as Array<{ id: string; code: string }>;
+      const countryRows = (await sbSelect(
+        'vn_countries',
+        `code=eq.${country}&select=id,code&limit=1`,
+      )) as Array<{ id: string; code: string }>;
+      const serviceMap = new Map<string, string>();
+      for (const r of serviceRows || [])
+        serviceMap.set(String(r.code).toLowerCase(), r.id);
+      const countryId = countryRows?.[0]?.id || 'missing';
+      const extracted = extractPriceRowsForCountry(
+        country,
+        countryId,
+        priceData,
+        serviceMap,
+      );
+      const byService: Record<string, number> = {};
+      for (const row of extracted) {
+        // reverse lookup code
+        let code = '?';
+        for (const [c, id] of serviceMap) {
+          if (id === row.service_id) {
+            code = c;
+            break;
+          }
+        }
+        byService[code] = (byService[code] || 0) + 1;
+      }
+
+      return NextResponse.json({
+        ok: true,
+        mode: 'debug-prices',
+        country,
+        topKeys,
+        nestedKeys: nested,
+        interestingSamples: samples,
+        serviceMapHas: {
+          fb: serviceMap.has('fb'),
+          ig: serviceMap.has('ig'),
+          lf: serviceMap.has('lf'),
+          wa: serviceMap.has('wa'),
+        },
+        extractedCount: extracted.length,
+        extractedByService: Object.fromEntries(
+          Object.entries(byService)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 50),
+        ),
+        extractedFbIgLf: extracted.filter((r) => {
+          for (const [c, id] of serviceMap) {
+            if (id === r.service_id && ['fb', 'ig', 'lf'].includes(c)) return true;
+          }
+          return false;
+        }).slice(0, 20),
+      });
+    }
+
     // 1. Services — full list from Grizzly
     if (mode === 'full' || mode === 'services') {
       const raw = await grizzly('getServicesList');
@@ -391,7 +436,7 @@ async function runSync(req: NextRequest) {
       stats.countries = rows.length;
     }
 
-    // 3. Price options — all countries (or priority / explicit list) in parallel batches
+    // 3. Price options
     if (mode === 'full' || mode === 'prices') {
       const serviceRows = (await sbSelect(
         'vn_services',
@@ -412,7 +457,6 @@ async function runSync(req: NextRequest) {
       if (countriesParam === 'priority') {
         countryCodes = PRIORITY_COUNTRIES.filter((c) => countryMap.has(c));
       } else if (countriesParam === 'all' || !countriesParam) {
-        // Priority first, then every other country in DB → true 100% coverage
         const prioritySet = new Set(PRIORITY_COUNTRIES);
         const rest = (countryRows || [])
           .map((c) => String(c.code))
@@ -428,47 +472,59 @@ async function runSync(req: NextRequest) {
           .filter((c) => c && countryMap.has(c));
       }
 
-      const allPriceRows: Record<string, unknown>[] = [];
+      // Process in sequential mini-batches to avoid 429 and memory spikes
+      let totalOptions = 0;
+      const BATCH_COUNTRIES = 5;
+      for (let i = 0; i < countryCodes.length; i += BATCH_COUNTRIES) {
+        const slice = countryCodes.slice(i, i + BATCH_COUNTRIES);
+        const batchRows: Record<string, unknown>[] = [];
 
-      await mapPool(countryCodes, PRICE_CONCURRENCY, async (countryCode) => {
-        const countryId = countryMap.get(countryCode);
-        if (!countryId) {
-          stats.errors.push('missing country id for ' + countryCode);
-          stats.countriesFailed += 1;
-          return;
-        }
-
-        try {
-          const priceData = await grizzly('getPricesV3', { country: countryCode });
-          const rows = extractPriceRowsForCountry(
-            countryCode,
-            countryId,
-            priceData,
-            serviceMap,
-          );
-          if (rows.length > 0) {
-            allPriceRows.push(...rows);
-            stats.countriesPriced += 1;
+        await mapPool(slice, PRICE_CONCURRENCY, async (countryCode) => {
+          const countryId = countryMap.get(countryCode);
+          if (!countryId) {
+            stats.errors.push('missing country id for ' + countryCode);
+            stats.countriesFailed += 1;
+            return;
           }
-        } catch (e) {
-          stats.countriesFailed += 1;
-          stats.errors.push(
-            'prices country ' +
-              countryCode +
-              ': ' +
-              (e instanceof Error ? e.message : 'fail'),
-          );
-        }
-      });
+          try {
+            const priceData = await grizzly('getPricesV3', {
+              country: countryCode,
+            });
+            const rows = extractPriceRowsForCountry(
+              countryCode,
+              countryId,
+              priceData,
+              serviceMap,
+            );
+            if (rows.length > 0) {
+              batchRows.push(...rows);
+              stats.countriesPriced += 1;
+            }
+          } catch (e) {
+            stats.countriesFailed += 1;
+            stats.errors.push(
+              'prices country ' +
+                countryCode +
+                ': ' +
+                (e instanceof Error ? e.message : 'fail'),
+            );
+          }
+        });
 
-      const uniqueRows = dedupePriceRows(allPriceRows);
-      // Upsert in batches so we don't blow memory / payload limits
-      await upsertInBatches(
-        'vn_price_options',
-        uniqueRows,
-        'service_id,country_id,provider_code,cost_usd',
-      );
-      stats.priceOptions = uniqueRows.length;
+        const uniqueRows = dedupePriceRows(batchRows);
+        await upsertInBatches(
+          'vn_price_options',
+          uniqueRows,
+          'service_id,country_id,provider_code,cost_usd',
+        );
+        totalOptions += uniqueRows.length;
+
+        // brief pause between batches to reduce 429s
+        if (i + BATCH_COUNTRIES < countryCodes.length) {
+          await new Promise((r) => setTimeout(r, 400));
+        }
+      }
+      stats.priceOptions = totalOptions;
     }
 
     return NextResponse.json({
