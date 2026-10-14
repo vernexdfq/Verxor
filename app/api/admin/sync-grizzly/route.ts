@@ -8,7 +8,7 @@ import {
 export const maxDuration = 60;
 
 const GRIZZLY_BASE = 'https://api.grizzlysms.com/stubs/handler_api.php';
-const BATCH = 200;
+const BATCH = 150;
 
 const PRIORITY_COUNTRIES = [
   '187', // USA
@@ -30,26 +30,8 @@ const PRIORITY_COUNTRIES = [
 ];
 
 const POPULAR_CODES = new Set([
-  'wa',
-  'tg',
-  'ig',
-  'fb',
-  'go',
-  'lf',
-  'tw',
-  'ds',
-  'vi',
-  'ub',
-  'mm',
-  'am',
-  'ot',
-  'ni',
-  'me',
-  'wb',
-  'ka',
-  'pm',
-  'mb',
-  'sn',
+  'wa', 'tg', 'ig', 'fb', 'go', 'lf', 'tw', 'ds', 'vi', 'ub',
+  'mm', 'am', 'ot', 'ni', 'me', 'wb', 'ka', 'pm', 'mb', 'sn',
 ]);
 
 function checkPassword(password: string | undefined) {
@@ -105,6 +87,23 @@ async function upsertInBatches(
   }
 }
 
+/** Keep one row per unique constraint key (last write wins). */
+function dedupePriceRows(rows: Record<string, unknown>[]) {
+  const map = new Map<string, Record<string, unknown>>();
+  for (const row of rows) {
+    const key =
+      String(row.service_id) +
+      '|' +
+      String(row.country_id) +
+      '|' +
+      String(row.provider_code) +
+      '|' +
+      String(row.cost_usd);
+    map.set(key, row);
+  }
+  return Array.from(map.values());
+}
+
 export async function GET(req: NextRequest) {
   return runSync(req);
 }
@@ -151,7 +150,7 @@ async function runSync(req: NextRequest) {
   };
 
   try {
-    // ─── 1. Services (bulk) ───────────────────────────────────────
+    // 1. Services
     if (mode === 'full' || mode === 'services') {
       const raw = await grizzly('getServicesList');
       const list: Array<{ code?: string; name?: string }> = Array.isArray(
@@ -163,9 +162,11 @@ async function runSync(req: NextRequest) {
           : [];
 
       const rows: Record<string, unknown>[] = [];
+      const seen = new Set<string>();
       for (const s of list) {
         const code = String(s.code || '').trim().toLowerCase();
-        if (!code) continue;
+        if (!code || seen.has(code)) continue;
+        seen.add(code);
         const name = String(s.name || code).trim();
         rows.push({
           code,
@@ -181,23 +182,27 @@ async function runSync(req: NextRequest) {
       stats.services = rows.length;
     }
 
-    // ─── 2. Countries (bulk) ──────────────────────────────────────
+    // 2. Countries
     if (mode === 'full' || mode === 'services') {
       const raw = await grizzly('getCountries');
       const entries =
         typeof raw === 'object' && raw !== null ? Object.entries(raw) : [];
 
       const rows: Record<string, unknown>[] = [];
+      const seen = new Set<string>();
       for (const [code, info] of entries) {
         if (!info || typeof info !== 'object') continue;
+        const codeStr = String(code);
+        if (seen.has(codeStr)) continue;
+        seen.add(codeStr);
         const c = info as { eng?: string; name?: string };
         const name = String(c.eng || c.name || code).trim();
         const isVirtual =
-          code === '12' ||
+          codeStr === '12' ||
           name.toLowerCase().includes('virtual') ||
           name.includes('(2)');
         rows.push({
-          code: String(code),
+          code: codeStr,
           name,
           display_name: isVirtual
             ? 'United States (Virtual)'
@@ -214,9 +219,8 @@ async function runSync(req: NextRequest) {
       stats.countries = rows.length;
     }
 
-    // ─── 3. Price options (priority countries, bulk) ──────────────
+    // 3. Price options
     if (mode === 'full' || mode === 'prices') {
-      // Supabase default page size is 1000 — fetch all pages
       const serviceRows = (await sbSelect(
         'vn_services',
         'select=id,code&is_active=eq.true&limit=5000',
@@ -236,7 +240,10 @@ async function runSync(req: NextRequest) {
 
       for (const countryCode of PRIORITY_COUNTRIES) {
         const countryId = countryMap.get(countryCode);
-        if (!countryId) continue;
+        if (!countryId) {
+          stats.errors.push('missing country id for ' + countryCode);
+          continue;
+        }
 
         let priceData: any;
         try {
@@ -251,8 +258,6 @@ async function runSync(req: NextRequest) {
           continue;
         }
 
-        // getPricesV3 shape can be { "187": { "wa": { cost, count, ... } } }
-        // or nested with providers
         const countryBlock =
           priceData?.[countryCode] || priceData?.[String(countryCode)] || {};
 
@@ -262,7 +267,6 @@ async function runSync(req: NextRequest) {
 
           const infoObj = info as any;
 
-          // Format A: { providers: { id: { count, price: [] } } }
           if (infoObj.providers && typeof infoObj.providers === 'object') {
             for (const [providerId, pinfo] of Object.entries(infoObj.providers)) {
               const p = pinfo as { count?: number; price?: number[] | number };
@@ -272,9 +276,13 @@ async function runSync(req: NextRequest) {
                   ? [Number(p.price)]
                   : [];
               const stock = Number(p.count || 0);
+              // unique prices only inside this provider
+              const seenCosts = new Set<number>();
               for (const cost of prices) {
                 const costUsd = Number(cost);
                 if (!Number.isFinite(costUsd) || costUsd <= 0) continue;
+                if (seenCosts.has(costUsd)) continue;
+                seenCosts.add(costUsd);
                 priceRows.push({
                   service_id: serviceId,
                   country_id: countryId,
@@ -289,7 +297,6 @@ async function runSync(req: NextRequest) {
               }
             }
           } else {
-            // Format B: flat { cost, count } or { price, count }
             const costUsd = Number(infoObj.cost ?? infoObj.price ?? 0);
             const stock = Number(infoObj.count ?? infoObj.qty ?? 0);
             if (!Number.isFinite(costUsd) || costUsd <= 0) continue;
@@ -308,13 +315,13 @@ async function runSync(req: NextRequest) {
         }
       }
 
-      // unique index is (service_id, country_id, provider_code, cost_usd)
+      const uniqueRows = dedupePriceRows(priceRows);
       await upsertInBatches(
         'vn_price_options',
-        priceRows,
+        uniqueRows,
         'service_id,country_id,provider_code,cost_usd',
       );
-      stats.priceOptions = priceRows.length;
+      stats.priceOptions = uniqueRows.length;
     }
 
     return NextResponse.json({
