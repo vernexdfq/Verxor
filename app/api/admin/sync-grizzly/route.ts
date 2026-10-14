@@ -24,7 +24,6 @@ const PRIORITY_COUNTRIES = [
   '131',
 ];
 
-/** Friendly names when Grizzly getServicesList omits a code that still appears in prices. */
 const KNOWN_SERVICE_NAMES: Record<string, string> = {
   fb: 'Facebook',
   ig: 'Instagram',
@@ -101,6 +100,22 @@ async function upsertInBatches(
   }
 }
 
+/** Load ALL services (paginate past PostgREST default caps). */
+async function loadAllServices(): Promise<Array<{ id: string; code: string }>> {
+  const all: Array<{ id: string; code: string }> = [];
+  const pageSize = 1000;
+  for (let offset = 0; offset < 20000; offset += pageSize) {
+    const rows = (await sbSelect(
+      'vn_services',
+      `select=id,code&is_active=eq.true&order=code.asc&limit=${pageSize}&offset=${offset}`,
+    )) as Array<{ id: string; code: string }>;
+    if (!rows || rows.length === 0) break;
+    all.push(...rows);
+    if (rows.length < pageSize) break;
+  }
+  return all;
+}
+
 function dedupePriceRows(rows: Record<string, unknown>[]) {
   const map = new Map<string, Record<string, unknown>>();
   for (const row of rows) {
@@ -141,11 +156,9 @@ function unwrapCountryBlock(priceData: any, countryCode: string): any {
   if (priceData[countryCode] && typeof priceData[countryCode] === 'object') {
     return priceData[countryCode];
   }
-  // already service-keyed
   return priceData;
 }
 
-/** Collect service codes present in a price payload. */
 function collectServiceCodes(priceData: any, countryCode: string): string[] {
   const block = unwrapCountryBlock(priceData, countryCode);
   if (!block || typeof block !== 'object') return [];
@@ -244,10 +257,7 @@ async function runSync(req: NextRequest) {
     return NextResponse.json({ ok: false, reason: auth.reason }, { status: auth.status });
   }
   if (!supabaseConfigured()) {
-    return NextResponse.json(
-      { ok: false, reason: 'Supabase not configured' },
-      { status: 503 },
-    );
+    return NextResponse.json({ ok: false, reason: 'Supabase not configured' }, { status: 503 });
   }
   if (!process.env.GRIZZLYSMS_API_KEY) {
     return NextResponse.json({ ok: false, reason: 'GRIZZLYSMS_API_KEY missing' }, { status: 503 });
@@ -259,6 +269,7 @@ async function runSync(req: NextRequest) {
   const stats = {
     services: 0,
     servicesAddedFromPrices: 0,
+    serviceMapSize: 0,
     countries: 0,
     priceOptions: 0,
     countriesPriced: 0,
@@ -271,11 +282,8 @@ async function runSync(req: NextRequest) {
       const country = req.nextUrl.searchParams.get('country') || '16';
       const priceData = await grizzly('getPricesV3', { country });
       const codes = collectServiceCodes(priceData, country);
-      const serviceRows = (await sbSelect(
-        'vn_services',
-        'select=id,code&is_active=eq.true&limit=5000',
-      )) as Array<{ id: string; code: string }>;
-      const inDb = new Set((serviceRows || []).map((r) => String(r.code).toLowerCase()));
+      const serviceRows = await loadAllServices();
+      const inDb = new Set(serviceRows.map((r) => String(r.code).toLowerCase()));
       const missing = codes.filter((c) => !inDb.has(c.toLowerCase()));
       const interesting = ['fb', 'ig', 'lf', 'wa', 'tg', 'go'];
       const samples: Record<string, unknown> = {};
@@ -286,8 +294,9 @@ async function runSync(req: NextRequest) {
       return NextResponse.json({
         ok: true,
         country,
+        dbServiceCount: serviceRows.length,
         serviceCodesInPrices: codes.length,
-        missingFromDb: missing.slice(0, 50),
+        missingFromDb: missing.slice(0, 30),
         missingCount: missing.length,
         hasFbIgLf: {
           fb: codes.includes('fb'),
@@ -311,7 +320,6 @@ async function runSync(req: NextRequest) {
       });
     }
 
-    // 1. Services from getServicesList
     if (mode === 'full' || mode === 'services') {
       const raw = await grizzly('getServicesList');
       const list: Array<{ code?: string; name?: string }> = Array.isArray(raw?.services)
@@ -337,7 +345,6 @@ async function runSync(req: NextRequest) {
         });
       }
 
-      // Seed known popular codes even if getServicesList omits them
       for (const [code, name] of Object.entries(KNOWN_SERVICE_NAMES)) {
         if (seen.has(code)) continue;
         seen.add(code);
@@ -355,7 +362,6 @@ async function runSync(req: NextRequest) {
       stats.services = rows.length;
     }
 
-    // 2. Countries
     if (mode === 'full' || mode === 'services' || mode === 'countries') {
       const raw = await grizzly('getCountries');
       const entries =
@@ -390,20 +396,18 @@ async function runSync(req: NextRequest) {
       stats.countries = rows.length;
     }
 
-    // 3. Prices — auto-create any service codes found in price payload but missing from DB
     if (mode === 'full' || mode === 'prices') {
-      let serviceRows = (await sbSelect(
-        'vn_services',
-        'select=id,code&is_active=eq.true&limit=5000',
-      )) as Array<{ id: string; code: string }>;
+      const serviceRows = await loadAllServices();
       const countryRows = (await sbSelect(
         'vn_countries',
         'select=id,code&is_active=eq.true&limit=1000',
       )) as Array<{ id: string; code: string }>;
 
       const serviceMap = new Map<string, string>();
-      for (const r of serviceRows || [])
+      for (const r of serviceRows)
         serviceMap.set(String(r.code).toLowerCase(), r.id);
+      stats.serviceMapSize = serviceMap.size;
+
       const countryMap = new Map<string, string>();
       for (const r of countryRows || []) countryMap.set(String(r.code), r.id);
 
@@ -428,13 +432,13 @@ async function runSync(req: NextRequest) {
 
       let totalOptions = 0;
       const BATCH_COUNTRIES = 4;
-      const missingServiceCodes = new Set<string>();
 
       for (let i = 0; i < countryCodes.length; i += BATCH_COUNTRIES) {
         const slice = countryCodes.slice(i, i + BATCH_COUNTRIES);
         const batchRows: Record<string, unknown>[] = [];
         const pricePayloads: Array<{ countryCode: string; countryId: string; data: any }> =
           [];
+        const missingServiceCodes = new Set<string>();
 
         await mapPool(slice, PRICE_CONCURRENCY, async (countryCode) => {
           const countryId = countryMap.get(countryCode);
@@ -444,7 +448,6 @@ async function runSync(req: NextRequest) {
           }
           try {
             const priceData = await grizzly('getPricesV3', { country: countryCode });
-            // discover missing services
             for (const code of collectServiceCodes(priceData, countryCode)) {
               if (!serviceMap.has(code.toLowerCase())) {
                 missingServiceCodes.add(code.toLowerCase());
@@ -462,7 +465,6 @@ async function runSync(req: NextRequest) {
           }
         });
 
-        // Upsert any newly discovered services before extracting rows
         if (missingServiceCodes.size > 0) {
           const newRows = Array.from(missingServiceCodes).map((code) => ({
             code,
@@ -475,15 +477,17 @@ async function runSync(req: NextRequest) {
           await upsertInBatches('vn_services', newRows, 'code');
           stats.servicesAddedFromPrices += newRows.length;
 
-          // refresh map for these codes
+          // Fetch only the new codes so map is complete (avoid 5k truncation)
+          const codeList = Array.from(missingServiceCodes)
+            .map((c) => encodeURIComponent(c))
+            .join(',');
           const refreshed = (await sbSelect(
             'vn_services',
-            'select=id,code&is_active=eq.true&limit=5000',
+            `code=in.(${codeList})&select=id,code&limit=5000`,
           )) as Array<{ id: string; code: string }>;
-          serviceMap.clear();
-          for (const r of refreshed || [])
+          for (const r of refreshed || []) {
             serviceMap.set(String(r.code).toLowerCase(), r.id);
-          missingServiceCodes.clear();
+          }
         }
 
         for (const { countryCode, countryId, data } of pricePayloads) {
@@ -508,10 +512,11 @@ async function runSync(req: NextRequest) {
         totalOptions += uniqueRows.length;
 
         if (i + BATCH_COUNTRIES < countryCodes.length) {
-          await new Promise((r) => setTimeout(r, 500));
+          await new Promise((r) => setTimeout(r, 400));
         }
       }
       stats.priceOptions = totalOptions;
+      stats.serviceMapSize = serviceMap.size;
     }
 
     return NextResponse.json({
@@ -523,8 +528,8 @@ async function runSync(req: NextRequest) {
         mode === 'services'
           ? 'Services + countries synced'
           : mode === 'prices'
-            ? `Prices synced for ${stats.countriesPriced} countries (${stats.priceOptions} options, +${stats.servicesAddedFromPrices} services from prices)`
-            : `Full sync done`,
+            ? `Prices synced for ${stats.countriesPriced} countries (${stats.priceOptions} options, map=${stats.serviceMapSize})`
+            : 'Full sync done',
     });
   } catch (err) {
     return NextResponse.json(
