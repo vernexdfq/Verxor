@@ -39,6 +39,33 @@ export async function sbInsert(table: string, row: Record<string, unknown>) {
   return res.json();
 }
 
+/** Bulk upsert. `onConflict` = comma-separated unique columns, e.g. "code" */
+export async function sbUpsertBatch(
+  table: string,
+  rows: Record<string, unknown>[],
+  onConflict: string,
+) {
+  if (rows.length === 0) return [];
+  const res = await fetch(
+    `${baseUrl()}/rest/v1/${table}?on_conflict=${encodeURIComponent(onConflict)}`,
+    {
+      method: 'POST',
+      headers: {
+        apikey: serviceKey(),
+        Authorization: `Bearer ${serviceKey()}`,
+        'Content-Type': 'application/json',
+        Prefer: 'resolution=merge-duplicates,return=minimal',
+      },
+      body: JSON.stringify(rows),
+    },
+  );
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`Supabase upsert ${table}: ${res.status} ${text.slice(0, 300)}`);
+  }
+  return true;
+}
+
 export async function sbUpdate(
   table: string,
   match: Record<string, string>,
