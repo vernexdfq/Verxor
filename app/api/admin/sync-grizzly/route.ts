@@ -5,11 +5,15 @@ import {
   supabaseConfigured,
 } from '@/lib/supabase-admin';
 
-export const maxDuration = 60;
+/** Allow long-running full catalog sync (Vercel Pro / Fluid can go higher). */
+export const maxDuration = 300;
 
 const GRIZZLY_BASE = 'https://api.grizzlysms.com/stubs/handler_api.php';
 const BATCH = 150;
+/** How many getPricesV3 country calls to run at once. */
+const PRICE_CONCURRENCY = 8;
 
+/** High-demand first so partial runs still cover FB/IG/TikTok/WA well. */
 const PRIORITY_COUNTRIES = [
   '187', // USA
   '12', // USA Virtual
@@ -25,13 +29,89 @@ const PRIORITY_COUNTRIES = [
   '56', // Spain
   '78', // France
   '86', // Italy
-  '117', // Philippines
+  '117', // Philippines / Australia variant
   '175', // Australia
+  '52', // Thailand
+  '62', // Turkey
+  '54', // Mexico
+  '33', // Colombia
+  '31', // South Africa
+  '19', // Nigeria
+  '4', // Philippines
+  '14', // Hong Kong
+  '15', // Poland
+  '32', // Romania
+  '46', // Sweden
+  '50', // Austria
+  '63', // Czech
+  '82', // Belgium
+  '84', // Hungary
+  '129', // Greece
+  '141', // Finland
+  '163', // Norway
+  '37', // Morocco
+  '53', // Saudi Arabia
+  '95', // UAE
+  '40', // Uzbekistan
+  '60', // Bangladesh
+  '66', // Pakistan
+  '64', // Sri Lanka
+  '81', // Nepal
+  '8', // Kenya
+  '38', // Ghana
+  '67', // New Zealand
+  '55', // Taiwan
+  '3', // China
+  '57', // Iran
+  '47', // Iraq
+  '13', // Israel
+  '0', // Russia
+  '2', // Kazakhstan
+  '7', // Malaysia
+  '9', // Tanzania
+  '11', // Kyrgyzstan
+  '17', // Madagascar
+  '18', // DR Congo
+  '20', // Macao
+  '21', // Egypt
+  '23', // Ireland
+  '24', // Cambodia
+  '25', // Laos
+  '29', // Serbia
+  '34', // Estonia
+  '35', // Azerbaijan
+  '39', // Argentina
+  '41', // Cameroon
+  '44', // Lithuania
+  '45', // Croatia
+  '49', // Latvia
+  '51', // Belarus
+  '58', // Algeria
+  '59', // Slovenia
+  '61', // Senegal
+  '65', // Peru
+  '70', // Venezuela
+  '71', // Ethiopia
+  '72', // Mongolia
+  '74', // Afghanistan
+  '75', // Uganda
+  '83', // Bulgaria
+  '85', // Moldova
+  '87', // Paraguay
+  '93', // Costa Rica
+  '94', // Guatemala
+  '103', // Jamaica
+  '105', // Ecuador
+  '109', // Dominican Republic
+  '114', // Portugal
+  '128', // Georgia
+  '131', // Lebanon
 ];
 
 const POPULAR_CODES = new Set([
   'wa', 'tg', 'ig', 'fb', 'go', 'lf', 'tw', 'ds', 'vi', 'ub',
   'mm', 'am', 'ot', 'ni', 'me', 'wb', 'ka', 'pm', 'mb', 'sn',
+  'ok', 'vk', 'im', 'fu', 'kt', 'hw', 'aax', 'acz',
 ]);
 
 function checkPassword(password: string | undefined) {
@@ -62,7 +142,7 @@ async function grizzly(action: string, extra: Record<string, string> = {}) {
   const url = GRIZZLY_BASE + '?' + params.toString();
   const res = await fetch(url, {
     cache: 'no-store',
-    signal: AbortSignal.timeout(25000),
+    signal: AbortSignal.timeout(28000),
   });
   const text = await res.text();
   if (!res.ok) throw new Error('Grizzly ' + action + ': HTTP ' + res.status);
@@ -104,6 +184,93 @@ function dedupePriceRows(rows: Record<string, unknown>[]) {
   return Array.from(map.values());
 }
 
+/** Simple concurrency pool. */
+async function mapPool<T, R>(
+  items: T[],
+  concurrency: number,
+  fn: (item: T, index: number) => Promise<R>,
+): Promise<R[]> {
+  const results: R[] = new Array(items.length);
+  let next = 0;
+  async function worker() {
+    while (next < items.length) {
+      const i = next++;
+      results[i] = await fn(items[i], i);
+    }
+  }
+  const workers = Array.from({ length: Math.min(concurrency, items.length) }, () => worker());
+  await Promise.all(workers);
+  return results;
+}
+
+function extractPriceRowsForCountry(
+  countryCode: string,
+  countryId: string,
+  priceData: any,
+  serviceMap: Map<string, string>,
+): Record<string, unknown>[] {
+  const priceRows: Record<string, unknown>[] = [];
+  const countryBlock =
+    priceData?.[countryCode] || priceData?.[String(countryCode)] || priceData || {};
+
+  if (!countryBlock || typeof countryBlock !== 'object') return priceRows;
+
+  for (const [serviceCode, info] of Object.entries(countryBlock)) {
+    // skip nested country keys if API returns { "187": { wa: ... } } already unwrapped
+    if (serviceCode === countryCode) continue;
+    const serviceId = serviceMap.get(String(serviceCode).toLowerCase());
+    if (!serviceId || !info || typeof info !== 'object') continue;
+
+    const infoObj = info as any;
+
+    if (infoObj.providers && typeof infoObj.providers === 'object') {
+      for (const [providerId, pinfo] of Object.entries(infoObj.providers)) {
+        const p = pinfo as { count?: number; price?: number[] | number };
+        const prices = Array.isArray(p.price)
+          ? p.price
+          : p.price != null
+            ? [Number(p.price)]
+            : [];
+        const stock = Number(p.count || 0);
+        const seenCosts = new Set<number>();
+        for (const cost of prices) {
+          const costUsd = Number(cost);
+          if (!Number.isFinite(costUsd) || costUsd <= 0) continue;
+          if (seenCosts.has(costUsd)) continue;
+          seenCosts.add(costUsd);
+          priceRows.push({
+            service_id: serviceId,
+            country_id: countryId,
+            provider_code: String(providerId),
+            cost_usd: costUsd,
+            stock,
+            tier: tierFromCost(costUsd),
+            is_available: stock > 0,
+            last_synced_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          });
+        }
+      }
+    } else {
+      const costUsd = Number(infoObj.cost ?? infoObj.price ?? 0);
+      const stock = Number(infoObj.count ?? infoObj.qty ?? 0);
+      if (!Number.isFinite(costUsd) || costUsd <= 0) continue;
+      priceRows.push({
+        service_id: serviceId,
+        country_id: countryId,
+        provider_code: 'grizzly',
+        cost_usd: costUsd,
+        stock,
+        tier: tierFromCost(costUsd),
+        is_available: stock > 0,
+        last_synced_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      });
+    }
+  }
+  return priceRows;
+}
+
 export async function GET(req: NextRequest) {
   return runSync(req);
 }
@@ -142,15 +309,20 @@ async function runSync(req: NextRequest) {
   }
 
   const mode = (req.nextUrl.searchParams.get('mode') || 'full').toLowerCase();
+  // countries=all | priority | comma-list of grizzly codes
+  const countriesParam = (req.nextUrl.searchParams.get('countries') || 'all').toLowerCase();
+
   const stats = {
     services: 0,
     countries: 0,
     priceOptions: 0,
+    countriesPriced: 0,
+    countriesFailed: 0,
     errors: [] as string[],
   };
 
   try {
-    // 1. Services
+    // 1. Services — full list from Grizzly
     if (mode === 'full' || mode === 'services') {
       const raw = await grizzly('getServicesList');
       const list: Array<{ code?: string; name?: string }> = Array.isArray(
@@ -182,8 +354,8 @@ async function runSync(req: NextRequest) {
       stats.services = rows.length;
     }
 
-    // 2. Countries
-    if (mode === 'full' || mode === 'services') {
+    // 2. Countries — full list from Grizzly
+    if (mode === 'full' || mode === 'services' || mode === 'countries') {
       const raw = await grizzly('getCountries');
       const entries =
         typeof raw === 'object' && raw !== null ? Object.entries(raw) : [];
@@ -195,8 +367,8 @@ async function runSync(req: NextRequest) {
         const codeStr = String(code);
         if (seen.has(codeStr)) continue;
         seen.add(codeStr);
-        const c = info as { eng?: string; name?: string };
-        const name = String(c.eng || c.name || code).trim();
+        const c = info as { eng?: string; name?: string; rus?: string };
+        const name = String(c.eng || c.name || c.rus || code).trim();
         const isVirtual =
           codeStr === '12' ||
           name.toLowerCase().includes('virtual') ||
@@ -219,7 +391,7 @@ async function runSync(req: NextRequest) {
       stats.countries = rows.length;
     }
 
-    // 3. Price options
+    // 3. Price options — all countries (or priority / explicit list) in parallel batches
     if (mode === 'full' || mode === 'prices') {
       const serviceRows = (await sbSelect(
         'vn_services',
@@ -236,86 +408,61 @@ async function runSync(req: NextRequest) {
       const countryMap = new Map<string, string>();
       for (const r of countryRows || []) countryMap.set(String(r.code), r.id);
 
-      const priceRows: Record<string, unknown>[] = [];
+      let countryCodes: string[] = [];
+      if (countriesParam === 'priority') {
+        countryCodes = PRIORITY_COUNTRIES.filter((c) => countryMap.has(c));
+      } else if (countriesParam === 'all' || !countriesParam) {
+        // Priority first, then every other country in DB → true 100% coverage
+        const prioritySet = new Set(PRIORITY_COUNTRIES);
+        const rest = (countryRows || [])
+          .map((c) => String(c.code))
+          .filter((c) => !prioritySet.has(c));
+        countryCodes = [
+          ...PRIORITY_COUNTRIES.filter((c) => countryMap.has(c)),
+          ...rest,
+        ];
+      } else {
+        countryCodes = countriesParam
+          .split(',')
+          .map((c) => c.trim())
+          .filter((c) => c && countryMap.has(c));
+      }
 
-      for (const countryCode of PRIORITY_COUNTRIES) {
+      const allPriceRows: Record<string, unknown>[] = [];
+
+      await mapPool(countryCodes, PRICE_CONCURRENCY, async (countryCode) => {
         const countryId = countryMap.get(countryCode);
         if (!countryId) {
           stats.errors.push('missing country id for ' + countryCode);
-          continue;
+          stats.countriesFailed += 1;
+          return;
         }
 
-        let priceData: any;
         try {
-          priceData = await grizzly('getPricesV3', { country: countryCode });
+          const priceData = await grizzly('getPricesV3', { country: countryCode });
+          const rows = extractPriceRowsForCountry(
+            countryCode,
+            countryId,
+            priceData,
+            serviceMap,
+          );
+          if (rows.length > 0) {
+            allPriceRows.push(...rows);
+            stats.countriesPriced += 1;
+          }
         } catch (e) {
+          stats.countriesFailed += 1;
           stats.errors.push(
             'prices country ' +
               countryCode +
               ': ' +
               (e instanceof Error ? e.message : 'fail'),
           );
-          continue;
         }
+      });
 
-        const countryBlock =
-          priceData?.[countryCode] || priceData?.[String(countryCode)] || {};
-
-        for (const [serviceCode, info] of Object.entries(countryBlock)) {
-          const serviceId = serviceMap.get(String(serviceCode).toLowerCase());
-          if (!serviceId || !info || typeof info !== 'object') continue;
-
-          const infoObj = info as any;
-
-          if (infoObj.providers && typeof infoObj.providers === 'object') {
-            for (const [providerId, pinfo] of Object.entries(infoObj.providers)) {
-              const p = pinfo as { count?: number; price?: number[] | number };
-              const prices = Array.isArray(p.price)
-                ? p.price
-                : p.price != null
-                  ? [Number(p.price)]
-                  : [];
-              const stock = Number(p.count || 0);
-              // unique prices only inside this provider
-              const seenCosts = new Set<number>();
-              for (const cost of prices) {
-                const costUsd = Number(cost);
-                if (!Number.isFinite(costUsd) || costUsd <= 0) continue;
-                if (seenCosts.has(costUsd)) continue;
-                seenCosts.add(costUsd);
-                priceRows.push({
-                  service_id: serviceId,
-                  country_id: countryId,
-                  provider_code: String(providerId),
-                  cost_usd: costUsd,
-                  stock,
-                  tier: tierFromCost(costUsd),
-                  is_available: stock > 0,
-                  last_synced_at: new Date().toISOString(),
-                  updated_at: new Date().toISOString(),
-                });
-              }
-            }
-          } else {
-            const costUsd = Number(infoObj.cost ?? infoObj.price ?? 0);
-            const stock = Number(infoObj.count ?? infoObj.qty ?? 0);
-            if (!Number.isFinite(costUsd) || costUsd <= 0) continue;
-            priceRows.push({
-              service_id: serviceId,
-              country_id: countryId,
-              provider_code: 'grizzly',
-              cost_usd: costUsd,
-              stock,
-              tier: tierFromCost(costUsd),
-              is_available: stock > 0,
-              last_synced_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-            });
-          }
-        }
-      }
-
-      const uniqueRows = dedupePriceRows(priceRows);
+      const uniqueRows = dedupePriceRows(allPriceRows);
+      // Upsert in batches so we don't blow memory / payload limits
       await upsertInBatches(
         'vn_price_options',
         uniqueRows,
@@ -327,13 +474,14 @@ async function runSync(req: NextRequest) {
     return NextResponse.json({
       ok: true,
       mode,
+      countriesParam,
       stats,
       message:
         mode === 'services'
-          ? 'Services + countries synced'
+          ? 'Services + countries synced (full Grizzly lists)'
           : mode === 'prices'
-            ? 'Priority country prices synced'
-            : 'Full sync completed (services + countries + priority prices)',
+            ? `Prices synced for ${stats.countriesPriced} countries (${stats.priceOptions} options)`
+            : `Full sync: ${stats.services} services, ${stats.countries} countries, ${stats.priceOptions} price options across ${stats.countriesPriced} countries`,
     });
   } catch (err) {
     return NextResponse.json(
