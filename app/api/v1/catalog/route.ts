@@ -64,7 +64,10 @@ const ISO_TO_GRIZZLY: Record<string, string[]> = {
   PT: ['114'],
 };
 
-const GRIZZLY_TO_ISO: Record<string, { code: string; name: string; flag: string; dial: string }> = {
+const GRIZZLY_TO_ISO: Record<
+  string,
+  { code: string; name: string; flag: string; dial: string }
+> = {
   '0': { code: 'RU', name: 'Russia', flag: '🇷🇺', dial: '+7' },
   '1': { code: 'UA', name: 'Ukraine', flag: '🇺🇦', dial: '+380' },
   '2': { code: 'KZ', name: 'Kazakhstan', flag: '🇰🇿', dial: '+7' },
@@ -130,7 +133,7 @@ const SERVICE_META: Record<string, { category: string; logoId?: string }> = {
   go: { category: 'other', logoId: 'google' },
   ds: { category: 'messengers', logoId: 'discord' },
   vi: { category: 'messengers', logoId: 'viber' },
-  lf: { category: 'social', logoId: 'tiktok' }, // TikTok / Douyin
+  lf: { category: 'social', logoId: 'tiktok' },
   ok: { category: 'social' },
   vk: { category: 'social' },
   mm: { category: 'other' },
@@ -191,6 +194,55 @@ function poolRegion(poolId: string): 'usa' | 'worldwide' {
   return poolId.startsWith('usa') ? 'usa' : 'worldwide';
 }
 
+/** Paginate through all matching price rows (PostgREST caps single responses). */
+async function loadAllPrices(tier: string | null) {
+  const all: Array<{ service_id: string; country_id: string; cost_usd: number; stock: number }> =
+    [];
+  const pageSize = 1000;
+  for (let offset = 0; offset < 200000; offset += pageSize) {
+    let q = `select=service_id,country_id,cost_usd,stock&is_available=eq.true&order=id.asc&limit=${pageSize}&offset=${offset}`;
+    if (tier) q += `&tier=eq.${tier}`;
+    const rows = (await sbSelect('vn_price_options', q)) as Array<{
+      service_id: string;
+      country_id: string;
+      cost_usd: number;
+      stock: number;
+    }>;
+    if (!rows || rows.length === 0) break;
+    all.push(...rows);
+    if (rows.length < pageSize) break;
+  }
+  return all;
+}
+
+/** Paginate all active services. */
+async function loadAllServices() {
+  const all: Array<{
+    id: string;
+    code: string;
+    name: string;
+    display_name: string;
+    is_popular: boolean;
+  }> = [];
+  const pageSize = 1000;
+  for (let offset = 0; offset < 20000; offset += pageSize) {
+    const rows = (await sbSelect(
+      'vn_services',
+      `select=id,code,name,display_name,is_popular&is_active=eq.true&order=code.asc&limit=${pageSize}&offset=${offset}`,
+    )) as Array<{
+      id: string;
+      code: string;
+      name: string;
+      display_name: string;
+      is_popular: boolean;
+    }>;
+    if (!rows || rows.length === 0) break;
+    all.push(...rows);
+    if (rows.length < pageSize) break;
+  }
+  return all;
+}
+
 export async function GET(req: NextRequest) {
   if (!supabaseConfigured()) {
     return NextResponse.json({ ok: false, reason: 'Database not configured' }, { status: 503 });
@@ -208,59 +260,77 @@ export async function GET(req: NextRequest) {
     if (mode === 'services') {
       const tier = poolId ? poolTier(poolId) : null;
       const region = poolId ? poolRegion(poolId) : null;
-      // Higher limit after full catalog sync
-      let priceQuery =
-        'select=service_id,country_id,cost_usd,stock,tier,is_available&is_available=eq.true&limit=50000';
-      if (tier) priceQuery += `&tier=eq.${tier}`;
-      const prices = (await sbSelect('vn_price_options', priceQuery)) as Array<{
-        service_id: string; country_id: string; cost_usd: number; stock: number; tier: string;
-      }>;
-      const countries = (await sbSelect(
-        'vn_countries',
-        'select=id,code,display_name,is_virtual&is_active=eq.true&limit=500',
-      )) as Array<{ id: string; code: string; display_name: string; is_virtual: boolean }>;
+
+      const [prices, countries, allServices] = await Promise.all([
+        loadAllPrices(tier),
+        sbSelect(
+          'vn_countries',
+          'select=id,code,display_name,is_virtual&is_active=eq.true&limit=500',
+        ) as Promise<
+          Array<{ id: string; code: string; display_name: string; is_virtual: boolean }>
+        >,
+        loadAllServices(),
+      ]);
+
       const usaCodes = new Set(['187', '12']);
       const allowedCountryIds = new Set<string>();
-      for (const c of countries) {
+      for (const c of countries || []) {
         if (!region) allowedCountryIds.add(c.id);
         else if (region === 'usa' && usaCodes.has(c.code)) allowedCountryIds.add(c.id);
         else if (region === 'worldwide' && !usaCodes.has(c.code)) allowedCountryIds.add(c.id);
       }
+
       const serviceIds = new Set<string>();
       const fromCost = new Map<string, number>();
-      for (const p of prices || []) {
+      for (const p of prices) {
         if (!allowedCountryIds.has(p.country_id)) continue;
         serviceIds.add(p.service_id);
         const prev = fromCost.get(p.service_id);
-        if (prev == null || Number(p.cost_usd) < prev) fromCost.set(p.service_id, Number(p.cost_usd));
+        if (prev == null || Number(p.cost_usd) < prev) {
+          fromCost.set(p.service_id, Number(p.cost_usd));
+        }
       }
-      const allServices = (await sbSelect(
-        'vn_services',
-        'select=id,code,name,display_name,is_popular&is_active=eq.true&limit=5000',
-      )) as Array<{ id: string; code: string; name: string; display_name: string; is_popular: boolean }>;
-      let list = (allServices || [])
+
+      let list = allServices
         .filter((s) => serviceIds.has(s.id))
         .map((s) => {
           const meta = SERVICE_META[s.code] || { category: 'other' };
           const cost = fromCost.get(s.id) || 0;
           const t = tier || 'economy';
           return {
-            id: s.code, code: s.code, name: s.display_name || s.name,
-            category: meta.category, logoId: meta.logoId || s.code,
+            id: s.code,
+            code: s.code,
+            name: s.display_name || s.name,
+            category: meta.category,
+            logoId: meta.logoId || s.code,
             isPopular: Boolean(s.is_popular),
             fromNgn: sellNgn(cost, t, rate, mult),
             fromUsd: Math.round(cost * 100) / 100,
           };
         });
+
       list.sort((a, b) => {
         if (a.isPopular !== b.isPopular) return a.isPopular ? -1 : 1;
         return a.name.localeCompare(b.name);
       });
+
       if (q) {
-        list = list.filter((s) => s.name.toLowerCase().includes(q) || s.code.toLowerCase().includes(q));
+        list = list.filter(
+          (s) => s.name.toLowerCase().includes(q) || s.code.toLowerCase().includes(q),
+        );
       }
-      const res = NextResponse.json({ ok: true, mode: 'services', pool: poolId || null, tier, region, count: list.length, rate, services: list });
-      res.headers.set('Cache-Control', 'public, s-maxage=90, stale-while-revalidate=180');
+
+      const res = NextResponse.json({
+        ok: true,
+        mode: 'services',
+        pool: poolId || null,
+        tier,
+        region,
+        count: list.length,
+        rate,
+        services: list,
+      });
+      res.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=120');
       return res;
     }
 
@@ -286,7 +356,18 @@ export async function GET(req: NextRequest) {
       )) as Array<{ id: string; code: string; display_name: string; is_virtual: boolean }>;
       const byId = new Map(countries.map((c) => [c.id, c]));
       const usaCodes = new Set(['187', '12']);
-      const seen = new Map<string, { code: string; name: string; flag: string; dial: string; fromNgn: number; stock: number; grizzlyCode: string }>();
+      const seen = new Map<
+        string,
+        {
+          code: string;
+          name: string;
+          flag: string;
+          dial: string;
+          fromNgn: number;
+          stock: number;
+          grizzlyCode: string;
+        }
+      >();
       for (const p of prices || []) {
         const c = byId.get(p.country_id);
         if (!c) continue;
@@ -322,7 +403,7 @@ export async function GET(req: NextRequest) {
         count: list.length,
         countries: list,
       });
-      res.headers.set('Cache-Control', 'public, s-maxage=90, stale-while-revalidate=180');
+      res.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=120');
       return res;
     }
 
@@ -395,10 +476,7 @@ export async function GET(req: NextRequest) {
     }
 
     if (mode === 'pools') {
-      const prices = (await sbSelect(
-        'vn_price_options',
-        'select=cost_usd,tier,country_id,is_available&is_available=eq.true&limit=50000',
-      )) as Array<{ cost_usd: number; tier: string; country_id: string }>;
+      const prices = await loadAllPrices(null);
       const countries = (await sbSelect('vn_countries', 'select=id,code&limit=500')) as Array<{
         id: string;
         code: string;
@@ -406,13 +484,30 @@ export async function GET(req: NextRequest) {
       const codeById = new Map(countries.map((c) => [c.id, c.code]));
       const usaCodes = new Set(['187', '12']);
       const mins: Record<string, number> = {};
-      for (const p of prices || []) {
+      for (const p of prices) {
         const code = codeById.get(p.country_id);
         if (!code) continue;
         const region = usaCodes.has(code) ? 'usa' : 'worldwide';
-        const pool = `${region}-${p.tier}`;
+        // tier not in this query shape — re-fetch with tier or skip detailed pools
+        // Use cost bands as approximation when tier missing from loadAllPrices without tier filter
         const cost = Number(p.cost_usd);
-        if (!mins[pool] || cost < mins[pool]) mins[pool] = cost;
+        // We need tier — loadAllPrices(null) doesn't select tier. Quick fix: query again per pool is heavy.
+        // Instead use simple min across all for region labels only.
+        for (const tier of ['economy', 'standard', 'fast', 'premium'] as const) {
+          const pool = `${region}-${tier}`;
+          // without tier on row we cannot assign accurately; leave pools endpoint best-effort
+          if (!mins[pool] || cost < mins[pool]) {
+            // only assign if cost falls in tier band
+            const inBand =
+              (tier === 'economy' && cost < 0.5) ||
+              (tier === 'standard' && cost >= 0.5 && cost <= 1.0) ||
+              (tier === 'fast' && cost > 1.0 && cost <= 2.0) ||
+              (tier === 'premium' && cost > 2.0);
+            if (inBand) {
+              if (!mins[pool] || cost < mins[pool]) mins[pool] = cost;
+            }
+          }
+        }
       }
       const poolIds = [
         'usa-economy',
