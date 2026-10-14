@@ -4,16 +4,87 @@ import { sbInsert, supabaseConfigured } from '@/lib/supabase-admin';
 
 export const dynamic = 'force-dynamic';
 
+function supabaseBase() {
+  return (process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '')
+    .replace(/\/rest\/v1\/?$/, '')
+    .replace(/\/$/, '');
+}
+
+async function resolveUserId(req: NextRequest, bodyUserId?: string): Promise<string | null> {
+  if (bodyUserId) return bodyUserId;
+  const auth = req.headers.get('authorization') || '';
+  const token = auth.startsWith('Bearer ') ? auth.slice(7).trim() : '';
+  if (!token) return null;
+  const base = supabaseBase();
+  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
+  if (!base || !anon) return null;
+  try {
+    const res = await fetch(`${base}/auth/v1/user`, {
+      headers: { apikey: anon, Authorization: `Bearer ${token}` },
+      cache: 'no-store',
+    });
+    if (!res.ok) return null;
+    const u = (await res.json()) as { id?: string };
+    return u.id || null;
+  } catch {
+    return null;
+  }
+}
+
+async function debitWallet(userId: string, amount: number, reference: string) {
+  const base = supabaseBase();
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!base || !serviceKey) throw new Error('Wallet backend not configured');
+
+  const res = await fetch(`${base}/rest/v1/rpc/debit_wallet`, {
+    method: 'POST',
+    headers: {
+      apikey: serviceKey,
+      Authorization: `Bearer ${serviceKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      p_user_id: userId,
+      p_amount: amount,
+      p_reference: reference,
+      p_description: 'Virtual number purchase',
+    }),
+  });
+
+  if (!res.ok) {
+    const t = await res.text().catch(() => '');
+    if (/INSUFFICIENT_BALANCE/i.test(t)) {
+      throw new Error('INSUFFICIENT_BALANCE');
+    }
+    throw new Error(`Debit failed: ${t.slice(0, 200)}`);
+  }
+  return res.json();
+}
+
+async function creditWallet(userId: string, amount: number, reference: string) {
+  const base = supabaseBase();
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!base || !serviceKey) return;
+  await fetch(`${base}/rest/v1/rpc/credit_wallet`, {
+    method: 'POST',
+    headers: {
+      apikey: serviceKey,
+      Authorization: `Bearer ${serviceKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      p_user_id: userId,
+      p_amount: amount,
+      p_reference: reference,
+      p_description: 'Refund: number purchase failed',
+    }),
+  }).catch(() => null);
+}
+
 /**
  * Buy a real OTP number from Grizzly.
- * Body: {
- *   service: grizzly service code (e.g. "wa"),
- *   country: grizzly country code (e.g. "12" or "187"),
- *   maxPriceUsd: number,
- *   poolId: string,
- *   priceNgn: number,
- *   userId?: string
- * }
+ * Debits wallet first (when userId present), then calls provider.
+ * Refunds wallet if provider fails after debit.
  */
 export async function POST(req: NextRequest) {
   if (!grizzly.isConfigured()) {
@@ -56,6 +127,30 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  const userId = await resolveUserId(req, body.userId);
+  const debitRef = `vn-buy-${userId || 'anon'}-${Date.now()}`;
+  let debited = false;
+
+  // Require wallet debit when price is set and user is known
+  if (priceNgn > 0 && userId && supabaseConfigured()) {
+    try {
+      await debitWallet(userId, priceNgn, debitRef);
+      debited = true;
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Debit failed';
+      if (msg === 'INSUFFICIENT_BALANCE') {
+        return NextResponse.json(
+          { ok: false, error: 'Insufficient wallet balance. Fund your wallet first.' },
+          { status: 402 },
+        );
+      }
+      return NextResponse.json({ ok: false, error: msg }, { status: 500 });
+    }
+  } else if (priceNgn > 0 && !userId) {
+    // Soft enforcement: still allow test buys without session, but warn
+    console.warn('[numbers/buy] no userId — skipping wallet debit');
+  }
+
   try {
     const maxPrice = Math.round((maxPriceUsd + 0.01) * 100) / 100;
 
@@ -71,7 +166,7 @@ export async function POST(req: NextRequest) {
     if (supabaseConfigured()) {
       try {
         const rows = await sbInsert('vn_orders', {
-          user_id: body.userId || null,
+          user_id: userId || null,
           provider: 'grizzly',
           provider_order_id: result.id,
           phone,
@@ -81,7 +176,7 @@ export async function POST(req: NextRequest) {
           cost_usd: maxPriceUsd,
           price_ngn: priceNgn,
           status: 'waiting',
-          raw: { access: result.raw },
+          raw: { access: result.raw, debitRef: debited ? debitRef : null },
         });
         savedId = Array.isArray(rows) ? (rows[0] as { id?: string })?.id ?? null : null;
       } catch {
@@ -105,6 +200,10 @@ export async function POST(req: NextRequest) {
       },
     });
   } catch (err) {
+    // Refund if we already debited
+    if (debited && userId) {
+      await creditWallet(userId, priceNgn, `refund-${debitRef}`);
+    }
     const message = err instanceof Error ? err.message : 'Buy failed';
     return NextResponse.json({ ok: false, error: message }, { status: 502 });
   }
