@@ -62,6 +62,9 @@ export function VirtualNumbersPage({
   const [servicesLoading, setServicesLoading] = useState(false);
   const [servicesError, setServicesError] = useState<string | null>(null);
   const [pricesLoading, setPricesLoading] = useState(false);
+  const [liveCountries, setLiveCountries] = useState<Country[]>([]);
+  const [countriesLoading, setCountriesLoading] = useState(false);
+  const [buying, setBuying] = useState(false);
   const [promoIndex, setPromoIndex] = useState(0);
   const balance = session?.balanceNgn ?? 0;
   const [localOrders, setLocalOrders] = useState<CustomerNumberOrder[]>(() => {
@@ -148,12 +151,13 @@ export function VirtualNumbersPage({
   }, [liveServices]);
 
   const filteredCountries = useMemo(() => {
+    const base = liveCountries.length > 0 ? liveCountries : WORLDWIDE_COUNTRIES;
     const q = countryQuery.trim().toLowerCase();
-    if (!q) return WORLDWIDE_COUNTRIES;
-    return WORLDWIDE_COUNTRIES.filter((c) =>
+    if (!q) return base;
+    return base.filter((c) =>
       [c.name, c.code, c.dial].some((v) => v.toLowerCase().includes(q)),
     );
-  }, [countryQuery]);
+  }, [countryQuery, liveCountries]);
 
   const selectPool = async (pool: Pool) => {
     setSelectedPool(pool);
@@ -166,7 +170,32 @@ export function VirtualNumbersPage({
     setServicesLoading(true);
     setServicesError(null);
     setLiveServices([]);
+    const cacheKey = `verxor-vn-svc-${pool.id}`;
     try {
+      const cached = typeof sessionStorage !== 'undefined' ? sessionStorage.getItem(cacheKey) : null;
+      if (cached) {
+        const parsed = JSON.parse(cached) as Service[];
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setLiveServices(parsed);
+          setServicesLoading(false);
+          void (async () => {
+            try {
+              const res = await fetch(`/api/v1/catalog?mode=services&pool=${encodeURIComponent(pool.id)}`);
+              const data = await res.json();
+              if (data.ok) {
+                const mapped: Service[] = (data.services || []).map((s: any) => ({
+                  id: s.code || s.id,
+                  name: s.name,
+                  category: (s.category || 'other') as ServiceCategory,
+                }));
+                setLiveServices(mapped);
+                sessionStorage.setItem(cacheKey, JSON.stringify(mapped));
+              }
+            } catch { /* keep cache */ }
+          })();
+          return;
+        }
+      }
       const res = await fetch(`/api/v1/catalog?mode=services&pool=${encodeURIComponent(pool.id)}`);
       const data = await res.json();
       if (!data.ok) throw new Error(data.reason || 'Failed to load services');
@@ -176,6 +205,7 @@ export function VirtualNumbersPage({
         category: (s.category || 'other') as ServiceCategory,
       }));
       setLiveServices(mapped);
+      try { sessionStorage.setItem(cacheKey, JSON.stringify(mapped)); } catch { /* ignore */ }
     } catch (e) {
       setServicesError(e instanceof Error ? e.message : 'Failed to load services');
     } finally {
@@ -200,23 +230,18 @@ export function VirtualNumbersPage({
         priceUsd: Number(o.priceUsd) || 0,
         priceNgn: Number(o.priceNgn) || 0,
         stock: Number(o.stock) || 0,
+        grizzlyCountry: o.grizzlyCountry || o.countryCode || undefined,
       }));
       setPriceSheet({ open: true, options, service, country, pool });
     } catch (e) {
-      setPriceSheet({
-        open: true,
-        options: [],
-        service,
-        country,
-        pool,
-      });
+      setPriceSheet({ open: true, options: [], service, country, pool });
       setCopyToast(e instanceof Error ? e.message : 'Price load failed');
     } finally {
       setPricesLoading(false);
     }
   };
 
-  const selectService = (service: Service) => {
+  const selectService = async (service: Service) => {
     if (!selectedPool) return;
     setSelectedService(service);
     if (selectedPool.location === 'USA') {
@@ -224,6 +249,30 @@ export function VirtualNumbersPage({
     } else {
       setCountryQuery('');
       setStep('countries');
+      setCountriesLoading(true);
+      setLiveCountries([]);
+      try {
+        const res = await fetch(
+          `/api/v1/catalog?mode=countries&pool=${encodeURIComponent(selectedPool.id)}&service=${encodeURIComponent(service.id)}`,
+        );
+        const data = await res.json();
+        if (data.ok && Array.isArray(data.countries) && data.countries.length > 0) {
+          setLiveCountries(
+            data.countries.map((c: any) => ({
+              code: c.code,
+              flag: c.flag || '🌍',
+              name: c.name,
+              dial: c.dial || '',
+            })),
+          );
+        } else {
+          setLiveCountries(WORLDWIDE_COUNTRIES);
+        }
+      } catch {
+        setLiveCountries(WORLDWIDE_COUNTRIES);
+      } finally {
+        setCountriesLoading(false);
+      }
     }
   };
 
@@ -243,43 +292,92 @@ export function VirtualNumbersPage({
     });
   };
 
-  const confirmPurchase = () => {
-    if (!confirmSheet) return;
-    const { option, service, country, pool } = confirmSheet;
-    const now = Date.now();
-    const order: CustomerNumberOrder = {
-      id: `ord-${now}`,
-      number:
-        country.dial +
-        ' ' +
-        String(Math.floor(100000000 + Math.random() * 899999999)).replace(/(\d{3})(\d{3})(\d{3})/, '$1 $2 $3'),
-      service: service.name,
-      serviceId: service.id,
-      country: country.name,
-      poolTitle: pool.title,
-      status: 'waiting',
-      priceNgn: option.priceNgn,
-      expiresAt: now + LIFETIME_MS,
-      cancelAvailableAt: now + CANCEL_LOCK_MS,
-      createdAt: new Date().toISOString(),
+  const pollStatus = (order: CustomerNumberOrder) => {
+    if (!order.providerOrderId) return;
+    let attempts = 0;
+    const maxAttempts = 60;
+    const tick = async () => {
+      attempts += 1;
+      try {
+        const res = await fetch(
+          `/api/v1/numbers/status?provider=grizzly&providerOrderId=${encodeURIComponent(order.providerOrderId!)}&orderId=${encodeURIComponent(order.id)}`,
+        );
+        const data = await res.json();
+        if (data.ok && data.otp) {
+          setLocalOrders((prev) =>
+            prev.map((o) =>
+              o.id === order.id ? { ...o, status: 'received' as const, otp: String(data.otp) } : o,
+            ),
+          );
+          setInboxOrder((cur) =>
+            cur && cur.id === order.id ? { ...cur, status: 'received', otp: String(data.otp) } : cur,
+          );
+          return;
+        }
+        if (data.ok && data.status === 'cancelled') {
+          setLocalOrders((prev) =>
+            prev.map((o) => (o.id === order.id ? { ...o, status: 'cancelled' as const } : o)),
+          );
+          return;
+        }
+      } catch {
+        /* keep polling */
+      }
+      if (attempts < maxAttempts) setTimeout(tick, 5000);
     };
-    setLocalOrders((prev) => [order, ...prev]);
-    setConfirmSheet(null);
-    setPriceSheet(null);
-    setStep('orders');
+    setTimeout(tick, 3000);
+  };
 
-    const orderId = order.id;
-    setTimeout(() => {
-      const demoOtp = String(Math.floor(100000 + Math.random() * 900000));
-      setLocalOrders((prev) =>
-        prev.map((o) =>
-          o.id === orderId ? { ...o, status: 'received' as const, otp: demoOtp } : o,
-        ),
-      );
-      setInboxOrder((cur) =>
-        cur && cur.id === orderId ? { ...cur, status: 'received', otp: demoOtp } : cur,
-      );
-    }, 8000);
+  const confirmPurchase = async () => {
+    if (!confirmSheet || buying) return;
+    setBuying(true);
+    const { option, service, country, pool } = confirmSheet;
+    try {
+      let grizzlyCountry = option.grizzlyCountry || '';
+      if (!grizzlyCountry) {
+        if (country.code === 'US' || country.code === 'USA') grizzlyCountry = '12';
+        else grizzlyCountry = country.code;
+      }
+      const res = await fetch('/api/v1/numbers/buy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          service: service.id,
+          country: String(grizzlyCountry),
+          maxPriceUsd: option.priceUsd > 0 ? option.priceUsd : 0.5,
+          poolId: pool.id,
+          priceNgn: option.priceNgn,
+        }),
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || 'Purchase failed');
+
+      const now = Date.now();
+      const order: CustomerNumberOrder = {
+        id: String(data.order?.id || data.order?.providerOrderId || `ord-${now}`),
+        number: data.order?.phone || '',
+        service: service.name,
+        serviceId: service.id,
+        country: country.name,
+        poolTitle: pool.title,
+        status: 'waiting',
+        priceNgn: option.priceNgn,
+        expiresAt: now + LIFETIME_MS,
+        cancelAvailableAt: now + CANCEL_LOCK_MS,
+        createdAt: new Date().toISOString(),
+        provider: 'grizzly',
+        providerOrderId: String(data.order?.providerOrderId || data.order?.id || ''),
+      };
+      setLocalOrders((prev) => [order, ...prev]);
+      setConfirmSheet(null);
+      setPriceSheet(null);
+      setStep('orders');
+      pollStatus(order);
+    } catch (e) {
+      setCopyToast(e instanceof Error ? e.message : 'Purchase failed');
+    } finally {
+      setBuying(false);
+    }
   };
 
   const cancelOrder = (id: string) => {
@@ -474,14 +572,19 @@ export function VirtualNumbersPage({
             />
           </div>
           <div className="vn-country-list">
-            {filteredCountries.map((c) => (
-              <button key={c.code} type="button" className="vn-country-row" onClick={() => selectCountry(c)}>
-                <span className="vn-flag">{c.flag}</span>
-                <span>{c.name}</span>
-                <small>{c.dial}</small>
-                <ChevronRight size={16} />
-              </button>
-            ))}
+            {countriesLoading && <div className="vn-empty">Loading countries…</div>}
+            {!countriesLoading && filteredCountries.length === 0 && (
+              <div className="vn-empty">No countries for this service in this tier.</div>
+            )}
+            {!countriesLoading &&
+              filteredCountries.map((c) => (
+                <button key={c.code} type="button" className="vn-country-row" onClick={() => selectCountry(c)}>
+                  <span className="vn-flag">{c.flag}</span>
+                  <span>{c.name}</span>
+                  <small>{c.dial}</small>
+                  <ChevronRight size={16} />
+                </button>
+              ))}
           </div>
         </>
       )}
@@ -557,43 +660,29 @@ export function VirtualNumbersPage({
                   <div className="vn-timers-block">
                     <div className="vn-timer-row">
                       <span className="vn-timer-label">
-                        <Clock3 size={13} /> Lifetime
+                        <Clock3 size={14} /> Lifetime
                       </span>
-                      <strong className="vn-timer-big">{formatTimer(lifetimeLeft)}</strong>
+                      <span className="vn-timer-big">{formatTimer(lifetimeLeft)}</span>
                     </div>
                     <div className="vn-timer-row">
-                      {canCancel ? (
-                        <button
-                          type="button"
-                          className="vn-cancel-btn-bold"
-                          onClick={() => cancelOrder(order.id)}
-                        >
-                          Cancel
-                        </button>
-                      ) : (
-                        <>
-                          <span className="vn-timer-label">Cancel available in</span>
-                          <strong className="vn-timer-small">{formatTimer(lockLeft)}</strong>
-                        </>
-                      )}
+                      <span className="vn-timer-label">Cancel available in</span>
+                      <span className="vn-timer-small">{formatTimer(lockLeft)}</span>
                     </div>
                   </div>
                 )}
 
-                {!isWaiting && (
-                  <div className="vn-order-actions">
-                    <button
-                      type="button"
-                      className="vn-inbox-btn"
-                      onClick={() => {
-                        setInboxOrder(order);
-                        setStep('inbox');
-                      }}
-                    >
+                <div className="vn-order-actions">
+                  {order.status === 'received' && (
+                    <button type="button" className="vn-inbox-btn" onClick={() => { setInboxOrder(order); setStep('inbox'); }}>
                       Open inbox
                     </button>
-                  </div>
-                )}
+                  )}
+                  {canCancel && (
+                    <button type="button" className="vn-cancel-btn-bold" onClick={() => cancelOrder(order.id)}>
+                      Cancel
+                    </button>
+                  )}
+                </div>
               </div>
             );
           })}
@@ -614,12 +703,7 @@ export function VirtualNumbersPage({
               <div className="vn-sms-row">
                 <span>SMS code</span>
                 <strong>{inboxOrder.otp}</strong>
-                <button
-                  type="button"
-                  className="vn-copy-icon"
-                  onClick={() => copyText(inboxOrder.otp!, 'Code copied')}
-                  aria-label="Copy code"
-                >
+                <button type="button" className="vn-copy-icon" onClick={() => copyText(inboxOrder.otp!, 'Code copied')}>
                   <Copy size={14} />
                 </button>
               </div>
@@ -656,9 +740,7 @@ export function VirtualNumbersPage({
                 >
                   <div>
                     <strong>{formatNgn(opt.priceNgn)}</strong>
-                    <small>
-                      {formatUsd(opt.priceUsd)} · stock {opt.stock.toLocaleString()}
-                    </small>
+                    <small>{opt.stock > 0 ? `${opt.stock.toLocaleString()} available` : 'In stock'}</small>
                   </div>
                   <ChevronRight size={16} />
                 </button>
@@ -669,11 +751,11 @@ export function VirtualNumbersPage({
       )}
 
       {confirmSheet && (
-        <div className="vn-sheet-backdrop" onClick={() => setConfirmSheet(null)}>
+        <div className="vn-sheet-backdrop" onClick={() => !buying && setConfirmSheet(null)}>
           <div className="vn-sheet" onClick={(e) => e.stopPropagation()}>
             <div className="vn-sheet-head">
               <strong>Confirm purchase</strong>
-              <button type="button" onClick={() => setConfirmSheet(null)} aria-label="Close">
+              <button type="button" onClick={() => !buying && setConfirmSheet(null)} aria-label="Close">
                 <X size={18} />
               </button>
             </div>
@@ -683,8 +765,8 @@ export function VirtualNumbersPage({
               {confirmSheet.pool.title}
             </p>
             <p className="vn-confirm-price">{formatNgn(confirmSheet.option.priceNgn)}</p>
-            <button type="button" className="vn-confirm-buy" onClick={confirmPurchase}>
-              Buy number
+            <button type="button" className="vn-confirm-buy" onClick={confirmPurchase} disabled={buying}>
+              {buying ? 'Buying…' : 'Buy number'}
             </button>
           </div>
         </div>
@@ -699,11 +781,13 @@ export function VirtualNumbersPage({
                 <X size={18} />
               </button>
             </div>
-            <p>
-              After you buy a number, keep the app open or return to My Orders. Most codes arrive in 1–3
-              minutes. You can cancel after the lock period if no SMS arrives. Unused numbers are released
-              automatically when the lifetime timer ends.
-            </p>
+            <div className="vn-about-body">
+              <p>
+                After you buy a number, keep the app open or return to My Orders. Most codes arrive in 1–3
+                minutes. You can cancel after the lock period if no SMS arrives. Unused numbers are released
+                automatically when the lifetime timer ends.
+              </p>
+            </div>
           </div>
         </div>
       )}
