@@ -52,6 +52,8 @@ export type PriceOption = {
   priceUsd: number;
   priceNgn: number;
   stock: number;
+  /** Grizzly numeric country code for buy API (e.g. "12", "16") — never shown in UI */
+  grizzlyCountry?: string;
 };
 
 export type CustomerNumberOrder = {
@@ -69,6 +71,8 @@ export type CustomerNumberOrder = {
   /** Small lock timer — Cancel becomes available after this */
   cancelAvailableAt: number;
   createdAt: string;
+  provider?: string;
+  providerOrderId?: string;
 };
 
 /** Single unified page steps. No separate 'activations'. */
@@ -183,15 +187,15 @@ export const CANCEL_LOCK_MS = 4 * 60 * 1000 + 30 * 1000;
 
 export function mockPrices(pool: Pool, _serviceId: string, _countryCode: string): PriceOption[] {
   const all: PriceOption[] = [
-    { id: 'p1', provider: 'Grizzly', priceUsd: 0.15, priceNgn: 150, stock: 37417 },
-    { id: 'p2', provider: '5sim', priceUsd: 0.32, priceNgn: 280, stock: 91044 },
-    { id: 'p3', provider: 'SMSBower', priceUsd: 0.44, priceNgn: 380, stock: 8652 },
-    { id: 'p4', provider: 'PVAPins', priceUsd: 0.65, priceNgn: 450, stock: 12400 },
-    { id: 'p5', provider: 'Grizzly', priceUsd: 0.9, priceNgn: 620, stock: 8300 },
-    { id: 'p6', provider: '5sim', priceUsd: 1.2, priceNgn: 750, stock: 4100 },
-    { id: 'p7', provider: 'SMSBower', priceUsd: 1.8, priceNgn: 990, stock: 2200 },
-    { id: 'p8', provider: 'PVAPins', priceUsd: 2.5, priceNgn: 1100, stock: 980 },
-    { id: 'p9', provider: 'Grizzly', priceUsd: 3.2, priceNgn: 1400, stock: 410 },
+    { id: 'p1', provider: '', priceUsd: 0.15, priceNgn: 150, stock: 37417 },
+    { id: 'p2', provider: '', priceUsd: 0.32, priceNgn: 280, stock: 91044 },
+    { id: 'p3', provider: '', priceUsd: 0.44, priceNgn: 380, stock: 8652 },
+    { id: 'p4', provider: '', priceUsd: 0.65, priceNgn: 450, stock: 12400 },
+    { id: 'p5', provider: '', priceUsd: 0.9, priceNgn: 620, stock: 8300 },
+    { id: 'p6', provider: '', priceUsd: 1.2, priceNgn: 750, stock: 4100 },
+    { id: 'p7', provider: '', priceUsd: 1.8, priceNgn: 990, stock: 2200 },
+    { id: 'p8', provider: '', priceUsd: 2.5, priceNgn: 1100, stock: 980 },
+    { id: 'p9', provider: '', priceUsd: 3.2, priceNgn: 1400, stock: 410 },
   ];
   return all.filter((p) => {
     if (pool.tier === 'ECO') return p.priceUsd < 0.5;
