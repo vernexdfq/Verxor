@@ -194,7 +194,6 @@ function poolRegion(poolId: string): 'usa' | 'worldwide' {
   return poolId.startsWith('usa') ? 'usa' : 'worldwide';
 }
 
-/** Paginate through all matching price rows (PostgREST caps single responses). */
 async function loadAllPrices(tier: string | null) {
   const all: Array<{ service_id: string; country_id: string; cost_usd: number; stock: number }> =
     [];
@@ -215,7 +214,6 @@ async function loadAllPrices(tier: string | null) {
   return all;
 }
 
-/** Paginate all active services. */
 async function loadAllServices() {
   const all: Array<{
     id: string;
@@ -346,10 +344,13 @@ export async function GET(req: NextRequest) {
       )) as Array<{ id: string; code: string; name: string }>;
       const svc = svcRows?.[0];
       if (!svc) return NextResponse.json({ ok: true, countries: [], count: 0 });
+
+      // ALL tiers — so Standard/Fast still list every country Grizzly has for this service
       const prices = (await sbSelect(
         'vn_price_options',
-        `service_id=eq.${svc.id}&tier=eq.${tier}&is_available=eq.true&select=country_id,cost_usd,stock&limit=10000`,
-      )) as Array<{ country_id: string; cost_usd: number; stock: number }>;
+        `service_id=eq.${svc.id}&is_available=eq.true&select=country_id,cost_usd,stock,tier&limit=20000`,
+      )) as Array<{ country_id: string; cost_usd: number; stock: number; tier: string }>;
+
       const countries = (await sbSelect(
         'vn_countries',
         'select=id,code,display_name,is_virtual&is_active=eq.true&limit=500',
@@ -380,7 +381,8 @@ export async function GET(req: NextRequest) {
           dial: '',
         };
         const key = meta.code + (c.code === '12' ? '-v' : '');
-        const ngn = sellNgn(Number(p.cost_usd), tier, rate, mult);
+        const rowTier = p.tier || tier;
+        const ngn = sellNgn(Number(p.cost_usd), rowTier, rate, mult);
         const prev = seen.get(key);
         if (!prev || ngn < prev.fromNgn) {
           seen.set(key, {
@@ -434,21 +436,31 @@ export async function GET(req: NextRequest) {
         .filter((c) => grizzlyCountryCodes.includes(c.code))
         .map((c) => c.id);
       if (countryIds.length === 0) return NextResponse.json({ ok: true, options: [], count: 0 });
-      const prices = (await sbSelect(
+
+      let prices = (await sbSelect(
         'vn_price_options',
         `service_id=eq.${svc.id}&tier=eq.${tier}&is_available=eq.true&select=id,country_id,cost_usd,stock,tier&order=cost_usd.asc&limit=1000`,
       )) as Array<{ id: string; country_id: string; cost_usd: number; stock: number; tier: string }>;
       const idSet = new Set(countryIds);
-      const options = (prices || [])
-        .filter((p) => idSet.has(p.country_id))
+      let filtered = (prices || []).filter((p) => idSet.has(p.country_id));
+      // Fallback: if this tier has no routes, show any available tier for that country
+      if (filtered.length === 0) {
+        prices = (await sbSelect(
+          'vn_price_options',
+          `service_id=eq.${svc.id}&is_available=eq.true&select=id,country_id,cost_usd,stock,tier&order=cost_usd.asc&limit=1000`,
+        )) as Array<{ id: string; country_id: string; cost_usd: number; stock: number; tier: string }>;
+        filtered = (prices || []).filter((p) => idSet.has(p.country_id));
+      }
+      const options = filtered
         .map((p, i) => {
           const cost = Number(p.cost_usd);
           const c = countryById.get(p.country_id);
+          const t = p.tier || tier;
           return {
             id: p.id || `opt-${i}`,
             label: `Option ${i + 1}`,
             priceUsd: Math.round(cost * 100) / 100,
-            priceNgn: sellNgn(cost, tier, rate, mult),
+            priceNgn: sellNgn(cost, t, rate, mult),
             stock: Number(p.stock) || 0,
             optionId: p.id,
             grizzlyCountry: c?.code || grizzlyCountryCodes[0] || '',
@@ -488,25 +500,15 @@ export async function GET(req: NextRequest) {
         const code = codeById.get(p.country_id);
         if (!code) continue;
         const region = usaCodes.has(code) ? 'usa' : 'worldwide';
-        // tier not in this query shape — re-fetch with tier or skip detailed pools
-        // Use cost bands as approximation when tier missing from loadAllPrices without tier filter
         const cost = Number(p.cost_usd);
-        // We need tier — loadAllPrices(null) doesn't select tier. Quick fix: query again per pool is heavy.
-        // Instead use simple min across all for region labels only.
-        for (const tier of ['economy', 'standard', 'fast', 'premium'] as const) {
-          const pool = `${region}-${tier}`;
-          // without tier on row we cannot assign accurately; leave pools endpoint best-effort
-          if (!mins[pool] || cost < mins[pool]) {
-            // only assign if cost falls in tier band
-            const inBand =
-              (tier === 'economy' && cost < 0.5) ||
-              (tier === 'standard' && cost >= 0.5 && cost <= 1.0) ||
-              (tier === 'fast' && cost > 1.0 && cost <= 2.0) ||
-              (tier === 'premium' && cost > 2.0);
-            if (inBand) {
-              if (!mins[pool] || cost < mins[pool]) mins[pool] = cost;
-            }
-          }
+        for (const t of ['economy', 'standard', 'fast', 'premium'] as const) {
+          const pool = `${region}-${t}`;
+          const inBand =
+            (t === 'economy' && cost < 0.5) ||
+            (t === 'standard' && cost >= 0.5 && cost <= 1.0) ||
+            (t === 'fast' && cost > 1.0 && cost <= 2.0) ||
+            (t === 'premium' && cost > 2.0);
+          if (inBand && (!mins[pool] || cost < mins[pool])) mins[pool] = cost;
         }
       }
       const poolIds = [
@@ -520,11 +522,11 @@ export async function GET(req: NextRequest) {
         'worldwide-premium',
       ];
       const pools = poolIds.map((id) => {
-        const tier = poolTier(id);
+        const t = poolTier(id);
         const cost = mins[id];
         return {
           id,
-          fromNgn: cost != null ? sellNgn(cost, tier, rate, mult) : null,
+          fromNgn: cost != null ? sellNgn(cost, t, rate, mult) : null,
           fromUsd: cost != null ? Math.round(cost * 100) / 100 : null,
           live: cost != null,
         };
