@@ -40,6 +40,40 @@ import { ServiceLogo, PoolCard } from './virtual-numbers-components';
 
 export type { CustomerNumberOrder };
 
+/* ── Cache helpers (localStorage + TTL) ───────────────────────────────────── */
+const SVC_TTL_MS = 30 * 60 * 1000; // 30 min
+const CTR_TTL_MS = 15 * 60 * 1000; // 15 min
+
+function readCache<T>(key: string, ttlMs: number): T | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    const { ts, data } = JSON.parse(raw) as { ts: number; data: T };
+    if (Date.now() - ts > ttlMs) return null;
+    return data;
+  } catch {
+    return null;
+  }
+}
+
+function writeCache<T>(key: string, data: T) {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(key, JSON.stringify({ ts: Date.now(), data }));
+  } catch {
+    /* quota / private mode */
+  }
+}
+
+function mapServices(raw: any[]): Service[] {
+  return (raw || []).map((s: any) => ({
+    id: s.code || s.id,
+    name: s.name,
+    category: (s.category || 'other') as ServiceCategory,
+  }));
+}
+
 export function VirtualNumbersPage({
   onBack,
   onOpenNotifications: _onOpenNotifications,
@@ -116,6 +150,21 @@ export function VirtualNumbersPage({
     return () => clearInterval(t);
   }, []);
 
+  /* Prefetch all pools on mount so first click is instant */
+  useEffect(() => {
+    const allPools = [...SERVER1_POOLS, ...SERVER2_POOLS];
+    allPools.forEach((pool) => {
+      const key = `verxor-vn-svc-v2-${pool.id}`;
+      if (readCache<Service[]>(key, SVC_TTL_MS)) return; // already warm
+      void fetch(`/api/v1/catalog?mode=services&pool=${encodeURIComponent(pool.id)}`)
+        .then((r) => r.json())
+        .then((data) => {
+          if (data.ok) writeCache(key, mapServices(data.services || []));
+        })
+        .catch(() => {});
+    });
+  }, []);
+
   useEffect(() => {
     const now = Date.now();
     const hasExpired = localOrders.some((o) => o.status === 'waiting' && o.expiresAt <= now);
@@ -131,8 +180,9 @@ export function VirtualNumbersPage({
     [localOrders],
   );
 
+  /* Always show the latest order (any status) so "View all" is permanently available */
   const previewOrders = useMemo(
-    () => visibleOrders.filter((o) => o.status === 'waiting' || o.status === 'received').slice(0, 1),
+    () => visibleOrders.slice(0, 1),
     [visibleOrders],
   );
 
@@ -159,6 +209,7 @@ export function VirtualNumbersPage({
     );
   }, [countryQuery, liveCountries]);
 
+  /* ── Cache-first pool open (no flash) ──────────────────────────────────── */
   const selectPool = async (pool: Pool) => {
     setSelectedPool(pool);
     setSelectedService(null);
@@ -167,45 +218,41 @@ export function VirtualNumbersPage({
     setCountryQuery('');
     setCategory('all');
     setStep('services');
-    setServicesLoading(true);
     setServicesError(null);
-    setLiveServices([]);
-    const cacheKey = `verxor-vn-svc-${pool.id}`;
-    try {
-      const cached = typeof sessionStorage !== 'undefined' ? sessionStorage.getItem(cacheKey) : null;
-      if (cached) {
-        const parsed = JSON.parse(cached) as Service[];
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setLiveServices(parsed);
-          setServicesLoading(false);
-          void (async () => {
-            try {
-              const res = await fetch(`/api/v1/catalog?mode=services&pool=${encodeURIComponent(pool.id)}`);
-              const data = await res.json();
-              if (data.ok) {
-                const mapped: Service[] = (data.services || []).map((s: any) => ({
-                  id: s.code || s.id,
-                  name: s.name,
-                  category: (s.category || 'other') as ServiceCategory,
-                }));
-                setLiveServices(mapped);
-                sessionStorage.setItem(cacheKey, JSON.stringify(mapped));
-              }
-            } catch { /* keep cache */ }
-          })();
-          return;
+
+    const cacheKey = `verxor-vn-svc-v2-${pool.id}`;
+    const cached = readCache<Service[]>(cacheKey, SVC_TTL_MS);
+
+    if (cached && cached.length > 0) {
+      // Instant: show cache, never clear the list
+      setLiveServices(cached);
+      setServicesLoading(false);
+      // Quiet background refresh
+      void (async () => {
+        try {
+          const res = await fetch(`/api/v1/catalog?mode=services&pool=${encodeURIComponent(pool.id)}`);
+          const data = await res.json();
+          if (data.ok) {
+            const mapped = mapServices(data.services || []);
+            setLiveServices(mapped);
+            writeCache(cacheKey, mapped);
+          }
+        } catch {
+          /* keep cache */
         }
-      }
+      })();
+      return;
+    }
+
+    // Cold miss: show soft loading only if list is empty
+    setServicesLoading(true);
+    try {
       const res = await fetch(`/api/v1/catalog?mode=services&pool=${encodeURIComponent(pool.id)}`);
       const data = await res.json();
       if (!data.ok) throw new Error(data.reason || 'Failed to load services');
-      const mapped: Service[] = (data.services || []).map((s: any) => ({
-        id: s.code || s.id,
-        name: s.name,
-        category: (s.category || 'other') as ServiceCategory,
-      }));
+      const mapped = mapServices(data.services || []);
       setLiveServices(mapped);
-      try { sessionStorage.setItem(cacheKey, JSON.stringify(mapped)); } catch { /* ignore */ }
+      writeCache(cacheKey, mapped);
     } catch (e) {
       setServicesError(e instanceof Error ? e.message : 'Failed to load services');
     } finally {
@@ -249,6 +296,36 @@ export function VirtualNumbersPage({
     } else {
       setCountryQuery('');
       setStep('countries');
+
+      const cacheKey = `verxor-vn-ctr-v2-${selectedPool.id}-${service.id}`;
+      const cached = readCache<Country[]>(cacheKey, CTR_TTL_MS);
+      if (cached && cached.length > 0) {
+        setLiveCountries(cached);
+        setCountriesLoading(false);
+        // background refresh
+        void (async () => {
+          try {
+            const res = await fetch(
+              `/api/v1/catalog?mode=countries&pool=${encodeURIComponent(selectedPool.id)}&service=${encodeURIComponent(service.id)}`,
+            );
+            const data = await res.json();
+            if (data.ok && Array.isArray(data.countries) && data.countries.length > 0) {
+              const mapped = data.countries.map((c: any) => ({
+                code: c.code,
+                flag: c.flag || '🌍',
+                name: c.name,
+                dial: c.dial || '',
+              }));
+              setLiveCountries(mapped);
+              writeCache(cacheKey, mapped);
+            }
+          } catch {
+            /* keep cache */
+          }
+        })();
+        return;
+      }
+
       setCountriesLoading(true);
       setLiveCountries([]);
       try {
@@ -257,14 +334,14 @@ export function VirtualNumbersPage({
         );
         const data = await res.json();
         if (data.ok && Array.isArray(data.countries) && data.countries.length > 0) {
-          setLiveCountries(
-            data.countries.map((c: any) => ({
-              code: c.code,
-              flag: c.flag || '🌍',
-              name: c.name,
-              dial: c.dial || '',
-            })),
-          );
+          const mapped = data.countries.map((c: any) => ({
+            code: c.code,
+            flag: c.flag || '🌍',
+            name: c.name,
+            dial: c.dial || '',
+          }));
+          setLiveCountries(mapped);
+          writeCache(cacheKey, mapped);
         } else {
           setLiveCountries(WORLDWIDE_COUNTRIES);
         }
@@ -491,6 +568,7 @@ export function VirtualNumbersPage({
             </div>
           </div>
 
+          {/* Permanent current-orders strip — always visible when any order exists */}
           {previewOrders.length > 0 && (
             <div className="vn-current-strip">
               <div className="vn-current-strip-head">
@@ -501,8 +579,9 @@ export function VirtualNumbersPage({
               </div>
               {previewOrders.map((o) => {
                 const isWaiting = o.status === 'waiting';
+                const isReceived = o.status === 'received';
                 return (
-                  <div key={o.id} className="vn-current-chip">
+                  <div key={o.id} className="vn-current-chip" onClick={() => setStep('orders')}>
                     <ServiceLogo id={o.serviceId} />
                     <div>
                       <strong>{o.service}</strong>
@@ -510,8 +589,10 @@ export function VirtualNumbersPage({
                     </div>
                     {isWaiting ? (
                       <span className="vn-chip-timer">{formatTimer(o.expiresAt - now)}</span>
-                    ) : (
+                    ) : isReceived ? (
                       <span className="vn-chip-received">Received</span>
+                    ) : (
+                      <span className="vn-chip-received">Done</span>
                     )}
                   </div>
                 );
@@ -545,9 +626,14 @@ export function VirtualNumbersPage({
             ))}
           </div>
           <div className="vn-service-list">
-            {servicesLoading && <div className="vn-empty">Loading services from catalog…</div>}
-            {servicesError && !servicesLoading && <div className="vn-empty">{servicesError}</div>}
-            {!servicesLoading && !servicesError && filteredServices.length === 0 && (
+            {/* Soft loading: only show when list is still empty */}
+            {servicesLoading && liveServices.length === 0 && (
+              <div className="vn-empty">Loading services…</div>
+            )}
+            {servicesError && !servicesLoading && liveServices.length === 0 && (
+              <div className="vn-empty">{servicesError}</div>
+            )}
+            {!servicesLoading && !servicesError && filteredServices.length === 0 && liveServices.length === 0 && (
               <div className="vn-empty">No services in this tier yet. Try another pool.</div>
             )}
             {filteredServices.map((s) => (
@@ -572,19 +658,20 @@ export function VirtualNumbersPage({
             />
           </div>
           <div className="vn-country-list">
-            {countriesLoading && <div className="vn-empty">Loading countries…</div>}
+            {countriesLoading && liveCountries.length === 0 && (
+              <div className="vn-empty">Loading countries…</div>
+            )}
             {!countriesLoading && filteredCountries.length === 0 && (
               <div className="vn-empty">No countries for this service in this tier.</div>
             )}
-            {!countriesLoading &&
-              filteredCountries.map((c) => (
-                <button key={c.code} type="button" className="vn-country-row" onClick={() => selectCountry(c)}>
-                  <span className="vn-flag">{c.flag}</span>
-                  <span>{c.name}</span>
-                  <small>{c.dial}</small>
-                  <ChevronRight size={16} />
-                </button>
-              ))}
+            {filteredCountries.map((c) => (
+              <button key={c.code} type="button" className="vn-country-row" onClick={() => selectCountry(c)}>
+                <span className="vn-flag">{c.flag}</span>
+                <span>{c.name}</span>
+                <small>{c.dial}</small>
+                <ChevronRight size={16} />
+              </button>
+            ))}
           </div>
         </>
       )}
