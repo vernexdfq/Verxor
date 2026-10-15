@@ -5,8 +5,8 @@ export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
 
 const BANK = { code: '100004', name: 'OPay' };
-/** OPay rejects dynamic VA transfers below ₦1,000 */
-const MIN_AMOUNT_NGN = 1000;
+/** Soft floor only — bank may still reject tiny amounts; no user-facing minimum. */
+const MIN_AMOUNT_NGN = 1;
 
 function xixapayBase() {
   return (process.env.XIXAPAY_BASE_URL || 'https://api.xixapay.com').replace(/\/$/, '');
@@ -184,10 +184,7 @@ export async function POST(req: NextRequest) {
   const amount = Math.round(Number(body.amountNgn ?? body.amount));
   if (!Number.isFinite(amount) || amount < MIN_AMOUNT_NGN) {
     return NextResponse.json(
-      {
-        ok: false,
-        message: `Minimum amount to transfer is ₦${MIN_AMOUNT_NGN.toLocaleString()}. Enter ₦${MIN_AMOUNT_NGN.toLocaleString()} or more.`,
-      },
+      { ok: false, message: 'Enter the amount you want to fund.' },
       { status: 400 },
     );
   }
