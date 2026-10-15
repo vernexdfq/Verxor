@@ -4,6 +4,9 @@ import { sbSelect, supabaseConfigured } from '@/lib/supabase-admin';
 
 export const dynamic = 'force-dynamic';
 
+/** Flat fee deducted from every successful bank-transfer deposit */
+const FUNDING_FEE_NGN = 20;
+
 function verifySignature(rawBody: string, headerSig: string | null, secret: string): boolean {
   if (!headerSig) return false;
   try {
@@ -76,6 +79,20 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
   }
 
+  // Net credit = amount paid − ₦20 funding fee
+  const creditAmount = Math.round((amountPaid - FUNDING_FEE_NGN) * 100) / 100;
+  if (creditAmount <= 0) {
+    console.warn('[xixapay/virtual-account] amount too low after fee', {
+      amountPaid,
+      fee: FUNDING_FEE_NGN,
+      transactionId,
+    });
+    return NextResponse.json({
+      status: 'below_fee',
+      message: `Deposit must be greater than ₦${FUNDING_FEE_NGN}`,
+    });
+  }
+
   if (!supabaseConfigured()) {
     return NextResponse.json({ error: 'DB not configured' }, { status: 503 });
   }
@@ -132,9 +149,9 @@ export async function POST(req: NextRequest) {
       },
       body: JSON.stringify({
         p_user_id: userId,
-        p_amount: amountPaid,
+        p_amount: creditAmount,
         p_reference: `xixapay:${transactionId}`,
-        p_description: `Wallet funding via ${body.receiver?.bank || 'bank transfer'}`,
+        p_description: `Wallet funding via ${body.receiver?.bank || 'bank transfer'} (₦${FUNDING_FEE_NGN} fee)`,
       }),
     });
 
@@ -145,8 +162,21 @@ export async function POST(req: NextRequest) {
     }
 
     const newBal = await rpc.json();
-    console.info('[xixapay/virtual-account] credited', { userId, amountPaid, newBal, transactionId });
-    return NextResponse.json({ status: 'ok', balance: newBal });
+    console.info('[xixapay/virtual-account] credited', {
+      userId,
+      amountPaid,
+      fee: FUNDING_FEE_NGN,
+      creditAmount,
+      newBal,
+      transactionId,
+    });
+    return NextResponse.json({
+      status: 'ok',
+      balance: newBal,
+      amount_paid: amountPaid,
+      fee: FUNDING_FEE_NGN,
+      credited: creditAmount,
+    });
   } catch (e) {
     console.error('[xixapay/virtual-account] error', e);
     return NextResponse.json({ error: 'Credit error' }, { status: 500 });
@@ -157,5 +187,6 @@ export async function GET() {
   return NextResponse.json({
     service: 'xixapay-virtual-account-webhook',
     ready: Boolean(process.env.XIXAPAY_SECRET_KEY),
+    funding_fee_ngn: FUNDING_FEE_NGN,
   });
 }

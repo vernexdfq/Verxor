@@ -10,6 +10,7 @@ import {
   Plus,
   Shield,
   Wallet,
+  AlertTriangle,
 } from 'lucide-react';
 import { formatHomeBalance } from './lib/wallet-ui';
 import type { AuthSession } from './auth/AuthFlow';
@@ -30,6 +31,8 @@ export type FundingProvider = {
 type FundPageProps = {
   session?: AuthSession | null;
 };
+
+const FUNDING_FEE_NGN = 20;
 
 async function resolveAuthContext(session?: AuthSession | null) {
   const profile = loadSessionProfile();
@@ -91,12 +94,10 @@ export function FundPage({ session }: FundPageProps) {
   const [copied, setCopied] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
   const [genError, setGenError] = useState('');
-  const [amount, setAmount] = useState('1000');
   const [liveAccount, setLiveAccount] = useState<{
     bankName: string;
     accountNumber: string;
     accountName: string;
-    amountNgn: number;
   } | null>(null);
 
   const load = useCallback(async () => {
@@ -127,6 +128,15 @@ export function FundPage({ session }: FundPageProps) {
           const opay = list.find((p) => p.id === 'opay');
           return opay?.id ?? list[0]?.id ?? null;
         });
+        // Prefill existing VA if methods already returned one
+        const withAcct = list.find((p) => p.hasAccount && p.accountNumber);
+        if (withAcct && withAcct.accountNumber) {
+          setLiveAccount({
+            bankName: withAcct.bankName || withAcct.label,
+            accountNumber: withAcct.accountNumber,
+            accountName: withAcct.accountName || session?.name || 'Verxor User',
+          });
+        }
       } else {
         setProviders([]);
         setActiveId(null);
@@ -156,7 +166,6 @@ export function FundPage({ session }: FundPageProps) {
           bankName: active.bankName || active.label,
           accountNumber: active.accountNumber || '',
           accountName: active.accountName || session?.name || 'Verxor User',
-          amountNgn: active.amountNgn || 0,
         }
       : null;
 
@@ -172,11 +181,6 @@ export function FundPage({ session }: FundPageProps) {
 
   const generate = async () => {
     if (!active || generating) return;
-    const amt = Number(String(amount).replace(/[^0-9.]/g, ''));
-    if (!Number.isFinite(amt) || amt < 100) {
-      setGenError('Enter an amount of at least ₦100');
-      return;
-    }
     setGenerating(true);
     setGenError('');
     try {
@@ -184,12 +188,14 @@ export function FundPage({ session }: FundPageProps) {
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
       if (ctx.accessToken) headers.Authorization = `Bearer ${ctx.accessToken}`;
 
+      // XixaPay dynamic requires an amount field; we do not lock the user to it.
+      // Webhook credits whatever amount is actually paid, minus ₦20 fee.
       const res = await fetch('/api/v1/funding/generate', {
         method: 'POST',
         headers,
         body: JSON.stringify({
           providerId: active.id,
-          amountNgn: amt,
+          amountNgn: 1000,
           userId: ctx.userId || undefined,
           email: ctx.email || undefined,
           phone: ctx.phone || undefined,
@@ -205,11 +211,14 @@ export function FundPage({ session }: FundPageProps) {
             bankName: string;
             accountNumber: string;
             accountName: string;
-            amountNgn: number;
           };
         };
         if (data.account) {
-          setLiveAccount(data.account);
+          setLiveAccount({
+            bankName: data.account.bankName,
+            accountNumber: data.account.accountNumber,
+            accountName: data.account.accountName,
+          });
         }
         await load();
       } else {
@@ -219,12 +228,7 @@ export function FundPage({ session }: FundPageProps) {
             const body = (await res.json()) as { message?: string };
             if (body?.message) msg = body.message;
           } catch {
-            if (res.status >= 500) {
-              msg =
-                active.id === 'palmpay'
-                  ? 'PalmPay is temporarily unavailable. Select OPay and try again.'
-                  : 'Payment provider error. Try again in a moment.';
-            }
+            if (res.status >= 500) msg = 'Payment provider error. Try again in a moment.';
           }
         }
         setGenError(msg);
@@ -259,6 +263,30 @@ export function FundPage({ session }: FundPageProps) {
           <Landmark size={18} strokeWidth={2.2} /> Fund via Bank Transfer
         </h2>
 
+        {/* Fee notice — same pattern as reference fintech UIs */}
+        <div
+          className="fund-fee-banner"
+          style={{
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: 10,
+            marginBottom: 14,
+            padding: '12px 14px',
+            borderRadius: 12,
+            background: 'rgba(245, 158, 11, 0.1)',
+            border: '1px solid rgba(245, 158, 11, 0.25)',
+            color: '#B45309',
+            fontSize: 14,
+            lineHeight: 1.45,
+            fontWeight: 500,
+          }}
+        >
+          <AlertTriangle size={18} strokeWidth={2.2} style={{ flexShrink: 0, marginTop: 1 }} />
+          <span>
+            A fee of <strong>₦{FUNDING_FEE_NGN}</strong> will be deducted from your deposit.
+          </span>
+        </div>
+
         {loading ? (
           <div className="fund-loading">
             <Loader2 size={22} className="fund-spin" />
@@ -278,7 +306,6 @@ export function FundPage({ session }: FundPageProps) {
                     onClick={() => {
                       setActiveId(p.id);
                       setGenError('');
-                      setLiveAccount(null);
                     }}
                   >
                     <span className="fund-tab-dot" aria-hidden />
@@ -294,17 +321,6 @@ export function FundPage({ session }: FundPageProps) {
 
             {hasAccount && displayAccount ? (
               <div className="fund-account-card">
-                {displayAccount.amountNgn > 0 && (
-                  <div className="fund-row">
-                    <div className="fund-row-icon">
-                      <Wallet size={18} />
-                    </div>
-                    <div className="fund-row-copy">
-                      <span className="fund-row-label">TRANSFER EXACTLY</span>
-                      <strong>₦{Number(displayAccount.amountNgn).toLocaleString()}</strong>
-                    </div>
-                  </div>
-                )}
                 <div className="fund-row">
                   <div className="fund-row-icon">
                     <Building2 size={18} />
@@ -353,17 +369,6 @@ export function FundPage({ session }: FundPageProps) {
                     {copied === 'name' ? 'Copied' : <><Copy size={12} /> Copy</>}
                   </button>
                 </div>
-                <button
-                  type="button"
-                  className="fund-generate fund-generate--ready"
-                  style={{ marginTop: 12 }}
-                  onClick={() => {
-                    setLiveAccount(null);
-                    setGenError('');
-                  }}
-                >
-                  Generate new amount
-                </button>
               </div>
             ) : (
               <div className="fund-empty-va">
@@ -374,33 +379,9 @@ export function FundPage({ session }: FundPageProps) {
                   {active ? `Generate ${active.label} account` : 'No virtual account yet'}
                 </strong>
                 <p>
-                  Enter how much you want to fund, then generate a one-time account. Transfer the
-                  exact amount — your wallet credits automatically.
+                  Generate your funding account, then transfer any amount from your bank app. Your
+                  wallet is credited automatically (₦{FUNDING_FEE_NGN} fee applies).
                 </p>
-
-                <label
-                  className="fund-amount-label"
-                  style={{ display: 'block', width: '100%', marginBottom: 10, textAlign: 'left' }}
-                >
-                  <span style={{ fontSize: 12, fontWeight: 600, color: '#64748B' }}>AMOUNT (₦)</span>
-                  <input
-                    type="number"
-                    min={100}
-                    step={100}
-                    value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
-                    placeholder="1000"
-                    style={{
-                      width: '100%',
-                      marginTop: 6,
-                      padding: '12px 14px',
-                      borderRadius: 12,
-                      border: '1px solid #E2E8F0',
-                      fontSize: 16,
-                      fontWeight: 600,
-                    }}
-                  />
-                </label>
 
                 <button
                   type="button"
@@ -431,19 +412,15 @@ export function FundPage({ session }: FundPageProps) {
         <ol>
           <li>
             <span className="fund-step-num">1</span>
-            <p>Select a bank and enter the amount you want to fund.</p>
+            <p>Generate your OPay funding account and copy the details.</p>
           </li>
           <li>
             <span className="fund-step-num">2</span>
-            <p>Generate your one-time virtual account and copy the details.</p>
+            <p>Transfer any amount from your banking app to that account.</p>
           </li>
           <li>
             <span className="fund-step-num">3</span>
-            <p>Transfer the exact amount from your banking app.</p>
-          </li>
-          <li>
-            <span className="fund-step-num">4</span>
-            <p>Your wallet is credited automatically within seconds.</p>
+            <p>A fee of ₦{FUNDING_FEE_NGN} is deducted; the rest credits your wallet automatically.</p>
           </li>
         </ol>
       </section>
