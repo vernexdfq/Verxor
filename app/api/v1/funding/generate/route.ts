@@ -3,15 +3,12 @@ import { sbInsert, supabaseConfigured } from '@/lib/supabase-admin';
 
 export const dynamic = 'force-dynamic';
 
+/** Only PalmPay + OPay (dynamic VA — no BVN) */
 const BANK_MAP: Record<string, { code: string; name: string }> = {
   palmpay: { code: '20867', name: 'PalmPay' },
   opay: { code: '100004', name: 'OPay' },
-  safehaven: { code: '29007', name: 'Safehaven' },
-  kolomoni: { code: '20987', name: 'Kolomoni MFB' },
   '20867': { code: '20867', name: 'PalmPay' },
   '100004': { code: '100004', name: 'OPay' },
-  '29007': { code: '29007', name: 'Safehaven' },
-  '20987': { code: '20987', name: 'Kolomoni MFB' },
 };
 
 function xixapayBase() {
@@ -121,6 +118,50 @@ async function tryResolveUserId(
   return userId || null;
 }
 
+/** XixaPay returns bankAccounts[] (not always accountNumber at root) */
+function pickAccount(raw: Record<string, unknown>) {
+  const data = (raw?.data as Record<string, unknown>) || raw;
+  const bankAccounts = (data.bankAccounts || data.accounts || raw.bankAccounts || []) as Array<
+    Record<string, unknown>
+  >;
+  const first = bankAccounts[0] || {};
+  const customer = (data.customer || raw.customer || {}) as Record<string, unknown>;
+
+  const accountNumber = String(
+    first.accountNumber ||
+      first.account_number ||
+      data.accountNumber ||
+      data.account_number ||
+      data.virtualAccountNumber ||
+      (data.account as Record<string, unknown> | undefined)?.number ||
+      '',
+  );
+  const accountName = String(
+    first.accountName ||
+      first.account_name ||
+      data.accountName ||
+      data.account_name ||
+      (data.account as Record<string, unknown> | undefined)?.name ||
+      '',
+  );
+  const bankName = String(
+    first.bankName || first.bank_name || data.bankName || data.bank_name || data.bank || '',
+  );
+  const reservedId = String(
+    first.Reserved_Account_Id ||
+      first.reserved_account_id ||
+      data.Reserved_Account_Id ||
+      data.reserved_account_id ||
+      '',
+  );
+  const providerCustomerId = String(
+    customer.customer_id || customer.id || data.customer_id || data.customerId || '',
+  );
+  const expireAt = first.expire_at || first.expireAt || data.expire_at || null;
+
+  return { accountNumber, accountName, bankName, reservedId, providerCustomerId, expireAt };
+}
+
 export async function POST(req: NextRequest) {
   const apiKey = process.env.XIXAPAY_API_KEY;
   const secret = process.env.XIXAPAY_SECRET_KEY;
@@ -153,10 +194,13 @@ export async function POST(req: NextRequest) {
   const providerKey = String(body.providerId || body.bankCode || 'palmpay').toLowerCase();
   const bank = BANK_MAP[providerKey];
   if (!bank) {
-    return NextResponse.json({ ok: false, message: 'Unknown bank / provider' }, { status: 400 });
+    return NextResponse.json(
+      { ok: false, message: 'Choose PalmPay or OPay only.' },
+      { status: 400 },
+    );
   }
 
-  const amount = Number(body.amountNgn ?? body.amount);
+  const amount = Math.round(Number(body.amountNgn ?? body.amount));
   if (!Number.isFinite(amount) || amount < 100) {
     return NextResponse.json(
       { ok: false, message: 'Enter an amount of at least ₦100 to generate a one-time account' },
@@ -164,7 +208,6 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Prefer profile; fall back to session fields so Generate still works
   const email = (body.email || '').trim().toLowerCase();
   const phoneRaw = body.phone || body.contact || '';
   const name = (body.name || 'Verxor User').trim() || 'Verxor User';
@@ -181,7 +224,6 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Use a stable placeholder email if only phone is known
   const customerEmail =
     email ||
     (phoneRaw ? `user${phone.replace(/\D/g, '').slice(-10)}@verxor.local` : `guest@verxor.local`);
@@ -190,12 +232,13 @@ export async function POST(req: NextRequest) {
 
   const externalRef = `vx-${(userId || 'anon').toString().slice(0, 8)}-${Date.now()}`;
   const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://www.verxor.com').replace(/\/$/, '');
-  const callbackUrl = `${appUrl}/api/webhooks/xixapay/virtual-account`;
+  const callbackUrl =
+    process.env.XIXAPAY_VIRTUAL_ACCOUNT_WEBHOOK_URL ||
+    `${appUrl}/api/webhooks/xixapay/virtual-account`;
 
-  // Option 2: raw customer data (dynamic VA — no BVN/NIN)
   const payload: Record<string, unknown> = {
     email: customerEmail,
-    name,
+    name: name.slice(0, 80),
     phoneNumber: phone,
     bankCode: [bank.code],
     businessId,
@@ -215,6 +258,7 @@ export async function POST(req: NextRequest) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(payload),
+      cache: 'no-store',
     });
   } catch (e) {
     console.error('[funding/generate] xixapay network', e);
@@ -225,47 +269,30 @@ export async function POST(req: NextRequest) {
   }
 
   const rawText = await xixapayRes.text().catch(() => '');
-  let raw: any = {};
+  let raw: Record<string, unknown> = {};
   try {
-    raw = JSON.parse(rawText);
+    raw = JSON.parse(rawText) as Record<string, unknown>;
   } catch {
     raw = { raw: rawText };
   }
 
-  if (!xixapayRes.ok) {
+  if (
+    !xixapayRes.ok ||
+    raw.status === 'fail' ||
+    String(raw.message || '').includes('API Key is not active')
+  ) {
     console.error('[funding/generate] xixapay error', xixapayRes.status, rawText.slice(0, 800));
     const msg =
-      raw?.message ||
-      raw?.error ||
-      raw?.data?.message ||
-      raw?.msg ||
+      (typeof raw.message === 'string' && raw.message) ||
+      (typeof raw.error === 'string' && raw.error) ||
       `Provider error (${xixapayRes.status})`;
     return NextResponse.json({ ok: false, message: String(msg) }, { status: 502 });
   }
 
-  const data = raw?.data || raw;
-  const accountNumber =
-    data.accountNumber ||
-    data.account_number ||
-    data.virtualAccountNumber ||
-    data.account?.number ||
-    data.accounts?.[0]?.accountNumber ||
-    data.accounts?.[0]?.account_number ||
-    '';
-  const accountName =
-    data.accountName ||
-    data.account_name ||
-    data.account?.name ||
-    data.accounts?.[0]?.accountName ||
-    name;
-  const bankName =
-    data.bankName ||
-    data.bank_name ||
-    data.bank ||
-    data.accounts?.[0]?.bankName ||
-    bank.name;
-  const providerCustomerId =
-    data.customer_id || data.customerId || data.customer?.id || null;
+  const picked = pickAccount(raw);
+  const accountNumber = picked.accountNumber;
+  const accountName = picked.accountName || name;
+  const bankName = picked.bankName || bank.name;
 
   if (!accountNumber) {
     console.error('[funding/generate] no account number', rawText.slice(0, 800));
@@ -291,7 +318,7 @@ export async function POST(req: NextRequest) {
         account_type: 'dynamic',
         amount_ngn: amount,
         external_ref: externalRef,
-        provider_customer_id: providerCustomerId ? String(providerCustomerId) : null,
+        provider_customer_id: picked.providerCustomerId || null,
         raw,
       });
     } catch (e) {
@@ -309,6 +336,7 @@ export async function POST(req: NextRequest) {
       bankCode: bank.code,
       providerId: providerKey,
       externalRef,
+      expireAt: picked.expireAt ? String(picked.expireAt) : null,
     },
   });
 }

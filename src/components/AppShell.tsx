@@ -46,7 +46,9 @@ export function AppShell({
 
   const firstName = (userName || 'User').trim().split(/\s+/)[0] || 'User';
   const greet = homeGreeting(firstName);
-  const hideTopbar = deepService || page === 'services' || page === 'profile';
+  // Hide shell topbar on Fund — page has its own title (avoids duplicate header)
+  const hideTopbar =
+    deepService || page === 'services' || page === 'profile' || page === 'fund';
 
   return (
     <div className={`app ${dark ? 'dark' : ''}`}>
@@ -76,11 +78,6 @@ export function AppShell({
                   <span aria-hidden="true">‹</span>
                   <strong>History</strong>
                 </button>
-              ) : page === 'fund' ? (
-                <div className="topbar-greeting" aria-label="Fund">
-                  <span>Fund wallet</span>
-                  <small>Add money to your balance</small>
-                </div>
               ) : null}
             </div>
             {page === 'home' && (

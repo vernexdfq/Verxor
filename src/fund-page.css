@@ -3,10 +3,10 @@
 .fund-page {
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 16px;
   max-width: 480px;
   margin: 0 auto;
-  padding: 4px 0 20px;
+  padding: 12px 0 24px;
 }
 
 .fund-head h1 {

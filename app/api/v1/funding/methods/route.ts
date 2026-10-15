@@ -3,11 +3,10 @@ import { sbSelect, supabaseConfigured } from '@/lib/supabase-admin';
 
 export const dynamic = 'force-dynamic';
 
+/** Only PalmPay + OPay for wallet funding */
 const XIXA_BANKS = [
   { id: 'palmpay', label: 'PalmPay', bankCode: '20867', bankName: 'PalmPay' },
   { id: 'opay', label: 'OPay', bankCode: '100004', bankName: 'OPay' },
-  { id: 'safehaven', label: 'Safehaven', bankCode: '29007', bankName: 'Safehaven' },
-  { id: 'kolomoni', label: 'Kolomoni MFB', bankCode: '20987', bankName: 'Kolomoni MFB' },
 ];
 
 async function resolveUserId(req: NextRequest): Promise<string | null> {
@@ -76,7 +75,9 @@ export async function GET(req: NextRequest) {
 
   const providers = XIXA_BANKS.map((b) => {
     const match = accounts.find(
-      (a) => a.bank_code === b.bankCode || (a.bank_name || '').toLowerCase().includes(b.label.toLowerCase()),
+      (a) =>
+        a.bank_code === b.bankCode ||
+        (a.bank_name || '').toLowerCase().includes(b.label.toLowerCase()),
     );
     return {
       id: b.id,
