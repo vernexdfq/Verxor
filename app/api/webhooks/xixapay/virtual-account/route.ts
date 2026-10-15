@@ -4,8 +4,8 @@ import { sbSelect, supabaseConfigured } from '@/lib/supabase-admin';
 
 export const dynamic = 'force-dynamic';
 
-/** Flat fee deducted from every successful bank-transfer deposit */
-const FUNDING_FEE_NGN = 20;
+/** No platform fee — full deposit credits the user wallet */
+const FUNDING_FEE_NGN = 0;
 
 function verifySignature(rawBody: string, headerSig: string | null, secret: string): boolean {
   if (!headerSig) return false;
@@ -51,7 +51,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
   }
 
-  console.info('[xixapay/virtual-account] payload keys', Object.keys(body || {}));
+  // Full payload for debugging credit failures
+  console.info('[xixapay/virtual-account] payload', JSON.stringify(body).slice(0, 2000));
 
   const status = String(
     body.notification_status || body.transaction_status || body.status || '',
@@ -63,9 +64,13 @@ export async function POST(req: NextRequest) {
     status === 'paid' ||
     status === '';
 
-  // Some payloads omit status but still carry amount + account — treat as success if amount present
   const amountPaid = Number(
-    body.amount_paid ?? body.amount ?? body.settlement_amount ?? body.paid_amount ?? 0,
+    body.amount_paid ??
+      body.amount ??
+      body.settlement_amount ??
+      body.paid_amount ??
+      body.transaction_amount ??
+      0,
   );
 
   if (!success && !(amountPaid > 0)) {
@@ -80,6 +85,7 @@ export async function POST(req: NextRequest) {
       body.externalReference ||
       body.external_reference ||
       body.id ||
+      body.ref ||
       '',
   );
   const accountNumberRaw = String(
@@ -89,11 +95,19 @@ export async function POST(req: NextRequest) {
       body.accountNumber ||
       body.virtualAccountNumber ||
       body.virtual_account_number ||
+      body.account?.number ||
       '',
   );
   const accountDigits = digitsOnly(accountNumberRaw);
-  const customerEmail = String(body.customer?.email || body.email || '').toLowerCase();
-  const customerId = String(body.customer?.customer_id || body.customer?.id || '');
+  const customerEmail = String(
+    body.customer?.email || body.email || body.customer_email || '',
+  ).toLowerCase();
+  const customerId = String(
+    body.customer?.customer_id || body.customer?.id || body.customer_id || '',
+  );
+  const customerName = String(
+    body.customer?.name || body.customer_name || body.receiver?.name || body.name || '',
+  ).trim();
   const externalRef = String(
     body.externalReference || body.external_reference || body.external_ref || '',
   );
@@ -109,14 +123,10 @@ export async function POST(req: NextRequest) {
 
   const creditAmount = Math.round((amountPaid - FUNDING_FEE_NGN) * 100) / 100;
   if (creditAmount <= 0) {
-    console.warn('[xixapay/virtual-account] amount too low after fee', {
-      amountPaid,
-      fee: FUNDING_FEE_NGN,
-      transactionId,
-    });
+    console.warn('[xixapay/virtual-account] amount too low', { amountPaid, transactionId });
     return NextResponse.json({
       status: 'below_fee',
-      message: `Deposit must be greater than ₦${FUNDING_FEE_NGN}`,
+      message: 'Deposit amount too low',
     });
   }
 
@@ -128,14 +138,12 @@ export async function POST(req: NextRequest) {
 
   try {
     if (accountDigits) {
-      // Exact match first
       let rows = await sbSelect(
         'virtual_accounts',
         `account_number=eq.${encodeURIComponent(accountDigits)}&order=created_at.desc&limit=1`,
       );
       if (Array.isArray(rows) && rows[0]?.user_id) userId = rows[0].user_id;
 
-      // Fallback: last 8–10 digits (handles masked or spaced numbers)
       if (!userId && accountDigits.length >= 8) {
         const tail = accountDigits.slice(-10);
         rows = await sbSelect(
@@ -154,6 +162,14 @@ export async function POST(req: NextRequest) {
       if (Array.isArray(rows) && rows[0]?.user_id) userId = rows[0].user_id;
     }
 
+    if (!userId && customerId) {
+      const rows = await sbSelect(
+        'virtual_accounts',
+        `provider_customer_id=eq.${encodeURIComponent(customerId)}&order=created_at.desc&limit=1`,
+      );
+      if (Array.isArray(rows) && rows[0]?.user_id) userId = rows[0].user_id;
+    }
+
     if (!userId && customerEmail) {
       const rows = await sbSelect(
         'profiles',
@@ -162,12 +178,16 @@ export async function POST(req: NextRequest) {
       if (Array.isArray(rows) && rows[0]?.id) userId = rows[0].id;
     }
 
-    if (!userId && customerId) {
-      const rows = await sbSelect(
-        'virtual_accounts',
-        `provider_customer_id=eq.${encodeURIComponent(customerId)}&order=created_at.desc&limit=1`,
-      );
-      if (Array.isArray(rows) && rows[0]?.user_id) userId = rows[0].user_id;
+    // Match by account name / customer name (e.g. "Verxor-Denny" or "Denny kay")
+    if (!userId && customerName) {
+      const clean = customerName.replace(/\(xixapay\)/gi, '').replace(/Verxor[-\s]*/gi, '').trim();
+      if (clean.length >= 3) {
+        const rows = await sbSelect(
+          'profiles',
+          `name=ilike.*${encodeURIComponent(clean)}*&select=id&limit=1`,
+        );
+        if (Array.isArray(rows) && rows[0]?.id) userId = rows[0].id;
+      }
     }
   } catch (e) {
     console.error('[xixapay/virtual-account] lookup', e);
@@ -177,7 +197,9 @@ export async function POST(req: NextRequest) {
     console.error('[xixapay/virtual-account] user not found', {
       accountDigits,
       customerEmail,
+      customerName,
       externalRef,
+      customerId,
       transactionId,
     });
     return NextResponse.json({ status: 'user_not_found' });
@@ -200,14 +222,14 @@ export async function POST(req: NextRequest) {
         p_user_id: userId,
         p_amount: creditAmount,
         p_reference: `xixapay:${transactionId}`,
-        p_description: `Wallet funding via ${body.receiver?.bank || 'OPay'} (₦${FUNDING_FEE_NGN} fee)`,
+        p_description: `Wallet funding via ${body.receiver?.bank || body.bank || 'bank transfer'}`,
       }),
     });
 
     if (!rpc.ok) {
       const t = await rpc.text().catch(() => '');
-      console.error('[xixapay/virtual-account] credit failed', rpc.status, t.slice(0, 300));
-      return NextResponse.json({ error: 'Credit failed' }, { status: 500 });
+      console.error('[xixapay/virtual-account] credit failed', rpc.status, t.slice(0, 400));
+      return NextResponse.json({ error: 'Credit failed', detail: t.slice(0, 200) }, { status: 500 });
     }
 
     const newBal = await rpc.json();
