@@ -40,6 +40,8 @@ type FundPageProps = {
   session?: AuthSession | null;
 };
 
+const MIN_TRANSFER_NGN = 1000;
+
 async function resolveAuthContext(session?: AuthSession | null) {
   const profile = loadSessionProfile();
   let accessToken = loadSessionTokens()?.access_token || '';
@@ -115,7 +117,7 @@ export function FundPage({ session }: FundPageProps) {
   const [copied, setCopied] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
   const [genError, setGenError] = useState('');
-  const [amount, setAmount] = useState('500');
+  const [amount, setAmount] = useState(String(MIN_TRANSFER_NGN));
   const [liveAccount, setLiveAccount] = useState<LiveAccount | null>(null);
   const [now, setNow] = useState(() => Date.now());
 
@@ -193,8 +195,10 @@ export function FundPage({ session }: FundPageProps) {
   const generate = async () => {
     if (!active || generating) return;
     const amt = Number(String(amount).replace(/[^0-9.]/g, ''));
-    if (!Number.isFinite(amt) || amt < 1) {
-      setGenError('Enter the amount you want to fund');
+    if (!Number.isFinite(amt) || amt < MIN_TRANSFER_NGN) {
+      setGenError(
+        `Minimum amount to transfer is ₦${MIN_TRANSFER_NGN.toLocaleString()}. Enter ₦${MIN_TRANSFER_NGN.toLocaleString()} or more.`,
+      );
       return;
     }
     setGenerating(true);
@@ -273,6 +277,22 @@ export function FundPage({ session }: FundPageProps) {
         <h2 className="fund-section-title">
           <Landmark size={18} strokeWidth={2.2} /> Fund via Bank Transfer
         </h2>
+
+        <div
+          style={{
+            marginBottom: 12,
+            padding: '10px 12px',
+            borderRadius: 10,
+            background: '#FEF3C7',
+            border: '1px solid #FCD34D',
+            fontSize: 13,
+            color: '#92400E',
+            lineHeight: 1.4,
+            fontWeight: 600,
+          }}
+        >
+          Minimum amount to transfer to this account is ₦{MIN_TRANSFER_NGN.toLocaleString()}
+        </div>
 
         {loading ? (
           <div className="fund-loading">
@@ -378,8 +398,9 @@ export function FundPage({ session }: FundPageProps) {
                     lineHeight: 1.45,
                   }}
                 >
-                  Transfer <strong>exactly ₦{Number(liveAccount.amountNgn).toLocaleString()}</strong>.
-                  Your wallet will be credited automatically.
+                  Send <strong>₦{Number(liveAccount.amountNgn).toLocaleString()}</strong> (or more
+                  from ₦{MIN_TRANSFER_NGN.toLocaleString()}) to this account. Your wallet credits
+                  automatically after the bank confirms.
                 </div>
                 <div style={{ padding: '12px 14px 14px' }}>
                   <button
@@ -404,8 +425,8 @@ export function FundPage({ session }: FundPageProps) {
                   {active ? `Generate ${active.label} account` : 'No virtual account yet'}
                 </strong>
                 <p>
-                  Enter the amount you want to fund, generate an account, and transfer the exact
-                  amount. Money sent to this account is added to your wallet instantly.
+                  Enter ₦{MIN_TRANSFER_NGN.toLocaleString()} or more, generate an account, then
+                  transfer that amount. Your wallet is credited when the bank confirms.
                 </p>
 
                 <label
@@ -415,11 +436,11 @@ export function FundPage({ session }: FundPageProps) {
                   <span style={{ fontSize: 12, fontWeight: 600, color: '#64748B' }}>AMOUNT (₦)</span>
                   <input
                     type="number"
-                    min={1}
+                    min={MIN_TRANSFER_NGN}
                     step={1}
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
-                    placeholder="500"
+                    placeholder={String(MIN_TRANSFER_NGN)}
                     style={{
                       width: '100%',
                       marginTop: 6,
@@ -461,15 +482,15 @@ export function FundPage({ session }: FundPageProps) {
         <ol>
           <li>
             <span className="fund-step-num">1</span>
-            <p>Enter the amount and generate an account.</p>
+            <p>Enter ₦{MIN_TRANSFER_NGN.toLocaleString()} or more and generate an account.</p>
           </li>
           <li>
             <span className="fund-step-num">2</span>
-            <p>Transfer exactly that amount to the account shown.</p>
+            <p>Transfer that amount to the bank name, account number and account name shown.</p>
           </li>
           <li>
             <span className="fund-step-num">3</span>
-            <p>Your wallet is credited automatically within seconds.</p>
+            <p>Your wallet is credited automatically within seconds after confirmation.</p>
           </li>
         </ol>
       </section>
@@ -477,8 +498,8 @@ export function FundPage({ session }: FundPageProps) {
       <div className="fund-secure">
         <Shield size={18} strokeWidth={2.2} />
         <p>
-          <strong>Instant & Secure:</strong> Any amount sent to the generated account is added to
-          your wallet automatically.
+          <strong>Instant & Secure:</strong> Money sent to the generated account is added to your
+          wallet automatically after the bank confirms.
         </p>
       </div>
     </div>
