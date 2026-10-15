@@ -43,6 +43,8 @@ type FundPageProps = {
 
 /** Flat fee deducted from every successful deposit (covers gateway %) */
 const FUNDING_FEE_NGN = 20;
+/** OPay dynamic accounts reject transfers below this */
+const MIN_AMOUNT_NGN = 1000;
 
 async function resolveAuthContext(session?: AuthSession | null) {
   const profile = loadSessionProfile();
@@ -92,7 +94,6 @@ async function resolveAuthContext(session?: AuthSession | null) {
 
 function parseExpireMs(expireAt: string | null): number | null {
   if (!expireAt) return null;
-  // XixaPay: "2026-10-15 17:14:13" (treat as local/WAT wall clock)
   const normalized = expireAt.includes('T') ? expireAt : expireAt.replace(' ', 'T');
   const ms = Date.parse(normalized);
   return Number.isFinite(ms) ? ms : null;
@@ -120,9 +121,10 @@ export function FundPage({ session }: FundPageProps) {
   const [copied, setCopied] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
   const [genError, setGenError] = useState('');
-  const [amount, setAmount] = useState('1000');
+  const [amount, setAmount] = useState(String(MIN_AMOUNT_NGN));
   const [liveAccount, setLiveAccount] = useState<LiveAccount | null>(null);
   const [now, setNow] = useState(() => Date.now());
+  const [minNotice, setMinNotice] = useState(false);
 
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 1000);
@@ -133,7 +135,6 @@ export function FundPage({ session }: FundPageProps) {
   const msLeft = expireMs != null ? expireMs - now : null;
   const isExpired = msLeft != null && msLeft <= 0;
 
-  // Clear expired account so user must generate a new one
   useEffect(() => {
     if (isExpired && liveAccount) {
       setLiveAccount(null);
@@ -199,14 +200,14 @@ export function FundPage({ session }: FundPageProps) {
   const generate = async () => {
     if (!active || generating) return;
     const amt = Number(String(amount).replace(/[^0-9.]/g, ''));
-    if (!Number.isFinite(amt) || amt < 100) {
-      setGenError('Enter an amount of at least ₦100');
+    if (!Number.isFinite(amt) || amt < MIN_AMOUNT_NGN) {
+      setGenError(`Minimum amount is ₦${MIN_AMOUNT_NGN.toLocaleString()}`);
+      setMinNotice(true);
       return;
     }
-    // User should transfer amt + fee so net credit = amt after fee, OR transfer amt and net = amt - fee
-    // Product rule: transfer exact amount shown; fee deducted from deposit → net = amount - 20
     setGenerating(true);
     setGenError('');
+    setMinNotice(false);
     try {
       const ctx = await resolveAuthContext(session);
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
@@ -239,6 +240,7 @@ export function FundPage({ session }: FundPageProps) {
             amountNgn: data.account.amountNgn || amt,
             expireAt: data.account.expireAt || null,
           });
+          setMinNotice(true);
         }
       } else {
         let msg = 'Could not generate account. Please try again.';
@@ -285,9 +287,44 @@ export function FundPage({ session }: FundPageProps) {
         <div className="fund-fee">
           <AlertTriangle size={18} strokeWidth={2.2} style={{ flexShrink: 0, marginTop: 1 }} />
           <p>
-            A fee of <strong>₦{FUNDING_FEE_NGN}</strong> will be deducted from your deposit.
+            Minimum amount to transfer to this account is{' '}
+            <strong>₦{MIN_AMOUNT_NGN.toLocaleString()}</strong>.
           </p>
         </div>
+
+        {minNotice && showAccount && liveAccount ? (
+          <div
+            className="fund-fee"
+            style={{
+              background: '#ECFDF5',
+              borderColor: '#A7F3D0',
+              color: '#065F46',
+              marginBottom: 12,
+            }}
+          >
+            <CheckCircle2 size={18} strokeWidth={2.2} style={{ flexShrink: 0, marginTop: 1 }} />
+            <p>
+              Transfer <strong>exactly ₦{Number(liveAccount.amountNgn).toLocaleString()}</strong> to
+              the account below. Any other amount will be rejected by the bank.
+            </p>
+            <button
+              type="button"
+              onClick={() => setMinNotice(false)}
+              style={{
+                marginLeft: 'auto',
+                background: 'transparent',
+                border: 'none',
+                color: '#065F46',
+                fontWeight: 600,
+                cursor: 'pointer',
+                padding: '0 4px',
+              }}
+              aria-label="Dismiss"
+            >
+              ×
+            </button>
+          </div>
+        ) : null}
 
         {loading ? (
           <div className="fund-loading">
@@ -309,6 +346,7 @@ export function FundPage({ session }: FundPageProps) {
                       setActiveId(p.id);
                       setGenError('');
                       setLiveAccount(null);
+                      setMinNotice(false);
                     }}
                   >
                     <span className="fund-tab-dot" aria-hidden />
@@ -324,15 +362,6 @@ export function FundPage({ session }: FundPageProps) {
 
             {showAccount && liveAccount ? (
               <div className="fund-account-card">
-                <div className="fund-row">
-                  <div className="fund-row-icon">
-                    <Wallet size={18} />
-                  </div>
-                  <div className="fund-row-copy">
-                    <span className="fund-row-label">TRANSFER EXACTLY</span>
-                    <strong>₦{Number(liveAccount.amountNgn).toLocaleString()}</strong>
-                  </div>
-                </div>
                 {msLeft != null && msLeft > 0 ? (
                   <div className="fund-row">
                     <div className="fund-row-icon">
@@ -394,6 +423,17 @@ export function FundPage({ session }: FundPageProps) {
                     {copied === 'name' ? 'Copied' : <><Copy size={12} /> Copy</>}
                   </button>
                 </div>
+                <div
+                  style={{
+                    padding: '10px 14px 4px',
+                    fontSize: 13,
+                    color: '#475569',
+                    lineHeight: 1.45,
+                  }}
+                >
+                  Transfer <strong>exactly ₦{Number(liveAccount.amountNgn).toLocaleString()}</strong>.
+                  ₦{FUNDING_FEE_NGN} fee is deducted; the rest credits your wallet automatically.
+                </div>
                 <div style={{ padding: '12px 14px 14px' }}>
                   <button
                     type="button"
@@ -402,6 +442,7 @@ export function FundPage({ session }: FundPageProps) {
                     onClick={() => {
                       setLiveAccount(null);
                       setGenError('');
+                      setMinNotice(false);
                     }}
                   >
                     Generate new amount
@@ -417,9 +458,9 @@ export function FundPage({ session }: FundPageProps) {
                   {active ? `Generate ${active.label} account` : 'No virtual account yet'}
                 </strong>
                 <p>
-                  Enter the amount to fund, generate a one-time account, and transfer the exact
-                  amount before it expires. ₦{FUNDING_FEE_NGN} fee is deducted; the rest credits your
-                  wallet automatically.
+                  Enter the amount (min ₦{MIN_AMOUNT_NGN.toLocaleString()}), generate a one-time
+                  account, and transfer the exact amount before it expires. ₦{FUNDING_FEE_NGN} fee is
+                  deducted; the rest credits your wallet automatically.
                 </p>
 
                 <label
@@ -429,11 +470,11 @@ export function FundPage({ session }: FundPageProps) {
                   <span style={{ fontSize: 12, fontWeight: 600, color: '#64748B' }}>AMOUNT (₦)</span>
                   <input
                     type="number"
-                    min={100}
+                    min={MIN_AMOUNT_NGN}
                     step={100}
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
-                    placeholder="1000"
+                    placeholder={String(MIN_AMOUNT_NGN)}
                     style={{
                       width: '100%',
                       marginTop: 6,
@@ -475,11 +516,13 @@ export function FundPage({ session }: FundPageProps) {
         <ol>
           <li>
             <span className="fund-step-num">1</span>
-            <p>Enter the amount and generate a one-time OPay account.</p>
+            <p>
+              Enter at least ₦{MIN_AMOUNT_NGN.toLocaleString()} and generate a one-time OPay account.
+            </p>
           </li>
           <li>
             <span className="fund-step-num">2</span>
-            <p>Transfer the exact amount before the countdown expires.</p>
+            <p>Transfer the exact amount shown before the countdown expires.</p>
           </li>
           <li>
             <span className="fund-step-num">3</span>
