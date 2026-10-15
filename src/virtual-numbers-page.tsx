@@ -38,6 +38,7 @@ import {
   formatTimer,
 } from './virtual-numbers-data';
 import { ServiceLogo, PoolCard } from './virtual-numbers-components';
+import { loadSessionTokens, loadSessionProfile } from './auth/session-unlock';
 
 export type { CustomerNumberOrder };
 
@@ -332,6 +333,14 @@ export function VirtualNumbersPage({
 
   const openConfirm = (option: PriceOption) => {
     if (!priceSheet) return;
+    const price = Number(option.priceNgn) || 0;
+    const localBal = Number(session?.balanceNgn ?? balance ?? 0);
+    if (price > 0 && localBal < price) {
+      setCopyToast(
+        `Insufficient balance. You need ${formatNgn(price)} but have ${formatNgn(localBal)}. Fund your wallet first.`,
+      );
+      return;
+    }
     setConfirmSheet({
       option,
       service: priceSheet.service,
@@ -378,27 +387,92 @@ export function VirtualNumbersPage({
 
   const confirmPurchase = async () => {
     if (!confirmSheet || buying) return;
-    setBuying(true);
     const { option, service, country, pool } = confirmSheet;
+    const price = Number(option.priceNgn) || 0;
+
+    const localBal = Number(session?.balanceNgn ?? balance ?? 0);
+    if (price > 0 && localBal < price) {
+      setCopyToast(
+        `Insufficient balance. You need ${formatNgn(price)} but have ${formatNgn(localBal)}. Fund your wallet first.`,
+      );
+      return;
+    }
+
+    setBuying(true);
     try {
+      let accessToken = loadSessionTokens()?.access_token || '';
+      let userId = loadSessionProfile()?.userId || '';
+      try {
+        const { getSupabaseBrowser } = await import('../lib/supabase/client');
+        const sb = getSupabaseBrowser();
+        if (sb) {
+          const { data: sess } = await sb.auth.getSession();
+          if (sess.session?.access_token) accessToken = sess.session.access_token;
+          if (sess.session?.user?.id) userId = sess.session.user.id;
+        }
+      } catch {
+        /* ignore */
+      }
+
+      if (price > 0) {
+        const balHeaders: Record<string, string> = {};
+        if (accessToken) balHeaders.Authorization = `Bearer ${accessToken}`;
+        const balQ = userId ? `?userId=${encodeURIComponent(userId)}` : '';
+        const balRes = await fetch(`/api/v1/wallet/balance${balQ}`, {
+          headers: balHeaders,
+          cache: 'no-store',
+        }).catch(() => null);
+        if (balRes && balRes.ok) {
+          const balData = (await balRes.json()) as {
+            ok?: boolean;
+            balanceNgn?: number;
+            userId?: string;
+          };
+          if (balData.userId) userId = balData.userId;
+          const liveBal = Number(balData.balanceNgn) || 0;
+          if (liveBal < price) {
+            setCopyToast(
+              `Insufficient balance. You need ${formatNgn(price)} but have ${formatNgn(liveBal)}. Fund your wallet first.`,
+            );
+            return;
+          }
+        } else if (!userId && !accessToken) {
+          setCopyToast('Sign in to buy a number.');
+          return;
+        }
+      }
+
       let grizzlyCountry = option.grizzlyCountry || '';
       if (!grizzlyCountry) {
         if (country.code === 'US' || country.code === 'USA') grizzlyCountry = '12';
         else grizzlyCountry = country.code;
       }
+
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
+
       const res = await fetch('/api/v1/numbers/buy', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({
           service: service.id,
           country: String(grizzlyCountry),
           maxPriceUsd: option.priceUsd > 0 ? option.priceUsd : 0.5,
           poolId: pool.id,
           priceNgn: option.priceNgn,
+          userId: userId || undefined,
         }),
       });
       const data = await res.json();
-      if (!data.ok) throw new Error(data.error || 'Purchase failed');
+      if (!data.ok) {
+        const errMsg = String(data.error || 'Purchase failed');
+        if (/insufficient/i.test(errMsg) || res.status === 402) {
+          throw new Error(
+            `Insufficient balance. You need ${formatNgn(price)}. Fund your wallet first.`,
+          );
+        }
+        throw new Error(errMsg);
+      }
 
       const now = Date.now();
       const order: CustomerNumberOrder = {
