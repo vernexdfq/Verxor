@@ -46,33 +46,81 @@ async function resolveUserId(req: NextRequest): Promise<string | null> {
   return qsUid || null;
 }
 
-function titleFromLedger(kind: string, meta: Record<string, unknown>, reference?: string | null) {
-  const m = meta || {};
-  if (typeof m.title === 'string' && m.title.trim()) return m.title.trim();
-  if (typeof m.description === 'string' && m.description.trim()) return m.description.trim();
-  if (typeof m.service === 'string' && m.service.trim()) {
-    return `Virtual Number (${m.service})`;
+/** Turn raw DB text into clean bank-style labels. */
+function polishTitle(raw: string, kind: string, reference?: string | null): string {
+  const t = (raw || '').trim();
+  const lower = t.toLowerCase();
+  const k = (kind || '').toLowerCase();
+  const ref = (reference || '').toLowerCase();
+
+  // Strip internal / provider noise
+  if (
+    lower.startsWith('manual credit') ||
+    lower.includes('xixapay') ||
+    lower.includes('manual credit') ||
+    ref.startsWith('xixapay:manual') ||
+    ref.startsWith('xixapay:')
+  ) {
+    return 'Wallet Funding';
   }
-  switch ((kind || '').toLowerCase()) {
-    case 'fund':
-      return 'Wallet Funding';
-    case 'purchase':
-      return 'Purchase';
-    case 'refund':
-      return 'Refund';
-    case 'adjustment':
-      return 'Adjustment';
-    case 'wholesale_debit':
-      return 'Wholesale debit';
-    default:
-      if (reference && reference.startsWith('xixapay:')) return 'Wallet Funding';
-      if (reference && reference.startsWith('vn-buy')) return 'Virtual Number';
-      if (reference && reference.startsWith('refund-')) return 'Refund';
-      return kind ? kind.charAt(0).toUpperCase() + kind.slice(1) : 'Transaction';
+
+  if (k === 'fund' || lower.includes('wallet fund') || lower === 'fund') {
+    return 'Wallet Funding';
   }
+  if (k === 'refund' || lower.startsWith('refund')) {
+    if (lower.includes('virtual') || lower.includes('number') || ref.includes('vn')) {
+      return 'Refund — Virtual Number';
+    }
+    if (lower.includes('boost') || lower.includes('cancel')) {
+      return 'Refund — Cancelled Order';
+    }
+    return t.startsWith('Refund') ? t : 'Refund';
+  }
+  if (k === 'purchase' || lower.includes('virtual number') || ref.startsWith('vn-')) {
+    if (t && !lower.startsWith('purchase') && lower.includes('virtual')) return t;
+    return t && t.length > 3 && !lower.startsWith('purchase') ? t : 'Virtual Number';
+  }
+  if (k === 'wholesale_debit') return 'Wholesale Debit';
+  if (k === 'adjustment') return 'Adjustment';
+
+  if (t) return t;
+  if (k) return k.charAt(0).toUpperCase() + k.slice(1);
+  return 'Transaction';
 }
 
-function signedAmountNgn(kind: string, amountNgn: number | null | undefined, amountUsd: number | null | undefined) {
+function titleFromLedger(kind: string, meta: Record<string, unknown>, reference?: string | null) {
+  const m = meta || {};
+  let raw = '';
+  if (typeof m.title === 'string' && m.title.trim()) raw = m.title.trim();
+  else if (typeof m.description === 'string' && m.description.trim()) raw = m.description.trim();
+  else if (typeof m.service === 'string' && m.service.trim()) {
+    raw = `Virtual Number (${m.service})`;
+  } else {
+    switch ((kind || '').toLowerCase()) {
+      case 'fund':
+        raw = 'Wallet Funding';
+        break;
+      case 'purchase':
+        raw = 'Virtual Number';
+        break;
+      case 'refund':
+        raw = 'Refund';
+        break;
+      default:
+        if (reference && String(reference).startsWith('xixapay:')) raw = 'Wallet Funding';
+        else if (reference && String(reference).startsWith('vn-')) raw = 'Virtual Number';
+        else if (reference && String(reference).startsWith('refund-')) raw = 'Refund';
+        else raw = kind ? kind.charAt(0).toUpperCase() + kind.slice(1) : 'Transaction';
+    }
+  }
+  return polishTitle(raw, kind, reference);
+}
+
+function signedAmountNgn(
+  kind: string,
+  amountNgn: number | null | undefined,
+  amountUsd: number | null | undefined,
+) {
   const raw =
     amountNgn != null && Number.isFinite(Number(amountNgn))
       ? Number(amountNgn)
@@ -80,10 +128,8 @@ function signedAmountNgn(kind: string, amountNgn: number | null | undefined, amo
         ? Number(amountUsd)
         : 0;
   const k = (kind || '').toLowerCase();
-  // Purchases / debits are stored positive in some ledgers — force sign for UI
   if (k === 'purchase' || k === 'wholesale_debit') return -Math.abs(raw);
   if (k === 'fund' || k === 'refund') return Math.abs(raw);
-  // adjustment / unknown: keep original sign if present
   return raw;
 }
 
@@ -100,7 +146,7 @@ export async function GET(req: NextRequest) {
   const items: TxItem[] = [];
   const seen = new Set<string>();
 
-  // 1) Primary: wallet_ledger (schema.sql)
+  // 1) Primary: wallet_ledger
   try {
     const rows = (await sbSelect(
       'wallet_ledger',
@@ -113,7 +159,10 @@ export async function GET(req: NextRequest) {
         if (!id || seen.has(id)) continue;
         seen.add(id);
         const kind = String(r.kind || 'adjustment');
-        const meta = (r.meta && typeof r.meta === 'object' ? r.meta : {}) as Record<string, unknown>;
+        const meta = (r.meta && typeof r.meta === 'object' ? r.meta : {}) as Record<
+          string,
+          unknown
+        >;
         const amount = signedAmountNgn(
           kind,
           r.amount_ngn as number | null,
@@ -138,7 +187,7 @@ export async function GET(req: NextRequest) {
     console.warn('[transactions] wallet_ledger', e);
   }
 
-  // 2) Secondary: wallet_transactions (created by funding SQL)
+  // 2) Secondary: wallet_transactions
   try {
     const rows = (await sbSelect(
       'wallet_transactions',
@@ -157,12 +206,17 @@ export async function GET(req: NextRequest) {
         if (k.includes('debit') || k.includes('purchase') || k === 'out') amount = -Math.abs(rawAmt);
         else if (k.includes('credit') || k.includes('fund') || k === 'in') amount = Math.abs(rawAmt);
 
+        const desc =
+          (typeof r.description === 'string' && r.description) ||
+          (typeof r.title === 'string' && r.title) ||
+          '';
         items.push({
           id,
-          title:
-            (typeof r.description === 'string' && r.description) ||
-            (typeof r.title === 'string' && r.title) ||
-            titleFromLedger(kind, {}, r.reference as string | null),
+          title: polishTitle(
+            desc || titleFromLedger(kind, {}, r.reference as string | null),
+            kind,
+            r.reference as string | null,
+          ),
           amount,
           currency: 'NGN',
           status: (String(r.status || 'success').toLowerCase() as TxItem['status']) || 'success',
@@ -175,7 +229,7 @@ export async function GET(req: NextRequest) {
     /* table may not exist */
   }
 
-  // 3) Number orders (purchases that may not yet be in ledger)
+  // 3) vn_orders
   try {
     const rows = (await sbSelect(
       'vn_orders',
@@ -188,14 +242,23 @@ export async function GET(req: NextRequest) {
         if (!id || seen.has(id) || seen.has(String(r.id))) continue;
         seen.add(id);
         const svc = String(r.service_code || 'Number');
+        const country = String(r.country_code || '').toUpperCase();
         const price = Number(r.price_ngn || 0);
         const st = String(r.status || '').toLowerCase();
+        const label = country
+          ? `Virtual Number (${svc} / ${country})`
+          : `Virtual Number (${svc})`;
         items.push({
           id,
-          title: `Virtual Number (${svc})`,
+          title: label,
           amount: price > 0 ? -Math.abs(price) : 0,
           currency: 'NGN',
-          status: st === 'failed' || st === 'expired' ? 'failed' : st === 'waiting' ? 'pending' : 'success',
+          status:
+            st === 'failed' || st === 'expired'
+              ? 'failed'
+              : st === 'waiting'
+                ? 'pending'
+                : 'success',
           createdAt: String(r.created_at || new Date().toISOString()),
           kind: 'purchase',
         });
@@ -205,7 +268,7 @@ export async function GET(req: NextRequest) {
     /* optional */
   }
 
-  // Also try number_orders (older table name)
+  // 4) number_orders (legacy)
   try {
     const rows = (await sbSelect(
       'number_orders',
@@ -219,7 +282,6 @@ export async function GET(req: NextRequest) {
         seen.add(id);
         const product = String(r.product || 'Virtual Number');
         const priceUsd = Number(r.price_usd || 0);
-        // Approximate NGN if only USD present (~1600)
         const priceNgn = priceUsd * 1600;
         const st = String(r.status || '').toLowerCase();
         items.push({
@@ -227,7 +289,12 @@ export async function GET(req: NextRequest) {
           title: `Virtual Number (${product})`,
           amount: priceNgn > 0 ? -Math.abs(priceNgn) : 0,
           currency: 'NGN',
-          status: st === 'failed' || st === 'expired' ? 'failed' : st === 'waiting' ? 'pending' : 'success',
+          status:
+            st === 'failed' || st === 'expired'
+              ? 'failed'
+              : st === 'waiting'
+                ? 'pending'
+                : 'success',
           createdAt: String(r.created_at || new Date().toISOString()),
           kind: 'purchase',
         });

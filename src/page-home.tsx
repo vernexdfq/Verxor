@@ -15,12 +15,14 @@ import {
   Plus,
   Rocket,
   ShieldCheck,
+  Wallet,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import type { Page } from './types';
 import type { ServiceView } from './service-pages';
 import type { AuthSession } from './auth/AuthFlow';
-import { formatHomeBalance } from './lib/wallet-ui';
+import { formatHomeBalance, formatNgn } from './lib/wallet-ui';
+import { loadSessionTokens, loadSessionProfile } from './auth/session-unlock';
 
 /** Global services only — Nigerian VTU lives on Services page */
 const QUICK_ACTIONS: {
@@ -122,6 +124,36 @@ const PROMO_SLIDES: {
   },
 ];
 
+type ActivityItem = {
+  id: string;
+  title: string;
+  amount: number;
+  currency: 'NGN' | 'USD';
+  status: string;
+  createdAt: string;
+};
+
+function formatWhen(iso: string) {
+  try {
+    return new Date(iso).toLocaleString(undefined, {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    });
+  } catch {
+    return iso;
+  }
+}
+
+function formatMoney(amount: number, currency: 'NGN' | 'USD') {
+  const abs = Math.abs(amount);
+  const sign = amount < 0 ? '-' : '+';
+  if (currency === 'USD') return `${sign}$${abs.toFixed(2)}`;
+  return `${sign}\u20a6${formatNgn(abs)}`;
+}
+
 export function HomePage({
   go,
   openService,
@@ -140,6 +172,8 @@ export function HomePage({
   const [showBalance, setShowBalance] = useState(true);
   const [promoIndex, setPromoIndex] = useState(0);
   const [paused, setPaused] = useState(false);
+  const [recent, setRecent] = useState<ActivityItem[]>([]);
+  const [recentLoading, setRecentLoading] = useState(true);
 
   useEffect(() => {
     if (paused) return;
@@ -148,6 +182,40 @@ export function HomePage({
     }, 4500);
     return () => clearInterval(t);
   }, [paused]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setRecentLoading(true);
+      try {
+        const profile = loadSessionProfile();
+        const tokens = loadSessionTokens();
+        const userId = profile?.userId || '';
+        const headers: Record<string, string> = {};
+        if (tokens?.access_token) headers.Authorization = `Bearer ${tokens.access_token}`;
+        const q = userId ? `?userId=${encodeURIComponent(userId)}` : '';
+        const res = await fetch(`/api/v1/transactions${q}`, {
+          headers,
+          cache: 'no-store',
+        }).catch(() => null);
+        if (!res || !res.ok || cancelled) {
+          if (!cancelled) setRecent([]);
+          return;
+        }
+        const data = (await res.json()) as { items?: ActivityItem[] };
+        if (!cancelled) {
+          setRecent(Array.isArray(data.items) ? data.items.slice(0, 2) : []);
+        }
+      } catch {
+        if (!cancelled) setRecent([]);
+      } finally {
+        if (!cancelled) setRecentLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [session?.balanceNgn, session?.userId]);
 
   const promo = PROMO_SLIDES[promoIndex];
 
@@ -223,7 +291,13 @@ export function HomePage({
         onMouseLeave={() => setPaused(false)}
       >
         <button type="button" className={`vx-promo-card ${promo.accent}`} onClick={openPromo}>
-          <img className="vx-promo-logo" src="/brand/verxor-logo.svg" alt="Verxor" width="28" height="28" />
+          <img
+            className="vx-promo-logo"
+            src="/brand/verxor-logo.svg"
+            alt="Verxor"
+            width="28"
+            height="28"
+          />
           <div className="vx-promo-copy">
             <span className="vx-promo-badge">{promo.badge}</span>
             <strong className="vx-promo-headline">{promo.headline}</strong>
@@ -257,15 +331,98 @@ export function HomePage({
             View all →
           </button>
         </div>
-        <div className="vx-activity-empty">
-          <div className="vx-activity-icon">
-            <Clock3 size={18} />
+
+        {recentLoading ? (
+          <div className="vx-activity-empty">
+            <div className="vx-activity-icon">
+              <Clock3 size={18} />
+            </div>
+            <div>
+              <strong>Loading…</strong>
+              <p>Fetching recent wallet activity.</p>
+            </div>
           </div>
-          <div>
-            <strong>No recent activity</strong>
-            <p>Wallet and order activity will show here.</p>
+        ) : recent.length === 0 ? (
+          <div className="vx-activity-empty">
+            <div className="vx-activity-icon">
+              <Clock3 size={18} />
+            </div>
+            <div>
+              <strong>No recent activity</strong>
+              <p>Wallet and order activity will show here.</p>
+            </div>
           </div>
-        </div>
+        ) : (
+          <ul className="vx-activity-list" style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+            {recent.map((tx) => (
+              <li
+                key={tx.id}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 12,
+                  padding: '12px 14px',
+                  background: '#fff',
+                  borderRadius: 14,
+                  border: '1px solid #E8EEF5',
+                  marginBottom: 8,
+                }}
+              >
+                <span
+                  style={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: 12,
+                    background: tx.amount >= 0 ? '#ECFDF5' : '#F5F3FF',
+                    display: 'grid',
+                    placeItems: 'center',
+                    color: tx.amount >= 0 ? '#059669' : '#7C3AED',
+                    flexShrink: 0,
+                  }}
+                >
+                  {tx.amount >= 0 ? <Wallet size={18} /> : <Phone size={18} />}
+                </span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <strong
+                    style={{
+                      display: 'block',
+                      fontSize: 14,
+                      color: '#0f172a',
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                    }}
+                  >
+                    {tx.title}
+                  </strong>
+                  <span style={{ fontSize: 12, color: '#64748b' }}>{formatWhen(tx.createdAt)}</span>
+                </div>
+                <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                  <strong
+                    style={{
+                      display: 'block',
+                      fontSize: 14,
+                      color: tx.amount >= 0 ? '#059669' : '#dc2626',
+                    }}
+                  >
+                    {formatMoney(tx.amount, tx.currency)}
+                  </strong>
+                  <span
+                    style={{
+                      fontSize: 11,
+                      color: '#059669',
+                      background: '#ECFDF5',
+                      padding: '2px 8px',
+                      borderRadius: 999,
+                    }}
+                  >
+                    Success
+                  </span>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
     </div>
   );
