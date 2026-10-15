@@ -4,12 +4,8 @@ import { sbInsert, supabaseConfigured } from '@/lib/supabase-admin';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
 
-const BANK_MAP: Record<string, { code: string; name: string }> = {
-  opay: { code: '100004', name: 'OPay' },
-  palmpay: { code: '20867', name: 'PalmPay' },
-  '100004': { code: '100004', name: 'OPay' },
-  '20867': { code: '20867', name: 'PalmPay' },
-};
+/** OPay only */
+const BANK = { code: '100004', name: 'OPay' };
 
 function xixapayBase() {
   return (process.env.XIXAPAY_BASE_URL || 'https://api.xixapay.com').replace(/\/$/, '');
@@ -154,93 +150,6 @@ function pickAccount(raw: Record<string, unknown>) {
   return { accountNumber, accountName, bankName, providerCustomerId, expireAt };
 }
 
-async function createVa(opts: {
-  apiKey: string;
-  secret: string;
-  businessId: string;
-  bank: { code: string; name: string };
-  amount: number;
-  name: string;
-  email: string;
-  phone: string;
-  externalRef: string;
-  callbackUrl: string;
-}): Promise<
-  | { ok: true; raw: Record<string, unknown>; accountNumber: string; accountName: string; bankName: string; expireAt: string | null; providerCustomerId: string }
-  | { ok: false; message: string; status: number }
-> {
-  const payload: Record<string, unknown> = {
-    email: opts.email,
-    name: opts.name.slice(0, 80),
-    phoneNumber: opts.phone,
-    bankCode: [opts.bank.code],
-    businessId: opts.businessId,
-    accountType: 'dynamic',
-    amount: opts.amount,
-    externalReference: opts.externalRef,
-    callbackUrl: opts.callbackUrl,
-  };
-
-  let xixapayRes: Response;
-  try {
-    xixapayRes = await fetch(`${xixapayBase()}/api/v1/createVirtualAccount`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${opts.secret}`,
-        'api-key': opts.apiKey,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(payload),
-      cache: 'no-store',
-    });
-  } catch (e) {
-    console.error('[funding/generate] xixapay network', e);
-    return { ok: false, message: 'Could not reach payment provider. Try again.', status: 502 };
-  }
-
-  const rawText = await xixapayRes.text().catch(() => '');
-  let raw: Record<string, unknown> = {};
-  try {
-    raw = JSON.parse(rawText) as Record<string, unknown>;
-  } catch {
-    raw = { raw: rawText.slice(0, 200) };
-  }
-
-  if (
-    !xixapayRes.ok ||
-    raw.status === 'fail' ||
-    String(raw.message || '').includes('API Key is not active')
-  ) {
-    console.error('[funding/generate] xixapay error', xixapayRes.status, rawText.slice(0, 500));
-    const msg =
-      (typeof raw.message === 'string' && raw.message) ||
-      (typeof raw.error === 'string' && raw.error) ||
-      (xixapayRes.status >= 500
-        ? `${opts.bank.name} is temporarily unavailable. Try OPay.`
-        : `Provider error (${xixapayRes.status})`);
-    return { ok: false, message: String(msg), status: 502 };
-  }
-
-  const picked = pickAccount(raw);
-  if (!picked.accountNumber) {
-    return {
-      ok: false,
-      message: `${opts.bank.name} returned no account number. Try OPay.`,
-      status: 502,
-    };
-  }
-
-  return {
-    ok: true,
-    raw,
-    accountNumber: picked.accountNumber,
-    accountName: picked.accountName || opts.name,
-    bankName: picked.bankName || opts.bank.name,
-    expireAt: picked.expireAt ? String(picked.expireAt) : null,
-    providerCustomerId: picked.providerCustomerId,
-  };
-}
-
 export async function POST(req: NextRequest) {
   const apiKey = process.env.XIXAPAY_API_KEY;
   const secret = process.env.XIXAPAY_SECRET_KEY;
@@ -268,15 +177,6 @@ export async function POST(req: NextRequest) {
     body = await req.json();
   } catch {
     return NextResponse.json({ ok: false, message: 'Invalid JSON' }, { status: 400 });
-  }
-
-  let providerKey = String(body.providerId || body.bankCode || 'opay').toLowerCase();
-  let bank = BANK_MAP[providerKey];
-  if (!bank) {
-    return NextResponse.json(
-      { ok: false, message: 'Choose PalmPay or OPay only.' },
-      { status: 400 },
-    );
   }
 
   const amount = Math.round(Number(body.amountNgn ?? body.amount));
@@ -314,50 +214,88 @@ export async function POST(req: NextRequest) {
     process.env.XIXAPAY_VIRTUAL_ACCOUNT_WEBHOOK_URL ||
     `${appUrl}/api/webhooks/xixapay/virtual-account`;
 
-  const common = {
-    apiKey,
-    secret,
-    businessId,
-    amount,
-    name,
+  const payload: Record<string, unknown> = {
     email: customerEmail,
-    phone,
-    externalRef,
+    name: name.slice(0, 80),
+    phoneNumber: phone,
+    bankCode: [BANK.code],
+    businessId,
+    accountType: 'dynamic',
+    amount,
+    externalReference: externalRef,
     callbackUrl,
   };
 
-  let result = await createVa({ ...common, bank });
-
-  // PalmPay often 502/timeouts on XixaPay — auto-fallback to OPay
-  if (!result.ok && providerKey === 'palmpay') {
-    console.warn('[funding/generate] PalmPay failed, falling back to OPay');
-    providerKey = 'opay';
-    bank = BANK_MAP.opay;
-    result = await createVa({
-      ...common,
-      bank,
-      externalRef: `${externalRef}-opay`,
+  let xixapayRes: Response;
+  try {
+    xixapayRes = await fetch(`${xixapayBase()}/api/v1/createVirtualAccount`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${secret}`,
+        'api-key': apiKey,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+      cache: 'no-store',
     });
+  } catch (e) {
+    console.error('[funding/generate] xixapay network', e);
+    return NextResponse.json(
+      { ok: false, message: 'Could not reach payment provider. Try again.' },
+      { status: 502 },
+    );
   }
 
-  if (!result.ok) {
-    return NextResponse.json({ ok: false, message: result.message }, { status: result.status });
+  const rawText = await xixapayRes.text().catch(() => '');
+  let raw: Record<string, unknown> = {};
+  try {
+    raw = JSON.parse(rawText) as Record<string, unknown>;
+  } catch {
+    raw = { raw: rawText.slice(0, 200) };
   }
+
+  if (
+    !xixapayRes.ok ||
+    raw.status === 'fail' ||
+    String(raw.message || '').includes('API Key is not active')
+  ) {
+    console.error('[funding/generate] xixapay error', xixapayRes.status, rawText.slice(0, 500));
+    const msg =
+      (typeof raw.message === 'string' && raw.message) ||
+      (typeof raw.error === 'string' && raw.error) ||
+      `Provider error (${xixapayRes.status})`;
+    return NextResponse.json({ ok: false, message: String(msg) }, { status: 502 });
+  }
+
+  const picked = pickAccount(raw);
+  if (!picked.accountNumber) {
+    return NextResponse.json(
+      {
+        ok: false,
+        message:
+          'Provider returned no account number. Confirm XixaPay credentials and that dynamic accounts are enabled.',
+      },
+      { status: 502 },
+    );
+  }
+
+  const accountName = picked.accountName || name;
+  const bankName = picked.bankName || BANK.name;
 
   if (supabaseConfigured()) {
     try {
       await sbInsert('virtual_accounts', {
         user_id: userId || null,
         provider: 'xixapay',
-        bank_code: bank.code,
-        bank_name: result.bankName,
-        account_number: String(result.accountNumber),
-        account_name: String(result.accountName),
+        bank_code: BANK.code,
+        bank_name: bankName,
+        account_number: String(picked.accountNumber),
+        account_name: String(accountName),
         account_type: 'dynamic',
         amount_ngn: amount,
         external_ref: externalRef,
-        provider_customer_id: result.providerCustomerId || null,
-        raw: result.raw,
+        provider_customer_id: picked.providerCustomerId || null,
+        raw,
       });
     } catch (e) {
       console.error('[funding/generate] save VA', e);
@@ -367,14 +305,14 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({
     ok: true,
     account: {
-      bankName: result.bankName,
-      accountNumber: String(result.accountNumber),
-      accountName: String(result.accountName),
+      bankName,
+      accountNumber: String(picked.accountNumber),
+      accountName: String(accountName),
       amountNgn: amount,
-      bankCode: bank.code,
-      providerId: providerKey,
+      bankCode: BANK.code,
+      providerId: 'opay',
       externalRef,
-      expireAt: result.expireAt,
+      expireAt: picked.expireAt ? String(picked.expireAt) : null,
     },
   });
 }
