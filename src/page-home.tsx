@@ -188,7 +188,7 @@ export function HomePage({
       try {
         // Same auth resolution as History so Home always sees real ledger rows.
         let accessToken = loadSessionTokens()?.access_token || '';
-        let userId = session?.userId || loadSessionProfile()?.userId || '';
+        let userId = loadSessionProfile()?.userId || '';
         try {
           const { getSupabaseBrowser } = await import('../lib/supabase/client');
           const sb = getSupabaseBrowser();
@@ -236,7 +236,7 @@ export function HomePage({
     return () => {
       cancelled = true;
     };
-  }, [session?.balanceNgn, session?.userId]);
+  }, [session?.balanceNgn, session?.balanceUsd]);
 
   const promo = PROMO_SLIDES[promoIndex];
 
