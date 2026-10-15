@@ -13,10 +13,9 @@ import {
 } from 'lucide-react';
 import { formatHomeBalance } from './lib/wallet-ui';
 import type { AuthSession } from './auth/AuthFlow';
-import { loadSessionTokens, loadSessionProfile } from './auth/session-unlock';
+import { loadSessionTokens, loadSessionProfile, saveSessionTokens, saveSessionProfile } from './auth/session-unlock';
 import './fund-page.css';
 
-/** Provider option from /api/v1/funding/methods */
 export type FundingProvider = {
   id: string;
   label: string;
@@ -32,11 +31,50 @@ type FundPageProps = {
   session?: AuthSession | null;
 };
 
-function authHeaders(): HeadersInit {
-  const tokens = loadSessionTokens();
-  const h: Record<string, string> = { 'Content-Type': 'application/json' };
-  if (tokens?.access_token) h.Authorization = `Bearer ${tokens.access_token}`;
-  return h;
+async function resolveAuthContext(session?: AuthSession | null) {
+  const profile = loadSessionProfile();
+  let accessToken = loadSessionTokens()?.access_token || '';
+  let userId = profile?.userId || '';
+  let email = session?.email || profile?.email || '';
+  let phone = session?.contact || profile?.contact || '';
+  let name = session?.name || profile?.name || '';
+
+  try {
+    const { getSupabaseBrowser } = await import('../lib/supabase/client');
+    const sb = getSupabaseBrowser();
+    if (sb) {
+      const { data } = await sb.auth.getSession();
+      const s = data.session;
+      if (s?.access_token) {
+        accessToken = s.access_token;
+        saveSessionTokens({
+          access_token: s.access_token,
+          refresh_token: s.refresh_token || undefined,
+        });
+      }
+      if (s?.user?.id) {
+        userId = s.user.id;
+        if (s.user.email) email = s.user.email;
+        saveSessionProfile({
+          name: name || 'User',
+          contact: phone || '',
+          email,
+          method: (profile?.method || session?.method || 'phone') as 'phone' | 'email',
+          phoneCountry: profile?.phoneCountry || session?.phoneCountry || 'NG',
+          dialCode: profile?.dialCode || session?.dialCode || '234',
+          homeCurrency: profile?.homeCurrency || session?.homeCurrency || 'NGN',
+          vtuEligible: profile?.vtuEligible ?? session?.vtuEligible ?? true,
+          balanceNgn: session?.balanceNgn ?? profile?.balanceNgn ?? 0,
+          balanceUsd: session?.balanceUsd ?? profile?.balanceUsd ?? 0,
+          userId,
+        });
+      }
+    }
+  } catch {
+    /* ignore */
+  }
+
+  return { accessToken, userId, email, phone, name };
 }
 
 export function FundPage({ session }: FundPageProps) {
@@ -64,11 +102,13 @@ export function FundPage({ session }: FundPageProps) {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const profile = loadSessionProfile();
-      const qs = profile?.userId ? `?userId=${encodeURIComponent(profile.userId)}` : '';
+      const ctx = await resolveAuthContext(session);
+      const qs = ctx.userId ? `?userId=${encodeURIComponent(ctx.userId)}` : '';
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (ctx.accessToken) headers.Authorization = `Bearer ${ctx.accessToken}`;
       const res = await fetch(`/api/v1/funding/methods${qs}`, {
         cache: 'no-store',
-        headers: authHeaders(),
+        headers,
       }).catch(() => null);
       if (res && res.ok) {
         const data = (await res.json()) as {
@@ -96,7 +136,7 @@ export function FundPage({ session }: FundPageProps) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [session]);
 
   useEffect(() => {
     void load();
@@ -139,17 +179,21 @@ export function FundPage({ session }: FundPageProps) {
     setGenerating(true);
     setGenError('');
     try {
-      const profile = loadSessionProfile();
+      const ctx = await resolveAuthContext(session);
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (ctx.accessToken) headers.Authorization = `Bearer ${ctx.accessToken}`;
+
       const res = await fetch('/api/v1/funding/generate', {
         method: 'POST',
-        headers: authHeaders(),
+        headers,
         body: JSON.stringify({
           providerId: active.id,
           amountNgn: amt,
-          userId: profile?.userId,
-          email: session?.email || profile?.email,
-          phone: session?.contact || profile?.contact,
-          name: session?.name || profile?.name,
+          userId: ctx.userId || undefined,
+          email: ctx.email || undefined,
+          phone: ctx.phone || undefined,
+          contact: ctx.phone || undefined,
+          name: ctx.name || undefined,
         }),
       }).catch(() => null);
 
@@ -323,7 +367,10 @@ export function FundPage({ session }: FundPageProps) {
                   exact amount — your wallet credits automatically.
                 </p>
 
-                <label className="fund-amount-label" style={{ display: 'block', width: '100%', marginBottom: 10, textAlign: 'left' }}>
+                <label
+                  className="fund-amount-label"
+                  style={{ display: 'block', width: '100%', marginBottom: 10, textAlign: 'left' }}
+                >
                   <span style={{ fontSize: 12, fontWeight: 600, color: '#64748B' }}>AMOUNT (₦)</span>
                   <input
                     type="number"
