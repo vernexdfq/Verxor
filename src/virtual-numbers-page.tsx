@@ -70,6 +70,7 @@ function mapServices(raw: any[]): Service[] {
   return (raw || []).map((s: any) => ({
     id: s.code || s.id,
     name: s.name,
+    logoId: s.logoId || s.code || s.id,
     category: (s.category || 'other') as ServiceCategory,
   }));
 }
@@ -638,7 +639,7 @@ export function VirtualNumbersPage({
             )}
             {filteredServices.map((s) => (
               <button key={s.id} type="button" className="vn-service-row" onClick={() => selectService(s)}>
-                <ServiceLogo id={s.id} compact />
+                <ServiceLogo id={s.logoId || s.id} compact />
                 <span>{s.name}</span>
                 <ChevronRight size={16} />
               </button>
