@@ -5,8 +5,8 @@ export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
 
 const BANK = { code: '100004', name: 'OPay' };
-/** OPay dynamic VAs reject anything below this in practice */
-const MIN_AMOUNT_NGN = 1000;
+/** Technical floor only — not shown to users. Bank may still reject very small amounts. */
+const MIN_AMOUNT_NGN = 50;
 
 function xixapayBase() {
   return (process.env.XIXAPAY_BASE_URL || 'https://api.xixapay.com').replace(/\/$/, '');
@@ -184,10 +184,7 @@ export async function POST(req: NextRequest) {
   const amount = Math.round(Number(body.amountNgn ?? body.amount));
   if (!Number.isFinite(amount) || amount < MIN_AMOUNT_NGN) {
     return NextResponse.json(
-      {
-        ok: false,
-        message: `Minimum amount to generate an account is ₦${MIN_AMOUNT_NGN.toLocaleString()}. Transfer exactly that amount.`,
-      },
+      { ok: false, message: 'Enter a valid amount to generate an account.' },
       { status: 400 },
     );
   }
@@ -330,6 +327,5 @@ export async function POST(req: NextRequest) {
       externalRef,
       expireAt,
     },
-    minAmountNgn: MIN_AMOUNT_NGN,
   });
 }
