@@ -58,8 +58,7 @@ function isFaqService(s: ServiceView | null): s is 'faq' | 'help' {
 
 /**
  * Soft session: after a successful PIN unlock, the user stays logged in
- * across refreshes for up to 1 hour. PIN is required again after logout
- * or when the unlock window expires.
+ * across refreshes. Balance is always refreshed from public.wallets.
  */
 export function VerxorApp() {
   const [page, setPage] = useState<Page>('home');
@@ -72,8 +71,10 @@ export function VerxorApp() {
   const skipPushRef = useRef(false);
   const pageRef = useRef(page);
   const serviceRef = useRef(service);
+  const authRef = useRef(auth);
   pageRef.current = page;
   serviceRef.current = service;
+  authRef.current = auth;
 
   const pushNav = useCallback((next: NavState) => {
     if (typeof window === 'undefined') return;
@@ -118,6 +119,62 @@ export function VerxorApp() {
     setService(null);
   }, []);
 
+  /** Pull live balance from public.wallets and update session + local profile */
+  const refreshBalance = useCallback(async (session?: AuthSession | null) => {
+    const s = session ?? authRef.current;
+    if (!s) return;
+    try {
+      const profile = loadSessionProfile();
+      const tokens = loadSessionTokens();
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (tokens?.access_token) headers.Authorization = `Bearer ${tokens.access_token}`;
+
+      const qs = new URLSearchParams();
+      if (profile?.userId) qs.set('userId', profile.userId);
+      if (s.email || profile?.email) qs.set('email', s.email || profile?.email || '');
+      if (s.contact || profile?.contact) qs.set('phone', s.contact || profile?.contact || '');
+
+      const res = await fetch(`/api/v1/wallet/balance?${qs.toString()}`, {
+        cache: 'no-store',
+        headers,
+      }).catch(() => null);
+
+      if (!res || !res.ok) return;
+      const data = (await res.json()) as {
+        ok?: boolean;
+        balanceNgn?: number;
+        balanceUsd?: number;
+        userId?: string;
+      };
+      if (!data.ok) return;
+
+      const balanceNgn = Number(data.balanceNgn) || 0;
+      const balanceUsd = Number(data.balanceUsd) || 0;
+
+      setAuth((prev) =>
+        prev
+          ? {
+              ...prev,
+              balanceNgn,
+              balanceUsd,
+            }
+          : prev,
+      );
+
+      const current = loadSessionProfile();
+      if (current) {
+        saveSessionProfile({
+          ...current,
+          balanceNgn,
+          balanceUsd,
+          userId: data.userId || current.userId,
+        });
+      }
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
   // Restore soft session on first paint (refresh stays inside the app).
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -149,7 +206,7 @@ export function VerxorApp() {
     if (!forceSignin && isSessionUnlocked()) {
       const profile = loadSessionProfile();
       if (profile) {
-        setAuth({
+        const restored: AuthSession = {
           authenticated: true,
           method: profile.method || 'phone',
           contact: profile.contact,
@@ -163,7 +220,8 @@ export function VerxorApp() {
           vtuEligible: profile.vtuEligible ?? true,
           balanceNgn: profile.balanceNgn ?? 0,
           balanceUsd: profile.balanceUsd ?? 0,
-        });
+        };
+        setAuth(restored);
 
         // Best-effort restore Supabase client session from stored tokens
         const tokens = loadSessionTokens();
@@ -184,8 +242,10 @@ export function VerxorApp() {
           })();
         }
 
+        // Live balance from wallets table (overrides stale cached 0)
+        void refreshBalance(restored);
+
         // On browser refresh, authenticated users start at the Home Dashboard.
-        // Keep the session, but discard the previous in-app subpage for this reload.
         try {
           sessionStorage.removeItem('verxor-nav');
           const homeState: NavState = { page: 'home', service: null };
@@ -204,7 +264,24 @@ export function VerxorApp() {
     }
 
     setAuthReady(true);
-  }, []);
+  }, [refreshBalance]);
+
+  // Refresh balance when tab becomes visible or user lands on home/fund
+  useEffect(() => {
+    if (!auth) return;
+
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') void refreshBalance();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+
+    // Also refresh when switching to home or fund
+    if (page === 'home' || page === 'fund') {
+      void refreshBalance();
+    }
+
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [auth, page, refreshBalance]);
 
   useEffect(() => {
     const onPop = (e: PopStateEvent) => {
@@ -221,50 +298,53 @@ export function VerxorApp() {
     return () => window.removeEventListener('popstate', onPop);
   }, []);
 
-  const handleAuth = useCallback((s: AuthSession) => {
-    const restoredSession: AuthSession = {
-      ...s,
-      balanceNgn: s.balanceNgn ?? 0,
-      balanceUsd: s.balanceUsd ?? 0,
-    };
-    setAuth(restoredSession);
-    // Persist the minimal profile required to restore the authenticated app
-    // after refresh. Explicit logout removes this record.
-    saveSessionProfile({
-      name: restoredSession.name || 'User',
-      contact: restoredSession.contact || '',
-      email: restoredSession.email || '',
-      method: restoredSession.method || 'phone',
-      phoneCountry: restoredSession.phoneCountry || 'NG',
-      dialCode: restoredSession.dialCode || '234',
-      homeCurrency: restoredSession.homeCurrency || 'NGN',
-      vtuEligible: restoredSession.vtuEligible ?? true,
-      balanceNgn: restoredSession.balanceNgn ?? 0,
-      balanceUsd: restoredSession.balanceUsd ?? 0,
-    });
-    try {
-      const raw = sessionStorage.getItem('verxor-nav');
-      if (raw) {
-        const restored = readNavState(JSON.parse(raw));
-        if (restored) {
-          setPage(restored.page);
-          setService(restored.service);
-          skipPushRef.current = true;
-          try {
-            window.history.replaceState(
-              restored,
-              '',
-              window.location.pathname + window.location.search,
-            );
-          } catch {
-            /* ignore */
+  const handleAuth = useCallback(
+    (s: AuthSession) => {
+      const restoredSession: AuthSession = {
+        ...s,
+        balanceNgn: s.balanceNgn ?? 0,
+        balanceUsd: s.balanceUsd ?? 0,
+      };
+      setAuth(restoredSession);
+      saveSessionProfile({
+        name: restoredSession.name || 'User',
+        contact: restoredSession.contact || '',
+        email: restoredSession.email || '',
+        method: restoredSession.method || 'phone',
+        phoneCountry: restoredSession.phoneCountry || 'NG',
+        dialCode: restoredSession.dialCode || '234',
+        homeCurrency: restoredSession.homeCurrency || 'NGN',
+        vtuEligible: restoredSession.vtuEligible ?? true,
+        balanceNgn: restoredSession.balanceNgn ?? 0,
+        balanceUsd: restoredSession.balanceUsd ?? 0,
+      });
+      // Always pull live balance after login (PIN may have returned stale/0)
+      void refreshBalance(restoredSession);
+      try {
+        const raw = sessionStorage.getItem('verxor-nav');
+        if (raw) {
+          const restored = readNavState(JSON.parse(raw));
+          if (restored) {
+            setPage(restored.page);
+            setService(restored.service);
+            skipPushRef.current = true;
+            try {
+              window.history.replaceState(
+                restored,
+                '',
+                window.location.pathname + window.location.search,
+              );
+            } catch {
+              /* ignore */
+            }
           }
         }
+      } catch {
+        /* ignore */
       }
-    } catch {
-      /* ignore */
-    }
-  }, []);
+    },
+    [refreshBalance],
+  );
 
   const handleLogout = useCallback(() => {
     try {
