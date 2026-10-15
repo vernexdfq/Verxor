@@ -53,7 +53,7 @@ function polishTitle(raw: string, kind: string, reference?: string | null): stri
   const k = (kind || '').toLowerCase();
   const ref = (reference || '').toLowerCase();
 
-  // Strip internal / provider noise
+  // Strip internal / provider noise → clean bank labels
   if (
     lower.startsWith('manual credit') ||
     lower.includes('xixapay') ||
@@ -61,11 +61,18 @@ function polishTitle(raw: string, kind: string, reference?: string | null): stri
     ref.startsWith('xixapay:manual') ||
     ref.startsWith('xixapay:')
   ) {
-    return 'Wallet Funding';
+    return 'Wallet Fund';
   }
 
-  if (k === 'fund' || lower.includes('wallet fund') || lower === 'fund') {
-    return 'Wallet Funding';
+  if (
+    k === 'fund' ||
+    lower.includes('wallet fund') ||
+    lower === 'fund' ||
+    lower.includes('top-up') ||
+    lower.includes('top up') ||
+    lower.includes('topup')
+  ) {
+    return 'Wallet Fund';
   }
   if (k === 'refund' || lower.startsWith('refund')) {
     if (lower.includes('virtual') || lower.includes('number') || ref.includes('vn')) {
@@ -78,7 +85,7 @@ function polishTitle(raw: string, kind: string, reference?: string | null): stri
   }
   if (k === 'purchase' || lower.includes('virtual number') || ref.startsWith('vn-')) {
     if (t && !lower.startsWith('purchase') && lower.includes('virtual')) return t;
-    return t && t.length > 3 && !lower.startsWith('purchase') ? t : 'Virtual Number';
+    return t && t.length > 3 && !lower.startsWith('purchase') ? t : 'Virtual Number Purchase';
   }
   if (k === 'wholesale_debit') return 'Wholesale Debit';
   if (k === 'adjustment') return 'Adjustment';
@@ -98,17 +105,17 @@ function titleFromLedger(kind: string, meta: Record<string, unknown>, reference?
   } else {
     switch ((kind || '').toLowerCase()) {
       case 'fund':
-        raw = 'Wallet Funding';
+        raw = 'Wallet Fund';
         break;
       case 'purchase':
-        raw = 'Virtual Number';
+        raw = 'Virtual Number Purchase';
         break;
       case 'refund':
         raw = 'Refund';
         break;
       default:
-        if (reference && String(reference).startsWith('xixapay:')) raw = 'Wallet Funding';
-        else if (reference && String(reference).startsWith('vn-')) raw = 'Virtual Number';
+        if (reference && String(reference).startsWith('xixapay:')) raw = 'Wallet Fund';
+        else if (reference && String(reference).startsWith('vn-')) raw = 'Virtual Number Purchase';
         else if (reference && String(reference).startsWith('refund-')) raw = 'Refund';
         else raw = kind ? kind.charAt(0).toUpperCase() + kind.slice(1) : 'Transaction';
     }
@@ -306,8 +313,5 @@ export async function GET(req: NextRequest) {
 
   items.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
-  return NextResponse.json({
-    ok: true,
-    items: items.slice(0, 100),
-  });
+  return NextResponse.json({ ok: true, items });
 }

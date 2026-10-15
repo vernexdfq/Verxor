@@ -129,7 +129,6 @@ type ActivityItem = {
   title: string;
   amount: number;
   currency: 'NGN' | 'USD';
-  status: string;
   createdAt: string;
 };
 
@@ -138,7 +137,6 @@ function formatWhen(iso: string) {
     return new Date(iso).toLocaleString(undefined, {
       month: 'short',
       day: 'numeric',
-      year: 'numeric',
       hour: 'numeric',
       minute: '2-digit',
     });
@@ -188,11 +186,33 @@ export function HomePage({
     (async () => {
       setRecentLoading(true);
       try {
-        const profile = loadSessionProfile();
-        const tokens = loadSessionTokens();
-        const userId = profile?.userId || '';
+        // Same auth resolution as History so Home always sees real ledger rows.
+        let accessToken = loadSessionTokens()?.access_token || '';
+        let userId = session?.userId || loadSessionProfile()?.userId || '';
+        try {
+          const { getSupabaseBrowser } = await import('../lib/supabase/client');
+          const sb = getSupabaseBrowser();
+          if (sb) {
+            const { data } = await sb.auth.getSession();
+            const s = data.session;
+            if (s?.access_token) accessToken = s.access_token;
+            if (s?.user?.id) userId = s.user.id;
+          }
+        } catch {
+          /* ignore */
+        }
+
+        // New / signed-out users: keep the section clean (no fake rows).
+        if (!userId && !accessToken) {
+          if (!cancelled) {
+            setRecent([]);
+            setRecentLoading(false);
+          }
+          return;
+        }
+
         const headers: Record<string, string> = {};
-        if (tokens?.access_token) headers.Authorization = `Bearer ${tokens.access_token}`;
+        if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
         const q = userId ? `?userId=${encodeURIComponent(userId)}` : '';
         const res = await fetch(`/api/v1/transactions${q}`, {
           headers,
@@ -204,6 +224,7 @@ export function HomePage({
         }
         const data = (await res.json()) as { items?: ActivityItem[] };
         if (!cancelled) {
+          // Only the last two real transactions — never hard-coded.
           setRecent(Array.isArray(data.items) ? data.items.slice(0, 2) : []);
         }
       } catch {
