@@ -3,10 +3,10 @@ import { sbSelect, supabaseConfigured } from '@/lib/supabase-admin';
 
 export const dynamic = 'force-dynamic';
 
-/** Only PalmPay + OPay for wallet funding */
+/** OPay first — PalmPay often fails/timeouts on XixaPay dynamic VA for some merchants */
 const XIXA_BANKS = [
-  { id: 'palmpay', label: 'PalmPay', bankCode: '20867', bankName: 'PalmPay' },
   { id: 'opay', label: 'OPay', bankCode: '100004', bankName: 'OPay' },
+  { id: 'palmpay', label: 'PalmPay', bankCode: '20867', bankName: 'PalmPay' },
 ];
 
 async function resolveUserId(req: NextRequest): Promise<string | null> {

@@ -2,13 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { sbInsert, supabaseConfigured } from '@/lib/supabase-admin';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 30;
 
-/** Only PalmPay + OPay (dynamic VA — no BVN) */
 const BANK_MAP: Record<string, { code: string; name: string }> = {
-  palmpay: { code: '20867', name: 'PalmPay' },
   opay: { code: '100004', name: 'OPay' },
-  '20867': { code: '20867', name: 'PalmPay' },
+  palmpay: { code: '20867', name: 'PalmPay' },
   '100004': { code: '100004', name: 'OPay' },
+  '20867': { code: '20867', name: 'PalmPay' },
 };
 
 function xixapayBase() {
@@ -118,7 +118,6 @@ async function tryResolveUserId(
   return userId || null;
 }
 
-/** XixaPay returns bankAccounts[] (not always accountNumber at root) */
 function pickAccount(raw: Record<string, unknown>) {
   const data = (raw?.data as Record<string, unknown>) || raw;
   const bankAccounts = (data.bankAccounts || data.accounts || raw.bankAccounts || []) as Array<
@@ -147,19 +146,99 @@ function pickAccount(raw: Record<string, unknown>) {
   const bankName = String(
     first.bankName || first.bank_name || data.bankName || data.bank_name || data.bank || '',
   );
-  const reservedId = String(
-    first.Reserved_Account_Id ||
-      first.reserved_account_id ||
-      data.Reserved_Account_Id ||
-      data.reserved_account_id ||
-      '',
-  );
   const providerCustomerId = String(
     customer.customer_id || customer.id || data.customer_id || data.customerId || '',
   );
   const expireAt = first.expire_at || first.expireAt || data.expire_at || null;
 
-  return { accountNumber, accountName, bankName, reservedId, providerCustomerId, expireAt };
+  return { accountNumber, accountName, bankName, providerCustomerId, expireAt };
+}
+
+async function createVa(opts: {
+  apiKey: string;
+  secret: string;
+  businessId: string;
+  bank: { code: string; name: string };
+  amount: number;
+  name: string;
+  email: string;
+  phone: string;
+  externalRef: string;
+  callbackUrl: string;
+}): Promise<
+  | { ok: true; raw: Record<string, unknown>; accountNumber: string; accountName: string; bankName: string; expireAt: string | null; providerCustomerId: string }
+  | { ok: false; message: string; status: number }
+> {
+  const payload: Record<string, unknown> = {
+    email: opts.email,
+    name: opts.name.slice(0, 80),
+    phoneNumber: opts.phone,
+    bankCode: [opts.bank.code],
+    businessId: opts.businessId,
+    accountType: 'dynamic',
+    amount: opts.amount,
+    externalReference: opts.externalRef,
+    callbackUrl: opts.callbackUrl,
+  };
+
+  let xixapayRes: Response;
+  try {
+    xixapayRes = await fetch(`${xixapayBase()}/api/v1/createVirtualAccount`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${opts.secret}`,
+        'api-key': opts.apiKey,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+      cache: 'no-store',
+    });
+  } catch (e) {
+    console.error('[funding/generate] xixapay network', e);
+    return { ok: false, message: 'Could not reach payment provider. Try again.', status: 502 };
+  }
+
+  const rawText = await xixapayRes.text().catch(() => '');
+  let raw: Record<string, unknown> = {};
+  try {
+    raw = JSON.parse(rawText) as Record<string, unknown>;
+  } catch {
+    raw = { raw: rawText.slice(0, 200) };
+  }
+
+  if (
+    !xixapayRes.ok ||
+    raw.status === 'fail' ||
+    String(raw.message || '').includes('API Key is not active')
+  ) {
+    console.error('[funding/generate] xixapay error', xixapayRes.status, rawText.slice(0, 500));
+    const msg =
+      (typeof raw.message === 'string' && raw.message) ||
+      (typeof raw.error === 'string' && raw.error) ||
+      (xixapayRes.status >= 500
+        ? `${opts.bank.name} is temporarily unavailable. Try OPay.`
+        : `Provider error (${xixapayRes.status})`);
+    return { ok: false, message: String(msg), status: 502 };
+  }
+
+  const picked = pickAccount(raw);
+  if (!picked.accountNumber) {
+    return {
+      ok: false,
+      message: `${opts.bank.name} returned no account number. Try OPay.`,
+      status: 502,
+    };
+  }
+
+  return {
+    ok: true,
+    raw,
+    accountNumber: picked.accountNumber,
+    accountName: picked.accountName || opts.name,
+    bankName: picked.bankName || opts.bank.name,
+    expireAt: picked.expireAt ? String(picked.expireAt) : null,
+    providerCustomerId: picked.providerCustomerId,
+  };
 }
 
 export async function POST(req: NextRequest) {
@@ -191,8 +270,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, message: 'Invalid JSON' }, { status: 400 });
   }
 
-  const providerKey = String(body.providerId || body.bankCode || 'palmpay').toLowerCase();
-  const bank = BANK_MAP[providerKey];
+  let providerKey = String(body.providerId || body.bankCode || 'opay').toLowerCase();
+  let bank = BANK_MAP[providerKey];
   if (!bank) {
     return NextResponse.json(
       { ok: false, message: 'Choose PalmPay or OPay only.' },
@@ -229,81 +308,40 @@ export async function POST(req: NextRequest) {
     (phoneRaw ? `user${phone.replace(/\D/g, '').slice(-10)}@verxor.local` : `guest@verxor.local`);
 
   const userId = await tryResolveUserId(req, body);
-
   const externalRef = `vx-${(userId || 'anon').toString().slice(0, 8)}-${Date.now()}`;
   const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://www.verxor.com').replace(/\/$/, '');
   const callbackUrl =
     process.env.XIXAPAY_VIRTUAL_ACCOUNT_WEBHOOK_URL ||
     `${appUrl}/api/webhooks/xixapay/virtual-account`;
 
-  const payload: Record<string, unknown> = {
-    email: customerEmail,
-    name: name.slice(0, 80),
-    phoneNumber: phone,
-    bankCode: [bank.code],
+  const common = {
+    apiKey,
+    secret,
     businessId,
-    accountType: 'dynamic',
     amount,
-    externalReference: externalRef,
+    name,
+    email: customerEmail,
+    phone,
+    externalRef,
     callbackUrl,
   };
 
-  let xixapayRes: Response;
-  try {
-    xixapayRes = await fetch(`${xixapayBase()}/api/v1/createVirtualAccount`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${secret}`,
-        'api-key': apiKey,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(payload),
-      cache: 'no-store',
+  let result = await createVa({ ...common, bank });
+
+  // PalmPay often 502/timeouts on XixaPay — auto-fallback to OPay
+  if (!result.ok && providerKey === 'palmpay') {
+    console.warn('[funding/generate] PalmPay failed, falling back to OPay');
+    providerKey = 'opay';
+    bank = BANK_MAP.opay;
+    result = await createVa({
+      ...common,
+      bank,
+      externalRef: `${externalRef}-opay`,
     });
-  } catch (e) {
-    console.error('[funding/generate] xixapay network', e);
-    return NextResponse.json(
-      { ok: false, message: 'Could not reach payment provider. Try again.' },
-      { status: 502 },
-    );
   }
 
-  const rawText = await xixapayRes.text().catch(() => '');
-  let raw: Record<string, unknown> = {};
-  try {
-    raw = JSON.parse(rawText) as Record<string, unknown>;
-  } catch {
-    raw = { raw: rawText };
-  }
-
-  if (
-    !xixapayRes.ok ||
-    raw.status === 'fail' ||
-    String(raw.message || '').includes('API Key is not active')
-  ) {
-    console.error('[funding/generate] xixapay error', xixapayRes.status, rawText.slice(0, 800));
-    const msg =
-      (typeof raw.message === 'string' && raw.message) ||
-      (typeof raw.error === 'string' && raw.error) ||
-      `Provider error (${xixapayRes.status})`;
-    return NextResponse.json({ ok: false, message: String(msg) }, { status: 502 });
-  }
-
-  const picked = pickAccount(raw);
-  const accountNumber = picked.accountNumber;
-  const accountName = picked.accountName || name;
-  const bankName = picked.bankName || bank.name;
-
-  if (!accountNumber) {
-    console.error('[funding/generate] no account number', rawText.slice(0, 800));
-    return NextResponse.json(
-      {
-        ok: false,
-        message:
-          'Provider returned no account number. Confirm XixaPay credentials and that dynamic accounts are enabled.',
-      },
-      { status: 502 },
-    );
+  if (!result.ok) {
+    return NextResponse.json({ ok: false, message: result.message }, { status: result.status });
   }
 
   if (supabaseConfigured()) {
@@ -312,14 +350,14 @@ export async function POST(req: NextRequest) {
         user_id: userId || null,
         provider: 'xixapay',
         bank_code: bank.code,
-        bank_name: bankName,
-        account_number: String(accountNumber),
-        account_name: String(accountName),
+        bank_name: result.bankName,
+        account_number: String(result.accountNumber),
+        account_name: String(result.accountName),
         account_type: 'dynamic',
         amount_ngn: amount,
         external_ref: externalRef,
-        provider_customer_id: picked.providerCustomerId || null,
-        raw,
+        provider_customer_id: result.providerCustomerId || null,
+        raw: result.raw,
       });
     } catch (e) {
       console.error('[funding/generate] save VA', e);
@@ -329,14 +367,14 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({
     ok: true,
     account: {
-      bankName,
-      accountNumber: String(accountNumber),
-      accountName: String(accountName),
+      bankName: result.bankName,
+      accountNumber: String(result.accountNumber),
+      accountName: String(result.accountName),
       amountNgn: amount,
       bankCode: bank.code,
       providerId: providerKey,
       externalRef,
-      expireAt: picked.expireAt ? String(picked.expireAt) : null,
+      expireAt: result.expireAt,
     },
   });
 }

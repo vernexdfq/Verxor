@@ -87,7 +87,7 @@ export function FundPage({ session }: FundPageProps) {
 
   const [providers, setProviders] = useState<FundingProvider[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeId, setActiveId] = useState<string | null>(null);
+  const [activeId, setActiveId] = useState<string | null>('opay');
   const [copied, setCopied] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
   const [genError, setGenError] = useState('');
@@ -124,7 +124,8 @@ export function FundPage({ session }: FundPageProps) {
         setProviders(list);
         setActiveId((prev) => {
           if (prev && list.some((p) => p.id === prev)) return prev;
-          return list[0]?.id ?? null;
+          const opay = list.find((p) => p.id === 'opay');
+          return opay?.id ?? list[0]?.id ?? null;
         });
       } else {
         setProviders([]);
@@ -212,11 +213,21 @@ export function FundPage({ session }: FundPageProps) {
         }
         await load();
       } else {
-        const body = res ? await res.json().catch(() => null) : null;
-        setGenError(
-          (body && typeof body.message === 'string' && body.message) ||
-            'Could not generate account. Please try again.',
-        );
+        let msg = 'Could not generate account. Please try again.';
+        if (res) {
+          try {
+            const body = (await res.json()) as { message?: string };
+            if (body?.message) msg = body.message;
+          } catch {
+            if (res.status >= 500) {
+              msg =
+                active.id === 'palmpay'
+                  ? 'PalmPay is temporarily unavailable. Select OPay and try again.'
+                  : 'Payment provider error. Try again in a moment.';
+            }
+          }
+        }
+        setGenError(msg);
       }
     } catch {
       setGenError('Could not generate account. Please try again later.');
