@@ -23,16 +23,27 @@ async function resolveUserId(req: NextRequest): Promise<string | null> {
   if (!base || !anon) return null;
 
   try {
+    const controller = new AbortController();
+    const t = setTimeout(() => controller.abort(), 4000);
     const res = await fetch(`${base}/auth/v1/user`, {
       headers: { apikey: anon, Authorization: `Bearer ${token}` },
       cache: 'no-store',
+      signal: controller.signal,
     });
+    clearTimeout(t);
     if (!res.ok) return null;
     const u = (await res.json()) as { id?: string };
     return u.id || null;
   } catch {
     return null;
   }
+}
+
+function withTimeout<T>(p: Promise<T>, ms: number, fallback: T): Promise<T> {
+  return Promise.race([
+    p,
+    new Promise<T>((resolve) => setTimeout(() => resolve(fallback), ms)),
+  ]);
 }
 
 export async function GET(req: NextRequest) {
@@ -42,16 +53,29 @@ export async function GET(req: NextRequest) {
       process.env.XIXAPAY_BUSINESS_ID,
   );
 
+  // Always return OPay so the Fund page never stays on "Loading funding methods…"
+  const baseProviders = XIXA_BANKS.map((b) => ({
+    id: b.id,
+    label: b.label,
+    bankCode: b.bankCode,
+    bankName: b.bankName,
+    accountNumber: undefined as string | undefined,
+    accountName: undefined as string | undefined,
+    hasAccount: false,
+    accountType: 'dynamic',
+    amountNgn: undefined as number | undefined,
+    feeNote: undefined as string | undefined,
+  }));
+
   if (!xixapayReady) {
     return NextResponse.json({
       ok: true,
-      banks: [],
-      providers: [],
-      message: 'Payment provider not configured yet',
+      banks: baseProviders,
+      providers: baseProviders,
+      message: 'Payment provider keys missing — generate may fail until configured',
     });
   }
 
-  const userId = await resolveUserId(req);
   let accounts: Array<{
     bank_code?: string;
     bank_name?: string;
@@ -61,15 +85,20 @@ export async function GET(req: NextRequest) {
     amount_ngn?: number;
   }> = [];
 
-  if (userId && supabaseConfigured()) {
-    try {
-      accounts = await sbSelect(
-        'virtual_accounts',
-        `user_id=eq.${userId}&order=created_at.desc&limit=20`,
+  try {
+    const userId = await withTimeout(resolveUserId(req), 4500, null);
+    if (userId && supabaseConfigured()) {
+      accounts = await withTimeout(
+        sbSelect(
+          'virtual_accounts',
+          `user_id=eq.${userId}&order=created_at.desc&limit=20`,
+        ).catch(() => []),
+        4000,
+        [],
       );
-    } catch {
-      accounts = [];
     }
+  } catch {
+    accounts = [];
   }
 
   const providers = XIXA_BANKS.map((b) => {
