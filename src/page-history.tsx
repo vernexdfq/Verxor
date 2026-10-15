@@ -14,6 +14,7 @@ import {
   X,
 } from 'lucide-react';
 import { formatNgn } from './lib/wallet-ui';
+import { loadSessionTokens, loadSessionProfile } from './auth/session-unlock';
 import './history-page.css';
 
 export type Transaction = {
@@ -56,7 +57,28 @@ function monthLabel(d = new Date()) {
   return d.toLocaleString(undefined, { month: 'long', year: 'numeric' });
 }
 
-export function HistoryPage({ userId }: HistoryPageProps) {
+async function resolveAuth(userIdProp?: string) {
+  const profile = loadSessionProfile();
+  let accessToken = loadSessionTokens()?.access_token || '';
+  let userId = userIdProp || profile?.userId || '';
+
+  try {
+    const { getSupabaseBrowser } = await import('../lib/supabase/client');
+    const sb = getSupabaseBrowser();
+    if (sb) {
+      const { data } = await sb.auth.getSession();
+      const s = data.session;
+      if (s?.access_token) accessToken = s.access_token;
+      if (s?.user?.id) userId = s.user.id;
+    }
+  } catch {
+    /* ignore */
+  }
+
+  return { accessToken, userId };
+}
+
+export function HistoryPage({ userId: userIdProp }: HistoryPageProps) {
   const [items, setItems] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState('');
@@ -67,13 +89,22 @@ export function HistoryPage({ userId }: HistoryPageProps) {
     setLoading(true);
     setError('');
     try {
-      const q = userId ? `?userId=${encodeURIComponent(userId)}` : '';
-      const res = await fetch(`/api/v1/transactions${q}`, { cache: 'no-store' }).catch(() => null);
+      const ctx = await resolveAuth(userIdProp);
+      const q = ctx.userId ? `?userId=${encodeURIComponent(ctx.userId)}` : '';
+      const headers: Record<string, string> = {};
+      if (ctx.accessToken) headers.Authorization = `Bearer ${ctx.accessToken}`;
+
+      const res = await fetch(`/api/v1/transactions${q}`, {
+        cache: 'no-store',
+        headers,
+      }).catch(() => null);
+
       if (res && res.ok) {
         const data = (await res.json()) as { ok?: boolean; items?: Transaction[] };
         setItems(Array.isArray(data.items) ? data.items : []);
       } else {
         setItems([]);
+        if (res && res.status === 401) setError('Sign in to see your history');
       }
     } catch {
       setItems([]);
@@ -81,7 +112,7 @@ export function HistoryPage({ userId }: HistoryPageProps) {
     } finally {
       setLoading(false);
     }
-  }, [userId]);
+  }, [userIdProp]);
 
   useEffect(() => {
     void load();
@@ -279,7 +310,7 @@ export function HistoryPage({ userId }: HistoryPageProps) {
             <div className="hist-stat-icon">
               <TrendingDown size={18} strokeWidth={2} style={{ transform: 'rotate(180deg)' }} />
             </div>
-            <span className="hist-stat-label">THIS MONTH&apos;S TOP-UPS</span>
+            <span className="hist-stat-label">THIS MONTH'S TOP-UPS</span>
             <strong>{formatMoney(stats.monthTopUps, stats.currency)}</strong>
             <small>{stats.monthName}</small>
           </article>
@@ -288,7 +319,7 @@ export function HistoryPage({ userId }: HistoryPageProps) {
             <div className="hist-stat-icon">
               <TrendingDown size={18} strokeWidth={2} />
             </div>
-            <span className="hist-stat-label">THIS MONTH&apos;S SPENDING</span>
+            <span className="hist-stat-label">THIS MONTH'S SPENDING</span>
             <strong>{formatMoney(stats.monthSpending, stats.currency)}</strong>
             <small>{stats.monthName}</small>
           </article>
