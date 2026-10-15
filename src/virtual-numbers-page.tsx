@@ -451,6 +451,7 @@ export function VirtualNumbersPage({
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
       if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
 
+      const profile = loadSessionProfile();
       const res = await fetch('/api/v1/numbers/buy', {
         method: 'POST',
         headers,
@@ -461,6 +462,8 @@ export function VirtualNumbersPage({
           poolId: pool.id,
           priceNgn: option.priceNgn,
           userId: userId || undefined,
+          email: profile?.email || (profile?.method === 'email' ? profile.contact : undefined),
+          phone: profile?.method === 'phone' ? profile.contact : undefined,
         }),
       });
       const data = await res.json();
@@ -557,10 +560,10 @@ export function VirtualNumbersPage({
                     : 'Get verified with global numbers'}
           </small>
         </div>
-        <button type="button" className="vn-balance" aria-label="Wallet balance">
+        <div className="vn-balance">
           <WalletCards size={14} />
           <span>{formatNgn(balance)}</span>
-        </button>
+        </div>
       </header>
 
       {step === 'pools' && (
@@ -577,7 +580,7 @@ export function VirtualNumbersPage({
             </div>
             <div className="vn-pool-grid">
               {SERVER1_POOLS.map((p) => (
-                <PoolCard key={p.id} pool={p} onSelect={selectPool} />
+                <PoolCard key={p.id} pool={p} onSelect={() => void selectPool(p)} />
               ))}
             </div>
           </section>
@@ -589,74 +592,35 @@ export function VirtualNumbersPage({
             </div>
             <div className="vn-pool-grid">
               {SERVER2_POOLS.map((p) => (
-                <PoolCard key={p.id} pool={p} onSelect={selectPool} />
+                <PoolCard key={p.id} pool={p} onSelect={() => void selectPool(p)} />
               ))}
             </div>
           </section>
 
-          <div className="vn-promo">
-            <div className="vn-promo-copy">
-              <strong>{promo.title}</strong>
-              <p>{promo.subtitle}</p>
-              <button type="button" className="vn-promo-cta">
-                {promo.cta}
-              </button>
-            </div>
-            <div className="vn-promo-dots">
-              {PROMO_SLIDES.map((s, i) => (
-                <button
-                  key={s.id}
-                  type="button"
-                  className={i === promoIndex ? 'active' : ''}
-                  onClick={() => setPromoIndex(i)}
-                  aria-label={`Slide ${i + 1}`}
-                />
-              ))}
-            </div>
-          </div>
-
           {previewOrders.length > 0 && (
             <div className="vn-current-strip">
               <div className="vn-current-strip-head">
-                <strong>Current orders</strong>
+                <strong>Latest order</strong>
                 <button type="button" onClick={() => setStep('orders')}>
                   View all
                 </button>
               </div>
-              {previewOrders.map((o) => {
-                const isWaiting = o.status === 'waiting';
-                const isReceived = o.status === 'received' || o.status === 'completed';
-                const isCancelled = o.status === 'cancelled';
-                return (
-                  <div
-                    key={o.id}
-                    className="vn-current-chip"
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => setStep('orders')}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') setStep('orders');
-                    }}
-                  >
-                    <ServiceLogo id={o.serviceId} />
-                    <div>
-                      <strong>{o.service}</strong>
-                      <small>{o.number}</small>
-                    </div>
-                    {isWaiting ? (
-                      <span className="vn-chip-timer">{formatTimer(o.expiresAt - now)}</span>
-                    ) : isReceived ? (
-                      <span className="vn-chip-received">Received</span>
-                    ) : isCancelled ? (
-                      <span className="vn-chip-received" style={{ color: '#64748b' }}>
-                        Ended
-                      </span>
-                    ) : (
-                      <span className="vn-chip-received">Done</span>
-                    )}
+              {previewOrders.map((o) => (
+                <div key={o.id} className="vn-current-chip">
+                  <ServiceLogo name={o.service} />
+                  <div>
+                    <strong>{o.number || o.service}</strong>
+                    <small>
+                      {o.service} · {o.country}
+                    </small>
                   </div>
-                );
-              })}
+                  {o.status === 'waiting' ? (
+                    <span className="vn-chip-timer">{formatTimer(Math.max(0, o.expiresAt - now))}</span>
+                  ) : (
+                    <span className="vn-chip-received">OTP</span>
+                  )}
+                </div>
+              ))}
             </div>
           )}
         </>
@@ -670,6 +634,7 @@ export function VirtualNumbersPage({
               value={serviceQuery}
               onChange={(e) => setServiceQuery(e.target.value)}
               placeholder="Search services"
+              aria-label="Search services"
             />
           </div>
           <div className="vn-chips">
@@ -685,19 +650,11 @@ export function VirtualNumbersPage({
               </button>
             ))}
           </div>
+          {servicesError && <div className="vn-empty">{servicesError}</div>}
           <div className="vn-service-list">
-            {servicesLoading && liveServices.length === 0 && (
-              <div className="vn-empty">Loading services…</div>
-            )}
-            {servicesError && !servicesLoading && liveServices.length === 0 && (
-              <div className="vn-empty">{servicesError}</div>
-            )}
-            {!servicesLoading && !servicesError && filteredServices.length === 0 && liveServices.length === 0 && (
-              <div className="vn-empty">No services in this tier yet. Try another pool.</div>
-            )}
             {filteredServices.map((s) => (
-              <button key={s.id} type="button" className="vn-service-row" onClick={() => selectService(s)}>
-                <ServiceLogo id={s.id} compact />
+              <button key={s.id} type="button" className="vn-service-row" onClick={() => void selectService(s)}>
+                <ServiceLogo name={s.name} />
                 <span>{s.name}</span>
                 <ChevronRight size={16} />
               </button>
@@ -714,12 +671,10 @@ export function VirtualNumbersPage({
               value={countryQuery}
               onChange={(e) => setCountryQuery(e.target.value)}
               placeholder="Search countries"
+              aria-label="Search countries"
             />
           </div>
           <div className="vn-country-list">
-            {countriesLoading && liveCountries.length === 0 && (
-              <div className="vn-empty">Loading countries…</div>
-            )}
             {filteredCountries.map((c) => (
               <button key={c.code} type="button" className="vn-country-row" onClick={() => selectCountry(c)}>
                 <span className="vn-flag">{c.flag}</span>
@@ -734,51 +689,71 @@ export function VirtualNumbersPage({
 
       {step === 'orders' && (
         <div className="vn-orders">
-          {visibleOrders.length === 0 && localOrders.length === 0 ? (
-            <div className="vn-empty">No orders yet. Buy a number to see it here.</div>
+          {visibleOrders.length === 0 ? (
+            <div className="vn-empty">No active orders</div>
           ) : (
-            <ul className="vn-order-list">
-              {(visibleOrders.length > 0 ? visibleOrders : localOrders).map((o) => (
-                <li key={o.id} className="vn-order-card">
-                  <ServiceLogo id={o.serviceId} />
-                  <div className="vn-order-main">
-                    <strong>{o.service}</strong>
-                    <small>{o.number || 'Pending number'}</small>
-                    <small>{o.poolTitle} · {o.country}</small>
-                  </div>
+            visibleOrders.map((o) => (
+              <div key={o.id} className="vn-order-card">
+                <div className="vn-order-top">
+                  <ServiceLogo name={o.service} />
                   <div className="vn-order-meta">
-                    <span>{formatNgn(o.priceNgn)}</span>
-                    {o.status === 'waiting' && (
-                      <span className="vn-chip-timer">{formatTimer(o.expiresAt - now)}</span>
-                    )}
-                    {o.status === 'received' && o.otp && (
-                      <button type="button" onClick={() => void copyText(o.otp || '', 'OTP copied')}>
-                        OTP {o.otp}
-                      </button>
-                    )}
-                    {o.status === 'waiting' && now >= o.cancelAvailableAt && (
-                      <button type="button" onClick={() => cancelOrder(o.id)}>
-                        Cancel
-                      </button>
-                    )}
+                    <strong>{o.service}</strong>
+                    <small>
+                      {o.country} · {o.poolTitle}
+                    </small>
                   </div>
-                </li>
-              ))}
-            </ul>
+                  <span className={`vn-status vn-status-${o.status}`}>{o.status}</span>
+                </div>
+                {o.number && (
+                  <div className="vn-number-row">
+                    <span className="vn-number">{o.number}</span>
+                    <button type="button" className="vn-copy-icon" onClick={() => void copyText(o.number, 'Number copied')}>
+                      <Copy size={14} />
+                    </button>
+                  </div>
+                )}
+                {o.otp && (
+                  <div className="vn-sms-row">
+                    <span>OTP</span>
+                    <strong>{o.otp}</strong>
+                    <button type="button" className="vn-copy-icon" onClick={() => void copyText(o.otp!, 'OTP copied')}>
+                      <Copy size={14} />
+                    </button>
+                  </div>
+                )}
+                {o.status === 'waiting' && (
+                  <div className="vn-timers-block">
+                    <div className="vn-timer-row">
+                      <span className="vn-timer-label">
+                        <Clock3 size={12} /> Expires
+                      </span>
+                      <span className="vn-timer-big">{formatTimer(Math.max(0, o.expiresAt - now))}</span>
+                    </div>
+                  </div>
+                )}
+                {o.status === 'waiting' && now >= o.cancelAvailableAt && (
+                  <button type="button" className="vn-cancel-btn-bold" onClick={() => cancelOrder(o.id)}>
+                    Cancel order
+                  </button>
+                )}
+              </div>
+            ))
           )}
         </div>
       )}
 
       {priceSheet?.open && (
-        <div className="vn-sheet" role="dialog">
-          <div className="vn-sheet-card">
+        <div className="vn-sheet-backdrop" onClick={() => setPriceSheet(null)}>
+          <div className="vn-sheet" onClick={(e) => e.stopPropagation()}>
             <div className="vn-sheet-head">
               <strong>{priceSheet.service.name}</strong>
               <button type="button" onClick={() => setPriceSheet(null)} aria-label="Close">
-                <X size={18} />
+                <X size={16} />
               </button>
             </div>
-            <p>{priceSheet.country.flag} {priceSheet.country.name}</p>
+            <p>
+              {priceSheet.country.flag} {priceSheet.country.name}
+            </p>
             {pricesLoading && <div className="vn-empty">Loading prices…</div>}
             {!pricesLoading && priceSheet.options.length === 0 && (
               <div className="vn-empty">No stock for this route right now.</div>
@@ -786,9 +761,11 @@ export function VirtualNumbersPage({
             <ul className="vn-price-list">
               {priceSheet.options.map((opt) => (
                 <li key={opt.id}>
-                  <button type="button" onClick={() => openConfirm(opt)}>
-                    <span>{formatNgn(opt.priceNgn)}</span>
-                    <small>{opt.stock} left</small>
+                  <button type="button" className="vn-price-row" onClick={() => openConfirm(opt)}>
+                    <div>
+                      <strong>{formatNgn(opt.priceNgn)}</strong>
+                      <small>{Number(opt.stock).toLocaleString()} left</small>
+                    </div>
                   </button>
                 </li>
               ))}
@@ -798,17 +775,22 @@ export function VirtualNumbersPage({
       )}
 
       {confirmSheet && (
-        <div className="vn-sheet" role="dialog">
-          <div className="vn-sheet-card">
-            <strong>Confirm purchase</strong>
-            <p>
+        <div className="vn-sheet-backdrop" onClick={() => setConfirmSheet(null)}>
+          <div className="vn-sheet" onClick={(e) => e.stopPropagation()}>
+            <div className="vn-sheet-head">
+              <strong>Confirm purchase</strong>
+              <button type="button" onClick={() => setConfirmSheet(null)} aria-label="Close">
+                <X size={16} />
+              </button>
+            </div>
+            <p className="vn-sheet-sub">
               {confirmSheet.service.name} · {confirmSheet.country.name}
             </p>
-            <p>{formatNgn(confirmSheet.option.priceNgn)}</p>
-            <button type="button" disabled={buying} onClick={() => void confirmPurchase()}>
+            <div className="vn-confirm-price">{formatNgn(confirmSheet.option.priceNgn)}</div>
+            <button type="button" className="vn-confirm-btn" disabled={buying} onClick={() => void confirmPurchase()}>
               {buying ? 'Buying…' : 'Buy number'}
             </button>
-            <button type="button" onClick={() => setConfirmSheet(null)}>
+            <button type="button" onClick={() => setConfirmSheet(null)} style={{ marginTop: 8, width: '100%', height: 40, border: 'none', background: 'transparent', color: '#64748b', fontWeight: 600 }}>
               Cancel
             </button>
           </div>
