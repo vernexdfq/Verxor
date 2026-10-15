@@ -153,15 +153,15 @@ const SERVICE_META: Record<string, { category: string; logoId?: string }> = {
 
 
 const SERVICE_NAME_LOGOS: Array<[RegExp, string]> = [
-  [/whatsapp/i, 'whatsapp'], [/telegram/i, 'telegram'], [/facebook|\\bmeta\\b/i, 'facebook'],
-  [/instagram|threads/i, 'instagram'], [/tiktok/i, 'tiktok'], [/twitter|\\bx\\s*\\(/i, 'twitter'],
+  [/whatsapp/i, 'whatsapp'], [/telegram/i, 'telegram'], [/facebook|\bmeta\b/i, 'facebook'],
+  [/instagram|threads/i, 'instagram'], [/tiktok/i, 'tiktok'], [/twitter|\bx\s*\(/i, 'twitter'],
   [/snapchat/i, 'snapchat'], [/discord/i, 'discord'], [/viber/i, 'viber'], [/wechat/i, 'wechat'],
-  [/\\bimo\\b/i, 'imo'], [/line\\s*(app)?/i, 'line'], [/linkedin/i, 'linkedin'],
+  [/\bimo\b/i, 'imo'], [/line\s*(app)?/i, 'line'], [/linkedin/i, 'linkedin'],
   [/tinder/i, 'tinder'], [/badoo/i, 'badoo'], [/bumble/i, 'bumble'], [/steam/i, 'steam'],
   [/pubg/i, 'pubg'], [/roblox/i, 'roblox'], [/amazon/i, 'amazon'], [/ebay/i, 'ebay'],
-  [/alibaba/i, 'alibaba'], [/paypal/i, 'paypal'], [/google\\s*pay/i, 'googlepay'],
+  [/alibaba/i, 'alibaba'], [/paypal/i, 'paypal'], [/google\s*pay/i, 'googlepay'],
   [/gmail/i, 'gmail'], [/youtube/i, 'youtube'], [/google/i, 'google'], [/wise|transferwise/i, 'wise'],
-  [/uber\\s*eats/i, 'ubereats'], [/doordash/i, 'doordash'], [/walmart/i, 'walmart'],
+  [/uber\s*eats/i, 'ubereats'], [/doordash/i, 'doordash'], [/walmart/i, 'walmart'],
   [/nike/i, 'nike'], [/bet365/i, 'bet365'], [/1xbet/i, '1xbet'], [/uber/i, 'uber'],
   [/bolt/i, 'bolt'], [/microsoft|outlook|hotmail/i, 'microsoft'], [/apple|icloud/i, 'apple'],
   [/netflix/i, 'netflix'], [/spotify/i, 'spotify'], [/openai|chatgpt/i, 'openai'],
@@ -171,7 +171,7 @@ const SERVICE_NAME_LOGOS: Array<[RegExp, string]> = [
   [/grab/i, 'grab'], [/foodpanda/i, 'foodpanda'], [/airbnb/i, 'airbnb'], [/booking/i, 'booking'],
   [/deezer/i, 'deezer'], [/capcut/i, 'capcut'], [/canva/i, 'canva'], [/zoom/i, 'zoom'],
   [/yandex/i, 'yandex'], [/kakao/i, 'kakaotalk'], [/naver/i, 'naver'], [/weibo/i, 'weibo'],
-  [/\\bokx\\b/i, 'okx'], [/bybit/i, 'bybit'], [/bitget/i, 'bitget'],
+  [/\bokx\b/i, 'okx'], [/bybit/i, 'bybit'], [/bitget/i, 'bitget'],
 ];
 
 function inferServiceLogoId(name: string): string | undefined {
