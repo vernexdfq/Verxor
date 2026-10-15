@@ -1,15 +1,17 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   Building2,
   CheckCircle2,
   Copy,
   Landmark,
   Loader2,
+  Plus,
   Shield,
   Wallet,
   AlertTriangle,
+  Timer,
 } from 'lucide-react';
 import { formatHomeBalance } from './lib/wallet-ui';
 import type { AuthSession } from './auth/AuthFlow';
@@ -27,12 +29,20 @@ export type FundingProvider = {
   amountNgn?: number;
 };
 
+type LiveAccount = {
+  bankName: string;
+  accountNumber: string;
+  accountName: string;
+  amountNgn: number;
+  expireAt: string | null;
+};
+
 type FundPageProps = {
   session?: AuthSession | null;
 };
 
-/** Funding is free — full deposit credits the wallet */
-const FUNDING_FEE_NGN = 0;
+/** Flat fee deducted from every successful deposit (covers gateway %) */
+const FUNDING_FEE_NGN = 20;
 
 async function resolveAuthContext(session?: AuthSession | null) {
   const profile = loadSessionProfile();
@@ -80,6 +90,22 @@ async function resolveAuthContext(session?: AuthSession | null) {
   return { accessToken, userId, email, phone, name };
 }
 
+function parseExpireMs(expireAt: string | null): number | null {
+  if (!expireAt) return null;
+  // XixaPay: "2026-10-15 17:14:13" (treat as local/WAT wall clock)
+  const normalized = expireAt.includes('T') ? expireAt : expireAt.replace(' ', 'T');
+  const ms = Date.parse(normalized);
+  return Number.isFinite(ms) ? ms : null;
+}
+
+function formatCountdown(msLeft: number): string {
+  if (msLeft <= 0) return 'Expired';
+  const totalSec = Math.floor(msLeft / 1000);
+  const m = Math.floor(totalSec / 60);
+  const s = totalSec % 60;
+  return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
 export function FundPage({ session }: FundPageProps) {
   const homeCurrency = session?.homeCurrency === 'USD' ? 'USD' : 'NGN';
   const balance = formatHomeBalance(
@@ -94,12 +120,25 @@ export function FundPage({ session }: FundPageProps) {
   const [copied, setCopied] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
   const [genError, setGenError] = useState('');
-  const [liveAccount, setLiveAccount] = useState<{
-    bankName: string;
-    accountNumber: string;
-    accountName: string;
-  } | null>(null);
-  const autoGenRef = useRef(false);
+  const [amount, setAmount] = useState('1000');
+  const [liveAccount, setLiveAccount] = useState<LiveAccount | null>(null);
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  const expireMs = liveAccount ? parseExpireMs(liveAccount.expireAt) : null;
+  const msLeft = expireMs != null ? expireMs - now : null;
+  const isExpired = msLeft != null && msLeft <= 0;
+
+  // Clear expired account so user must generate a new one
+  useEffect(() => {
+    if (isExpired && liveAccount) {
+      setLiveAccount(null);
+    }
+  }, [isExpired, liveAccount]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -126,32 +165,46 @@ export function FundPage({ session }: FundPageProps) {
         setProviders(list);
         setActiveId((prev) => {
           if (prev && list.some((p) => p.id === prev)) return prev;
-          const opay = list.find((p) => p.id === 'opay');
-          return opay?.id ?? list[0]?.id ?? null;
+          return list.find((p) => p.id === 'opay')?.id ?? list[0]?.id ?? null;
         });
-        const withAcct = list.find((p) => p.hasAccount && p.accountNumber);
-        if (withAcct && withAcct.accountNumber) {
-          setLiveAccount({
-            bankName: withAcct.bankName || withAcct.label,
-            accountNumber: withAcct.accountNumber,
-            accountName: withAcct.accountName || session?.name || 'Verxor User',
-          });
-        }
-        return { list, ctx, hasAcct: Boolean(withAcct?.accountNumber) };
+      } else {
+        setProviders([]);
+        setActiveId(null);
       }
-      setProviders([]);
-      setActiveId(null);
-      return { list: [] as FundingProvider[], ctx, hasAcct: false };
     } catch {
       setProviders([]);
       setActiveId(null);
-      return { list: [] as FundingProvider[], ctx: await resolveAuthContext(session), hasAcct: false };
     } finally {
       setLoading(false);
     }
   }, [session]);
 
-  const generate = useCallback(async () => {
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const active = providers.find((p) => p.id === activeId) ?? providers[0] ?? null;
+  const showAccount = Boolean(liveAccount && !isExpired);
+
+  const copy = async (key: string, value: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopied(key);
+      setTimeout(() => setCopied(null), 1600);
+    } catch {
+      /* ignore */
+    }
+  };
+
+  const generate = async () => {
+    if (!active || generating) return;
+    const amt = Number(String(amount).replace(/[^0-9.]/g, ''));
+    if (!Number.isFinite(amt) || amt < 100) {
+      setGenError('Enter an amount of at least ₦100');
+      return;
+    }
+    // User should transfer amt + fee so net credit = amt after fee, OR transfer amt and net = amt - fee
+    // Product rule: transfer exact amount shown; fee deducted from deposit → net = amount - 20
     setGenerating(true);
     setGenError('');
     try {
@@ -159,14 +212,12 @@ export function FundPage({ session }: FundPageProps) {
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
       if (ctx.accessToken) headers.Authorization = `Bearer ${ctx.accessToken}`;
 
-      // Provider API still needs a nominal amount field; user may transfer any amount.
-      // Webhook credits the full amount paid (fee = ₦0).
       const res = await fetch('/api/v1/funding/generate', {
         method: 'POST',
         headers,
         body: JSON.stringify({
-          providerId: 'opay',
-          amountNgn: 1000,
+          providerId: active.id,
+          amountNgn: amt,
           userId: ctx.userId || undefined,
           email: ctx.email || undefined,
           phone: ctx.phone || undefined,
@@ -178,20 +229,17 @@ export function FundPage({ session }: FundPageProps) {
       if (res && res.ok) {
         const data = (await res.json()) as {
           ok?: boolean;
-          account?: {
-            bankName: string;
-            accountNumber: string;
-            accountName: string;
-          };
+          account?: LiveAccount;
         };
-        if (data.account) {
+        if (data.account?.accountNumber) {
           setLiveAccount({
             bankName: data.account.bankName,
             accountNumber: data.account.accountNumber,
             accountName: data.account.accountName,
+            amountNgn: data.account.amountNgn || amt,
+            expireAt: data.account.expireAt || null,
           });
         }
-        await load();
       } else {
         let msg = 'Could not generate account. Please try again.';
         if (res) {
@@ -208,42 +256,6 @@ export function FundPage({ session }: FundPageProps) {
       setGenError('Could not generate account. Please try again later.');
     } finally {
       setGenerating(false);
-    }
-  }, [session, load]);
-
-  useEffect(() => {
-    void (async () => {
-      const result = await load();
-      if (!result.hasAcct && !autoGenRef.current && result.list.length > 0) {
-        autoGenRef.current = true;
-        await generate();
-      }
-    })();
-  }, [load, generate]);
-
-  const active = providers.find((p) => p.id === activeId) ?? providers[0] ?? null;
-  const hasAccount = Boolean(
-    liveAccount ||
-      (active && active.hasAccount && active.accountNumber && active.bankName),
-  );
-
-  const displayAccount = liveAccount
-    ? liveAccount
-    : active && active.hasAccount
-      ? {
-          bankName: active.bankName || active.label,
-          accountNumber: active.accountNumber || '',
-          accountName: active.accountName || session?.name || 'Verxor User',
-        }
-      : null;
-
-  const copy = async (key: string, value: string) => {
-    try {
-      await navigator.clipboard.writeText(value);
-      setCopied(key);
-      setTimeout(() => setCopied(null), 1600);
-    } catch {
-      /* ignore */
     }
   };
 
@@ -270,33 +282,17 @@ export function FundPage({ session }: FundPageProps) {
           <Landmark size={18} strokeWidth={2.2} /> Fund via Bank Transfer
         </h2>
 
-        <div
-          className="fund-fee-banner"
-          style={{
-            display: 'flex',
-            alignItems: 'flex-start',
-            gap: 10,
-            marginBottom: 14,
-            padding: '12px 14px',
-            borderRadius: 12,
-            background: 'rgba(245, 158, 11, 0.1)',
-            border: '1px solid rgba(245, 158, 11, 0.25)',
-            color: '#B45309',
-            fontSize: 14,
-            lineHeight: 1.45,
-            fontWeight: 500,
-          }}
-        >
+        <div className="fund-fee">
           <AlertTriangle size={18} strokeWidth={2.2} style={{ flexShrink: 0, marginTop: 1 }} />
-          <span>
+          <p>
             A fee of <strong>₦{FUNDING_FEE_NGN}</strong> will be deducted from your deposit.
-          </span>
+          </p>
         </div>
 
-        {loading || generating ? (
+        {loading ? (
           <div className="fund-loading">
             <Loader2 size={22} className="fund-spin" />
-            <p>{generating ? 'Preparing your account...' : 'Loading funding methods...'}</p>
+            <p>Loading funding methods...</p>
           </div>
         ) : (
           <>
@@ -312,6 +308,7 @@ export function FundPage({ session }: FundPageProps) {
                     onClick={() => {
                       setActiveId(p.id);
                       setGenError('');
+                      setLiveAccount(null);
                     }}
                   >
                     <span className="fund-tab-dot" aria-hidden />
@@ -325,20 +322,42 @@ export function FundPage({ session }: FundPageProps) {
               </p>
             )}
 
-            {hasAccount && displayAccount ? (
+            {showAccount && liveAccount ? (
               <div className="fund-account-card">
+                <div className="fund-row">
+                  <div className="fund-row-icon">
+                    <Wallet size={18} />
+                  </div>
+                  <div className="fund-row-copy">
+                    <span className="fund-row-label">TRANSFER EXACTLY</span>
+                    <strong>₦{Number(liveAccount.amountNgn).toLocaleString()}</strong>
+                  </div>
+                </div>
+                {msLeft != null && msLeft > 0 ? (
+                  <div className="fund-row">
+                    <div className="fund-row-icon">
+                      <Timer size={18} />
+                    </div>
+                    <div className="fund-row-copy">
+                      <span className="fund-row-label">EXPIRES IN</span>
+                      <strong style={{ color: msLeft < 60_000 ? '#dc2626' : '#0f172a' }}>
+                        {formatCountdown(msLeft)}
+                      </strong>
+                    </div>
+                  </div>
+                ) : null}
                 <div className="fund-row">
                   <div className="fund-row-icon">
                     <Building2 size={18} />
                   </div>
                   <div className="fund-row-copy">
                     <span className="fund-row-label">BANK NAME</span>
-                    <strong>{displayAccount.bankName}</strong>
+                    <strong>{liveAccount.bankName}</strong>
                   </div>
                   <button
                     type="button"
                     className="fund-copy"
-                    onClick={() => void copy('bank', displayAccount.bankName)}
+                    onClick={() => void copy('bank', liveAccount.bankName)}
                   >
                     {copied === 'bank' ? 'Copied' : <><Copy size={12} /> Copy</>}
                   </button>
@@ -349,12 +368,12 @@ export function FundPage({ session }: FundPageProps) {
                   </div>
                   <div className="fund-row-copy">
                     <span className="fund-row-label">ACCOUNT NUMBER</span>
-                    <strong className="fund-mono">{displayAccount.accountNumber}</strong>
+                    <strong className="fund-mono">{liveAccount.accountNumber}</strong>
                   </div>
                   <button
                     type="button"
                     className="fund-copy"
-                    onClick={() => void copy('number', displayAccount.accountNumber)}
+                    onClick={() => void copy('number', liveAccount.accountNumber)}
                   >
                     {copied === 'number' ? 'Copied' : <><Copy size={12} /> Copy</>}
                   </button>
@@ -365,14 +384,27 @@ export function FundPage({ session }: FundPageProps) {
                   </div>
                   <div className="fund-row-copy">
                     <span className="fund-row-label">ACCOUNT NAME</span>
-                    <strong>{displayAccount.accountName}</strong>
+                    <strong>{liveAccount.accountName}</strong>
                   </div>
                   <button
                     type="button"
                     className="fund-copy"
-                    onClick={() => void copy('name', displayAccount.accountName)}
+                    onClick={() => void copy('name', liveAccount.accountName)}
                   >
                     {copied === 'name' ? 'Copied' : <><Copy size={12} /> Copy</>}
+                  </button>
+                </div>
+                <div style={{ padding: '12px 14px 14px' }}>
+                  <button
+                    type="button"
+                    className="fund-generate fund-generate--ready"
+                    style={{ maxWidth: '100%' }}
+                    onClick={() => {
+                      setLiveAccount(null);
+                      setGenError('');
+                    }}
+                  >
+                    Generate new amount
                   </button>
                 </div>
               </div>
@@ -381,15 +413,43 @@ export function FundPage({ session }: FundPageProps) {
                 <div className="fund-empty-icon">
                   {active ? <Wallet size={28} strokeWidth={1.8} /> : <Landmark size={28} strokeWidth={1.8} />}
                 </div>
-                <strong>No funding account yet</strong>
+                <strong>
+                  {active ? `Generate ${active.label} account` : 'No virtual account yet'}
+                </strong>
                 <p>
-                  Your OPay account will appear here. Transfer any amount — your wallet is credited
-                  automatically with no fee.
+                  Enter the amount to fund, generate a one-time account, and transfer the exact
+                  amount before it expires. ₦{FUNDING_FEE_NGN} fee is deducted; the rest credits your
+                  wallet automatically.
                 </p>
+
+                <label
+                  className="fund-amount-label"
+                  style={{ display: 'block', width: '100%', marginBottom: 10, textAlign: 'left' }}
+                >
+                  <span style={{ fontSize: 12, fontWeight: 600, color: '#64748B' }}>AMOUNT (₦)</span>
+                  <input
+                    type="number"
+                    min={100}
+                    step={100}
+                    value={amount}
+                    onChange={(e) => setAmount(e.target.value)}
+                    placeholder="1000"
+                    style={{
+                      width: '100%',
+                      marginTop: 6,
+                      padding: '12px 14px',
+                      borderRadius: 12,
+                      border: '1px solid #E2E8F0',
+                      fontSize: 16,
+                      fontWeight: 600,
+                    }}
+                  />
+                </label>
+
                 <button
                   type="button"
-                  className="fund-generate fund-generate--ready"
-                  disabled={generating}
+                  className={`fund-generate ${active ? 'fund-generate--ready' : 'fund-generate--soon'}`}
+                  disabled={!active || generating}
                   onClick={() => void generate()}
                 >
                   {generating ? (
@@ -397,7 +457,10 @@ export function FundPage({ session }: FundPageProps) {
                       <Loader2 size={18} className="fund-spin" /> Generating...
                     </>
                   ) : (
-                    'Get funding account'
+                    <>
+                      <Plus size={18} strokeWidth={2.5} />
+                      {active ? `Generate ${active.label} Account` : 'Generate Account'}
+                    </>
                   )}
                 </button>
                 {genError ? <p className="fund-gen-error">{genError}</p> : null}
@@ -412,15 +475,17 @@ export function FundPage({ session }: FundPageProps) {
         <ol>
           <li>
             <span className="fund-step-num">1</span>
-            <p>Copy the bank name, account number, and account name below.</p>
+            <p>Enter the amount and generate a one-time OPay account.</p>
           </li>
           <li>
             <span className="fund-step-num">2</span>
-            <p>Transfer any amount from your banking app to that account.</p>
+            <p>Transfer the exact amount before the countdown expires.</p>
           </li>
           <li>
             <span className="fund-step-num">3</span>
-            <p>Your wallet is credited automatically — ₦0 fee on every deposit.</p>
+            <p>
+              ₦{FUNDING_FEE_NGN} fee is deducted; the rest credits your wallet automatically.
+            </p>
           </li>
         </ol>
       </section>
@@ -428,8 +493,8 @@ export function FundPage({ session }: FundPageProps) {
       <div className="fund-secure">
         <Shield size={18} strokeWidth={2.2} />
         <p>
-          <strong>Instant & Secure:</strong> Transfers are processed automatically. Your balance
-          updates within seconds of a successful transfer.
+          <strong>Instant & Secure:</strong> One-time accounts expire after use or timeout. Your
+          balance updates within seconds of a successful transfer.
         </p>
       </div>
     </div>

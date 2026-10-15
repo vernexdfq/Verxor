@@ -4,8 +4,8 @@ import { sbSelect, supabaseConfigured } from '@/lib/supabase-admin';
 
 export const dynamic = 'force-dynamic';
 
-/** Funding is free — full deposit credits the wallet */
-const FUNDING_FEE_NGN = 0;
+/** Flat fee deducted from every successful bank-transfer deposit */
+const FUNDING_FEE_NGN = 20;
 
 function verifySignature(rawBody: string, headerSig: string | null, secret: string): boolean {
   if (!headerSig) return false;
@@ -18,6 +18,10 @@ function verifySignature(rawBody: string, headerSig: string | null, secret: stri
   } catch {
     return false;
   }
+}
+
+function digitsOnly(s: string): string {
+  return (s || '').replace(/\D/g, '');
 }
 
 export async function POST(req: NextRequest) {
@@ -34,6 +38,7 @@ export async function POST(req: NextRequest) {
     req.headers.get('signature');
 
   const skipVerify = process.env.XIXAPAY_SKIP_WEBHOOK_VERIFY === '1';
+  // If signature header is present and wrong → reject. If missing → accept (XixaPay sometimes omits).
   if (!skipVerify && sig && !verifySignature(rawBody, sig, secret)) {
     console.warn('[xixapay/virtual-account] invalid signature');
     return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
@@ -46,6 +51,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
   }
 
+  console.info('[xixapay/virtual-account] payload keys', Object.keys(body || {}));
+
   const status = String(
     body.notification_status || body.transaction_status || body.status || '',
   ).toLowerCase();
@@ -53,42 +60,63 @@ export async function POST(req: NextRequest) {
     status.includes('success') ||
     status === 'payment_successful' ||
     status === 'successful' ||
-    status === 'paid';
+    status === 'paid' ||
+    status === '';
 
-  if (!success) {
+  // Some payloads omit status but still carry amount + account — treat as success if amount present
+  const amountPaid = Number(
+    body.amount_paid ?? body.amount ?? body.settlement_amount ?? body.paid_amount ?? 0,
+  );
+
+  if (!success && !(amountPaid > 0)) {
     console.info('[xixapay/virtual-account] non-success', status);
     return NextResponse.json({ status: 'ignored' });
   }
 
   const transactionId = String(
-    body.transaction_id || body.transactionId || body.reference || body.id || '',
+    body.transaction_id ||
+      body.transactionId ||
+      body.reference ||
+      body.externalReference ||
+      body.external_reference ||
+      body.id ||
+      '',
   );
-  const amountPaid = Number(body.amount_paid ?? body.amount ?? body.settlement_amount ?? 0);
-  const accountNumber = String(
+  const accountNumberRaw = String(
     body.receiver?.account_number ||
       body.receiver?.accountNumber ||
       body.account_number ||
+      body.accountNumber ||
       body.virtualAccountNumber ||
+      body.virtual_account_number ||
       '',
   );
+  const accountDigits = digitsOnly(accountNumberRaw);
   const customerEmail = String(body.customer?.email || body.email || '').toLowerCase();
   const customerId = String(body.customer?.customer_id || body.customer?.id || '');
+  const externalRef = String(
+    body.externalReference || body.external_reference || body.external_ref || '',
+  );
 
   if (!transactionId || !(amountPaid > 0)) {
-    console.warn('[xixapay/virtual-account] missing fields', body);
+    console.warn('[xixapay/virtual-account] missing fields', {
+      transactionId,
+      amountPaid,
+      accountNumberRaw,
+    });
     return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
   }
 
   const creditAmount = Math.round((amountPaid - FUNDING_FEE_NGN) * 100) / 100;
   if (creditAmount <= 0) {
-    console.warn('[xixapay/virtual-account] amount too low', {
+    console.warn('[xixapay/virtual-account] amount too low after fee', {
       amountPaid,
       fee: FUNDING_FEE_NGN,
       transactionId,
     });
     return NextResponse.json({
       status: 'below_fee',
-      message: 'Deposit amount must be greater than zero',
+      message: `Deposit must be greater than ₦${FUNDING_FEE_NGN}`,
     });
   }
 
@@ -99,13 +127,33 @@ export async function POST(req: NextRequest) {
   let userId: string | null = null;
 
   try {
-    if (accountNumber) {
+    if (accountDigits) {
+      // Exact match first
+      let rows = await sbSelect(
+        'virtual_accounts',
+        `account_number=eq.${encodeURIComponent(accountDigits)}&order=created_at.desc&limit=1`,
+      );
+      if (Array.isArray(rows) && rows[0]?.user_id) userId = rows[0].user_id;
+
+      // Fallback: last 8–10 digits (handles masked or spaced numbers)
+      if (!userId && accountDigits.length >= 8) {
+        const tail = accountDigits.slice(-10);
+        rows = await sbSelect(
+          'virtual_accounts',
+          `account_number=like.*${tail}&order=created_at.desc&limit=1`,
+        );
+        if (Array.isArray(rows) && rows[0]?.user_id) userId = rows[0].user_id;
+      }
+    }
+
+    if (!userId && externalRef) {
       const rows = await sbSelect(
         'virtual_accounts',
-        `account_number=eq.${encodeURIComponent(accountNumber)}&order=created_at.desc&limit=1`,
+        `external_ref=eq.${encodeURIComponent(externalRef)}&order=created_at.desc&limit=1`,
       );
       if (Array.isArray(rows) && rows[0]?.user_id) userId = rows[0].user_id;
     }
+
     if (!userId && customerEmail) {
       const rows = await sbSelect(
         'profiles',
@@ -113,6 +161,7 @@ export async function POST(req: NextRequest) {
       );
       if (Array.isArray(rows) && rows[0]?.id) userId = rows[0].id;
     }
+
     if (!userId && customerId) {
       const rows = await sbSelect(
         'virtual_accounts',
@@ -126,8 +175,9 @@ export async function POST(req: NextRequest) {
 
   if (!userId) {
     console.error('[xixapay/virtual-account] user not found', {
-      accountNumber,
+      accountDigits,
       customerEmail,
+      externalRef,
       transactionId,
     });
     return NextResponse.json({ status: 'user_not_found' });
@@ -150,7 +200,7 @@ export async function POST(req: NextRequest) {
         p_user_id: userId,
         p_amount: creditAmount,
         p_reference: `xixapay:${transactionId}`,
-        p_description: `Wallet funding via ${body.receiver?.bank || 'bank transfer'}`,
+        p_description: `Wallet funding via ${body.receiver?.bank || 'OPay'} (₦${FUNDING_FEE_NGN} fee)`,
       }),
     });
 

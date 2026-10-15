@@ -4,7 +4,6 @@ import { sbInsert, supabaseConfigured } from '@/lib/supabase-admin';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
 
-/** OPay only */
 const BANK = { code: '100004', name: 'OPay' };
 
 function xixapayBase() {
@@ -130,7 +129,8 @@ function pickAccount(raw: Record<string, unknown>) {
       data.virtualAccountNumber ||
       (data.account as Record<string, unknown> | undefined)?.number ||
       '',
-  );
+  ).replace(/\D/g, '');
+
   const accountName = String(
     first.accountName ||
       first.account_name ||
@@ -145,7 +145,7 @@ function pickAccount(raw: Record<string, unknown>) {
   const providerCustomerId = String(
     customer.customer_id || customer.id || data.customer_id || data.customerId || '',
   );
-  const expireAt = first.expire_at || first.expireAt || data.expire_at || null;
+  const expireAt = first.expire_at || first.expireAt || data.expire_at || data.expireAt || null;
 
   return { accountNumber, accountName, bankName, providerCustomerId, expireAt };
 }
@@ -208,7 +208,17 @@ export async function POST(req: NextRequest) {
     (phoneRaw ? `user${phone.replace(/\D/g, '').slice(-10)}@verxor.local` : `guest@verxor.local`);
 
   const userId = await tryResolveUserId(req, body);
-  const externalRef = `vx-${(userId || 'anon').toString().slice(0, 8)}-${Date.now()}`;
+  if (!userId) {
+    return NextResponse.json(
+      {
+        ok: false,
+        message: 'Please log in again so we can link the account to your wallet.',
+      },
+      { status: 401 },
+    );
+  }
+
+  const externalRef = `vx-${userId.slice(0, 8)}-${Date.now()}`;
   const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://www.verxor.com').replace(/\/$/, '');
   const callbackUrl =
     process.env.XIXAPAY_VIRTUAL_ACCOUNT_WEBHOOK_URL ||
@@ -281,11 +291,12 @@ export async function POST(req: NextRequest) {
 
   const accountName = picked.accountName || name;
   const bankName = picked.bankName || BANK.name;
+  const expireAt = picked.expireAt ? String(picked.expireAt) : null;
 
   if (supabaseConfigured()) {
     try {
       await sbInsert('virtual_accounts', {
-        user_id: userId || null,
+        user_id: userId,
         provider: 'xixapay',
         bank_code: BANK.code,
         bank_name: bankName,
@@ -295,7 +306,7 @@ export async function POST(req: NextRequest) {
         amount_ngn: amount,
         external_ref: externalRef,
         provider_customer_id: picked.providerCustomerId || null,
-        raw,
+        raw: { ...raw, expire_at: expireAt },
       });
     } catch (e) {
       console.error('[funding/generate] save VA', e);
@@ -312,7 +323,7 @@ export async function POST(req: NextRequest) {
       bankCode: BANK.code,
       providerId: 'opay',
       externalRef,
-      expireAt: picked.expireAt ? String(picked.expireAt) : null,
+      expireAt,
     },
   });
 }
