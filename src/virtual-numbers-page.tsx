@@ -36,7 +36,7 @@ import {
   formatUsd,
   formatTimer,
 } from './virtual-numbers-data';
-import { ServiceLogo, PoolCard } from './virtual-numbers-components';
+import { ServiceLogo, CountryFlag, PoolCard } from './virtual-numbers-components';
 
 export type { CustomerNumberOrder };
 
@@ -70,6 +70,7 @@ function mapServices(raw: any[]): Service[] {
   return (raw || []).map((s: any) => ({
     id: s.code || s.id,
     name: s.name,
+    logoId: s.logoId || s.code || s.id,
     category: (s.category || 'other') as ServiceCategory,
   }));
 }
@@ -638,7 +639,7 @@ export function VirtualNumbersPage({
             )}
             {filteredServices.map((s) => (
               <button key={s.id} type="button" className="vn-service-row" onClick={() => selectService(s)}>
-                <ServiceLogo id={s.id} compact />
+                <ServiceLogo id={s.logoId || s.id} compact />
                 <span>{s.name}</span>
                 <ChevronRight size={16} />
               </button>
@@ -666,7 +667,7 @@ export function VirtualNumbersPage({
             )}
             {filteredCountries.map((c) => (
               <button key={c.code} type="button" className="vn-country-row" onClick={() => selectCountry(c)}>
-                <span className="vn-flag">{c.flag}</span>
+                <span className="vn-flag"><CountryFlag code={c.code} name={c.name} flag={c.flag} /></span>
                 <span>{c.name}</span>
                 <small>{c.dial}</small>
                 <ChevronRight size={16} />

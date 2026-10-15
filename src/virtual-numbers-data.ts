@@ -44,6 +44,8 @@ export type Service = {
   id: string;
   name: string;
   category: ServiceCategory;
+  /** Resolved provider/brand logo key, separate from the stable provider service ID. */
+  logoId?: string;
 };
 
 export type PriceOption = {
