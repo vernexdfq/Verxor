@@ -18,6 +18,16 @@ function xixapayBase() {
   return (process.env.XIXAPAY_BASE_URL || 'https://api.xixapay.com').replace(/\/$/, '');
 }
 
+function toNgPhone(raw: string): string {
+  const d = (raw || '').replace(/\D/g, '');
+  if (!d) return '08000000000';
+  if (d.startsWith('0') && d.length >= 11) return d.slice(0, 11);
+  if (d.startsWith('234') && d.length >= 13) return `0${d.slice(3, 13)}`;
+  const last10 = d.slice(-10);
+  if (last10.length === 10) return `0${last10}`;
+  return d.padStart(11, '0').slice(0, 11);
+}
+
 function phoneCandidates(raw: string): string[] {
   const d = raw.replace(/\D/g, '');
   const out = new Set<string>();
@@ -27,7 +37,6 @@ function phoneCandidates(raw: string): string[] {
   if (d.startsWith('234') && d.length >= 13) {
     out.add(`0${d.slice(3)}`);
     out.add(d.slice(3));
-    out.add(`+${d}`);
   }
   if (d.startsWith('0') && d.length >= 11) {
     out.add(`+234${d.slice(1)}`);
@@ -42,10 +51,10 @@ function phoneCandidates(raw: string): string[] {
   return [...out];
 }
 
-async function resolveUser(
+async function tryResolveUserId(
   req: NextRequest,
   body: { userId?: string; email?: string; phone?: string; contact?: string },
-): Promise<{ id: string; email: string; phone: string; name: string } | null> {
+): Promise<string | null> {
   const base = (process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '')
     .replace(/\/rest\/v1\/?$/, '')
     .replace(/\/$/, '');
@@ -55,7 +64,6 @@ async function resolveUser(
 
   const auth = req.headers.get('authorization') || '';
   const token = auth.startsWith('Bearer ') ? auth.slice(7).trim() : '';
-
   let userId = (body.userId || '').trim();
 
   if (token && anon) {
@@ -65,7 +73,7 @@ async function resolveUser(
         cache: 'no-store',
       });
       if (res.ok) {
-        const u = (await res.json()) as { id?: string; email?: string };
+        const u = (await res.json()) as { id?: string };
         if (u.id) userId = u.id;
       }
     } catch {
@@ -78,64 +86,39 @@ async function resolveUser(
     Authorization: `Bearer ${serviceKey}`,
   };
 
-  type Profile = {
-    id: string;
-    email?: string | null;
-    phone?: string | null;
-    full_name?: string | null;
-  };
-
-  async function fetchProfile(query: string): Promise<Profile | null> {
-    const res = await fetch(
-      `${base}/rest/v1/profiles?${query}&select=id,email,phone,full_name&limit=1`,
-      { headers: hdr, cache: 'no-store' },
-    );
+  async function fetchId(query: string): Promise<string | null> {
+    const res = await fetch(`${base}/rest/v1/profiles?${query}&select=id&limit=1`, {
+      headers: hdr,
+      cache: 'no-store',
+    });
     if (!res.ok) return null;
-    const rows = (await res.json()) as Profile[];
-    return rows[0] || null;
+    const rows = (await res.json()) as Array<{ id?: string }>;
+    return rows[0]?.id || null;
   }
 
-  let profile: Profile | null = null;
-
   if (userId) {
-    profile = await fetchProfile(`id=eq.${userId}`);
+    const id = await fetchId(`id=eq.${userId}`);
+    if (id) return id;
   }
 
   const emailIn = (body.email || '').trim().toLowerCase();
-  if (!profile && emailIn) {
-    profile = await fetchProfile(`email=eq.${encodeURIComponent(emailIn)}`);
+  if (emailIn) {
+    const id = await fetchId(`email=eq.${encodeURIComponent(emailIn)}`);
+    if (id) return id;
   }
 
   const phoneRaw = body.phone || body.contact || '';
-  if (!profile && phoneRaw) {
-    for (const p of phoneCandidates(phoneRaw)) {
-      profile = await fetchProfile(`phone=eq.${encodeURIComponent(p)}`);
-      if (profile) break;
-    }
-    if (!profile) {
-      const last10 = phoneRaw.replace(/\D/g, '').slice(-10);
-      if (last10.length >= 9) {
-        profile = await fetchProfile(`phone=like.*${last10}`);
-      }
-    }
+  for (const p of phoneCandidates(phoneRaw)) {
+    const id = await fetchId(`phone=eq.${encodeURIComponent(p)}`);
+    if (id) return id;
+  }
+  const last10 = phoneRaw.replace(/\D/g, '').slice(-10);
+  if (last10.length >= 9) {
+    const id = await fetchId(`phone=like.*${last10}`);
+    if (id) return id;
   }
 
-  if (!profile) return null;
-
-  const phoneDigits = (profile.phone || phoneRaw || '08000000000').replace(/\D/g, '');
-  const ngPhone =
-    phoneDigits.length >= 10
-      ? phoneDigits.startsWith('0')
-        ? phoneDigits.slice(0, 11)
-        : `0${phoneDigits.slice(-10)}`
-      : '08000000000';
-
-  return {
-    id: profile.id,
-    email: (profile.email || emailIn || `${profile.id}@verxor.local`).toLowerCase(),
-    phone: ngPhone,
-    name: (profile.full_name || 'Verxor User').trim() || 'Verxor User',
-  };
+  return userId || null;
 }
 
 export async function POST(req: NextRequest) {
@@ -181,29 +164,39 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const user = await resolveUser(req, body);
-  if (!user) {
+  // Prefer profile; fall back to session fields so Generate still works
+  const email = (body.email || '').trim().toLowerCase();
+  const phoneRaw = body.phone || body.contact || '';
+  const name = (body.name || 'Verxor User').trim() || 'Verxor User';
+  const phone = toNgPhone(phoneRaw);
+
+  if (!email && !phoneRaw) {
     return NextResponse.json(
       {
         ok: false,
         message:
-          'Could not find your account. Log out, sign in again with PIN, then try Generate Account.',
+          'Missing account details. Log out, sign in again with PIN, then try Generate Account.',
       },
       { status: 401 },
     );
   }
 
-  const externalRef = `vx-${user.id.slice(0, 8)}-${Date.now()}`;
-  const appUrl = (process.env.NEXT_PUBLIC_APP_URL || process.env.XIXAPAY_CALLBACK_URL || 'https://www.verxor.com').replace(
-    /\/$/,
-    '',
-  );
+  // Use a stable placeholder email if only phone is known
+  const customerEmail =
+    email ||
+    (phoneRaw ? `user${phone.replace(/\D/g, '').slice(-10)}@verxor.local` : `guest@verxor.local`);
+
+  const userId = await tryResolveUserId(req, body);
+
+  const externalRef = `vx-${(userId || 'anon').toString().slice(0, 8)}-${Date.now()}`;
+  const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://www.verxor.com').replace(/\/$/, '');
   const callbackUrl = `${appUrl}/api/webhooks/xixapay/virtual-account`;
 
+  // Option 2: raw customer data (dynamic VA — no BVN/NIN)
   const payload: Record<string, unknown> = {
-    email: user.email,
-    name: body.name || user.name,
-    phoneNumber: user.phone,
+    email: customerEmail,
+    name,
+    phoneNumber: phone,
     bankCode: [bank.code],
     businessId,
     accountType: 'dynamic',
@@ -240,7 +233,7 @@ export async function POST(req: NextRequest) {
   }
 
   if (!xixapayRes.ok) {
-    console.error('[funding/generate] xixapay error', xixapayRes.status, rawText.slice(0, 500));
+    console.error('[funding/generate] xixapay error', xixapayRes.status, rawText.slice(0, 800));
     const msg =
       raw?.message ||
       raw?.error ||
@@ -264,7 +257,7 @@ export async function POST(req: NextRequest) {
     data.account_name ||
     data.account?.name ||
     data.accounts?.[0]?.accountName ||
-    user.name;
+    name;
   const bankName =
     data.bankName ||
     data.bank_name ||
@@ -280,7 +273,7 @@ export async function POST(req: NextRequest) {
       {
         ok: false,
         message:
-          'Provider returned no account number. Confirm XixaPay credentials and that dynamic accounts are enabled for this bank.',
+          'Provider returned no account number. Confirm XixaPay credentials and that dynamic accounts are enabled.',
       },
       { status: 502 },
     );
@@ -289,7 +282,7 @@ export async function POST(req: NextRequest) {
   if (supabaseConfigured()) {
     try {
       await sbInsert('virtual_accounts', {
-        user_id: user.id,
+        user_id: userId || null,
         provider: 'xixapay',
         bank_code: bank.code,
         bank_name: bankName,
