@@ -36,7 +36,7 @@ import {
   formatUsd,
   formatTimer,
 } from './virtual-numbers-data';
-import { ServiceLogo, PoolCard } from './virtual-numbers-components';
+import { ServiceLogo, CountryFlag, PoolCard } from './virtual-numbers-components';
 
 export type { CustomerNumberOrder };
 
@@ -666,7 +666,7 @@ export function VirtualNumbersPage({
             )}
             {filteredCountries.map((c) => (
               <button key={c.code} type="button" className="vn-country-row" onClick={() => selectCountry(c)}>
-                <span className="vn-flag">{c.flag}</span>
+                <span className="vn-flag"><CountryFlag code={c.code} flag={c.flag} /></span>
                 <span>{c.name}</span>
                 <small>{c.dial}</small>
                 <ChevronRight size={16} />
