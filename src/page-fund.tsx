@@ -1,13 +1,12 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Building2,
   CheckCircle2,
   Copy,
   Landmark,
   Loader2,
-  Plus,
   Shield,
   Wallet,
   AlertTriangle,
@@ -32,7 +31,8 @@ type FundPageProps = {
   session?: AuthSession | null;
 };
 
-const FUNDING_FEE_NGN = 20;
+/** Funding is free — full deposit credits the wallet */
+const FUNDING_FEE_NGN = 0;
 
 async function resolveAuthContext(session?: AuthSession | null) {
   const profile = loadSessionProfile();
@@ -99,6 +99,7 @@ export function FundPage({ session }: FundPageProps) {
     accountNumber: string;
     accountName: string;
   } | null>(null);
+  const autoGenRef = useRef(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -128,7 +129,6 @@ export function FundPage({ session }: FundPageProps) {
           const opay = list.find((p) => p.id === 'opay');
           return opay?.id ?? list[0]?.id ?? null;
         });
-        // Prefill existing VA if methods already returned one
         const withAcct = list.find((p) => p.hasAccount && p.accountNumber);
         if (withAcct && withAcct.accountNumber) {
           setLiveAccount({
@@ -137,50 +137,21 @@ export function FundPage({ session }: FundPageProps) {
             accountName: withAcct.accountName || session?.name || 'Verxor User',
           });
         }
-      } else {
-        setProviders([]);
-        setActiveId(null);
+        return { list, ctx, hasAcct: Boolean(withAcct?.accountNumber) };
       }
+      setProviders([]);
+      setActiveId(null);
+      return { list: [] as FundingProvider[], ctx, hasAcct: false };
     } catch {
       setProviders([]);
       setActiveId(null);
+      return { list: [] as FundingProvider[], ctx: await resolveAuthContext(session), hasAcct: false };
     } finally {
       setLoading(false);
     }
   }, [session]);
 
-  useEffect(() => {
-    void load();
-  }, [load]);
-
-  const active = providers.find((p) => p.id === activeId) ?? providers[0] ?? null;
-  const hasAccount = Boolean(
-    liveAccount ||
-      (active && active.hasAccount && active.accountNumber && active.bankName),
-  );
-
-  const displayAccount = liveAccount
-    ? liveAccount
-    : active && active.hasAccount
-      ? {
-          bankName: active.bankName || active.label,
-          accountNumber: active.accountNumber || '',
-          accountName: active.accountName || session?.name || 'Verxor User',
-        }
-      : null;
-
-  const copy = async (key: string, value: string) => {
-    try {
-      await navigator.clipboard.writeText(value);
-      setCopied(key);
-      setTimeout(() => setCopied(null), 1600);
-    } catch {
-      /* ignore */
-    }
-  };
-
-  const generate = async () => {
-    if (!active || generating) return;
+  const generate = useCallback(async () => {
     setGenerating(true);
     setGenError('');
     try {
@@ -188,13 +159,13 @@ export function FundPage({ session }: FundPageProps) {
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
       if (ctx.accessToken) headers.Authorization = `Bearer ${ctx.accessToken}`;
 
-      // XixaPay dynamic requires an amount field; we do not lock the user to it.
-      // Webhook credits whatever amount is actually paid, minus ₦20 fee.
+      // Provider API still needs a nominal amount field; user may transfer any amount.
+      // Webhook credits the full amount paid (fee = ₦0).
       const res = await fetch('/api/v1/funding/generate', {
         method: 'POST',
         headers,
         body: JSON.stringify({
-          providerId: active.id,
+          providerId: 'opay',
           amountNgn: 1000,
           userId: ctx.userId || undefined,
           email: ctx.email || undefined,
@@ -238,6 +209,42 @@ export function FundPage({ session }: FundPageProps) {
     } finally {
       setGenerating(false);
     }
+  }, [session, load]);
+
+  useEffect(() => {
+    void (async () => {
+      const result = await load();
+      if (!result.hasAcct && !autoGenRef.current && result.list.length > 0) {
+        autoGenRef.current = true;
+        await generate();
+      }
+    })();
+  }, [load, generate]);
+
+  const active = providers.find((p) => p.id === activeId) ?? providers[0] ?? null;
+  const hasAccount = Boolean(
+    liveAccount ||
+      (active && active.hasAccount && active.accountNumber && active.bankName),
+  );
+
+  const displayAccount = liveAccount
+    ? liveAccount
+    : active && active.hasAccount
+      ? {
+          bankName: active.bankName || active.label,
+          accountNumber: active.accountNumber || '',
+          accountName: active.accountName || session?.name || 'Verxor User',
+        }
+      : null;
+
+  const copy = async (key: string, value: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopied(key);
+      setTimeout(() => setCopied(null), 1600);
+    } catch {
+      /* ignore */
+    }
   };
 
   return (
@@ -263,7 +270,6 @@ export function FundPage({ session }: FundPageProps) {
           <Landmark size={18} strokeWidth={2.2} /> Fund via Bank Transfer
         </h2>
 
-        {/* Fee notice — same pattern as reference fintech UIs */}
         <div
           className="fund-fee-banner"
           style={{
@@ -287,10 +293,10 @@ export function FundPage({ session }: FundPageProps) {
           </span>
         </div>
 
-        {loading ? (
+        {loading || generating ? (
           <div className="fund-loading">
             <Loader2 size={22} className="fund-spin" />
-            <p>Loading funding methods...</p>
+            <p>{generating ? 'Preparing your account...' : 'Loading funding methods...'}</p>
           </div>
         ) : (
           <>
@@ -375,18 +381,15 @@ export function FundPage({ session }: FundPageProps) {
                 <div className="fund-empty-icon">
                   {active ? <Wallet size={28} strokeWidth={1.8} /> : <Landmark size={28} strokeWidth={1.8} />}
                 </div>
-                <strong>
-                  {active ? `Generate ${active.label} account` : 'No virtual account yet'}
-                </strong>
+                <strong>No funding account yet</strong>
                 <p>
-                  Generate your funding account, then transfer any amount from your bank app. Your
-                  wallet is credited automatically (₦{FUNDING_FEE_NGN} fee applies).
+                  Your OPay account will appear here. Transfer any amount — your wallet is credited
+                  automatically with no fee.
                 </p>
-
                 <button
                   type="button"
-                  className={`fund-generate ${active ? 'fund-generate--ready' : 'fund-generate--soon'}`}
-                  disabled={!active || generating}
+                  className="fund-generate fund-generate--ready"
+                  disabled={generating}
                   onClick={() => void generate()}
                 >
                   {generating ? (
@@ -394,10 +397,7 @@ export function FundPage({ session }: FundPageProps) {
                       <Loader2 size={18} className="fund-spin" /> Generating...
                     </>
                   ) : (
-                    <>
-                      <Plus size={18} strokeWidth={2.5} />
-                      {active ? `Generate ${active.label} Account` : 'Generate Account'}
-                    </>
+                    'Get funding account'
                   )}
                 </button>
                 {genError ? <p className="fund-gen-error">{genError}</p> : null}
@@ -412,7 +412,7 @@ export function FundPage({ session }: FundPageProps) {
         <ol>
           <li>
             <span className="fund-step-num">1</span>
-            <p>Generate your OPay funding account and copy the details.</p>
+            <p>Copy the bank name, account number, and account name below.</p>
           </li>
           <li>
             <span className="fund-step-num">2</span>
@@ -420,7 +420,7 @@ export function FundPage({ session }: FundPageProps) {
           </li>
           <li>
             <span className="fund-step-num">3</span>
-            <p>A fee of ₦{FUNDING_FEE_NGN} is deducted; the rest credits your wallet automatically.</p>
+            <p>Your wallet is credited automatically — ₦0 fee on every deposit.</p>
           </li>
         </ol>
       </section>

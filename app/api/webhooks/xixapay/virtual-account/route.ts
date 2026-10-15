@@ -4,8 +4,8 @@ import { sbSelect, supabaseConfigured } from '@/lib/supabase-admin';
 
 export const dynamic = 'force-dynamic';
 
-/** Flat fee deducted from every successful bank-transfer deposit */
-const FUNDING_FEE_NGN = 20;
+/** Funding is free — full deposit credits the wallet */
+const FUNDING_FEE_NGN = 0;
 
 function verifySignature(rawBody: string, headerSig: string | null, secret: string): boolean {
   if (!headerSig) return false;
@@ -79,17 +79,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
   }
 
-  // Net credit = amount paid − ₦20 funding fee
   const creditAmount = Math.round((amountPaid - FUNDING_FEE_NGN) * 100) / 100;
   if (creditAmount <= 0) {
-    console.warn('[xixapay/virtual-account] amount too low after fee', {
+    console.warn('[xixapay/virtual-account] amount too low', {
       amountPaid,
       fee: FUNDING_FEE_NGN,
       transactionId,
     });
     return NextResponse.json({
       status: 'below_fee',
-      message: `Deposit must be greater than ₦${FUNDING_FEE_NGN}`,
+      message: 'Deposit amount must be greater than zero',
     });
   }
 
@@ -151,7 +150,7 @@ export async function POST(req: NextRequest) {
         p_user_id: userId,
         p_amount: creditAmount,
         p_reference: `xixapay:${transactionId}`,
-        p_description: `Wallet funding via ${body.receiver?.bank || 'bank transfer'} (₦${FUNDING_FEE_NGN} fee)`,
+        p_description: `Wallet funding via ${body.receiver?.bank || 'bank transfer'}`,
       }),
     });
 
