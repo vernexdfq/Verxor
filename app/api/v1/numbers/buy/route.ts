@@ -83,7 +83,7 @@ async function creditWallet(userId: string, amount: number, reference: string) {
 
 /**
  * Buy a real OTP number from Grizzly.
- * Debits wallet first (when userId present), then calls provider.
+ * Debits wallet first, then calls provider.
  * Refunds wallet if provider fails after debit.
  */
 export async function POST(req: NextRequest) {
@@ -131,24 +131,37 @@ export async function POST(req: NextRequest) {
   const debitRef = `vn-buy-${userId || 'anon'}-${Date.now()}`;
   let debited = false;
 
-  // Require wallet debit when price is set and user is known
-  if (priceNgn > 0 && userId && supabaseConfigured()) {
+  // Paid numbers require a signed-in user + wallet debit
+  if (priceNgn > 0) {
+    if (!userId) {
+      return NextResponse.json(
+        { ok: false, error: 'Sign in required to buy a number.' },
+        { status: 401 },
+      );
+    }
+    if (!supabaseConfigured()) {
+      return NextResponse.json(
+        { ok: false, error: 'Wallet backend not configured' },
+        { status: 503 },
+      );
+    }
     try {
       await debitWallet(userId, priceNgn, debitRef);
       debited = true;
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Debit failed';
-      if (msg === 'INSUFFICIENT_BALANCE') {
+      if (msg === 'INSUFFICIENT_BALANCE' || /INSUFFICIENT/i.test(msg)) {
         return NextResponse.json(
-          { ok: false, error: 'Insufficient wallet balance. Fund your wallet first.' },
+          {
+            ok: false,
+            error: 'Insufficient wallet balance. Fund your wallet first.',
+            code: 'INSUFFICIENT_BALANCE',
+          },
           { status: 402 },
         );
       }
       return NextResponse.json({ ok: false, error: msg }, { status: 500 });
     }
-  } else if (priceNgn > 0 && !userId) {
-    // Soft enforcement: still allow test buys without session, but warn
-    console.warn('[numbers/buy] no userId — skipping wallet debit');
   }
 
   try {
