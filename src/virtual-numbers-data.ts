@@ -26,15 +26,25 @@ export type Country = {
   dial: string;
 };
 
-export type PoolTier = 'ECO' | 'STD' | 'FAST' | 'PREMIUM';
+export type Tier = 'ECO' | 'STD' | 'FAST' | 'PREMIUM';
+export type Location = 'USA' | 'Worldwide';
+export type PoolId =
+  | 'usa-economy'
+  | 'usa-standard'
+  | 'worldwide-economy'
+  | 'worldwide-standard'
+  | 'usa-fast'
+  | 'usa-premium'
+  | 'worldwide-fast'
+  | 'worldwide-premium';
 
 export type Pool = {
-  id: string;
+  id: PoolId;
   title: string;
   hint: string;
   fromNgn: number;
-  tier: PoolTier;
-  location: 'USA' | 'Worldwide';
+  tier: Tier;
+  location: Location;
 };
 
 export type PriceOption = {
@@ -182,6 +192,11 @@ export const CATEGORIES: { id: ServiceCategory; label: string }[] = [
   { id: 'taxi', label: 'Taxi' },
   { id: 'other', label: 'Other' },
 ];
+
+/** Static fallback services (live catalogue from /api/v1/catalog is primary). */
+export const SERVICES: Service[] = [];
+
+export const mockPrices: Record<string, PriceOption[]> = {};
 
 export const PROMO_SLIDES = [
   {
