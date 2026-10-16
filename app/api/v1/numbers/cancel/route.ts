@@ -91,16 +91,23 @@ export async function POST(req: NextRequest) {
   if (provider === 'grizzly' && grizzly.isConfigured()) {
     try {
       providerRaw = await grizzly.setStatus(providerOrderId, '8');
+      // ACCESS_CANCEL / already cancelled are both fine
+      providerOk =
+        /ACCESS_CANCEL/i.test(providerRaw) ||
+        /EARLY_CANCEL_DENIED/i.test(providerRaw) === false ||
+        /STATUS_CANCEL/i.test(providerRaw);
+      // Even if Grizzly says early cancel denied, we still remove from UI;
+      // user may have waited past our lock but Grizzly window differs.
       if (/ACCESS_CANCEL/i.test(providerRaw)) providerOk = true;
-      if (/NO_ACTIVATION/i.test(providerRaw)) providerOk = true;
-      if (/EARLY_CANCEL_DENIED/i.test(providerRaw)) providerOk = false;
+      if (/NO_ACTIVATION/i.test(providerRaw)) providerOk = true; // already gone
     } catch (e) {
       providerRaw = e instanceof Error ? e.message : 'cancel failed';
     }
   } else {
-    providerOk = true;
+    providerOk = true; // no provider configured — still allow local cancel + refund
   }
 
+  // Update DB order if present
   if (supabaseConfigured() && orderId) {
     try {
       await sbUpdate(
@@ -110,6 +117,7 @@ export async function POST(req: NextRequest) {
       );
     } catch {
       try {
+        // fallback by provider_order_id
         const rows = (await sbSelect(
           'vn_orders',
           `provider_order_id=eq.${encodeURIComponent(providerOrderId)}&select=id&limit=1`,
@@ -127,6 +135,7 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // Refund wallet once
   let refunded = false;
   if (userId && priceNgn > 0 && supabaseConfigured()) {
     const ref = `refund-vn-cancel-${providerOrderId}`;
