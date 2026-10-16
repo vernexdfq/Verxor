@@ -72,6 +72,7 @@ function mapServices(raw: any[]): Service[] {
     id: s.code || s.id,
     name: s.name,
     category: (s.category || 'other') as ServiceCategory,
+    logoId: s.logoId || undefined,
   }));
 }
 
@@ -649,7 +650,7 @@ export function VirtualNumbersPage({
               </div>
               {previewOrders.map((o) => (
                 <div key={o.id} className="vn-current-chip">
-                  <ServiceLogo id={o.serviceId} />
+                  <ServiceLogo id={o.serviceId} name={o.service} />
                   <div>
                     <strong>{o.number || o.service}</strong>
                     <small>
@@ -701,7 +702,7 @@ export function VirtualNumbersPage({
           <div className="vn-service-list">
             {filteredServices.map((s) => (
               <button key={s.id} type="button" className="vn-service-row" onClick={() => void selectService(s)}>
-                <ServiceLogo id={s.id} compact />
+                <ServiceLogo id={s.logoId || s.id} name={s.name} compact />
                 <span>{s.name}</span>
                 <ChevronRight size={16} />
               </button>
@@ -743,7 +744,7 @@ export function VirtualNumbersPage({
             visibleOrders.map((o) => (
               <div key={o.id} className="vn-order-card">
                 <div className="vn-order-top">
-                  <ServiceLogo id={o.serviceId} />
+                  <ServiceLogo id={o.serviceId} name={o.service} />
                   <div className="vn-order-meta">
                     <strong>{o.service}</strong>
                     <small>
