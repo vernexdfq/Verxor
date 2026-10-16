@@ -163,8 +163,13 @@ export async function GET(req: NextRequest) {
     if (Array.isArray(rows)) {
       for (const r of rows) {
         const id = String(r.id || '');
+        const ref = r.reference != null ? String(r.reference) : '';
         if (!id || seen.has(id)) continue;
         seen.add(id);
+        if (ref) seen.add(ref);
+        if (ref.startsWith('vn-')) seen.add(ref);
+        // Also mark bare order id if reference is vn-<uuid>
+        if (ref.startsWith('vn-') && ref.length > 3) seen.add(ref.slice(3));
         const kind = String(r.kind || 'adjustment');
         const meta = (r.meta && typeof r.meta === 'object' ? r.meta : {}) as Record<
           string,
@@ -204,8 +209,10 @@ export async function GET(req: NextRequest) {
     if (Array.isArray(rows)) {
       for (const r of rows) {
         const id = String(r.id || r.reference || '');
-        if (!id || seen.has(id)) continue;
+        const ref = r.reference != null ? String(r.reference) : '';
+        if (!id || seen.has(id) || (ref && seen.has(ref))) continue;
         seen.add(id);
+        if (ref) seen.add(ref);
         const kind = String(r.type || r.kind || r.direction || 'fund');
         const rawAmt = Number(r.amount_ngn ?? r.amount ?? 0);
         let amount = rawAmt;
@@ -311,7 +318,24 @@ export async function GET(req: NextRequest) {
     /* optional */
   }
 
-  items.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  // Same event can land in wallet_ledger + wallet_transactions + vn_orders
+  // with different IDs. Collapse logical duplicates (title + amount + minute).
+  const unique: TxItem[] = [];
+  const logicalSeen = new Set<string>();
+  for (const item of items) {
+    let minute = 0;
+    try {
+      minute = Math.floor(new Date(item.createdAt).getTime() / 60_000);
+    } catch {
+      minute = 0;
+    }
+    const key = `${item.title}|${item.amount}|${minute}`;
+    if (logicalSeen.has(key)) continue;
+    logicalSeen.add(key);
+    unique.push(item);
+  }
 
-  return NextResponse.json({ ok: true, items });
+  unique.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+  return NextResponse.json({ ok: true, items: unique });
 }
