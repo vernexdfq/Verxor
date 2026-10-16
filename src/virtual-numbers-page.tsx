@@ -826,10 +826,8 @@ export function VirtualNumbersPage({
                     className="vn-price-row"
                     onClick={() => openConfirm(opt)}
                   >
-                    <div>
-                      <strong>{formatNgn(opt.priceNgn)}</strong>
-                      <small>{Number(opt.stock).toLocaleString()} left</small>
-                    </div>
+                    <strong>{formatNgn(opt.priceNgn)}</strong>
+                    <small>{Number(opt.stock).toLocaleString()} left</small>
                   </button>
                 </li>
               ))}
