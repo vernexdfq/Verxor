@@ -44,6 +44,7 @@ export type Service = {
   id: string;
   name: string;
   category: ServiceCategory;
+  logoId?: string;
 };
 
 export type PriceOption = {
