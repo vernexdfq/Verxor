@@ -87,24 +87,39 @@ export async function POST(req: NextRequest) {
 
   // Cancel on Grizzly (sms-activate compatible: status 8 = cancel)
   let providerOk = false;
+  let earlyDenied = false;
   let providerRaw = '';
   if (provider === 'grizzly' && grizzly.isConfigured()) {
     try {
       providerRaw = await grizzly.setStatus(providerOrderId, '8');
-      // ACCESS_CANCEL / already cancelled are both fine
-      providerOk =
-        /ACCESS_CANCEL/i.test(providerRaw) ||
-        /EARLY_CANCEL_DENIED/i.test(providerRaw) === false ||
-        /STATUS_CANCEL/i.test(providerRaw);
-      // Even if Grizzly says early cancel denied, we still remove from UI;
-      // user may have waited past our lock but Grizzly window differs.
-      if (/ACCESS_CANCEL/i.test(providerRaw)) providerOk = true;
-      if (/NO_ACTIVATION/i.test(providerRaw)) providerOk = true; // already gone
+      earlyDenied = /EARLY_CANCEL_DENIED/i.test(providerRaw);
+      if (/ACCESS_CANCEL/i.test(providerRaw) || /STATUS_CANCEL/i.test(providerRaw)) {
+        providerOk = true;
+      } else if (/NO_ACTIVATION/i.test(providerRaw)) {
+        providerOk = true; // already gone on provider
+      } else if (earlyDenied) {
+        providerOk = false;
+      } else {
+        // Unknown response — treat as soft success so user is not stuck
+        providerOk = true;
+      }
     } catch (e) {
       providerRaw = e instanceof Error ? e.message : 'cancel failed';
     }
   } else {
     providerOk = true; // no provider configured — still allow local cancel + refund
+  }
+
+  // Do not refund or mark cancelled if provider still locks the activation
+  if (earlyDenied) {
+    return NextResponse.json({
+      ok: false,
+      cancelled: false,
+      earlyDenied: true,
+      providerOk: false,
+      providerRaw: providerRaw.slice(0, 120),
+      refunded: false,
+    });
   }
 
   // Update DB order if present
@@ -145,6 +160,7 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({
     ok: true,
     cancelled: true,
+    earlyDenied: false,
     providerOk,
     providerRaw: providerRaw.slice(0, 120),
     refunded,
