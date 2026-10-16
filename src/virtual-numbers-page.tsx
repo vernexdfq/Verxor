@@ -169,7 +169,13 @@ export function VirtualNumbersPage({
     const now = Date.now();
     const hasExpired = localOrders.some((o) => o.status === 'waiting' && o.expiresAt <= now);
     if (!hasExpired) return;
-    setLocalOrders((prev) => prev.filter((o) => !(o.status === 'waiting' && o.expiresAt <= Date.now())));
+    setLocalOrders((prev) =>
+      prev.map((o) =>
+        o.status === 'waiting' && o.expiresAt <= Date.now()
+          ? { ...o, status: 'cancelled' as const }
+          : o,
+      ),
+    );
   });
 
   const visibleOrders = useMemo(
@@ -180,7 +186,12 @@ export function VirtualNumbersPage({
     [localOrders],
   );
 
-  const previewOrders = useMemo(() => visibleOrders.slice(0, 1), [visibleOrders]);
+  /* Permanent strip: always the most recent buy, any status */
+  const previewOrders = useMemo(() => {
+    if (localOrders.length === 0) return [];
+    const sorted = [...localOrders].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    return sorted.slice(0, 1);
+  }, [localOrders]);
 
   const filteredServices = useMemo(() => {
     let list = liveServices;
@@ -647,8 +658,12 @@ export function VirtualNumbersPage({
                   </div>
                   {o.status === 'waiting' ? (
                     <span className="vn-chip-timer">{formatTimer(Math.max(0, o.expiresAt - now))}</span>
-                  ) : (
+                  ) : o.status === 'received' || o.status === 'completed' ? (
                     <span className="vn-chip-received">OTP</span>
+                  ) : (
+                    <span className="vn-chip-timer" style={{ color: '#94a3b8' }}>
+                      {o.status}
+                    </span>
                   )}
                 </div>
               ))}
@@ -806,9 +821,15 @@ export function VirtualNumbersPage({
             <ul className="vn-price-list">
               {priceSheet.options.map((opt) => (
                 <li key={opt.id}>
-                  <button type="button" onClick={() => openConfirm(opt)}>
-                    <span>{formatNgn(opt.priceNgn)}</span>
-                    <small>{opt.stock} left</small>
+                  <button
+                    type="button"
+                    className="vn-price-row"
+                    onClick={() => openConfirm(opt)}
+                  >
+                    <div>
+                      <strong>{formatNgn(opt.priceNgn)}</strong>
+                      <small>{Number(opt.stock).toLocaleString()} left</small>
+                    </div>
                   </button>
                 </li>
               ))}
@@ -869,12 +890,6 @@ export function VirtualNumbersPage({
               </p>
             </div>
           </div>
-        </div>
-      )}
-
-      {copyToast && (
-        <div className="vn-toast" role="status">
-          {copyToast}
         </div>
       )}
     </div>
