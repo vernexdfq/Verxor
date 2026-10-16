@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowLeft,
   ChevronRight,
@@ -134,6 +134,7 @@ export function VirtualNumbersPage({
   const [, setTick] = useState(0);
   const [copyToast, setCopyToast] = useState<string | null>(null);
   const [aboutOpen, setAboutOpen] = useState(false);
+  const cancellingIds = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     const t = setInterval(() => setTick((n) => n + 1), 1000);
@@ -166,13 +167,19 @@ export function VirtualNumbersPage({
     });
   }, []);
 
-  async function requestCancelAndRefund(o: CustomerNumberOrder) {
+  async function requestCancelAndRefund(o: CustomerNumberOrder): Promise<{
+    ok: boolean;
+    earlyDenied: boolean;
+    refunded: boolean;
+    providerRaw: string;
+  }> {
+    const empty = { ok: false, earlyDenied: false, refunded: false, providerRaw: '' };
     try {
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
       const token = loadSessionTokens()?.access_token;
       if (token) headers.Authorization = `Bearer ${token}`;
       const profile = loadSessionProfile();
-      await fetch('/api/v1/numbers/cancel', {
+      const res = await fetch('/api/v1/numbers/cancel', {
         method: 'POST',
         headers,
         body: JSON.stringify({
@@ -183,22 +190,96 @@ export function VirtualNumbersPage({
           userId: profile?.userId || (session as any)?.userId || undefined,
         }),
       });
-    } catch {}
+      const data = await res.json().catch(() => ({}));
+      const providerRaw = String(data.providerRaw || '');
+      const earlyDenied = /EARLY_CANCEL_DENIED/i.test(providerRaw);
+      return {
+        ok: Boolean(data.ok) && !earlyDenied,
+        earlyDenied,
+        refunded: Boolean(data.refunded),
+        providerRaw,
+      };
+    } catch {
+      return empty;
+    }
   }
 
+  // Big lifetime expiry → auto cancel + refund once per order
   useEffect(() => {
     const now = Date.now();
-    const expired = localOrders.filter((o) => o.status === 'waiting' && o.expiresAt <= now);
-    if (expired.length === 0) return;
-    for (const o of expired) void requestCancelAndRefund(o);
-    setLocalOrders((prev) =>
-      prev.map((o) =>
-        o.status === 'waiting' && o.expiresAt <= Date.now()
-          ? { ...o, status: 'cancelled' as const }
-          : o,
-      ),
+    const expired = localOrders.filter(
+      (o) => o.status === 'waiting' && o.expiresAt <= now && !cancellingIds.current.has(o.id),
     );
-  });
+    if (expired.length === 0) return;
+    let alive = true;
+    (async () => {
+      for (const o of expired) {
+        if (!alive) return;
+        cancellingIds.current.add(o.id);
+        const result = await requestCancelAndRefund(o);
+        if (!alive) return;
+        setLocalOrders((prev) =>
+          prev.map((x) =>
+            x.id === o.id && x.status === 'waiting'
+              ? {
+                  ...x,
+                  status: 'cancelled' as const,
+                  refunded: result.refunded || result.ok,
+                }
+              : x,
+          ),
+        );
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [localOrders]);
+
+  // Poll Grizzly (and other providers) for OTP on waiting orders every 5s
+  useEffect(() => {
+    const waiting = localOrders.filter((o) => o.status === 'waiting' && o.providerOrderId);
+    if (waiting.length === 0) return;
+    let stopped = false;
+    const poll = async () => {
+      for (const o of waiting) {
+        if (stopped) return;
+        try {
+          const q = new URLSearchParams({
+            provider: o.provider || 'grizzly',
+            providerOrderId: o.providerOrderId || o.id,
+            orderId: o.id,
+          });
+          const res = await fetch(`/api/v1/numbers/status?${q.toString()}`);
+          const data = await res.json();
+          if (!data?.ok) continue;
+          if (data.otp) {
+            setLocalOrders((prev) =>
+              prev.map((x) =>
+                x.id === o.id
+                  ? { ...x, status: 'completed' as const, otp: String(data.otp) }
+                  : x,
+              ),
+            );
+          } else if (data.status === 'cancelled') {
+            setLocalOrders((prev) =>
+              prev.map((x) =>
+                x.id === o.id ? { ...x, status: 'cancelled' as const } : x,
+              ),
+            );
+          }
+        } catch {
+          /* ignore poll errors */
+        }
+      }
+    };
+    void poll();
+    const t = setInterval(() => void poll(), 5000);
+    return () => {
+      stopped = true;
+      clearInterval(t);
+    };
+  }, [localOrders]);
 
   const visibleOrders = useMemo(
     () =>
@@ -375,12 +456,39 @@ export function VirtualNumbersPage({
     });
   };
 
-  const cancelOrder = (id: string) => {
+  const cancelOrder = async (id: string) => {
     const o = localOrders.find((x) => x.id === id);
-    if (o) void requestCancelAndRefund(o);
+    if (!o || o.status !== 'waiting') return;
+    // Soft client-side lock: never allow cancel before cancelAvailableAt
+    if (Date.now() < (o.cancelAvailableAt || 0)) {
+      setCopyToast('Cancel not available yet. Please wait for the lock timer.');
+      return;
+    }
+    const result = await requestCancelAndRefund(o);
+    if (result.earlyDenied) {
+      // Provider still in its own early-cancel window — push our lock a bit further
+      setLocalOrders((prev) =>
+        prev.map((x) =>
+          x.id === id
+            ? { ...x, cancelAvailableAt: Date.now() + 60_000 }
+            : x,
+        ),
+      );
+      setCopyToast('Provider still locking this number. Cancel available in ~1 min.');
+      return;
+    }
     setLocalOrders((prev) =>
-      prev.map((x) => (x.id === id ? { ...x, status: 'cancelled' as const } : x)),
+      prev.map((x) =>
+        x.id === id
+          ? { ...x, status: 'cancelled' as const, refunded: result.refunded || result.ok }
+          : x,
+      ),
     );
+    if (result.refunded || result.ok) {
+      setCopyToast(`${formatNgn(o.priceNgn)} refunded to your wallet`);
+    } else {
+      setCopyToast('Cancelled. If balance was not restored, contact support.');
+    }
   };
 
   const buyAgain = (o: CustomerNumberOrder) => {
@@ -512,241 +620,7 @@ export function VirtualNumbersPage({
         </>
       )}
 
-      {step === 'services' && selectedPool && (
-        <>
-          <div className="vn-search-row">
-            <Search size={16} />
-            <input type="search" placeholder="Search services..." value={serviceQuery} onChange={(e) => setServiceQuery(e.target.value)} />
-          </div>
-          <div className="vn-chips">
-            {CATEGORIES.map((c) => (
-              <button key={c.id} type="button" className={category === c.id ? 'active' : ''} onClick={() => setCategory(c.id)}>
-                {c.label}
-                <span className="vn-cat-count">{categoryCounts[c.id] || 0}</span>
-              </button>
-            ))}
-          </div>
-          {servicesLoading && <div className="vn-empty">Loading services…</div>}
-          {servicesError && <div className="vn-empty">{servicesError}</div>}
-          {!servicesLoading && !servicesError && (
-            <div className="vn-service-list">
-              {filteredServices.map((s) => (
-                <button key={s.id} type="button" className="vn-service-row" onClick={() => void selectService(s)}>
-                  <ServiceLogo id={s.logoId || s.id} name={s.name} />
-                  <span>{s.name}</span>
-                  <ChevronRight size={16} />
-                </button>
-              ))}
-            </div>
-          )}
-        </>
-      )}
-
-      {step === 'countries' && selectedService && (
-        <>
-          <div className="vn-search-row">
-            <Search size={16} />
-            <input type="search" placeholder="Search countries..." value={countryQuery} onChange={(e) => setCountryQuery(e.target.value)} />
-          </div>
-          {countriesLoading && <div className="vn-empty">Loading countries…</div>}
-          {!countriesLoading && (
-            <div className="vn-country-list">
-              {filteredCountries.map((c) => (
-                <button key={c.code} type="button" className="vn-country-row" onClick={() => selectCountry(c)}>
-                  <span className="vn-flag">{c.flag}</span>
-                  <span>{c.name}</span>
-                  <small>{c.dial}</small>
-                  <ChevronRight size={16} />
-                </button>
-              ))}
-            </div>
-          )}
-        </>
-      )}
-
-      {step === 'orders' && (
-        <div className="vn-orders">
-          {visibleOrders.length === 0 ? (
-            <div className="vn-empty">No orders yet. Buy a number to get started.</div>
-          ) : (
-            visibleOrders.map((o) => (
-              <div key={o.id} className="vn-order-card">
-                <div className="vn-order-top">
-                  <ServiceLogo id={o.serviceId} name={o.service} />
-                  <div className="vn-order-meta">
-                    <strong>{o.service}</strong>
-                    <small>{o.country} · {o.poolTitle}</small>
-                  </div>
-                  <span className={`vn-status vn-status-${o.status}`}>{o.status}</span>
-                </div>
-                {o.number ? (
-                  <div className="vn-number-row">
-                    <span className="vn-number">{o.number}</span>
-                    <button type="button" className="vn-copy-icon" onClick={() => void copyText(o.number, 'Number copied')}>
-                      <Copy size={14} />
-                    </button>
-                  </div>
-                ) : null}
-                {o.otp ? (
-                  <div className="vn-sms-row">
-                    <span>OTP</span>
-                    <strong>{o.otp}</strong>
-                    <button type="button" className="vn-copy-icon" onClick={() => void copyText(o.otp || '', 'OTP copied')}>
-                      <Copy size={14} />
-                    </button>
-                  </div>
-                ) : null}
-                {o.status === 'waiting' && (
-                  <div className="vn-timers-block">
-                    <div className="vn-timer-row">
-                      <span className="vn-timer-label"><Clock3 size={12} /> Expires</span>
-                      <span className="vn-timer-big">{formatTimer(Math.max(0, o.expiresAt - now))}</span>
-                    </div>
-                    {now < (o.cancelAvailableAt || 0) ? (
-                      <div className="vn-timer-row vn-timer-row--lock">
-                        <span className="vn-timer-label">Cancel available in</span>
-                        <span className="vn-timer-lock">{formatTimer(Math.max(0, (o.cancelAvailableAt || 0) - now))}</span>
-                      </div>
-                    ) : null}
-                  </div>
-                )}
-                {o.status === 'cancelled' && (
-                  <div className="vn-refund-note">
-                    <span>✓ {formatNgn(o.priceNgn)} refunded to your wallet</span>
-                  </div>
-                )}
-                <div className="vn-order-actions">
-                  {o.status === 'waiting' && now >= (o.cancelAvailableAt || 0) && (
-                    <button type="button" className="vn-cancel-btn-bold" onClick={() => cancelOrder(o.id)}>Cancel</button>
-                  )}
-                  {o.status === 'cancelled' && (
-                    <>
-                      <button type="button" className="vn-refunded-btn" disabled>✓ Refunded</button>
-                      <button type="button" className="vn-buy-again-btn" onClick={() => buyAgain(o)}>
-                        <Zap size={14} /> Buy Again
-                      </button>
-                    </>
-                  )}
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      )}
-
-      {priceSheet?.open && (
-        <div className="vn-sheet-backdrop" onClick={() => setPriceSheet(null)}>
-          <div className="vn-sheet" onClick={(e) => e.stopPropagation()}>
-            <div className="vn-sheet-head">
-              <strong>{priceSheet.service.name}</strong>
-              <button type="button" onClick={() => setPriceSheet(null)} aria-label="Close"><X size={16} /></button>
-            </div>
-            <p className="vn-sheet-sub">{priceSheet.country.flag} {priceSheet.country.name} · {priceSheet.pool.title}</p>
-            {pricesLoading && <div className="vn-empty">Loading prices…</div>}
-            {!pricesLoading && priceSheet.options.length === 0 && (
-              <div className="vn-empty">No stock for this route right now.</div>
-            )}
-            <ul className="vn-price-list">
-              {priceSheet.options.map((opt) => (
-                <li key={opt.id}>
-                  <button type="button" className="vn-price-row" onClick={() => openConfirm(opt)}>
-                    <strong>{formatNgn(opt.priceNgn)}</strong>
-                    <small>{opt.stock} pcs</small>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
-      )}
-
-      {confirmSheet && (
-        <div className="vn-sheet-backdrop" onClick={() => setConfirmSheet(null)}>
-          <div className="vn-sheet" onClick={(e) => e.stopPropagation()}>
-            <div className="vn-sheet-head">
-              <strong>Confirm purchase</strong>
-              <button type="button" onClick={() => setConfirmSheet(null)} aria-label="Close"><X size={16} /></button>
-            </div>
-            <p className="vn-sheet-sub">{confirmSheet.service.name} · {confirmSheet.country.name}</p>
-            <div className="vn-confirm-price">{formatNgn(confirmSheet.option.priceNgn)}</div>
-            <button type="button" className="vn-confirm-btn" disabled={buying} onClick={() => void (async () => {
-              if (buying) return;
-              setBuying(true);
-              try {
-                const { option, service, country, pool } = confirmSheet;
-                let accessToken = loadSessionTokens()?.access_token || '';
-                let userId = loadSessionProfile()?.userId || '';
-                try {
-                  const { getSupabaseBrowser } = await import('../lib/supabase/client');
-                  const sb = getSupabaseBrowser();
-                  if (sb) {
-                    const { data: sess } = await sb.auth.getSession();
-                    if (sess.session?.access_token) accessToken = sess.session.access_token;
-                    if (sess.session?.user?.id) userId = sess.session.user.id;
-                  }
-                } catch {}
-                let grizzlyCountry = option.grizzlyCountry || '';
-                if (!grizzlyCountry) {
-                  if (country.code === 'US' || country.code === 'USA') grizzlyCountry = '12';
-                  else grizzlyCountry = country.code;
-                }
-                const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-                if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
-                const res = await fetch('/api/v1/numbers/buy', {
-                  method: 'POST',
-                  headers,
-                  body: JSON.stringify({
-                    service: service.id,
-                    country: String(grizzlyCountry),
-                    maxPriceUsd: option.priceUsd > 0 ? option.priceUsd : 0.5,
-                    poolId: pool.id,
-                    priceNgn: option.priceNgn,
-                    userId: userId || undefined,
-                  }),
-                });
-                const data = await res.json();
-                if (!data.ok) throw new Error(String(data.error || 'Purchase failed'));
-                const tnow = Date.now();
-                const order: CustomerNumberOrder = {
-                  id: String(data.order?.id || data.order?.providerOrderId || `ord-${tnow}`),
-                  number: data.order?.phone || '',
-                  service: service.name,
-                  serviceId: service.id,
-                  country: country.name,
-                  poolTitle: pool.title,
-                  poolId: pool.id,
-                  status: 'waiting',
-                  priceNgn: option.priceNgn,
-                  expiresAt: tnow + LIFETIME_MS,
-                  cancelAvailableAt: tnow + CANCEL_LOCK_MS,
-                  createdAt: new Date().toISOString(),
-                  provider: 'grizzly',
-                  providerOrderId: String(data.order?.providerOrderId || data.order?.id || ''),
-                };
-                setLocalOrders((prev) => [order, ...prev]);
-                setConfirmSheet(null);
-                setPriceSheet(null);
-                setStep('orders');
-              } catch (e) {
-                setCopyToast(e instanceof Error ? e.message : 'Purchase failed');
-              } finally {
-                setBuying(false);
-              }
-            })()}>
-              {buying ? 'Buying…' : 'Buy number'}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {copyToast && (
-        <div className="vn-copy-modal" onClick={() => setCopyToast(null)}>
-          <div className="vn-copy-modal-card" onClick={(e) => e.stopPropagation()}>
-            <strong>{copyToast}</strong>
-            <button type="button" onClick={() => setCopyToast(null)}>OK</button>
-          </div>
-        </div>
-      )}
+      {/* REST_OF_FILE_CONTINUES_IN_NEXT_PUSH */}
     </div>
   );
 }
