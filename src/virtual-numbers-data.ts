@@ -183,8 +183,8 @@ export const PROMO_SLIDES = [
 
 /** Big lifetime for a waiting number (~20 min like Grizzly). */
 export const LIFETIME_MS = 20 * 60 * 1000;
-/** UI lock before Cancel appears. Grizzly lock varies (2–5+ min); client auto-retries on EARLY_CANCEL_DENIED. */
-export const CANCEL_LOCK_MS = 2 * 60 * 1000;
+/** UI lock before Cancel appears (4 min). Auto-retry covers any remaining lock quietly. */
+export const CANCEL_LOCK_MS = 4 * 60 * 1000;
 
 export function mockPrices(pool: Pool, _serviceId: string, _countryCode: string): PriceOption[] {
   const base = pool.fromNgn;
