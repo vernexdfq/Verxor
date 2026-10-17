@@ -1,50 +1,36 @@
-/**
- * Virtual Numbers - shared types, catalog data, and pure helpers
- */
-export type PoolId =
-  | 'usa-economy'
-  | 'usa-standard'
-  | 'usa-fast'
-  | 'usa-premium'
-  | 'worldwide-economy'
-  | 'worldwide-standard'
-  | 'worldwide-fast'
-  | 'worldwide-premium';
-
-export type Tier = 'ECO' | 'STD' | 'FAST' | 'PREMIUM';
-export type Location = 'USA' | 'Worldwide';
-
-export type Pool = {
-  id: PoolId;
-  title: string;
-  server: 1 | 2;
-  location: Location;
-  hint: string;
-  tier: Tier;
-  fromNgn: number;
-};
-
-export type Country = { code: string; flag: string; name: string; dial: string };
+/** Shared types + static catalog for Virtual Numbers (OTP) page. */
 
 export type ServiceCategory =
   | 'all'
-  | 'messengers'
   | 'social'
-  | 'dating'
-  | 'games'
-  | 'marketplace'
-  | 'payments'
-  | 'food'
-  | 'shops'
-  | 'betting'
-  | 'taxi'
+  | 'messaging'
+  | 'shopping'
+  | 'finance'
+  | 'ai'
   | 'other';
+
+export type Pool = {
+  id: string;
+  title: string;
+  server: 1 | 2;
+  location: 'USA' | 'Worldwide';
+  hint: string;
+  tier: 'ECO' | 'STD' | 'FAST' | 'PREMIUM';
+  fromNgn: number;
+};
 
 export type Service = {
   id: string;
   name: string;
   category: ServiceCategory;
   logoId?: string;
+};
+
+export type Country = {
+  code: string;
+  flag: string;
+  name: string;
+  dial: string;
 };
 
 export type PriceOption = {
@@ -118,100 +104,64 @@ export const WORLDWIDE_COUNTRIES: Country[] = [
   { code: 'JP', flag: '🇯🇵', name: 'Japan', dial: '+81' },
   { code: 'KR', flag: '🇰🇷', name: 'South Korea', dial: '+82' },
   { code: 'TR', flag: '🇹🇷', name: 'Turkey', dial: '+90' },
+  { code: 'MX', flag: '🇲🇽', name: 'Mexico', dial: '+52' },
+  { code: 'AR', flag: '🇦🇷', name: 'Argentina', dial: '+54' },
   { code: 'PL', flag: '🇵🇱', name: 'Poland', dial: '+48' },
+  { code: 'SE', flag: '🇸🇪', name: 'Sweden', dial: '+46' },
+  { code: 'NO', flag: '🇳🇴', name: 'Norway', dial: '+47' },
+  { code: 'DK', flag: '🇩🇰', name: 'Denmark', dial: '+45' },
+  { code: 'FI', flag: '🇫🇮', name: 'Finland', dial: '+358' },
+  { code: 'IE', flag: '🇮🇪', name: 'Ireland', dial: '+353' },
   { code: 'PT', flag: '🇵🇹', name: 'Portugal', dial: '+351' },
+  { code: 'AT', flag: '🇦🇹', name: 'Austria', dial: '+43' },
+  { code: 'CH', flag: '🇨🇭', name: 'Switzerland', dial: '+41' },
+  { code: 'BE', flag: '🇧🇪', name: 'Belgium', dial: '+32' },
+  { code: 'CZ', flag: '🇨🇿', name: 'Czechia', dial: '+420' },
+  { code: 'RO', flag: '🇷🇴', name: 'Romania', dial: '+40' },
+  { code: 'HU', flag: '🇭🇺', name: 'Hungary', dial: '+36' },
+  { code: 'GR', flag: '🇬🇷', name: 'Greece', dial: '+30' },
+  { code: 'UA', flag: '🇺🇦', name: 'Ukraine', dial: '+380' },
+  { code: 'RU', flag: '🇷🇺', name: 'Russia', dial: '+7' },
+  { code: 'IL', flag: '🇮🇱', name: 'Israel', dial: '+972' },
+  { code: 'AE', flag: '🇦🇪', name: 'United Arab Emirates', dial: '+971' },
+  { code: 'SA', flag: '🇸🇦', name: 'Saudi Arabia', dial: '+966' },
+  { code: 'EG', flag: '🇪🇬', name: 'Egypt', dial: '+20' },
+  { code: 'KE', flag: '🇰🇪', name: 'Kenya', dial: '+254' },
+  { code: 'GH', flag: '🇬🇭', name: 'Ghana', dial: '+233' },
+  { code: 'MY', flag: '🇲🇾', name: 'Malaysia', dial: '+60' },
+  { code: 'SG', flag: '🇸🇬', name: 'Singapore', dial: '+65' },
+  { code: 'VN', flag: '🇻🇳', name: 'Vietnam', dial: '+84' },
+  { code: 'PK', flag: '🇵🇰', name: 'Pakistan', dial: '+92' },
+  { code: 'BD', flag: '🇧🇩', name: 'Bangladesh', dial: '+880' },
+  { code: 'NZ', flag: '🇳🇿', name: 'New Zealand', dial: '+64' },
+  { code: 'CL', flag: '🇨🇱', name: 'Chile', dial: '+56' },
+  { code: 'CO', flag: '🇨🇴', name: 'Colombia', dial: '+57' },
+  { code: 'PE', flag: '🇵🇪', name: 'Peru', dial: '+51' },
 ];
 
 export const CATEGORIES: { id: ServiceCategory; label: string }[] = [
   { id: 'all', label: 'All' },
-  { id: 'messengers', label: 'Messengers' },
-  { id: 'social', label: 'Social media' },
-  { id: 'dating', label: 'Dating' },
-  { id: 'games', label: 'Games' },
-  { id: 'marketplace', label: 'Marketplace' },
-  { id: 'payments', label: 'Payment systems' },
-  { id: 'food', label: 'Food' },
-  { id: 'shops', label: 'Shops' },
-  { id: 'betting', label: 'Betting' },
-  { id: 'taxi', label: 'Taxi' },
+  { id: 'social', label: 'Social' },
+  { id: 'messaging', label: 'Messaging' },
+  { id: 'shopping', label: 'Shopping' },
+  { id: 'finance', label: 'Finance' },
+  { id: 'ai', label: 'AI' },
   { id: 'other', label: 'Other' },
 ];
 
-export const SERVICES: Service[] = [
-  { id: 'whatsapp', name: 'WhatsApp', category: 'messengers' },
-  { id: 'telegram', name: 'Telegram', category: 'messengers' },
-  { id: 'signal', name: 'Signal', category: 'messengers' },
-  { id: 'discord', name: 'Discord', category: 'messengers' },
-  { id: 'imo', name: 'Imo', category: 'messengers' },
-  { id: 'viber', name: 'Viber', category: 'messengers' },
-  { id: 'wechat', name: 'WeChat', category: 'messengers' },
-  { id: 'line', name: 'LINE', category: 'messengers' },
-  { id: 'facebook', name: 'Facebook', category: 'social' },
-  { id: 'instagram', name: 'Instagram + Threads', category: 'social' },
-  { id: 'tiktok', name: 'TikTok', category: 'social' },
-  { id: 'twitter', name: 'X (Twitter)', category: 'social' },
-  { id: 'snapchat', name: 'Snapchat', category: 'social' },
-  { id: 'linkedin', name: 'LinkedIn', category: 'social' },
-  { id: 'tinder', name: 'Tinder', category: 'dating' },
-  { id: 'badoo', name: 'Badoo', category: 'dating' },
-  { id: 'bumble', name: 'Bumble', category: 'dating' },
-  { id: 'steam', name: 'Steam', category: 'games' },
-  { id: 'pubg', name: 'PUBG Mobile', category: 'games' },
-  { id: 'roblox', name: 'Roblox', category: 'games' },
-  { id: 'amazon', name: 'Amazon', category: 'marketplace' },
-  { id: 'ebay', name: 'eBay', category: 'marketplace' },
-  { id: 'alibaba', name: 'Alibaba', category: 'marketplace' },
-  { id: 'paypal', name: 'PayPal', category: 'payments' },
-  { id: 'googlepay', name: 'Google Pay', category: 'payments' },
-  { id: 'wise', name: 'Wise', category: 'payments' },
-  { id: 'ubereats', name: 'Uber Eats', category: 'food' },
-  { id: 'doordash', name: 'DoorDash', category: 'food' },
-  { id: 'walmart', name: 'Walmart', category: 'shops' },
-  { id: 'nike', name: 'Nike', category: 'shops' },
-  { id: 'bet365', name: 'Bet365', category: 'betting' },
-  { id: '1xbet', name: '1xBet', category: 'betting' },
-  { id: 'uber', name: 'Uber', category: 'taxi' },
-  { id: 'bolt', name: 'Bolt', category: 'taxi' },
-  { id: 'google', name: 'Google / Gmail / YouTube', category: 'other' },
-  { id: 'microsoft', name: 'Microsoft / Outlook', category: 'other' },
-  { id: 'apple', name: 'Apple', category: 'other' },
-  { id: 'netflix', name: 'Netflix', category: 'other' },
-  { id: 'spotify', name: 'Spotify', category: 'other' },
-  { id: 'openai', name: 'OpenAI / ChatGPT', category: 'other' },
-];
-
 export const PROMO_SLIDES = [
-  { id: 'otp', title: 'Receive OTPs in 60 Seconds', subtitle: 'Instant verification for all your social media & app accounts!', cta: 'Verify Now →' },
-  { id: 'web', title: 'Do you need a custom website or mobile app?', subtitle: 'Get a website today!', cta: 'Get Started →' },
-  { id: 'panel', title: 'Own a Whitelabel Reseller Panel', subtitle: 'Powered by Verxor — sell numbers under your brand.', cta: 'Own a Panel →' },
+  { id: 'p1', title: 'Receive OTPs in 60 Seconds', subtitle: 'Fast routes for WhatsApp, Telegram & more', cta: 'Browse numbers' },
+  { id: 'p2', title: 'Do you need a custom website or mobile app?', subtitle: 'Get a website today!', cta: 'Get Started →' },
+  { id: 'p3', title: 'Economy to Premium', subtitle: 'Pick the route that matches your success rate needs', cta: 'View pools' },
 ];
 
-/** Big lifetime ≈ 20 min; small cancel-lock = 4 min (Grizzly does not expose cancel window) */
+/** Big lifetime for a waiting number (~20 min like Grizzly). */
 export const LIFETIME_MS = 20 * 60 * 1000;
-export const CANCEL_LOCK_MS = 4 * 60 * 1000; // 4 min fallback (Grizzly does not expose cancel window)
-
-export function mockPrices(pool: Pool, _serviceId: string, _countryCode: string): PriceOption[] {
-  const all: PriceOption[] = [
-    { id: 'p1', provider: '', priceUsd: 0.15, priceNgn: 150, stock: 37417 },
-    { id: 'p2', provider: '', priceUsd: 0.32, priceNgn: 280, stock: 91044 },
-    { id: 'p3', provider: '', priceUsd: 0.44, priceNgn: 380, stock: 8652 },
-    { id: 'p4', provider: '', priceUsd: 0.65, priceNgn: 450, stock: 12400 },
-    { id: 'p5', provider: '', priceUsd: 0.9, priceNgn: 620, stock: 8300 },
-    { id: 'p6', provider: '', priceUsd: 1.2, priceNgn: 750, stock: 4100 },
-    { id: 'p7', provider: '', priceUsd: 1.8, priceNgn: 990, stock: 2200 },
-    { id: 'p8', provider: '', priceUsd: 2.5, priceNgn: 1100, stock: 980 },
-    { id: 'p9', provider: '', priceUsd: 3.2, priceNgn: 1400, stock: 410 },
-  ];
-  return all.filter((p) => {
-    if (pool.tier === 'ECO') return p.priceUsd < 0.5;
-    if (pool.tier === 'STD') return p.priceUsd >= 0.5 && p.priceUsd < 1;
-    if (pool.tier === 'FAST') return p.priceUsd >= 1 && p.priceUsd < 2;
-    return p.priceUsd >= 2;
-  });
-}
+/** UI lock before Cancel appears. Grizzly lock varies (2–5+ min); client auto-retries on EARLY_CANCEL_DENIED. */
+export const CANCEL_LOCK_MS = 2 * 60 * 1000;
 
 export function formatNgn(n: number) {
-  return `₦${n.toLocaleString('en-NG')}`;
+  return `₦${Math.round(n).toLocaleString('en-NG')}`;
 }
 
 export function formatUsd(n: number) {
@@ -219,8 +169,8 @@ export function formatUsd(n: number) {
 }
 
 export function formatTimer(ms: number) {
-  const s = Math.max(0, Math.floor(ms / 1000));
-  const m = Math.floor(s / 60);
-  const r = s % 60;
-  return `${String(m).padStart(2, '0')}:${String(r).padStart(2, '0')}`;
+  const total = Math.max(0, Math.floor(ms / 1000));
+  const m = Math.floor(total / 60);
+  const s = total % 60;
+  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
