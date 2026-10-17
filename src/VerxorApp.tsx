@@ -275,12 +275,20 @@ export function VerxorApp() {
     };
     document.addEventListener('visibilitychange', onVisible);
 
+    const onBalanceRefresh = () => {
+      void refreshBalance();
+    };
+    window.addEventListener('verxor:balance-refresh', onBalanceRefresh);
+
     // Also refresh when switching to home or fund
     if (page === 'home' || page === 'fund') {
       void refreshBalance();
     }
 
-    return () => document.removeEventListener('visibilitychange', onVisible);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('verxor:balance-refresh', onBalanceRefresh);
+    };
   }, [auth, page, refreshBalance]);
 
   useEffect(() => {
