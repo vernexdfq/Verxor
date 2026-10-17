@@ -166,13 +166,26 @@ export function VirtualNumbersPage({
     });
   }, []);
 
-  async function requestCancelAndRefund(o: CustomerNumberOrder) {
+  async function requestCancelAndRefund(o: CustomerNumberOrder): Promise<{
+    ok: boolean;
+    refunded: boolean;
+    earlyDenied?: boolean;
+    error?: string;
+  }> {
     try {
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-      const token = loadSessionTokens()?.access_token;
+      let token = loadSessionTokens()?.access_token || '';
+      try {
+        const { getSupabaseBrowser } = await import('../lib/supabase/client');
+        const sb = getSupabaseBrowser();
+        if (sb) {
+          const { data: { session: s } } = await sb.auth.getSession();
+          if (s?.access_token) token = s.access_token;
+        }
+      } catch {}
       if (token) headers.Authorization = `Bearer ${token}`;
       const profile = loadSessionProfile();
-      await fetch('/api/v1/numbers/cancel', {
+      const res = await fetch('/api/v1/numbers/cancel', {
         method: 'POST',
         headers,
         body: JSON.stringify({
@@ -183,21 +196,55 @@ export function VirtualNumbersPage({
           userId: profile?.userId || (session as any)?.userId || undefined,
         }),
       });
-    } catch {}
+      const data = (await res.json().catch(() => ({}))) as {
+        ok?: boolean;
+        refunded?: boolean;
+        earlyDenied?: boolean;
+        error?: string;
+      };
+      if (data.refunded) {
+        try {
+          window.dispatchEvent(new Event('verxor:balance-refresh'));
+        } catch {}
+      }
+      return {
+        ok: Boolean(data.ok),
+        refunded: Boolean(data.refunded),
+        earlyDenied: Boolean(data.earlyDenied),
+        error: data.error,
+      };
+    } catch (e) {
+      return {
+        ok: false,
+        refunded: false,
+        error: e instanceof Error ? e.message : 'Cancel failed',
+      };
+    }
   }
 
   useEffect(() => {
     const now = Date.now();
-    const expired = localOrders.filter((o) => o.status === 'waiting' && o.expiresAt <= now);
+    const expired = localOrders.filter((o) => o.status === 'waiting' && o.expiresAt <= now && !o.refunded);
     if (expired.length === 0) return;
-    for (const o of expired) void requestCancelAndRefund(o);
-    setLocalOrders((prev) =>
-      prev.map((o) =>
-        o.status === 'waiting' && o.expiresAt <= Date.now()
-          ? { ...o, status: 'cancelled' as const }
-          : o,
-      ),
-    );
+    let cancelled = false;
+    (async () => {
+      for (const o of expired) {
+        if (cancelled) return;
+        const result = await requestCancelAndRefund(o);
+        if (cancelled) return;
+        if (result.earlyDenied) continue;
+        setLocalOrders((prev) =>
+          prev.map((x) =>
+            x.id === o.id
+              ? { ...x, status: 'cancelled' as const, refunded: result.refunded }
+              : x,
+          ),
+        );
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [localOrders]);
 
   const visibleOrders = useMemo(
@@ -375,12 +422,30 @@ export function VirtualNumbersPage({
     });
   };
 
-  const cancelOrder = (id: string) => {
+  const cancelOrder = async (id: string) => {
     const o = localOrders.find((x) => x.id === id);
-    if (o) void requestCancelAndRefund(o);
+    if (!o) return;
+    const result = await requestCancelAndRefund(o);
+    if (result.earlyDenied) {
+      setCopyToast(result.error || 'Cancel not available yet. Wait for the lock timer.');
+      return;
+    }
+    if (!result.ok && !result.refunded) {
+      setCopyToast(result.error || 'Cancel failed. Please try again.');
+      return;
+    }
     setLocalOrders((prev) =>
-      prev.map((x) => (x.id === id ? { ...x, status: 'cancelled' as const } : x)),
+      prev.map((x) =>
+        x.id === id
+          ? { ...x, status: 'cancelled' as const, refunded: result.refunded }
+          : x,
+      ),
     );
+    if (result.refunded) {
+      setCopyToast(`₦${Number(o.priceNgn).toLocaleString('en-NG')} refunded to your wallet`);
+    } else {
+      setCopyToast('Number cancelled, but refund is still processing. Pull to refresh balance.');
+    }
   };
 
   const buyAgain = (o: CustomerNumberOrder) => {
@@ -611,18 +676,25 @@ export function VirtualNumbersPage({
                     ) : null}
                   </div>
                 )}
-                {o.status === 'cancelled' && (
+                {o.status === 'cancelled' && o.refunded !== false && (
                   <div className="vn-refund-note">
                     <span>✓ {formatNgn(o.priceNgn)} refunded to your wallet</span>
                   </div>
                 )}
+                {o.status === 'cancelled' && o.refunded === false && (
+                  <div className="vn-refund-note" style={{ background: '#fff7ed', color: '#c2410c' }}>
+                    <span>Cancelled — refund pending. Contact support if balance does not update.</span>
+                  </div>
+                )}
                 <div className="vn-order-actions">
                   {o.status === 'waiting' && now >= (o.cancelAvailableAt || 0) && (
-                    <button type="button" className="vn-cancel-btn-bold" onClick={() => cancelOrder(o.id)}>Cancel</button>
+                    <button type="button" className="vn-cancel-btn-bold" onClick={() => void cancelOrder(o.id)}>Cancel</button>
                   )}
                   {o.status === 'cancelled' && (
                     <>
-                      <button type="button" className="vn-refunded-btn" disabled>✓ Refunded</button>
+                      <button type="button" className="vn-refunded-btn" disabled>
+                        {o.refunded === false ? 'Refund pending' : '✓ Refunded'}
+                      </button>
                       <button type="button" className="vn-buy-again-btn" onClick={() => buyAgain(o)}>
                         <Zap size={14} /> Buy Again
                       </button>
@@ -724,6 +796,7 @@ export function VirtualNumbersPage({
                 setConfirmSheet(null);
                 setPriceSheet(null);
                 setStep('orders');
+                try { window.dispatchEvent(new Event('verxor:balance-refresh')); } catch {}
               } catch (e) {
                 setCopyToast(e instanceof Error ? e.message : 'Purchase failed');
               } finally {
