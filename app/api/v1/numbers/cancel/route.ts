@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { grizzly } from '@/lib/providers';
-import { sbSelect, sbUpdate, supabaseConfigured } from '@/lib/supabase-admin';
+import { sbInsert, sbSelect, sbUpdate, supabaseConfigured } from '@/lib/supabase-admin';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,30 +11,43 @@ function supabaseBase() {
 }
 
 async function resolveUserId(req: NextRequest, bodyUserId?: string): Promise<string | null> {
-  if (bodyUserId) return bodyUserId;
+  // Prefer JWT so we always know who to refund
   const auth = req.headers.get('authorization') || '';
   const token = auth.startsWith('Bearer ') ? auth.slice(7).trim() : '';
-  if (!token) return null;
   const base = supabaseBase();
   const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
-  if (!base || !anon) return null;
-  try {
-    const res = await fetch(`${base}/auth/v1/user`, {
-      headers: { apikey: anon, Authorization: `Bearer ${token}` },
-      cache: 'no-store',
-    });
-    if (!res.ok) return null;
-    const u = (await res.json()) as { id?: string };
-    return u.id || null;
-  } catch {
-    return null;
+  if (token && base && anon) {
+    try {
+      const res = await fetch(`${base}/auth/v1/user`, {
+        headers: { apikey: anon, Authorization: `Bearer ${token}` },
+        cache: 'no-store',
+      });
+      if (res.ok) {
+        const u = (await res.json()) as { id?: string };
+        if (u.id) return u.id;
+      }
+    } catch {
+      /* fall through */
+    }
   }
+  if (bodyUserId) return bodyUserId;
+  return null;
 }
 
-async function creditWallet(userId: string, amount: number, reference: string) {
+/** Credit via RPC; if that fails, direct wallets + ledger fallback. */
+async function creditWallet(
+  userId: string,
+  amount: number,
+  reference: string,
+): Promise<{ ok: boolean; detail?: string }> {
   const base = supabaseBase();
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!base || !serviceKey || amount <= 0) return false;
+  if (!base || !serviceKey || amount <= 0) {
+    return { ok: false, detail: 'wallet backend not configured or amount=0' };
+  }
+
+  // 1) Preferred: SECURITY DEFINER RPC (idempotent on reference)
+  let rpcDetail = '';
   try {
     const res = await fetch(`${base}/rest/v1/rpc/credit_wallet`, {
       method: 'POST',
@@ -42,6 +55,7 @@ async function creditWallet(userId: string, amount: number, reference: string) {
         apikey: serviceKey,
         Authorization: `Bearer ${serviceKey}`,
         'Content-Type': 'application/json',
+        Prefer: 'return=representation',
       },
       body: JSON.stringify({
         p_user_id: userId,
@@ -50,9 +64,44 @@ async function creditWallet(userId: string, amount: number, reference: string) {
         p_description: 'Refund — Cancelled Virtual Number',
       }),
     });
-    return res.ok;
-  } catch {
-    return false;
+    if (res.ok) return { ok: true, detail: 'rpc' };
+    const t = await res.text().catch(() => '');
+    // Idempotent hit (already refunded under this reference) — treat as success
+    if (/duplicate|unique|already/i.test(t)) {
+      return { ok: true, detail: 'rpc-idempotent' };
+    }
+    rpcDetail = `${res.status}:${t.slice(0, 180)}`;
+  } catch (e) {
+    rpcDetail = e instanceof Error ? e.message : 'rpc error';
+  }
+
+  // 2) Fallback: read balance, patch wallets, insert ledger
+  try {
+    const rows = (await sbSelect(
+      'wallets',
+      `user_id=eq.${encodeURIComponent(userId)}&select=balance_ngn&limit=1`,
+    )) as Array<{ balance_ngn: number }>;
+    const current = Number(rows?.[0]?.balance_ngn) || 0;
+    const next = Math.round((current + amount) * 100) / 100;
+    await sbUpdate('wallets', { user_id: userId }, { balance_ngn: next, updated_at: new Date().toISOString() });
+    try {
+      await sbInsert('wallet_ledger', {
+        user_id: userId,
+        kind: 'refund',
+        amount_usd: 0,
+        amount_ngn: amount,
+        currency: 'NGN',
+        balance_after_usd: 0,
+        reference,
+        meta: { source: 'vn-cancel', fallback: true, rpcDetail },
+      });
+    } catch {
+      /* ledger optional */
+    }
+    return { ok: true, detail: `fallback:${rpcDetail}` };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : 'fallback failed';
+    return { ok: false, detail: `rpc=${rpcDetail}; fallback=${msg}` };
   }
 }
 
@@ -77,7 +126,7 @@ export async function POST(req: NextRequest) {
   const providerOrderId = String(body.providerOrderId || '').trim();
   const orderId = String(body.orderId || '').trim();
   const priceNgn = Number(body.priceNgn) || 0;
-  const provider = (body.provider || 'grizzly').toLowerCase();
+  const provider = String(body.provider || 'grizzly').toLowerCase();
 
   if (!providerOrderId) {
     return NextResponse.json({ ok: false, error: 'providerOrderId required' }, { status: 400 });
@@ -119,42 +168,44 @@ export async function POST(req: NextRequest) {
       providerOk: false,
       providerRaw: providerRaw.slice(0, 120),
       refunded: false,
+      error: 'Cancel not available yet. Wait for the lock timer.',
     });
   }
 
-  // Update DB order if present
-  if (supabaseConfigured() && orderId) {
-    try {
-      await sbUpdate(
-        'vn_orders',
-        { id: orderId },
-        { status: 'cancelled', updated_at: new Date().toISOString() },
-      );
-    } catch {
+  // Update DB order if present (vn_orders or number_orders)
+  if (supabaseConfigured()) {
+    const patch = { status: 'cancelled', updated_at: new Date().toISOString() };
+    for (const table of ['vn_orders', 'number_orders'] as const) {
       try {
-        // fallback by provider_order_id
-        const rows = (await sbSelect(
-          'vn_orders',
-          `provider_order_id=eq.${encodeURIComponent(providerOrderId)}&select=id&limit=1`,
-        )) as Array<{ id: string }>;
-        if (rows?.[0]?.id) {
-          await sbUpdate(
-            'vn_orders',
-            { id: rows[0].id },
-            { status: 'cancelled', updated_at: new Date().toISOString() },
-          );
+        if (orderId) {
+          await sbUpdate(table, { id: orderId }, patch);
+        } else if (providerOrderId) {
+          const rows = (await sbSelect(
+            table,
+            `provider_order_id=eq.${encodeURIComponent(providerOrderId)}&select=id&limit=1`,
+          )) as Array<{ id: string }>;
+          if (rows?.[0]?.id) await sbUpdate(table, { id: rows[0].id }, patch);
         }
       } catch {
-        /* ignore */
+        /* table may not exist / row missing */
       }
     }
   }
 
   // Refund wallet once
   let refunded = false;
-  if (userId && priceNgn > 0 && supabaseConfigured()) {
+  let refundDetail: string | undefined;
+  if (!userId) {
+    refundDetail = 'no userId (not logged in / token missing)';
+  } else if (priceNgn <= 0) {
+    refundDetail = 'priceNgn is 0';
+  } else if (!supabaseConfigured()) {
+    refundDetail = 'supabase not configured';
+  } else {
     const ref = `refund-vn-cancel-${providerOrderId}`;
-    refunded = await creditWallet(userId, priceNgn, ref);
+    const result = await creditWallet(userId, priceNgn, ref);
+    refunded = result.ok;
+    refundDetail = result.detail;
   }
 
   return NextResponse.json({
@@ -164,5 +215,8 @@ export async function POST(req: NextRequest) {
     providerOk,
     providerRaw: providerRaw.slice(0, 120),
     refunded,
+    refundDetail,
+    userId: userId ? `${userId.slice(0, 8)}…` : null,
+    priceNgn,
   });
 }
