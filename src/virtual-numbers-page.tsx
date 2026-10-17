@@ -37,6 +37,7 @@ import {
   formatTimer,
 } from './virtual-numbers-data';
 import { ServiceLogo, PoolCard } from './virtual-numbers-components';
+import { AboutSmsBanner, AboutSmsSheet } from './vn-about-sms';
 import { loadSessionTokens, loadSessionProfile } from './auth/session-unlock';
 
 export type { CustomerNumberOrder };
@@ -567,6 +568,7 @@ export function VirtualNumbersPage({
 
       {step === 'orders' && (
         <div className="vn-orders">
+          <AboutSmsBanner onOpen={() => setAboutOpen(true)} />
           {visibleOrders.length === 0 ? (
             <div className="vn-empty">No orders yet. Buy a number to get started.</div>
           ) : (
@@ -735,6 +737,8 @@ export function VirtualNumbersPage({
           </div>
         </div>
       )}
+
+      <AboutSmsSheet open={aboutOpen} onClose={() => setAboutOpen(false)} />
 
       {copyToast && (
         <div className="vn-copy-modal" onClick={() => setCopyToast(null)}>
