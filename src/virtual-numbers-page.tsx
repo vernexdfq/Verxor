@@ -134,6 +134,7 @@ export function VirtualNumbersPage({
   const [, setTick] = useState(0);
   const [copyToast, setCopyToast] = useState<string | null>(null);
   const [aboutOpen, setAboutOpen] = useState(false);
+  const [cancellingIds, setCancellingIds] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     const t = setInterval(() => setTick((n) => n + 1), 1000);
@@ -230,7 +231,13 @@ export function VirtualNumbersPage({
     (async () => {
       for (const o of expired) {
         if (cancelled) return;
-        const result = await requestCancelAndRefund(o);
+        let result = await requestCancelAndRefund(o);
+        // Big timer expired — keep trying provider unlock a few times
+        for (let i = 0; i < 12 && result.earlyDenied && !cancelled; i++) {
+          await new Promise((r) => setTimeout(r, 10_000));
+          if (cancelled) return;
+          result = await requestCancelAndRefund(o);
+        }
         if (cancelled) return;
         if (result.earlyDenied) continue;
         setLocalOrders((prev) =>
@@ -424,27 +431,46 @@ export function VirtualNumbersPage({
 
   const cancelOrder = async (id: string) => {
     const o = localOrders.find((x) => x.id === id);
-    if (!o) return;
-    const result = await requestCancelAndRefund(o);
-    if (result.earlyDenied) {
-      setCopyToast(result.error || 'Cancel not available yet. Wait for the lock timer.');
-      return;
-    }
-    if (!result.ok && !result.refunded) {
-      setCopyToast(result.error || 'Cancel failed. Please try again.');
-      return;
-    }
-    setLocalOrders((prev) =>
-      prev.map((x) =>
-        x.id === id
-          ? { ...x, status: 'cancelled' as const, refunded: result.refunded }
-          : x,
-      ),
-    );
-    if (result.refunded) {
-      setCopyToast(`₦${Number(o.priceNgn).toLocaleString('en-NG')} refunded to your wallet`);
-    } else {
-      setCopyToast('Number cancelled, but refund is still processing. Pull to refresh balance.');
+    if (!o || cancellingIds[id]) return;
+    setCancellingIds((prev) => ({ ...prev, [id]: true }));
+    try {
+      // Grizzly cancel lock is not fixed (2–5+ min). Retry until provider allows cancel.
+      const maxAttempts = 36; // ~6 min of retries @ 10s
+      for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        const result = await requestCancelAndRefund(o);
+        if (result.earlyDenied) {
+          // Provider still locking — wait and retry (user stays on Waiting card)
+          if (attempt === 0) {
+            setCopyToast('Waiting for provider unlock… cancel will finish automatically.');
+          }
+          await new Promise((r) => setTimeout(r, 10_000));
+          continue;
+        }
+        if (!result.ok && !result.refunded) {
+          setCopyToast(result.error || 'Cancel failed. Please try again.');
+          return;
+        }
+        setLocalOrders((prev) =>
+          prev.map((x) =>
+            x.id === id
+              ? { ...x, status: 'cancelled' as const, refunded: result.refunded }
+              : x,
+          ),
+        );
+        if (result.refunded) {
+          setCopyToast(`₦${Number(o.priceNgn).toLocaleString('en-NG')} refunded to your wallet`);
+        } else {
+          setCopyToast('Number cancelled, but refund is still processing. Pull to refresh balance.');
+        }
+        return;
+      }
+      setCopyToast('Provider lock is taking longer than usual. Tap Cancel again in a minute.');
+    } finally {
+      setCancellingIds((prev) => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
     }
   };
 
@@ -673,6 +699,11 @@ export function VirtualNumbersPage({
                         <span className="vn-timer-label">Cancel available in</span>
                         <span className="vn-timer-lock">{formatTimer(Math.max(0, (o.cancelAvailableAt || 0) - now))}</span>
                       </div>
+                    ) : cancellingIds[o.id] ? (
+                      <div className="vn-timer-row vn-timer-row--lock">
+                        <span className="vn-timer-label">Unlocking with provider…</span>
+                        <span className="vn-timer-lock">auto</span>
+                      </div>
                     ) : null}
                   </div>
                 )}
@@ -688,7 +719,14 @@ export function VirtualNumbersPage({
                 )}
                 <div className="vn-order-actions">
                   {o.status === 'waiting' && now >= (o.cancelAvailableAt || 0) && (
-                    <button type="button" className="vn-cancel-btn-bold" onClick={() => void cancelOrder(o.id)}>Cancel</button>
+                    <button
+                      type="button"
+                      className="vn-cancel-btn-bold"
+                      disabled={Boolean(cancellingIds[o.id])}
+                      onClick={() => void cancelOrder(o.id)}
+                    >
+                      {cancellingIds[o.id] ? 'Cancelling…' : 'Cancel'}
+                    </button>
                   )}
                   {o.status === 'cancelled' && (
                     <>
