@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowLeft,
   ChevronRight,
@@ -135,10 +135,66 @@ export function VirtualNumbersPage({
   const [copyToast, setCopyToast] = useState<string | null>(null);
   const [aboutOpen, setAboutOpen] = useState(false);
   const [cancellingIds, setCancellingIds] = useState<Record<string, boolean>>({});
+  const ordersRef = useRef(localOrders);
+  ordersRef.current = localOrders;
+  const cancellingRef = useRef(cancellingIds);
+  cancellingRef.current = cancellingIds;
 
   useEffect(() => {
     const t = setInterval(() => setTick((n) => n + 1), 1000);
     return () => clearInterval(t);
+  }, []);
+
+  // Poll provider for OTP on waiting orders (every 5s)
+  useEffect(() => {
+    let stopped = false;
+    const pollOnce = async () => {
+      const waiting = ordersRef.current.filter(
+        (o) =>
+          o.status === 'waiting' &&
+          Boolean(o.providerOrderId) &&
+          !cancellingRef.current[o.id],
+      );
+      for (const o of waiting) {
+        if (stopped) return;
+        try {
+          const params = new URLSearchParams({
+            provider: (o.provider || 'grizzly').toLowerCase(),
+            providerOrderId: String(o.providerOrderId),
+            orderId: o.id,
+          });
+          const res = await fetch(`/api/v1/numbers/status?${params.toString()}`, {
+            cache: 'no-store',
+          });
+          const data = (await res.json().catch(() => ({}))) as {
+            ok?: boolean;
+            otp?: string | null;
+            status?: string;
+          };
+          if (!data.ok) continue;
+          if (data.otp) {
+            setLocalOrders((prev) =>
+              prev.map((x) =>
+                x.id === o.id
+                  ? { ...x, status: 'completed' as const, otp: String(data.otp) }
+                  : x,
+              ),
+            );
+            setCopyToast(`OTP received: ${data.otp}`);
+          }
+        } catch {
+          /* network blip — next tick retries */
+        }
+      }
+    };
+    void pollOnce();
+    const id = setInterval(() => {
+      void pollOnce();
+    }, 5000);
+    return () => {
+      stopped = true;
+      clearInterval(id);
+    };
   }, []);
 
   useEffect(() => {
@@ -433,8 +489,7 @@ export function VirtualNumbersPage({
     if (!o || cancellingIds[id]) return;
     setCancellingIds((prev) => ({ ...prev, [id]: true }));
     try {
-      // Retry until cancel is accepted (lock can slightly exceed our 4 min UI timer).
-      const maxAttempts = 18; // ~3 min extra @ 10s if still locked after 4 min
+      const maxAttempts = 18;
       for (let attempt = 0; attempt < maxAttempts; attempt++) {
         const result = await requestCancelAndRefund(o);
         if (result.earlyDenied) {
