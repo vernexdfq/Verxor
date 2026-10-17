@@ -1,0 +1,38 @@
+/* Topbar HELP + compact bell — isolated so home CSS is never rewritten */
+.topbar-actions {
+  gap: 6px !important;
+}
+.topbar-help {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  height: 28px;
+  padding: 0 8px;
+  border-radius: 999px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-decoration: none;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  white-space: nowrap;
+  flex: none;
+  line-height: 1;
+}
+.topbar-help:active {
+  transform: scale(0.97);
+  color: #0f172a;
+}
+.topbar-home .topbar-bell {
+  width: 32px !important;
+  height: 32px !important;
+  border-radius: 10px !important;
+}
+.topbar-home .topbar-bell .bell-dot {
+  top: 6px !important;
+  right: 7px !important;
+  width: 6px !important;
+  height: 6px !important;
+}

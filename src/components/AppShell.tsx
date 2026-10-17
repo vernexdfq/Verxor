@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react';
-import { Bell, Clock3, Home, LayoutGrid, UserRound, WalletCards } from 'lucide-react';
+import { Bell, Clock3, Headphones, Home, LayoutGrid, UserRound, WalletCards } from 'lucide-react';
 import { CommunityModal } from './CommunityModal';
 import './shell-refinements.css';
+import '../topbar-help.css';
 import type { Page } from '../types';
 import type { ServiceView } from '../service-pages';
 
@@ -82,13 +83,23 @@ export function AppShell({
             </div>
             {page === 'home' && (
               <div className="topbar-actions">
+                <a
+                  className="topbar-help"
+                  href="https://wa.me/2348141620644"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Help on WhatsApp"
+                >
+                  <Headphones size={12} strokeWidth={2.4} />
+                  <span>HELP</span>
+                </a>
                 <button
                   type="button"
                   className="topbar-bell"
                   aria-label="Notifications"
                   onClick={() => onOpenService('alerts')}
                 >
-                  <Bell size={18} strokeWidth={2} />
+                  <Bell size={15} strokeWidth={2} />
                   <span className="bell-dot" aria-hidden="true" />
                 </button>
               </div>
