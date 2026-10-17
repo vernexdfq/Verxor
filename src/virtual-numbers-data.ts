@@ -149,6 +149,32 @@ export const CATEGORIES: { id: ServiceCategory; label: string }[] = [
   { id: 'other', label: 'Other' },
 ];
 
+/** Static service list used only as offline fallback / admin labels. Live catalog comes from API. */
+export const SERVICES: Service[] = [
+  { id: 'wa', name: 'WhatsApp', category: 'messaging', logoId: 'whatsapp' },
+  { id: 'tg', name: 'Telegram', category: 'messaging', logoId: 'telegram' },
+  { id: 'fb', name: 'Facebook', category: 'social', logoId: 'facebook' },
+  { id: 'ig', name: 'Instagram', category: 'social', logoId: 'instagram' },
+  { id: 'tw', name: 'Twitter / X', category: 'social', logoId: 'x' },
+  { id: 'go', name: 'Google', category: 'other', logoId: 'google' },
+  { id: 'ds', name: 'Discord', category: 'messaging', logoId: 'discord' },
+  { id: 'vi', name: 'Viber', category: 'messaging', logoId: 'viber' },
+  { id: 'am', name: 'Amazon', category: 'shopping', logoId: 'amazon' },
+  { id: 'mm', name: 'Microsoft', category: 'other', logoId: 'microsoft' },
+  { id: 'oi', name: 'OpenAI / ChatGPT', category: 'ai', logoId: 'openai' },
+  { id: 'lf', name: 'Claude', category: 'ai', logoId: 'anthropic' },
+  { id: 'tk', name: 'TikTok', category: 'social', logoId: 'tiktok' },
+  { id: 'sn', name: 'Snapchat', category: 'social', logoId: 'snapchat' },
+  { id: 'lf2', name: 'LinkedIn', category: 'social', logoId: 'linkedin' },
+  { id: 'ub', name: 'Uber', category: 'other', logoId: 'uber' },
+  { id: 'nf', name: 'Netflix', category: 'other', logoId: 'netflix' },
+  { id: 'ap', name: 'Apple', category: 'other', logoId: 'apple' },
+  { id: 'py', name: 'PayPal', category: 'finance', logoId: 'paypal' },
+  { id: 'bc', name: 'Binance', category: 'finance', logoId: 'binance' },
+  { id: 'ew', name: 'eBay', category: 'shopping', logoId: 'ebay' },
+  { id: 'ot', name: 'Other / Any', category: 'other', logoId: 'other' },
+];
+
 export const PROMO_SLIDES = [
   { id: 'p1', title: 'Receive OTPs in 60 Seconds', subtitle: 'Fast routes for WhatsApp, Telegram & more', cta: 'Browse numbers' },
   { id: 'p2', title: 'Do you need a custom website or mobile app?', subtitle: 'Get a website today!', cta: 'Get Started →' },
@@ -159,6 +185,15 @@ export const PROMO_SLIDES = [
 export const LIFETIME_MS = 20 * 60 * 1000;
 /** UI lock before Cancel appears. Grizzly lock varies (2–5+ min); client auto-retries on EARLY_CANCEL_DENIED. */
 export const CANCEL_LOCK_MS = 2 * 60 * 1000;
+
+export function mockPrices(pool: Pool, _serviceId: string, _countryCode: string): PriceOption[] {
+  const base = pool.fromNgn;
+  return [
+    { id: `${pool.id}-a`, provider: 'grizzly', priceUsd: base / 1600, priceNgn: base, stock: 12 },
+    { id: `${pool.id}-b`, provider: 'grizzly', priceUsd: (base + 40) / 1600, priceNgn: base + 40, stock: 8 },
+    { id: `${pool.id}-c`, provider: 'grizzly', priceUsd: (base + 90) / 1600, priceNgn: base + 90, stock: 3 },
+  ];
+}
 
 export function formatNgn(n: number) {
   return `₦${Math.round(n).toLocaleString('en-NG')}`;
