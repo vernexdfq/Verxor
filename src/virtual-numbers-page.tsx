@@ -145,7 +145,6 @@ export function VirtualNumbersPage({
     return () => clearInterval(t);
   }, []);
 
-  // Poll provider for OTP on waiting orders (every 5s)
   useEffect(() => {
     let stopped = false;
     const pollOnce = async () => {
@@ -183,7 +182,7 @@ export function VirtualNumbersPage({
             setCopyToast(`OTP received: ${data.otp}`);
           }
         } catch {
-          /* network blip — next tick retries */
+          /* network blip */
         }
       }
     };
@@ -708,6 +707,17 @@ export function VirtualNumbersPage({
 
       {step === 'orders' && (
         <div className="vn-orders">
+          <div className="vn-about-banner">
+            <Info size={18} color="#f59e0b" />
+            <div className="vn-about-text">
+              <strong>About SMS delivery</strong>
+              <p>Some services may require several attempts</p>
+            </div>
+            <button type="button" className="vn-about-link" onClick={() => setAboutOpen(true)}>
+              See details ›
+            </button>
+          </div>
+
           {visibleOrders.length === 0 ? (
             <div className="vn-empty">No orders yet. Buy a number to get started.</div>
           ) : (
@@ -892,6 +902,40 @@ export function VirtualNumbersPage({
               }
             })()}>
               {buying ? 'Buying…' : 'Buy number'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {aboutOpen && (
+        <div className="vn-sheet-backdrop" onClick={() => setAboutOpen(false)}>
+          <div className="vn-sheet" onClick={(e) => e.stopPropagation()}>
+            <div className="vn-sheet-head">
+              <strong>If SMS is not received</strong>
+              <button type="button" onClick={() => setAboutOpen(false)} aria-label="Close">
+                <X size={16} />
+              </button>
+            </div>
+            <div className="vn-about-body">
+              <p>
+                <strong>Full refund.</strong> If the code never arrives, cancel the number after the
+                cancel timer ends. The amount is returned to your wallet automatically.
+              </p>
+              <p>
+                <strong>Cancel tip.</strong> Wait for “Cancel” to unlock, then tap Cancel once. You
+                do not need to keep retrying — the system finishes the cancel for you.
+              </p>
+              <p>
+                <strong>Delivery tips.</strong> Some apps (WhatsApp, Telegram, etc.) may need more
+                than one attempt. Use the number quickly after purchase and request the SMS from
+                the app while the order is still Waiting.
+              </p>
+              <p>
+                When the SMS arrives, the code appears here and the order is marked Completed.
+              </p>
+            </div>
+            <button type="button" className="vn-confirm-btn" onClick={() => setAboutOpen(false)}>
+              Got it
             </button>
           </div>
         </div>
