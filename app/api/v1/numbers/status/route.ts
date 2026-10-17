@@ -36,6 +36,12 @@ export async function GET(req: NextRequest) {
       if (m) {
         otp = m[1];
         status = 'received';
+        // Mark activation complete on provider (status 6)
+        try {
+          await grizzly.setStatus(providerOrderId, '6');
+        } catch {
+          /* ignore */
+        }
       } else if (/STATUS_WAIT/i.test(text)) status = 'waiting';
       else if (/STATUS_CANCEL/i.test(text)) status = 'cancelled';
     } else if (provider === 'smsbower') {
@@ -44,6 +50,11 @@ export async function GET(req: NextRequest) {
       if (m) {
         otp = m[1];
         status = 'received';
+        try {
+          await smsbower.setStatus(providerOrderId, '6');
+        } catch {
+          /* ignore */
+        }
       } else if (/STATUS_WAIT/i.test(text)) status = 'waiting';
       else if (/STATUS_CANCEL/i.test(text)) status = 'cancelled';
     } else {
