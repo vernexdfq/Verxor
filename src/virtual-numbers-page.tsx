@@ -232,7 +232,6 @@ export function VirtualNumbersPage({
       for (const o of expired) {
         if (cancelled) return;
         let result = await requestCancelAndRefund(o);
-        // Big timer expired — keep trying provider unlock a few times
         for (let i = 0; i < 12 && result.earlyDenied && !cancelled; i++) {
           await new Promise((r) => setTimeout(r, 10_000));
           if (cancelled) return;
@@ -434,15 +433,11 @@ export function VirtualNumbersPage({
     if (!o || cancellingIds[id]) return;
     setCancellingIds((prev) => ({ ...prev, [id]: true }));
     try {
-      // Grizzly cancel lock is not fixed (2–5+ min). Retry until provider allows cancel.
-      const maxAttempts = 36; // ~6 min of retries @ 10s
+      // Retry until cancel is accepted (lock can slightly exceed our 4 min UI timer).
+      const maxAttempts = 18; // ~3 min extra @ 10s if still locked after 4 min
       for (let attempt = 0; attempt < maxAttempts; attempt++) {
         const result = await requestCancelAndRefund(o);
         if (result.earlyDenied) {
-          // Provider still locking — wait and retry (user stays on Waiting card)
-          if (attempt === 0) {
-            setCopyToast('Waiting for provider unlock… cancel will finish automatically.');
-          }
           await new Promise((r) => setTimeout(r, 10_000));
           continue;
         }
@@ -460,11 +455,11 @@ export function VirtualNumbersPage({
         if (result.refunded) {
           setCopyToast(`₦${Number(o.priceNgn).toLocaleString('en-NG')} refunded to your wallet`);
         } else {
-          setCopyToast('Number cancelled, but refund is still processing. Pull to refresh balance.');
+          setCopyToast('Number cancelled. If balance does not update, refresh the page.');
         }
         return;
       }
-      setCopyToast('Provider lock is taking longer than usual. Tap Cancel again in a minute.');
+      setCopyToast('Still cancelling. Please wait a moment, then tap Cancel again if needed.');
     } finally {
       setCancellingIds((prev) => {
         const next = { ...prev };
@@ -701,8 +696,8 @@ export function VirtualNumbersPage({
                       </div>
                     ) : cancellingIds[o.id] ? (
                       <div className="vn-timer-row vn-timer-row--lock">
-                        <span className="vn-timer-label">Unlocking with provider…</span>
-                        <span className="vn-timer-lock">auto</span>
+                        <span className="vn-timer-label">Cancelling…</span>
+                        <span className="vn-timer-lock">…</span>
                       </div>
                     ) : null}
                   </div>
