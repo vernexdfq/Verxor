@@ -38,7 +38,6 @@ export async function POST(req: NextRequest) {
     req.headers.get('signature');
 
   const skipVerify = process.env.XIXAPAY_SKIP_WEBHOOK_VERIFY === '1';
-  // If signature header is present and wrong → reject. If missing → accept (XixaPay sometimes omits).
   if (!skipVerify && sig && !verifySignature(rawBody, sig, secret)) {
     console.warn('[xixapay/virtual-account] invalid signature');
     return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
@@ -51,7 +50,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
   }
 
-  // Full payload for debugging credit failures
   console.info('[xixapay/virtual-account] payload', JSON.stringify(body).slice(0, 2000));
 
   const status = String(
@@ -178,7 +176,6 @@ export async function POST(req: NextRequest) {
       if (Array.isArray(rows) && rows[0]?.id) userId = rows[0].id;
     }
 
-    // Match by account name / customer name (e.g. "Verxor-Denny" or "Denny kay")
     if (!userId && customerName) {
       const clean = customerName.replace(/\(xixapay\)/gi, '').replace(/Verxor[-\s]*/gi, '').trim();
       if (clean.length >= 3) {
@@ -205,10 +202,121 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ status: 'user_not_found' });
   }
 
+  let isPartner = externalRef.startsWith('vxp-');
+  if (!isPartner && accountDigits) {
+    try {
+      const vaRows = await sbSelect(
+        'virtual_accounts',
+        `account_number=eq.${encodeURIComponent(accountDigits)}&order=created_at.desc&limit=1`,
+      );
+      const raw = (Array.isArray(vaRows) && vaRows[0]?.raw) || {};
+      if (raw && (raw.partner_fund === true || raw.wallet_type === 'reseller')) {
+        isPartner = true;
+      }
+      if (!isPartner && String(vaRows?.[0]?.external_ref || '').startsWith('vxp-')) {
+        isPartner = true;
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+  if (!isPartner && /\bpartner\b/i.test(customerName)) {
+    isPartner = true;
+  }
+
   const base = (process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '')
     .replace(/\/rest\/v1\/?$/, '')
     .replace(/\/$/, '');
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+
+  if (isPartner) {
+    try {
+      const ref = `xixapay-partner:${transactionId}`;
+      const existing = await sbSelect(
+        'transactions',
+        `meta->>reference=eq.${encodeURIComponent(ref)}&limit=1`,
+      ).catch(() => []);
+      if (Array.isArray(existing) && existing[0]) {
+        return NextResponse.json({ status: 'ok', duplicate: true, mode: 'partner' });
+      }
+
+      await fetch(`${base}/rest/v1/reseller_wallet`, {
+        method: 'POST',
+        headers: {
+          apikey: serviceKey,
+          Authorization: `Bearer ${serviceKey}`,
+          'Content-Type': 'application/json',
+          Prefer: 'resolution=ignore-duplicates,return=minimal',
+        },
+        body: JSON.stringify({ user_id: userId, balance: 0 }),
+      }).catch(() => null);
+
+      const balRows = await sbSelect(
+        'reseller_wallet',
+        `user_id=eq.${userId}&select=balance&limit=1`,
+      );
+      const prev = Number(Array.isArray(balRows) && balRows[0]?.balance) || 0;
+      const next = Math.round((prev + creditAmount) * 100) / 100;
+
+      const up = await fetch(`${base}/rest/v1/reseller_wallet?user_id=eq.${userId}`, {
+        method: 'PATCH',
+        headers: {
+          apikey: serviceKey,
+          Authorization: `Bearer ${serviceKey}`,
+          'Content-Type': 'application/json',
+          Prefer: 'return=representation',
+        },
+        body: JSON.stringify({ balance: next, updated_at: new Date().toISOString() }),
+      });
+      if (!up.ok) {
+        const t = await up.text().catch(() => '');
+        console.error('[xixapay/virtual-account] partner credit failed', up.status, t.slice(0, 300));
+        return NextResponse.json({ error: 'Partner credit failed' }, { status: 500 });
+      }
+
+      try {
+        await fetch(`${base}/rest/v1/transactions`, {
+          method: 'POST',
+          headers: {
+            apikey: serviceKey,
+            Authorization: `Bearer ${serviceKey}`,
+            'Content-Type': 'application/json',
+            Prefer: 'return=minimal',
+          },
+          body: JSON.stringify({
+            user_id: userId,
+            kind: 'partner_fund',
+            status: 'completed',
+            amount: creditAmount,
+            meta: {
+              reference: ref,
+              mode: 'partner',
+              amount_paid: amountPaid,
+              fee: FUNDING_FEE_NGN,
+            },
+          }),
+        });
+      } catch {
+        /* ignore */
+      }
+
+      console.info('[xixapay/virtual-account] partner credited', {
+        userId,
+        creditAmount,
+        next,
+        transactionId,
+      });
+      return NextResponse.json({
+        status: 'ok',
+        mode: 'partner',
+        balance: next,
+        credited: creditAmount,
+      });
+    } catch (e) {
+      console.error('[xixapay/virtual-account] partner error', e);
+      return NextResponse.json({ error: 'Partner credit error' }, { status: 500 });
+    }
+  }
 
   try {
     const rpc = await fetch(`${base}/rest/v1/rpc/credit_wallet`, {
