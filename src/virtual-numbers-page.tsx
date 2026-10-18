@@ -134,6 +134,44 @@ export function VirtualNumbersPage({
   const [, setTick] = useState(0);
   const [copyToast, setCopyToast] = useState<string | null>(null);
   const [aboutOpen, setAboutOpen] = useState(false);
+  // Poll status every 4 seconds for any order waiting for SMS
+  useEffect(() => {
+    const waitingOrders = localOrders.filter((o) => o.status === 'waiting');
+    if (waitingOrders.length === 0) return;
+
+    let cancelled = false;
+    const interval = setInterval(() => {
+      waitingOrders.forEach(async (order) => {
+        try {
+          const provider = order.provider || 'grizzly';
+          const providerOrderId = order.providerOrderId || order.id;
+          const res = await fetch(
+            `/api/v1/numbers/status?provider=${encodeURIComponent(provider)}&providerOrderId=${encodeURIComponent(providerOrderId)}&orderId=${encodeURIComponent(order.id)}`
+          );
+          if (!res.ok) return;
+          const data = await res.json();
+          if (cancelled) return;
+          if (data.ok && data.status === 'received' && data.otp) {
+            setLocalOrders((prev) =>
+              prev.map((x) =>
+                x.id === order.id
+                  ? { ...x, status: 'received', otp: data.otp }
+                  : x,
+              ),
+            );
+            setCopyToast(`SMS received for ${order.service}: ${data.otp}`);
+          }
+        } catch {
+          /* ignore poll errors */
+        }
+      });
+    }, 4000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [localOrders]);
   const [cancellingIds, setCancellingIds] = useState<Record<string, boolean>>({});
   const ordersRef = useRef(localOrders);
   ordersRef.current = localOrders;
@@ -349,7 +387,7 @@ export function VirtualNumbersPage({
     return base.filter((c) => [c.name, c.code, c.dial].some((v) => v.toLowerCase().includes(q)));
   }, [countryQuery, liveCountries]);
 
-  const selectPool = async (pool: Pool) => {
+  const selectPool = (pool: Pool) => {
     setSelectedPool(pool);
     setSelectedService(null);
     setSelectedCountry(pool.location === 'USA' ? USA_COUNTRY : null);
@@ -358,40 +396,45 @@ export function VirtualNumbersPage({
     setCategory('all');
     setStep('services');
     setServicesError(null);
-    const cacheKey = `verxor-vn-svc-v2-${pool.id}`;
-    const cached = readCache<Service[]>(cacheKey, SVC_TTL_MS);
-    if (cached && cached.length > 0) {
-      setLiveServices(cached);
-      setServicesLoading(false);
-      void (async () => {
-        try {
-          const res = await fetch(`/api/v1/catalog?mode=services&pool=${encodeURIComponent(pool.id)}`);
-          const data = await res.json();
-          if (data.ok) {
-            const mapped = mapServices(data.services || []);
-            setLiveServices(mapped);
-            writeCache(cacheKey, mapped);
-          }
-        } catch {}
-      })();
-      return;
-    }
-    setServicesLoading(true);
-    try {
-      const res = await fetch(`/api/v1/catalog?mode=services&pool=${encodeURIComponent(pool.id)}`);
-      const data = await res.json();
-      if (!data.ok) throw new Error(data.reason || 'Failed to load services');
-      const mapped = mapServices(data.services || []);
-      setLiveServices(mapped);
-      writeCache(cacheKey, mapped);
-    } catch (e) {
-      setServicesError(e instanceof Error ? e.message : 'Failed to load services');
-    } finally {
-      setServicesLoading(false);
-    }
+
+    // INSTANT ZERO-WAIT LOAD: Immediately render all services with the pool tier starting price
+    const instant = SERVICES.map((s) => ({
+      ...s,
+      fromNgn: s.fromNgn || pool.fromNgn,
+    }));
+    setLiveServices(instant);
+    setServicesLoading(false);
+
+    // Refresh live prices in background without blocking or showing a loader
+    const cacheKey = `verxor-vn-svc-v5-${pool.id}`;
+    void (async () => {
+      try {
+        const res = await fetch(`/api/v1/catalog?mode=services&pool=${encodeURIComponent(pool.id)}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.ok && Array.isArray(data.services) && data.services.length > 0) {
+          const mapped = mapServices(data.services);
+          setLiveServices(mapped);
+          writeCache(cacheKey, mapped);
+        }
+      } catch {
+        /* ignore background refresh error */
+      }
+    })();
   };
 
   const loadPrices = async (pool: Pool, service: Service, country: Country) => {
+    // Instant ready option based on pool tier price so user can buy right away
+    const defaultOption: PriceOption = {
+      id: `${pool.id}-${service.id}-${country.code}`,
+      provider: 'grizzly',
+      priceUsd: pool.tier === 'ECO' ? 0.05 : pool.tier === 'STD' ? 0.15 : pool.tier === 'FAST' ? 0.35 : 0.65,
+      priceNgn: service.fromNgn || pool.fromNgn,
+      stock: 999,
+      grizzlyCountry: country.code === 'US' || country.code === '187' ? '187' : country.code,
+    };
+
+    setPriceSheet({ open: true, options: [defaultOption], service, country, pool });
     setPricesLoading(true);
     try {
       const url =
@@ -400,20 +443,22 @@ export function VirtualNumbersPage({
         `&service=${encodeURIComponent(service.id)}` +
         `&country=${encodeURIComponent(country.code)}`;
       const res = await fetch(url);
-      const data = await res.json();
-      if (!data.ok) throw new Error(data.reason || 'Failed to load prices');
-      const options: PriceOption[] = (data.options || []).map((o: any) => ({
-        id: o.id || o.optionId,
-        provider: '',
-        priceUsd: Number(o.priceUsd) || 0,
-        priceNgn: Number(o.priceNgn) || 0,
-        stock: Number(o.stock) || 0,
-        grizzlyCountry: o.grizzlyCountry || o.countryCode || undefined,
-      }));
-      setPriceSheet({ open: true, options, service, country, pool });
-    } catch (e) {
-      setPriceSheet({ open: true, options: [], service, country, pool });
-      setCopyToast(e instanceof Error ? e.message : 'Price load failed');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.ok && Array.isArray(data.options) && data.options.length > 0) {
+          const options: PriceOption[] = data.options.map((o: any) => ({
+            id: o.id || o.optionId,
+            provider: o.provider || 'grizzly',
+            priceUsd: Number(o.priceUsd) || defaultOption.priceUsd,
+            priceNgn: Number(o.priceNgn) || defaultOption.priceNgn,
+            stock: Number(o.stock) || 100,
+            grizzlyCountry: o.grizzlyCountry || o.countryCode || country.code,
+          }));
+          setPriceSheet({ open: true, options, service, country, pool });
+        }
+      }
+    } catch {
+      // Keeps the defaultOption active so purchase is never blocked
     } finally {
       setPricesLoading(false);
     }
@@ -508,6 +553,7 @@ export function VirtualNumbersPage({
         );
         if (result.refunded) {
           setCopyToast(`₦${Number(o.priceNgn).toLocaleString('en-NG')} refunded to your wallet`);
+        try { window.dispatchEvent(new Event('verxor:balance-refresh')); } catch {}
         } else {
           setCopyToast('Number cancelled. If balance does not update, refresh the page.');
         }
@@ -673,8 +719,17 @@ export function VirtualNumbersPage({
               {filteredServices.map((s) => (
                 <button key={s.id} type="button" className="vn-service-row" onClick={() => void selectService(s)}>
                   <ServiceLogo id={s.logoId || s.id} name={s.name} />
-                  <span>{s.name}</span>
-                  <ChevronRight size={16} />
+                  <div className="vn-service-info" style={{ display: 'flex', flexDirection: 'column', flex: 1, textAlign: 'left', minWidth: 0 }}>
+                    <span style={{ fontWeight: 600, fontSize: '0.938rem', color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {s.name}
+                    </span>
+                    <span style={{ fontSize: '0.75rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px' }}>
+                      <span style={{ color: '#16a34a', fontWeight: 600 }}>● Ready</span>
+                      <span>·</span>
+                      <span>From {formatNgn(s.fromNgn || selectedPool.fromNgn)}</span>
+                    </span>
+                  </div>
+                  <ChevronRight size={16} style={{ color: '#94a3b8', flexShrink: 0 }} />
                 </button>
               ))}
               {filteredServices.length === 0 && <div className="vn-empty">No services match your search.</div>}

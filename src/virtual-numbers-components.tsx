@@ -94,6 +94,18 @@ const SERVICE_BRANDS: Record<string, { slug: string; color: string }> = {
 
 /** Provider short codes → brand keys */
 const SERVICE_ALIASES: Record<string, string> = {
+  lf: 'tiktok', oi: 'tinder', bl: 'badoo', bu: 'bumble', st: 'steam', ro: 'roblox',
+  am: 'amazon', eb: 'ebay', al: 'aliexpress', ab: 'alibaba', sh: 'shopee', lz: 'lazada',
+  wm: 'walmart', ni: 'nike', pm: 'paypal', gp: 'googlepay', ws: 'wise', ue: 'ubereats',
+  dd: 'doordash', ub: 'uber', bt: 'bolt', go: 'google', mm: 'microsoft', ap: 'apple',
+  ap_pay: 'applepay', nf: 'netflix', sp: 'spotify', oa: 'openai', an: 'anthropic',
+  yh: 'yahoo', dz: 'deezer', bk: 'booking', abn: 'airbnb', cv: 'canva', cp: 'capcut',
+  zm: 'zoom', pr: 'proton', ao: 'aol', bn: 'binance', cb: 'coinbase', by: 'bybit',
+  bg: 'bitget', ku: 'kucoin', si: 'signal', vi: 'viber', ds: 'discord', im: 'imo',
+  wb: 'wechat', me: 'line', ka: 'kakaotalk', sk: 'skype', sn: 'snapchat', fu: 'snapchat',
+  rd: 'reddit', pi: 'pinterest', tu: 'tumblr', vk: 'vkontakte', ok: 'odnoklassniki',
+  th: 'threads', blz: 'battlenet', ubi: 'ubisoft', ep: 'epicgames', ri: 'riotgames',
+  ps: 'playstation', xb: 'xbox', ea: 'ea', sc: 'supercell', gar: 'garena',
   wa: 'whatsapp', whatsappbusiness: 'whatsapp',
   tg: 'telegram', tele: 'telegram',
   fb: 'facebook', meta: 'facebook',
@@ -141,6 +153,27 @@ const SERVICE_NAME_LOGOS: Array<[RegExp, string]> = [
 
 function normaliseServiceId(value: string) {
   return value.toLowerCase().trim().replace(/[^a-z0-9]+/g, '');
+}
+
+const FALLBACK_PALETTES = [
+  '#4F46E5', // Indigo
+  '#2563EB', // Blue
+  '#059669', // Emerald
+  '#0D9488', // Teal
+  '#7C3AED', // Violet
+  '#DB2777', // Pink
+  '#EA580C', // Orange
+  '#D97706', // Amber
+  '#334155', // Slate
+];
+
+function fallbackColorFor(label: string): string {
+  let hash = 0;
+  for (let i = 0; i < label.length; i++) {
+    hash = (hash << 5) - hash + label.charCodeAt(i);
+    hash |= 0;
+  }
+  return FALLBACK_PALETTES[Math.abs(hash) % FALLBACK_PALETTES.length];
 }
 
 function initialsFor(value: string) {
@@ -191,8 +224,9 @@ export function ServiceLogo({
       title={label}
       style={
         {
-          '--vn-logo-color': resolved ? `#${resolved.color}` : '#64748b',
-          backgroundColor: resolved ? `#${resolved.color}` : '#f1f5f9',
+          '--vn-logo-color': resolved && !failed ? `#${resolved.color}` : fallbackColorFor(label),
+          backgroundColor: resolved && !failed ? `#${resolved.color}` : fallbackColorFor(label),
+          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.15)',
         } as CSSProperties
       }
     >
@@ -212,11 +246,12 @@ export function ServiceLogo({
             placeItems: 'center',
             width: '100%',
             height: '100%',
-            color: '#334155',
+            color: '#ffffff',
             fontSize: compact ? 9 : 11,
             fontWeight: 800,
-            letterSpacing: '-0.04em',
+            letterSpacing: '-0.02em',
             lineHeight: 1,
+            textShadow: '0 1px 2px rgba(0,0,0,0.2)',
           }}
         >
           {initialsFor(label)}

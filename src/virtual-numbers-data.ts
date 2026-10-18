@@ -2,10 +2,13 @@
 
 export type ServiceCategory =
   | 'all'
-  | 'social'
   | 'messaging'
+  | 'social'
+  | 'gaming'
   | 'shopping'
   | 'finance'
+  | 'dating'
+  | 'food'
   | 'ai'
   | 'other';
 
@@ -141,38 +144,152 @@ export const WORLDWIDE_COUNTRIES: Country[] = [
 
 export const CATEGORIES: { id: ServiceCategory; label: string }[] = [
   { id: 'all', label: 'All' },
-  { id: 'social', label: 'Social' },
   { id: 'messaging', label: 'Messaging' },
+  { id: 'social', label: 'Social' },
+  { id: 'gaming', label: 'Gaming' },
   { id: 'shopping', label: 'Shopping' },
   { id: 'finance', label: 'Finance' },
-  { id: 'ai', label: 'AI' },
+  { id: 'dating', label: 'Dating' },
+  { id: 'food', label: 'Food & Delivery' },
+  { id: 'ai', label: 'AI & Tech' },
   { id: 'other', label: 'Other' },
 ];
 
 /** Static service list used only as offline fallback / admin labels. Live catalog comes from API. */
 export const SERVICES: Service[] = [
-  { id: 'wa', name: 'WhatsApp', category: 'messaging', logoId: 'whatsapp' },
-  { id: 'tg', name: 'Telegram', category: 'messaging', logoId: 'telegram' },
-  { id: 'fb', name: 'Facebook', category: 'social', logoId: 'facebook' },
-  { id: 'ig', name: 'Instagram', category: 'social', logoId: 'instagram' },
-  { id: 'tw', name: 'Twitter / X', category: 'social', logoId: 'x' },
-  { id: 'go', name: 'Google', category: 'other', logoId: 'google' },
-  { id: 'ds', name: 'Discord', category: 'messaging', logoId: 'discord' },
+  // Messaging
+  { id: 'wa', name: 'WhatsApp', category: 'messaging', logoId: 'whatsapp', isPopular: true },
+  { id: 'tg', name: 'Telegram', category: 'messaging', logoId: 'telegram', isPopular: true },
+  { id: 'ds', name: 'Discord', category: 'messaging', logoId: 'discord', isPopular: true },
+  { id: 'si', name: 'Signal', category: 'messaging', logoId: 'signal' },
   { id: 'vi', name: 'Viber', category: 'messaging', logoId: 'viber' },
-  { id: 'am', name: 'Amazon', category: 'shopping', logoId: 'amazon' },
-  { id: 'mm', name: 'Microsoft', category: 'other', logoId: 'microsoft' },
-  { id: 'oi', name: 'OpenAI / ChatGPT', category: 'ai', logoId: 'openai' },
-  { id: 'lf', name: 'Claude', category: 'ai', logoId: 'anthropic' },
-  { id: 'tk', name: 'TikTok', category: 'social', logoId: 'tiktok' },
-  { id: 'sn', name: 'Snapchat', category: 'social', logoId: 'snapchat' },
-  { id: 'lf2', name: 'LinkedIn', category: 'social', logoId: 'linkedin' },
-  { id: 'ub', name: 'Uber', category: 'other', logoId: 'uber' },
-  { id: 'nf', name: 'Netflix', category: 'other', logoId: 'netflix' },
-  { id: 'ap', name: 'Apple', category: 'other', logoId: 'apple' },
-  { id: 'py', name: 'PayPal', category: 'finance', logoId: 'paypal' },
-  { id: 'bc', name: 'Binance', category: 'finance', logoId: 'binance' },
-  { id: 'ew', name: 'eBay', category: 'shopping', logoId: 'ebay' },
-  { id: 'ot', name: 'Other / Any', category: 'other', logoId: 'other' },
+  { id: 'im', name: 'Imo', category: 'messaging', logoId: 'imo' },
+  { id: 'wb', name: 'WeChat', category: 'messaging', logoId: 'wechat' },
+  { id: 'me', name: 'LINE', category: 'messaging', logoId: 'line' },
+  { id: 'ka', name: 'KakaoTalk', category: 'messaging', logoId: 'kakaotalk' },
+  { id: 'sk', name: 'Skype', category: 'messaging', logoId: 'skype' },
+  { id: 'zm', name: 'Zoom', category: 'messaging', logoId: 'zoom' },
+  { id: 'ic', name: 'ICQ', category: 'messaging', logoId: 'icq' },
+
+  // Social
+  { id: 'ig', name: 'Instagram + Threads', category: 'social', logoId: 'instagram', isPopular: true },
+  { id: 'lf', name: 'TikTok', category: 'social', logoId: 'tiktok', isPopular: true },
+  { id: 'fb', name: 'Facebook', category: 'social', logoId: 'facebook', isPopular: true },
+  { id: 'tw', name: 'X (Twitter)', category: 'social', logoId: 'twitter', isPopular: true },
+  { id: 'sn', name: 'Snapchat', category: 'social', logoId: 'snapchat', isPopular: true },
+  { id: 'lk', name: 'LinkedIn', category: 'social', logoId: 'linkedin', isPopular: true },
+  { id: 'rd', name: 'Reddit', category: 'social', logoId: 'reddit', isPopular: true },
+  { id: 'pi', name: 'Pinterest', category: 'social', logoId: 'pinterest' },
+  { id: 'vk', name: 'VKontakte', category: 'social', logoId: 'vkontakte' },
+  { id: 'ok', name: 'Odnoklassniki', category: 'social', logoId: 'odnoklassniki' },
+  { id: 'tu', name: 'Tumblr', category: 'social', logoId: 'tumblr' },
+  { id: 'th', name: 'Threads', category: 'social', logoId: 'threads' },
+  { id: 'ks', name: 'Kuaishou', category: 'social', logoId: 'kuaishou' },
+  { id: 'wb_s', name: 'Weibo', category: 'social', logoId: 'weibo' },
+
+  // Gaming
+  { id: 'st', name: 'Steam', category: 'gaming', logoId: 'steam', isPopular: true },
+  { id: 'ro', name: 'Roblox', category: 'gaming', logoId: 'roblox', isPopular: true },
+  { id: 'blz', name: 'Blizzard / Battle.net', category: 'gaming', logoId: 'battlenet', isPopular: true },
+  { id: 'pg', name: 'PUBG Mobile', category: 'gaming', logoId: 'pubg' },
+  { id: 'ep', name: 'Epic Games', category: 'gaming', logoId: 'epicgames' },
+  { id: 'ri', name: 'Riot Games / Valorant', category: 'gaming', logoId: 'riotgames' },
+  { id: 'ps', name: 'PlayStation Network', category: 'gaming', logoId: 'playstation' },
+  { id: 'xb', name: 'Xbox', category: 'gaming', logoId: 'xbox' },
+  { id: 'ea', name: 'EA / Origin', category: 'gaming', logoId: 'ea' },
+  { id: 'ubi', name: 'Ubisoft', category: 'gaming', logoId: 'ubisoft' },
+  { id: 'fc', name: 'Faceit', category: 'gaming', logoId: 'faceit' },
+  { id: 'eft', name: 'Escape from Tarkov', category: 'gaming', logoId: 'tarkov' },
+  { id: 'sc', name: 'Supercell / Clash', category: 'gaming', logoId: 'supercell' },
+  { id: 'gar', name: 'Garena / Free Fire', category: 'gaming', logoId: 'garena' },
+
+  // Shopping & Marketplaces
+  { id: 'am', name: 'Amazon', category: 'shopping', logoId: 'amazon', isPopular: true },
+  { id: 'eb', name: 'eBay', category: 'shopping', logoId: 'ebay' },
+  { id: 'al', name: 'AliExpress', category: 'shopping', logoId: 'aliexpress', isPopular: true },
+  { id: 'ab', name: 'Alibaba', category: 'shopping', logoId: 'alibaba' },
+  { id: 'sh', name: 'Shopee', category: 'shopping', logoId: 'shopee' },
+  { id: 'lz', name: 'Lazada', category: 'shopping', logoId: 'lazada' },
+  { id: 'wm', name: 'Walmart', category: 'shopping', logoId: 'walmart' },
+  { id: 'ni', name: 'Nike', category: 'shopping', logoId: 'nike' },
+  { id: 'shn', name: 'SHEIN', category: 'shopping', logoId: 'shein' },
+  { id: 'tm', name: 'Temu', category: 'shopping', logoId: 'temu' },
+  { id: 'ets', name: 'Etsy', category: 'shopping', logoId: 'etsy' },
+  { id: 'asos', name: 'ASOS', category: 'shopping', logoId: 'asos' },
+  { id: 'tb', name: 'Taobao', category: 'shopping', logoId: 'taobao' },
+
+  // Finance & Payments
+  { id: 'pm', name: 'PayPal', category: 'finance', logoId: 'paypal', isPopular: true },
+  { id: 'gp', name: 'Google Pay', category: 'finance', logoId: 'googlepay' },
+  { id: 'ap_pay', name: 'Apple Pay', category: 'finance', logoId: 'applepay' },
+  { id: 'ws', name: 'Wise', category: 'finance', logoId: 'wise', isPopular: true },
+  { id: 'rv', name: 'Revolut', category: 'finance', logoId: 'revolut' },
+  { id: 'py', name: 'Payoneer', category: 'finance', logoId: 'payoneer' },
+  { id: 'sq', name: 'Cash App', category: 'finance', logoId: 'cashapp', isPopular: true },
+  { id: 'str', name: 'Stripe', category: 'finance', logoId: 'stripe' },
+  { id: 'skr', name: 'Skrill', category: 'finance', logoId: 'skrill' },
+  { id: 'bn', name: 'Binance', category: 'finance', logoId: 'binance', isPopular: true },
+  { id: 'cb', name: 'Coinbase', category: 'finance', logoId: 'coinbase' },
+  { id: 'by', name: 'Bybit', category: 'finance', logoId: 'bybit' },
+  { id: 'okx', name: 'OKX', category: 'finance', logoId: 'okx' },
+  { id: 'bg', name: 'Bitget', category: 'finance', logoId: 'bitget' },
+  { id: 'ku', name: 'KuCoin', category: 'finance', logoId: 'kucoin' },
+
+  // Dating
+  { id: 'oi', name: 'Tinder', category: 'dating', logoId: 'tinder', isPopular: true },
+  { id: 'bl', name: 'Badoo', category: 'dating', logoId: 'badoo' },
+  { id: 'bu', name: 'Bumble', category: 'dating', logoId: 'bumble', isPopular: true },
+  { id: 'hp', name: 'Hinge', category: 'dating', logoId: 'hinge' },
+  { id: 'ja', name: 'Pure', category: 'dating', logoId: 'pure' },
+  { id: 'gr', name: 'Grindr', category: 'dating', logoId: 'grindr' },
+  { id: 'okc', name: 'OkCupid', category: 'dating', logoId: 'okcupid' },
+  { id: 'zoo', name: 'Zoosk', category: 'dating', logoId: 'zoosk' },
+  { id: 'pof', name: 'Plenty of Fish', category: 'dating', logoId: 'pof' },
+
+  // Food & Delivery
+  { id: 'ue', name: 'Uber Eats', category: 'food', logoId: 'ubereats', isPopular: true },
+  { id: 'dd', name: 'DoorDash', category: 'food', logoId: 'doordash', isPopular: true },
+  { id: 'grb', name: 'Grubhub', category: 'food', logoId: 'grubhub' },
+  { id: 'fp', name: 'Foodpanda', category: 'food', logoId: 'foodpanda' },
+  { id: 'bf', name: 'Bolt Food', category: 'food', logoId: 'boltfood' },
+  { id: 'dl', name: 'Deliveroo', category: 'food', logoId: 'deliveroo' },
+  { id: 'wlt', name: 'Wolt', category: 'food', logoId: 'wolt' },
+  { id: 'je', name: 'Just Eat', category: 'food', logoId: 'justeat' },
+  { id: 'zom', name: 'Zomato', category: 'food', logoId: 'zomato' },
+  { id: 'swg', name: 'Swiggy', category: 'food', logoId: 'swiggy' },
+
+  // AI & Tech
+  { id: 'go', name: 'Google, Gmail, YouTube', category: 'ai', logoId: 'google', isPopular: true },
+  { id: 'mm', name: 'Microsoft + Outlook', category: 'ai', logoId: 'microsoft', isPopular: true },
+  { id: 'ap', name: 'Apple / iCloud', category: 'ai', logoId: 'apple', isPopular: true },
+  { id: 'oa', name: 'OpenAI / ChatGPT', category: 'ai', logoId: 'openai', isPopular: true },
+  { id: 'an', name: 'Claude / Anthropic', category: 'ai', logoId: 'anthropic', isPopular: true },
+  { id: 'nf', name: 'Netflix', category: 'ai', logoId: 'netflix', isPopular: true },
+  { id: 'sp', name: 'Spotify', category: 'ai', logoId: 'spotify', isPopular: true },
+  { id: 'dz', name: 'Deezer', category: 'ai', logoId: 'deezer' },
+  { id: 'yh', name: 'Yahoo', category: 'ai', logoId: 'yahoo' },
+  { id: 'pr', name: 'ProtonMail', category: 'ai', logoId: 'proton' },
+  { id: 'ao', name: 'AOL', category: 'ai', logoId: 'aol' },
+  { id: 'ya', name: 'Yandex', category: 'ai', logoId: 'yandex' },
+  { id: 'nav', name: 'Naver', category: 'ai', logoId: 'naver' },
+  { id: 'bai', name: 'Baidu', category: 'ai', logoId: 'baidu' },
+
+  // Other & Rides & Betting
+  { id: 'ub', name: 'Uber', category: 'other', logoId: 'uber', isPopular: true },
+  { id: 'bt', name: 'Bolt', category: 'other', logoId: 'bolt', isPopular: true },
+  { id: 'ly', name: 'Lyft', category: 'other', logoId: 'lyft' },
+  { id: 'gb', name: 'Grab', category: 'other', logoId: 'grab' },
+  { id: 'idr', name: 'inDrive', category: 'other', logoId: 'indrive' },
+  { id: 'b365', name: 'Bet365', category: 'other', logoId: 'bet365' },
+  { id: '1x', name: '1xBet', category: 'other', logoId: '1xbet' },
+  { id: 'sb', name: 'SportyBet', category: 'other', logoId: 'sportybet' },
+  { id: 'b9j', name: 'Bet9ja', category: 'other', logoId: 'bet9ja' },
+  { id: 'stk', name: 'Stake', category: 'other', logoId: 'stake' },
+  { id: 'abn', name: 'Airbnb', category: 'other', logoId: 'airbnb' },
+  { id: 'bk', name: 'Booking.com', category: 'other', logoId: 'booking' },
+  { id: 'cv', name: 'Canva', category: 'other', logoId: 'canva' },
+  { id: 'cp', name: 'CapCut', category: 'other', logoId: 'capcut' },
+  { id: 'ot', name: 'Any Other Service', category: 'other', logoId: 'other' },
 ];
 
 export const PROMO_SLIDES = [

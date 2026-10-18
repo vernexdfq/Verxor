@@ -64,12 +64,20 @@ export async function GET(req: NextRequest) {
     if (otp && supabaseConfigured() && orderId) {
       try {
         await sbUpdate(
-          'number_orders',
+          'vn_orders',
           { id: orderId },
           { otp_code: otp, status: 'received', updated_at: new Date().toISOString() },
         );
       } catch {
-        /* ignore */
+        try {
+          await sbUpdate(
+            'number_orders',
+            { id: orderId },
+            { otp_code: otp, status: 'received', updated_at: new Date().toISOString() },
+          );
+        } catch {
+          /* ignore */
+        }
       }
     }
 

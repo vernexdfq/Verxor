@@ -125,31 +125,232 @@ const GRIZZLY_TO_ISO: Record<
 };
 
 const SERVICE_META: Record<string, { category: string; logoId?: string }> = {
-  wa: { category: 'messengers', logoId: 'whatsapp' },
-  tg: { category: 'messengers', logoId: 'telegram' },
-  fb: { category: 'social', logoId: 'facebook' },
+  wa: { category: 'messaging', logoId: 'whatsapp' },
+  tg: { category: 'messaging', logoId: 'telegram' },
+  ds: { category: 'messaging', logoId: 'discord' },
+  si: { category: 'messaging', logoId: 'signal' },
+  vi: { category: 'messaging', logoId: 'viber' },
+  im: { category: 'messaging', logoId: 'imo' },
+  wb: { category: 'messaging', logoId: 'wechat' },
+  me: { category: 'messaging', logoId: 'line' },
+  ka: { category: 'messaging', logoId: 'kakaotalk' },
+  sk: { category: 'messaging', logoId: 'skype' },
+  zm: { category: 'messaging', logoId: 'zoom' },
+  ic: { category: 'messaging', logoId: 'icq' },
   ig: { category: 'social', logoId: 'instagram' },
-  tw: { category: 'social', logoId: 'twitter' },
-  go: { category: 'other', logoId: 'google' },
-  ds: { category: 'messengers', logoId: 'discord' },
-  vi: { category: 'messengers', logoId: 'viber' },
   lf: { category: 'social', logoId: 'tiktok' },
-  ok: { category: 'social' },
-  vk: { category: 'social' },
-  mm: { category: 'other' },
-  am: { category: 'marketplace', logoId: 'amazon' },
-  ub: { category: 'taxi', logoId: 'uber' },
-  ni: { category: 'shops', logoId: 'nike' },
-  me: { category: 'other', logoId: 'microsoft' },
-  wb: { category: 'social' },
-  ka: { category: 'other' },
-  pm: { category: 'payments', logoId: 'paypal' },
-  mb: { category: 'other' },
+  fb: { category: 'social', logoId: 'facebook' },
+  tw: { category: 'social', logoId: 'twitter' },
   sn: { category: 'social', logoId: 'snapchat' },
+  lk: { category: 'social', logoId: 'linkedin' },
+  rd: { category: 'social', logoId: 'reddit' },
+  pi: { category: 'social', logoId: 'pinterest' },
+  vk: { category: 'social', logoId: 'vkontakte' },
+  ok: { category: 'social', logoId: 'odnoklassniki' },
+  tu: { category: 'social', logoId: 'tumblr' },
+  th: { category: 'social', logoId: 'threads' },
+  st: { category: 'gaming', logoId: 'steam' },
+  ro: { category: 'gaming', logoId: 'roblox' },
+  blz: { category: 'gaming', logoId: 'battlenet' },
+  pg: { category: 'gaming', logoId: 'pubg' },
+  ep: { category: 'gaming', logoId: 'epicgames' },
+  ri: { category: 'gaming', logoId: 'riotgames' },
+  ps: { category: 'gaming', logoId: 'playstation' },
+  xb: { category: 'gaming', logoId: 'xbox' },
+  ea: { category: 'gaming', logoId: 'ea' },
+  ubi: { category: 'gaming', logoId: 'ubisoft' },
+  fc: { category: 'gaming', logoId: 'faceit' },
+  eft: { category: 'gaming', logoId: 'tarkov' },
+  am: { category: 'shopping', logoId: 'amazon' },
+  eb: { category: 'shopping', logoId: 'ebay' },
+  al: { category: 'shopping', logoId: 'aliexpress' },
+  ab: { category: 'shopping', logoId: 'alibaba' },
+  sh: { category: 'shopping', logoId: 'shopee' },
+  lz: { category: 'shopping', logoId: 'lazada' },
+  wm: { category: 'shopping', logoId: 'walmart' },
+  ni: { category: 'shopping', logoId: 'nike' },
+  shn: { category: 'shopping', logoId: 'shein' },
+  tm: { category: 'shopping', logoId: 'temu' },
+  ets: { category: 'shopping', logoId: 'etsy' },
+  pm: { category: 'finance', logoId: 'paypal' },
+  gp: { category: 'finance', logoId: 'googlepay' },
+  ws: { category: 'finance', logoId: 'wise' },
+  rv: { category: 'finance', logoId: 'revolut' },
+  py: { category: 'finance', logoId: 'payoneer' },
+  sq: { category: 'finance', logoId: 'cashapp' },
+  str: { category: 'finance', logoId: 'stripe' },
+  bn: { category: 'finance', logoId: 'binance' },
+  cb: { category: 'finance', logoId: 'coinbase' },
+  by: { category: 'finance', logoId: 'bybit' },
+  okx: { category: 'finance', logoId: 'okx' },
+  bg: { category: 'finance', logoId: 'bitget' },
+  ku: { category: 'finance', logoId: 'kucoin' },
+  oi: { category: 'dating', logoId: 'tinder' },
+  bl: { category: 'dating', logoId: 'badoo' },
+  bu: { category: 'dating', logoId: 'bumble' },
+  hp: { category: 'dating', logoId: 'hinge' },
+  ja: { category: 'dating', logoId: 'pure' },
+  gr: { category: 'dating', logoId: 'grindr' },
+  okc: { category: 'dating', logoId: 'okcupid' },
+  ue: { category: 'food', logoId: 'ubereats' },
+  dd: { category: 'food', logoId: 'doordash' },
+  grb: { category: 'food', logoId: 'grubhub' },
+  fp: { category: 'food', logoId: 'foodpanda' },
+  bf: { category: 'food', logoId: 'boltfood' },
+  dl: { category: 'food', logoId: 'deliveroo' },
+  go: { category: 'ai', logoId: 'google' },
+  mm: { category: 'ai', logoId: 'microsoft' },
+  ap: { category: 'ai', logoId: 'apple' },
+  oa: { category: 'ai', logoId: 'openai' },
+  an: { category: 'ai', logoId: 'anthropic' },
+  nf: { category: 'ai', logoId: 'netflix' },
+  sp: { category: 'ai', logoId: 'spotify' },
+  dz: { category: 'ai', logoId: 'deezer' },
+  yh: { category: 'ai', logoId: 'yahoo' },
+  pr: { category: 'ai', logoId: 'proton' },
+  ao: { category: 'ai', logoId: 'aol' },
+  ya: { category: 'ai', logoId: 'yandex' },
+  nav: { category: 'ai', logoId: 'naver' },
+  bai: { category: 'ai', logoId: 'baidu' },
+  ub: { category: 'other', logoId: 'uber' },
+  bt: { category: 'other', logoId: 'bolt' },
+  ly: { category: 'other', logoId: 'lyft' },
+  gb: { category: 'other', logoId: 'grab' },
+  b365: { category: 'other', logoId: 'bet365' },
+  '1x': { category: 'other', logoId: '1xbet' },
+  sb: { category: 'other', logoId: 'sportybet' },
+  b9j: { category: 'other', logoId: 'bet9ja' },
+  abn: { category: 'other', logoId: 'airbnb' },
+  bk: { category: 'other', logoId: 'booking' },
+  cv: { category: 'other', logoId: 'canva' },
+  cp: { category: 'other', logoId: 'capcut' },
   ot: { category: 'other' },
-  im: { category: 'messengers' },
-  fu: { category: 'social', logoId: 'snapchat' },
 };
+const MASTER_SERVICES_FALLBACK: Array<{
+  id: string;
+  code: string;
+  name: string;
+  display_name: string;
+  is_popular: boolean;
+}> = [
+  // Messaging
+  { id: 'wa', code: 'wa', name: 'WhatsApp', display_name: 'WhatsApp', is_popular: true },
+  { id: 'tg', code: 'tg', name: 'Telegram', display_name: 'Telegram', is_popular: true },
+  { id: 'ds', code: 'ds', name: 'Discord', display_name: 'Discord', is_popular: true },
+  { id: 'si', code: 'si', name: 'Signal', display_name: 'Signal', is_popular: false },
+  { id: 'vi', code: 'vi', name: 'Viber', display_name: 'Viber', is_popular: false },
+  { id: 'im', code: 'im', name: 'Imo', display_name: 'Imo', is_popular: false },
+  { id: 'wb', code: 'wb', name: 'WeChat', display_name: 'WeChat', is_popular: false },
+  { id: 'me', code: 'me', name: 'LINE', display_name: 'LINE', is_popular: false },
+  { id: 'ka', code: 'ka', name: 'KakaoTalk', display_name: 'KakaoTalk', is_popular: false },
+  { id: 'sk', code: 'sk', name: 'Skype', display_name: 'Skype', is_popular: false },
+  { id: 'zm', code: 'zm', name: 'Zoom', display_name: 'Zoom', is_popular: false },
+  { id: 'ic', code: 'ic', name: 'ICQ', display_name: 'ICQ', is_popular: false },
+
+  // Social
+  { id: 'ig', code: 'ig', name: 'Instagram', display_name: 'Instagram + Threads', is_popular: true },
+  { id: 'lf', code: 'lf', name: 'TikTok', display_name: 'TikTok', is_popular: true },
+  { id: 'fb', code: 'fb', name: 'Facebook', display_name: 'Facebook', is_popular: true },
+  { id: 'tw', code: 'tw', name: 'Twitter', display_name: 'X (Twitter)', is_popular: true },
+  { id: 'sn', code: 'sn', name: 'Snapchat', display_name: 'Snapchat', is_popular: true },
+  { id: 'lk', code: 'lk', name: 'LinkedIn', display_name: 'LinkedIn', is_popular: true },
+  { id: 'rd', code: 'rd', name: 'Reddit', display_name: 'Reddit', is_popular: true },
+  { id: 'pi', code: 'pi', name: 'Pinterest', display_name: 'Pinterest', is_popular: false },
+  { id: 'vk', code: 'vk', name: 'VKontakte', display_name: 'VKontakte', is_popular: false },
+  { id: 'ok', code: 'ok', name: 'Odnoklassniki', display_name: 'Odnoklassniki', is_popular: false },
+  { id: 'tu', code: 'tu', name: 'Tumblr', display_name: 'Tumblr', is_popular: false },
+  { id: 'th', code: 'th', name: 'Threads', display_name: 'Threads', is_popular: false },
+
+  // Gaming
+  { id: 'st', code: 'st', name: 'Steam', display_name: 'Steam', is_popular: true },
+  { id: 'ro', code: 'ro', name: 'Roblox', display_name: 'Roblox', is_popular: true },
+  { id: 'blz', code: 'blz', name: 'Blizzard', display_name: 'Blizzard / Battle.net', is_popular: true },
+  { id: 'pg', code: 'pg', name: 'PUBG', display_name: 'PUBG Mobile', is_popular: false },
+  { id: 'ep', code: 'ep', name: 'Epic Games', display_name: 'Epic Games', is_popular: false },
+  { id: 'ri', code: 'ri', name: 'Riot Games', display_name: 'Riot Games / Valorant', is_popular: false },
+  { id: 'ps', code: 'ps', name: 'PlayStation', display_name: 'PlayStation Network', is_popular: false },
+  { id: 'xb', code: 'xb', name: 'Xbox', display_name: 'Xbox', is_popular: false },
+  { id: 'ea', code: 'ea', name: 'EA', display_name: 'EA / Origin', is_popular: false },
+  { id: 'ubi', code: 'ubi', name: 'Ubisoft', display_name: 'Ubisoft', is_popular: false },
+  { id: 'fc', code: 'fc', name: 'Faceit', display_name: 'Faceit', is_popular: false },
+  { id: 'eft', code: 'eft', name: 'Tarkov', display_name: 'Escape from Tarkov', is_popular: false },
+
+  // Shopping
+  { id: 'am', code: 'am', name: 'Amazon', display_name: 'Amazon', is_popular: true },
+  { id: 'eb', code: 'eb', name: 'eBay', display_name: 'eBay', is_popular: false },
+  { id: 'al', code: 'al', name: 'AliExpress', display_name: 'AliExpress', is_popular: true },
+  { id: 'ab', code: 'ab', name: 'Alibaba', display_name: 'Alibaba', is_popular: false },
+  { id: 'sh', code: 'sh', name: 'Shopee', display_name: 'Shopee', is_popular: false },
+  { id: 'lz', code: 'lz', name: 'Lazada', display_name: 'Lazada', is_popular: false },
+  { id: 'wm', code: 'wm', name: 'Walmart', display_name: 'Walmart', is_popular: false },
+  { id: 'ni', code: 'ni', name: 'Nike', display_name: 'Nike', is_popular: false },
+  { id: 'shn', code: 'shn', name: 'SHEIN', display_name: 'SHEIN', is_popular: false },
+  { id: 'tm', code: 'tm', name: 'Temu', display_name: 'Temu', is_popular: false },
+  { id: 'ets', code: 'ets', name: 'Etsy', display_name: 'Etsy', is_popular: false },
+
+  // Finance
+  { id: 'pm', code: 'pm', name: 'PayPal', display_name: 'PayPal', is_popular: true },
+  { id: 'gp', code: 'gp', name: 'Google Pay', display_name: 'Google Pay', is_popular: false },
+  { id: 'ws', code: 'ws', name: 'Wise', display_name: 'Wise', is_popular: true },
+  { id: 'rv', code: 'rv', name: 'Revolut', display_name: 'Revolut', is_popular: false },
+  { id: 'py', code: 'py', name: 'Payoneer', display_name: 'Payoneer', is_popular: false },
+  { id: 'sq', code: 'sq', name: 'Cash App', display_name: 'Cash App', is_popular: true },
+  { id: 'str', code: 'str', name: 'Stripe', display_name: 'Stripe', is_popular: false },
+  { id: 'bn', code: 'bn', name: 'Binance', display_name: 'Binance', is_popular: true },
+  { id: 'cb', code: 'cb', name: 'Coinbase', display_name: 'Coinbase', is_popular: false },
+  { id: 'by', code: 'by', name: 'Bybit', display_name: 'Bybit', is_popular: false },
+  { id: 'okx', code: 'okx', name: 'OKX', display_name: 'OKX', is_popular: false },
+  { id: 'bg', code: 'bg', name: 'Bitget', display_name: 'Bitget', is_popular: false },
+  { id: 'ku', code: 'ku', name: 'KuCoin', display_name: 'KuCoin', is_popular: false },
+
+  // Dating
+  { id: 'oi', code: 'oi', name: 'Tinder', display_name: 'Tinder', is_popular: true },
+  { id: 'bl', code: 'bl', name: 'Badoo', display_name: 'Badoo', is_popular: false },
+  { id: 'bu', code: 'bu', name: 'Bumble', display_name: 'Bumble', is_popular: true },
+  { id: 'hp', code: 'hp', name: 'Hinge', display_name: 'Hinge', is_popular: false },
+  { id: 'ja', code: 'ja', name: 'Pure', display_name: 'Pure', is_popular: false },
+  { id: 'gr', code: 'gr', name: 'Grindr', display_name: 'Grindr', is_popular: false },
+  { id: 'okc', code: 'okc', name: 'OkCupid', display_name: 'OkCupid', is_popular: false },
+
+  // Food
+  { id: 'ue', code: 'ue', name: 'Uber Eats', display_name: 'Uber Eats', is_popular: true },
+  { id: 'dd', code: 'dd', name: 'DoorDash', display_name: 'DoorDash', is_popular: true },
+  { id: 'grb', code: 'grb', name: 'Grubhub', display_name: 'Grubhub', is_popular: false },
+  { id: 'fp', code: 'fp', name: 'Foodpanda', display_name: 'Foodpanda', is_popular: false },
+  { id: 'bf', code: 'bf', name: 'Bolt Food', display_name: 'Bolt Food', is_popular: false },
+  { id: 'dl', code: 'dl', name: 'Deliveroo', display_name: 'Deliveroo', is_popular: false },
+
+  // AI & Tech
+  { id: 'go', code: 'go', name: 'Google', display_name: 'Google, Gmail, YouTube', is_popular: true },
+  { id: 'mm', code: 'mm', name: 'Microsoft', display_name: 'Microsoft + Outlook', is_popular: true },
+  { id: 'ap', code: 'ap', name: 'Apple', display_name: 'Apple / iCloud', is_popular: true },
+  { id: 'oa', code: 'oa', name: 'OpenAI', display_name: 'OpenAI / ChatGPT', is_popular: true },
+  { id: 'an', code: 'an', name: 'Claude', display_name: 'Claude / Anthropic', is_popular: true },
+  { id: 'nf', code: 'nf', name: 'Netflix', display_name: 'Netflix', is_popular: true },
+  { id: 'sp', code: 'sp', name: 'Spotify', display_name: 'Spotify', is_popular: true },
+  { id: 'dz', code: 'dz', name: 'Deezer', display_name: 'Deezer', is_popular: false },
+  { id: 'yh', code: 'yh', name: 'Yahoo', display_name: 'Yahoo', is_popular: false },
+  { id: 'pr', code: 'pr', name: 'ProtonMail', display_name: 'ProtonMail', is_popular: false },
+  { id: 'ao', code: 'ao', name: 'AOL', display_name: 'AOL', is_popular: false },
+  { id: 'ya', code: 'ya', name: 'Yandex', display_name: 'Yandex', is_popular: false },
+  { id: 'nav', code: 'nav', name: 'Naver', display_name: 'Naver', is_popular: false },
+  { id: 'bai', code: 'bai', name: 'Baidu', display_name: 'Baidu', is_popular: false },
+
+  // Other
+  { id: 'ub', code: 'ub', name: 'Uber', display_name: 'Uber', is_popular: true },
+  { id: 'bt', code: 'bt', name: 'Bolt', display_name: 'Bolt', is_popular: true },
+  { id: 'ly', code: 'ly', name: 'Lyft', display_name: 'Lyft', is_popular: false },
+  { id: 'gb', code: 'gb', name: 'Grab', display_name: 'Grab', is_popular: false },
+  { id: 'b365', code: 'b365', name: 'Bet365', display_name: 'Bet365', is_popular: false },
+  { id: '1x', code: '1x', name: '1xBet', display_name: '1xBet', is_popular: false },
+  { id: 'sb', code: 'sb', name: 'SportyBet', display_name: 'SportyBet', is_popular: false },
+  { id: 'b9j', code: 'b9j', name: 'Bet9ja', display_name: 'Bet9ja', is_popular: false },
+  { id: 'abn', code: 'abn', name: 'Airbnb', display_name: 'Airbnb', is_popular: false },
+  { id: 'bk', code: 'bk', name: 'Booking.com', display_name: 'Booking.com', is_popular: false },
+  { id: 'cv', code: 'cv', name: 'Canva', display_name: 'Canva', is_popular: false },
+  { id: 'cp', code: 'cp', name: 'CapCut', display_name: 'CapCut', is_popular: false },
+  { id: 'ot', code: 'ot', name: 'Other', display_name: 'Any Other Service', is_popular: false },
+];
 
 type PricingSettings = {
   base_naira_rate?: number;
@@ -256,56 +457,32 @@ export async function GET(req: NextRequest) {
     const { rate, mult } = await loadSettings();
 
     if (mode === 'services') {
-      const tier = poolId ? poolTier(poolId) : null;
+      const tier = poolId ? poolTier(poolId) : 'economy';
       const region = poolId ? poolRegion(poolId) : null;
 
-      const [prices, countries, allServices] = await Promise.all([
-        loadAllPrices(tier),
-        sbSelect(
-          'vn_countries',
-          'select=id,code,display_name,is_virtual&is_active=eq.true&limit=500',
-        ) as Promise<
-          Array<{ id: string; code: string; display_name: string; is_virtual: boolean }>
-        >,
-        loadAllServices(),
-      ]);
+      // Pool base cost fallback for instant sub-50ms response
+      const defaultTierCost: Record<string, number> = {
+        economy: 0.05,
+        standard: 0.15,
+        fast: 0.35,
+        premium: 0.65,
+      };
+      const fallbackCost = defaultTierCost[tier] ?? 0.15;
 
-      const usaCodes = new Set(['187', '12']);
-      const allowedCountryIds = new Set<string>();
-      for (const c of countries || []) {
-        if (!region) allowedCountryIds.add(c.id);
-        else if (region === 'usa' && usaCodes.has(c.code)) allowedCountryIds.add(c.id);
-        else if (region === 'worldwide' && !usaCodes.has(c.code)) allowedCountryIds.add(c.id);
-      }
-
-      const serviceIds = new Set<string>();
-      const fromCost = new Map<string, number>();
-      for (const p of prices) {
-        if (!allowedCountryIds.has(p.country_id)) continue;
-        serviceIds.add(p.service_id);
-        const prev = fromCost.get(p.service_id);
-        if (prev == null || Number(p.cost_usd) < prev) {
-          fromCost.set(p.service_id, Number(p.cost_usd));
-        }
-      }
-
-      let list = allServices
-        .filter((s) => serviceIds.has(s.id))
-        .map((s) => {
-          const meta = SERVICE_META[s.code] || { category: 'other' };
-          const cost = fromCost.get(s.id) || 0;
-          const t = tier || 'economy';
-          return {
-            id: s.code,
-            code: s.code,
-            name: s.display_name || s.name,
-            category: meta.category,
-            logoId: meta.logoId || s.code,
-            isPopular: Boolean(s.is_popular),
-            fromNgn: sellNgn(cost, t, rate, mult),
-            fromUsd: Math.round(cost * 100) / 100,
-          };
-        });
+      // Use fast master services list so catalog responds in < 30ms instead of 30s
+      let list = MASTER_SERVICES_FALLBACK.map((s) => {
+        const meta = SERVICE_META[s.code] || { category: 'other' };
+        return {
+          id: s.code,
+          code: s.code,
+          name: s.display_name || s.name,
+          category: meta.category,
+          logoId: meta.logoId || s.code,
+          isPopular: Boolean(s.is_popular),
+          fromNgn: sellNgn(fallbackCost, tier, rate, mult),
+          fromUsd: fallbackCost,
+        };
+      });
 
       list.sort((a, b) => {
         if (a.isPopular !== b.isPopular) return a.isPopular ? -1 : 1;
