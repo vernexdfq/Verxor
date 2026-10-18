@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { grizzly } from '@/lib/providers';
 import { sbInsert, sbSelect, sbUpdate, supabaseConfigured } from '@/lib/supabase-admin';
+import { resolvePanelClient } from '@/lib/panel-auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,30 +12,31 @@ function supabaseBase() {
 }
 
 async function resolveUserId(req: NextRequest, bodyUserId?: string): Promise<string | null> {
-  // Prefer JWT so we always know who to refund
   const auth = req.headers.get('authorization') || '';
   const token = auth.startsWith('Bearer ') ? auth.slice(7).trim() : '';
-  const base = supabaseBase();
-  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
-  if (token && base && anon) {
-    try {
-      const res = await fetch(`${base}/auth/v1/user`, {
-        headers: { apikey: anon, Authorization: `Bearer ${token}` },
-        cache: 'no-store',
-      });
-      if (res.ok) {
-        const u = (await res.json()) as { id?: string };
-        if (u.id) return u.id;
+  // Panel keys are not Supabase JWTs
+  if (token && !token.startsWith('vx_panel_')) {
+    const base = supabaseBase();
+    const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
+    if (base && anon) {
+      try {
+        const res = await fetch(`${base}/auth/v1/user`, {
+          headers: { apikey: anon, Authorization: `Bearer ${token}` },
+          cache: 'no-store',
+        });
+        if (res.ok) {
+          const u = (await res.json()) as { id?: string };
+          if (u.id) return u.id;
+        }
+      } catch {
+        /* fall through */
       }
-    } catch {
-      /* fall through */
     }
   }
   if (bodyUserId) return bodyUserId;
   return null;
 }
 
-/** Credit via RPC; if that fails, direct wallets + ledger fallback. */
 async function creditWallet(
   userId: string,
   amount: number,
@@ -46,7 +48,6 @@ async function creditWallet(
     return { ok: false, detail: 'wallet backend not configured or amount=0' };
   }
 
-  // 1) Preferred: SECURITY DEFINER RPC (idempotent on reference)
   let rpcDetail = '';
   try {
     const res = await fetch(`${base}/rest/v1/rpc/credit_wallet`, {
@@ -66,7 +67,6 @@ async function creditWallet(
     });
     if (res.ok) return { ok: true, detail: 'rpc' };
     const t = await res.text().catch(() => '');
-    // Idempotent hit (already refunded under this reference) — treat as success
     if (/duplicate|unique|already/i.test(t)) {
       return { ok: true, detail: 'rpc-idempotent' };
     }
@@ -75,7 +75,6 @@ async function creditWallet(
     rpcDetail = e instanceof Error ? e.message : 'rpc error';
   }
 
-  // 2) Fallback: read balance, patch wallets, insert ledger
   try {
     const rows = (await sbSelect(
       'wallets',
@@ -106,8 +105,9 @@ async function creditWallet(
 }
 
 /**
- * Cancel a waiting activation on Grizzly (status=8) and refund the user wallet.
+ * Cancel a waiting activation on Grizzly (status=8) and refund the user/panel wallet.
  * Body: { providerOrderId, orderId?, priceNgn?, userId? }
+ * Auth: retail JWT or child-panel API key (linked wallet).
  */
 export async function POST(req: NextRequest) {
   let body: {
@@ -132,9 +132,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: 'providerOrderId required' }, { status: 400 });
   }
 
-  const userId = await resolveUserId(req, body.userId);
+  const panel = await resolvePanelClient(req);
+  let userId = await resolveUserId(req, body.userId);
+  if (!userId && panel?.walletUserId) {
+    userId = panel.walletUserId;
+  }
 
-  // Cancel on Grizzly (sms-activate compatible: status 8 = cancel)
   let providerOk = false;
   let earlyDenied = false;
   let providerRaw = '';
@@ -145,21 +148,19 @@ export async function POST(req: NextRequest) {
       if (/ACCESS_CANCEL/i.test(providerRaw) || /STATUS_CANCEL/i.test(providerRaw)) {
         providerOk = true;
       } else if (/NO_ACTIVATION/i.test(providerRaw)) {
-        providerOk = true; // already gone on provider
+        providerOk = true;
       } else if (earlyDenied) {
         providerOk = false;
       } else {
-        // Unknown response — treat as soft success so user is not stuck
         providerOk = true;
       }
     } catch (e) {
       providerRaw = e instanceof Error ? e.message : 'cancel failed';
     }
   } else {
-    providerOk = true; // no provider configured — still allow local cancel + refund
+    providerOk = true;
   }
 
-  // Do not refund or mark cancelled if provider still locks the activation
   if (earlyDenied) {
     return NextResponse.json({
       ok: false,
@@ -172,7 +173,6 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  // Update DB order if present (vn_orders or number_orders)
   if (supabaseConfigured()) {
     const patch = { status: 'cancelled', updated_at: new Date().toISOString() };
     for (const table of ['vn_orders', 'number_orders'] as const) {
@@ -192,11 +192,10 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Refund wallet once
   let refunded = false;
   let refundDetail: string | undefined;
   if (!userId) {
-    refundDetail = 'no userId (not logged in / token missing)';
+    refundDetail = 'no userId (not logged in / panel wallet not linked)';
   } else if (priceNgn <= 0) {
     refundDetail = 'priceNgn is 0';
   } else if (!supabaseConfigured()) {
@@ -218,5 +217,6 @@ export async function POST(req: NextRequest) {
     refundDetail,
     userId: userId ? `${userId.slice(0, 8)}…` : null,
     priceNgn,
+    panel: panel ? { id: panel.id, name: panel.name } : null,
   });
 }
