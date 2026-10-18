@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { grizzly } from '@/lib/providers';
 import { sbInsert, supabaseConfigured } from '@/lib/supabase-admin';
+import { resolvePanelClient, panelAllowsVirtualNumbers } from '@/lib/panel-auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,7 +15,7 @@ async function resolveUserId(req: NextRequest, bodyUserId?: string): Promise<str
   if (bodyUserId) return bodyUserId;
   const auth = req.headers.get('authorization') || '';
   const token = auth.startsWith('Bearer ') ? auth.slice(7).trim() : '';
-  if (!token) return null;
+  if (!token || token.startsWith('vx_panel_')) return null;
   const base = supabaseBase();
   const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
   if (!base || !anon) return null;
@@ -78,12 +79,12 @@ async function creditWallet(userId: string, amount: number, reference: string) {
       p_reference: reference,
       p_description: 'Refund: number purchase failed',
     }),
-  }).catch(() => null);
+  });
 }
 
 /**
- * Buy a real OTP number from Grizzly.
- * Debits wallet first (when userId present), then calls provider.
+ * Buy a virtual number (Grizzly).
+ * Auth: retail JWT or child-panel API key (vx_panel_*) with linked wallet.
  * Refunds wallet if provider fails after debit.
  */
 export async function POST(req: NextRequest) {
@@ -127,11 +128,39 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const userId = await resolveUserId(req, body.userId);
-  const debitRef = `vn-buy-${userId || 'anon'}-${Date.now()}`;
+  const panel = await resolvePanelClient(req);
+  if (panel && !panelAllowsVirtualNumbers(panel)) {
+    return NextResponse.json(
+      { ok: false, error: 'This panel key is not allowed to buy virtual numbers' },
+      { status: 403 },
+    );
+  }
+
+  let userId = await resolveUserId(req, body.userId);
+  if (!userId && panel?.walletUserId) {
+    userId = panel.walletUserId;
+  }
+
+  if (!userId && !panel) {
+    return NextResponse.json(
+      { ok: false, error: 'Unauthorized. Sign in or pass a child-panel API key.' },
+      { status: 401 },
+    );
+  }
+  if (panel && !userId) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error:
+          'Panel wallet not linked. Regenerate the panel key with ownerEmail, or set meta.wallet_user_id / VERXOR_PANEL_WALLET_USER_ID.',
+      },
+      { status: 402 },
+    );
+  }
+
+  const debitRef = `vn-buy-${panel ? `panel-${panel.id}` : userId}-${Date.now()}`;
   let debited = false;
 
-  // Require wallet debit when price is set and user is known
   if (priceNgn > 0 && userId && supabaseConfigured()) {
     try {
       await debitWallet(userId, priceNgn, debitRef);
@@ -140,15 +169,17 @@ export async function POST(req: NextRequest) {
       const msg = e instanceof Error ? e.message : 'Debit failed';
       if (msg === 'INSUFFICIENT_BALANCE') {
         return NextResponse.json(
-          { ok: false, error: 'Insufficient wallet balance. Fund your wallet first.' },
+          { ok: false, error: 'Insufficient wallet balance. Fund the panel wallet first.' },
           { status: 402 },
         );
       }
       return NextResponse.json({ ok: false, error: msg }, { status: 500 });
     }
   } else if (priceNgn > 0 && !userId) {
-    // Soft enforcement: still allow test buys without session, but warn
-    console.warn('[numbers/buy] no userId — skipping wallet debit');
+    return NextResponse.json(
+      { ok: false, error: 'Cannot charge: no wallet user for this request' },
+      { status: 402 },
+    );
   }
 
   try {
@@ -168,19 +199,23 @@ export async function POST(req: NextRequest) {
         const rows = await sbInsert('vn_orders', {
           user_id: userId || null,
           provider: 'grizzly',
-          provider_order_id: result.id,
+          provider_order_id: String(result.id),
           phone,
-          service_code: service,
-          country_code: country,
+          service,
+          country,
           pool_id: poolId || null,
-          cost_usd: maxPriceUsd,
           price_ngn: priceNgn,
           status: 'waiting',
-          raw: { access: result.raw, debitRef: debited ? debitRef : null },
+          raw: {
+            access: result.raw,
+            debitRef: debited ? debitRef : null,
+            panelId: panel?.id || null,
+            panelName: panel?.name || null,
+          },
         });
-        savedId = Array.isArray(rows) ? (rows[0] as { id?: string })?.id ?? null : null;
+        if (Array.isArray(rows) && rows[0]?.id) savedId = String(rows[0].id);
       } catch {
-        // Still return the live number even if ledger insert fails
+        /* order row optional */
       }
     }
 
@@ -188,23 +223,21 @@ export async function POST(req: NextRequest) {
       ok: true,
       order: {
         id: savedId || result.id,
-        provider: 'grizzly',
-        providerOrderId: result.id,
+        providerOrderId: String(result.id),
         phone,
-        status: 'waiting',
-        poolId,
         service,
         country,
+        poolId: poolId || null,
         priceNgn,
-        costUsd: maxPriceUsd,
+        status: 'waiting',
+        panel: panel ? { id: panel.id, name: panel.name } : null,
       },
     });
   } catch (err) {
-    // Refund if we already debited
     if (debited && userId) {
       await creditWallet(userId, priceNgn, `refund-${debitRef}`);
     }
-    const message = err instanceof Error ? err.message : 'Buy failed';
+    const message = err instanceof Error ? err.message : 'Purchase failed';
     return NextResponse.json({ ok: false, error: message }, { status: 502 });
   }
 }
