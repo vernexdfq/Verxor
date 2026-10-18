@@ -27,6 +27,8 @@ export type Service = {
   name: string;
   category: ServiceCategory;
   logoId?: string;
+  fromNgn?: number;
+  isPopular?: boolean;
 };
 
 export type Country = {
