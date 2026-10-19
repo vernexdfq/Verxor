@@ -120,7 +120,7 @@ export async function POST(req: NextRequest) {
       `${appUrl}/api/webhooks/xixapay/virtual-account`;
 
     const payload: Record<string, unknown> = {
-      email: `partner-${panelSlug}@verxor.panel`,
+      email: `partner.${panelSlug}@gmail.com`,
       name: accountName,
       phoneNumber: toNgPhone('08000000000'),
       bankCode: [BANK.code],
