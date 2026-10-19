@@ -4,6 +4,7 @@ import { sbInsert, supabaseConfigured } from '@/lib/supabase-admin';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
+export const runtime = 'nodejs';
 
 const BANK = { code: '100004', name: 'OPay' };
 const MIN_AMOUNT_NGN = 500;
@@ -30,198 +31,229 @@ function pickAccount(data: Record<string, unknown>) {
     first.accountName || first.account_name || data.accountName || '',
   );
   const bankName = String(first.bankName || first.bank_name || BANK.name);
-  const providerCustomerId = String(
-    (data.customer as Record<string, unknown>)?.customer_id ||
-      data.customerId ||
-      '',
-  );
+  const customer = (data.customer as Record<string, unknown>) || {};
+  const providerCustomerId = String(customer.customer_id || data.customerId || '');
   const expireAt =
     first.expireAt || first.expire_at || data.expireAt || data.expire_at || null;
   return { accountNumber, accountName, bankName, providerCustomerId, expireAt };
 }
 
 /**
- * Partner / child-panel wholesale top-up via Verxor's single XixaPay.
- * Auth: Authorization: Bearer vx_panel_*  OR  X-Api-Key: vx_panel_*
- * Panel must have meta.wallet_user_id linked (set when key was generated).
- * Child panels never need XIXAPAY_* — only the panel API key.
+ * Partner wholesale top-up via Verxor's single XixaPay.
+ * Auth: X-Api-Key: vx_panel_*  (preferred) or Authorization: Bearer vx_panel_*
  */
 export async function POST(req: NextRequest) {
-  const apiKey = process.env.XIXAPAY_API_KEY;
-  const secret = process.env.XIXAPAY_SECRET_KEY;
-  const businessId = process.env.XIXAPAY_BUSINESS_ID;
-
-  if (!apiKey || !secret || !businessId) {
-    return NextResponse.json(
-      { ok: false, message: 'XixaPay is not configured on Verxor.' },
-      { status: 503 },
-    );
-  }
-
-  const panel = await resolvePanelClient(req);
-  if (!panel) {
-    return NextResponse.json(
-      {
-        ok: false,
-        message: 'Missing or invalid panel API key. Use Authorization: Bearer vx_panel_…',
-      },
-      { status: 401 },
-    );
-  }
-
-  const userId = (panel.walletUserId || '').trim();
-  if (!userId) {
-    return NextResponse.json(
-      {
-        ok: false,
-        message:
-          'Panel key has no linked wallet. Regenerate the key with ownerEmail of a Verxor account.',
-      },
-      { status: 400 },
-    );
-  }
-
-  let body: { amount?: number; amountNgn?: number; name?: string } = {};
   try {
-    body = await req.json();
-  } catch {
-    /* empty body ok */
-  }
+    const apiKey = process.env.XIXAPAY_API_KEY?.trim();
+    const secret = process.env.XIXAPAY_SECRET_KEY?.trim();
+    const businessId = process.env.XIXAPAY_BUSINESS_ID?.trim();
 
-  const amount = Math.round(Number(body.amountNgn ?? body.amount));
-  if (!Number.isFinite(amount) || amount < MIN_AMOUNT_NGN) {
-    return NextResponse.json(
-      { ok: false, message: `Minimum panel top-up is ₦${MIN_AMOUNT_NGN}.` },
-      { status: 400 },
-    );
-  }
-  if (amount > 5_000_000) {
-    return NextResponse.json({ ok: false, message: 'Amount is too large.' }, { status: 400 });
-  }
+    if (!apiKey || !secret || !businessId) {
+      return NextResponse.json(
+        { ok: false, message: 'XixaPay is not configured on Verxor.' },
+        { status: 503 },
+      );
+    }
 
-  const panelSlug = (panel.name || 'partner')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '')
-    .slice(0, 24) || 'partner';
-  const accountName = `Verxor–${panelSlug}`.slice(0, 80);
-
-  const externalRef = `vxp-panel-${panel.id.slice(0, 8)}-${Date.now()}`;
-  const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://www.verxor.com').replace(/\/$/, '');
-  const callbackUrl =
-    process.env.XIXAPAY_VIRTUAL_ACCOUNT_WEBHOOK_URL ||
-    `${appUrl}/api/webhooks/xixapay/virtual-account`;
-
-  const customerEmail = `partner-${panelSlug}@verxor.panel`;
-  const phone = toNgPhone('08000000000');
-
-  const payload: Record<string, unknown> = {
-    email: customerEmail,
-    name: accountName,
-    phoneNumber: phone,
-    bankCode: [BANK.code],
-    businessId,
-    accountType: 'dynamic',
-    amount,
-    externalReference: externalRef,
-    callbackUrl,
-  };
-
-  let xixapayRes: Response;
-  try {
-    xixapayRes = await fetch(`${xixapayBase()}/api/v1/createVirtualAccount`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${secret}`,
-        'api-key': apiKey,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(payload),
-      cache: 'no-store',
-    });
-  } catch (e) {
-    console.error('[partner/fund/generate] xixapay network', e);
-    return NextResponse.json(
-      { ok: false, message: 'Could not reach payment provider. Try again.' },
-      { status: 502 },
-    );
-  }
-
-  const rawText = await xixapayRes.text().catch(() => '');
-  let raw: Record<string, unknown> = {};
-  try {
-    raw = JSON.parse(rawText) as Record<string, unknown>;
-  } catch {
-    raw = { raw: rawText.slice(0, 200) };
-  }
-
-  if (
-    !xixapayRes.ok ||
-    raw.status === 'fail' ||
-    String(raw.message || '').includes('API Key is not active')
-  ) {
-    console.error('[partner/fund/generate] xixapay error', xixapayRes.status, rawText.slice(0, 500));
-    const msg =
-      (typeof raw.message === 'string' && raw.message) ||
-      (typeof raw.error === 'string' && raw.error) ||
-      `Provider error (${xixapayRes.status})`;
-    return NextResponse.json({ ok: false, message: String(msg) }, { status: 502 });
-  }
-
-  const picked = pickAccount(raw);
-  if (!picked.accountNumber) {
-    return NextResponse.json(
-      {
-        ok: false,
-        message: 'Provider returned no account number. Try again in a moment.',
-      },
-      { status: 502 },
-    );
-  }
-
-  const bankName = picked.bankName || BANK.name;
-  const expireAt = picked.expireAt ? String(picked.expireAt) : null;
-  const displayName = accountName;
-
-  if (supabaseConfigured()) {
+    let panel;
     try {
-      await sbInsert('virtual_accounts', {
-        user_id: userId,
-        provider: 'xixapay',
-        bank_code: BANK.code,
-        bank_name: bankName,
-        account_number: String(picked.accountNumber).replace(/\D/g, ''),
-        account_name: displayName,
-        account_type: 'dynamic',
-        amount_ngn: amount,
-        external_ref: externalRef,
-        provider_customer_id: picked.providerCustomerId || null,
-        raw: {
-          ...raw,
-          expire_at: expireAt,
-          partner_fund: true,
-          wallet_type: 'reseller',
-          panel_id: panel.id,
-          panel_name: panel.name,
+      panel = await resolvePanelClient(req);
+    } catch (e) {
+      console.error('[partner/fund/generate] resolvePanelClient', e);
+      return NextResponse.json(
+        { ok: false, message: 'Panel auth failed. Check API key.' },
+        { status: 401 },
+      );
+    }
+
+    if (!panel) {
+      return NextResponse.json(
+        {
+          ok: false,
+          message: 'Missing or invalid panel API key. Use X-Api-Key: vx_panel_…',
         },
+        { status: 401 },
+      );
+    }
+
+    const userId = (panel.walletUserId || '').trim();
+    if (!userId) {
+      return NextResponse.json(
+        {
+          ok: false,
+          message:
+            'Panel key has no linked wallet. Regenerate the key with ownerEmail of a Verxor account.',
+        },
+        { status: 400 },
+      );
+    }
+
+    let body: { amount?: number; amountNgn?: number } = {};
+    try {
+      body = await req.json();
+    } catch {
+      /* empty ok */
+    }
+
+    const amount = Math.round(Number(body.amountNgn ?? body.amount));
+    if (!Number.isFinite(amount) || amount < MIN_AMOUNT_NGN) {
+      return NextResponse.json(
+        { ok: false, message: `Minimum panel top-up is ₦${MIN_AMOUNT_NGN}.` },
+        { status: 400 },
+      );
+    }
+    if (amount > 5_000_000) {
+      return NextResponse.json({ ok: false, message: 'Amount is too large.' }, { status: 400 });
+    }
+
+    const panelSlug =
+      (panel.name || 'partner').toLowerCase().replace(/[^a-z0-9]+/g, '').slice(0, 24) ||
+      'partner';
+    const accountName = `Verxor–${panelSlug}`.slice(0, 80);
+    const externalRef = `vxp-panel-${String(panel.id).slice(0, 8)}-${Date.now()}`;
+    const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://www.verxor.com').replace(
+      /\/$/,
+      '',
+    );
+    const callbackUrl =
+      process.env.XIXAPAY_VIRTUAL_ACCOUNT_WEBHOOK_URL ||
+      `${appUrl}/api/webhooks/xixapay/virtual-account`;
+
+    const payload: Record<string, unknown> = {
+      email: `partner-${panelSlug}@verxor.panel`,
+      name: accountName,
+      phoneNumber: toNgPhone('08000000000'),
+      bankCode: [BANK.code],
+      businessId,
+      accountType: 'dynamic',
+      amount,
+      externalReference: externalRef,
+      callbackUrl,
+    };
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 20_000);
+
+    let xixapayRes: Response;
+    try {
+      xixapayRes = await fetch(`${xixapayBase()}/api/v1/createVirtualAccount`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${secret}`,
+          'api-key': apiKey,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+        cache: 'no-store',
+        signal: controller.signal,
       });
     } catch (e) {
-      console.error('[partner/fund/generate] save VA', e);
+      clearTimeout(timer);
+      const aborted = e instanceof Error && e.name === 'AbortError';
+      console.error('[partner/fund/generate] xixapay network', e);
+      return NextResponse.json(
+        {
+          ok: false,
+          message: aborted
+            ? 'Payment provider timed out. Try again.'
+            : 'Could not reach payment provider. Try again.',
+        },
+        { status: 502 },
+      );
+    } finally {
+      clearTimeout(timer);
     }
-  }
 
-  return NextResponse.json({
-    ok: true,
-    mode: 'partner',
-    amount: amount,
-    amountNgn: amount,
-    bankName,
-    accountNumber: String(picked.accountNumber).replace(/\D/g, ''),
-    accountName: displayName,
-    reservedAccountId: picked.providerCustomerId || null,
-    expireAt,
-    externalReference: externalRef,
-    externalRef,
-    panel: { id: panel.id, name: panel.name },
-    message: 'Transfer the exact amount. Panel balance updates when the bank confirms.',
-  });
+    const rawText = await xixapayRes.text().catch(() => '');
+    let raw: Record<string, unknown> = {};
+    try {
+      raw = JSON.parse(rawText) as Record<string, unknown>;
+    } catch {
+      raw = { raw: rawText.slice(0, 300) };
+    }
+
+    if (
+      !xixapayRes.ok ||
+      raw.status === 'fail' ||
+      String(raw.message || '').includes('API Key is not active')
+    ) {
+      console.error(
+        '[partner/fund/generate] xixapay error',
+        xixapayRes.status,
+        rawText.slice(0, 500),
+      );
+      const msg =
+        (typeof raw.message === 'string' && raw.message) ||
+        (typeof raw.error === 'string' && raw.error) ||
+        `Provider error (${xixapayRes.status})`;
+      return NextResponse.json({ ok: false, message: String(msg) }, { status: 502 });
+    }
+
+    const picked = pickAccount(raw);
+    if (!picked.accountNumber) {
+      return NextResponse.json(
+        {
+          ok: false,
+          message: 'Provider returned no account number. Try again in a moment.',
+        },
+        { status: 502 },
+      );
+    }
+
+    const bankName = picked.bankName || BANK.name;
+    const expireAt = picked.expireAt ? String(picked.expireAt) : null;
+    const displayName = accountName;
+    const accountNumber = String(picked.accountNumber).replace(/\D/g, '');
+
+    if (supabaseConfigured()) {
+      try {
+        await sbInsert('virtual_accounts', {
+          user_id: userId,
+          provider: 'xixapay',
+          bank_code: BANK.code,
+          bank_name: bankName,
+          account_number: accountNumber,
+          account_name: displayName,
+          account_type: 'dynamic',
+          amount_ngn: amount,
+          external_ref: externalRef,
+          provider_customer_id: picked.providerCustomerId || null,
+          raw: {
+            expire_at: expireAt,
+            partner_fund: true,
+            wallet_type: 'reseller',
+            panel_id: panel.id,
+            panel_name: panel.name,
+          },
+        });
+      } catch (e) {
+        console.error('[partner/fund/generate] save VA (non-fatal)', e);
+      }
+    }
+
+    return NextResponse.json({
+      ok: true,
+      mode: 'partner',
+      amount,
+      amountNgn: amount,
+      bankName,
+      accountNumber,
+      accountName: displayName,
+      reservedAccountId: picked.providerCustomerId || null,
+      expireAt,
+      externalReference: externalRef,
+      externalRef,
+      panel: { id: panel.id, name: panel.name },
+      message: 'Transfer the exact amount. Panel balance updates when the bank confirms.',
+    });
+  } catch (e) {
+    console.error('[partner/fund/generate] unhandled', e);
+    return NextResponse.json(
+      {
+        ok: false,
+        message: e instanceof Error ? e.message : 'Server error creating funding account',
+      },
+      { status: 500 },
+    );
+  }
 }
