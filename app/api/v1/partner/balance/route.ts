@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { resolvePanelClient } from '@/lib/panel-auth';
 
 export const dynamic = 'force-dynamic';
 
 /**
  * Partner (reseller) balance from public.reseller_wallet only.
- * Never reads retail public.wallets.
+ * Auth: vx_panel_* API key (linked wallet) OR Bearer user session.
  */
 export async function GET(req: NextRequest) {
   try {
@@ -19,26 +20,42 @@ export async function GET(req: NextRequest) {
     }
 
     let userId = (req.nextUrl.searchParams.get('userId') || '').trim();
-    const auth = req.headers.get('authorization') || '';
-    const token = auth.startsWith('Bearer ') ? auth.slice(7).trim() : '';
 
-    if (token && anon) {
-      try {
-        const res = await fetch(`${base}/auth/v1/user`, {
-          headers: { apikey: anon, Authorization: `Bearer ${token}` },
-          cache: 'no-store',
-        });
-        if (res.ok) {
-          const u = (await res.json()) as { id?: string };
-          if (u.id) userId = u.id;
+    const panel = await resolvePanelClient(req);
+    if (panel?.walletUserId) {
+      userId = panel.walletUserId;
+    }
+
+    if (!userId) {
+      const auth = req.headers.get('authorization') || '';
+      const token = auth.startsWith('Bearer ') ? auth.slice(7).trim() : '';
+      if (token && !token.startsWith('vx_panel_') && anon) {
+        try {
+          const res = await fetch(`${base}/auth/v1/user`, {
+            headers: { apikey: anon, Authorization: `Bearer ${token}` },
+            cache: 'no-store',
+          });
+          if (res.ok) {
+            const u = (await res.json()) as { id?: string };
+            if (u.id) userId = u.id;
+          }
+        } catch {
+          /* ignore */
         }
-      } catch {
-        /* ignore */
       }
     }
 
     if (!userId) {
-      return NextResponse.json({ ok: false, error: 'unauthorized' }, { status: 401 });
+      return NextResponse.json(
+        {
+          ok: false,
+          error: 'unauthorized',
+          reason: panel
+            ? 'Panel key has no linked wallet'
+            : 'Missing panel API key or user session',
+        },
+        { status: 401 },
+      );
     }
 
     const hdr = {
@@ -46,7 +63,6 @@ export async function GET(req: NextRequest) {
       Authorization: `Bearer ${serviceKey}`,
     };
 
-    // Ensure row exists
     try {
       await fetch(`${base}/rest/v1/reseller_wallet`, {
         method: 'POST',
@@ -71,7 +87,13 @@ export async function GET(req: NextRequest) {
     const rows = await balRes.json();
     const balanceNgn = Number(rows[0]?.balance) || 0;
 
-    return NextResponse.json({ ok: true, balanceNgn, mode: 'partner' });
+    return NextResponse.json({
+      ok: true,
+      balanceNgn,
+      balance: balanceNgn,
+      mode: 'partner',
+      panel: panel ? { id: panel.id, name: panel.name } : null,
+    });
   } catch (e) {
     console.error('[partner/balance]', e);
     return NextResponse.json({ ok: false, error: 'server_error' }, { status: 500 });
