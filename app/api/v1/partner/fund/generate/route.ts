@@ -119,8 +119,14 @@ export async function POST(req: NextRequest) {
       process.env.XIXAPAY_VIRTUAL_ACCOUNT_WEBHOOK_URL ||
       `${appUrl}/api/webhooks/xixapay/virtual-account`;
 
+    // Use a real-looking Gmail that passes XixaPay validation (partner.*@gmail.com was previously rejected)
+    const vaEmail =
+      panelSlug === 'vernexdigital'
+        ? 'vernexdigital@gmail.com'
+        : `partner.${panelSlug}@gmail.com`;
+
     const payload: Record<string, unknown> = {
-      email: `partner.${panelSlug}@gmail.com`,
+      email: vaEmail,
       name: accountName,
       phoneNumber: toNgPhone('08000000000'),
       bankCode: [BANK.code],
