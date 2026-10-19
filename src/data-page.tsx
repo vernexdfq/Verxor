@@ -141,7 +141,7 @@ function NetworkLogo({ id, size = 28 }: { id: NetworkId; size?: number }) {
   }
 }
 
-export function DataPage({ onBack, session }: { onBack: () => void; session?: AuthSession | null }) {
+export function DataPage({ onBack, session, onFund }: { onBack: () => void; session?: AuthSession | null; onFund?: () => void }) {
   const walletBalance = session?.balanceNgn ?? 0;
   const [networkId, setNetworkId] = useState<NetworkId>('mtn');
   const [planType, setPlanType] = useState<string>('SME');
@@ -292,7 +292,15 @@ export function DataPage({ onBack, session }: { onBack: () => void; session?: Au
     }
   };
 
-  const handleFund = () => showToast('Opening Fund Wallet...');
+  const handleFund = () => {
+    if (onFund) {
+      onFund();
+    } else if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('verxor:fund-wallet'));
+    } else {
+      showToast('Opening Fund Wallet...');
+    }
+  };
 
   let ctaLabel = 'Purchase Data Plan';
   let ctaAction: () => void | Promise<void> = handlePurchase;

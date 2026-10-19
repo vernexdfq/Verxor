@@ -407,9 +407,9 @@ export function VerxorApp() {
   } else if (service === 'boost') {
     content = <BoostPage onBack={closeService} session={auth} />;
   } else if (service === 'airtime') {
-    content = <AirtimePage onBack={closeService} session={auth} />;
+    content = <AirtimePage onBack={closeService} session={auth} onFund={() => navigatePage('fund')} />;
   } else if (service === 'data') {
-    content = <DataPage onBack={closeService} session={auth} />;
+    content = <DataPage onBack={closeService} session={auth} onFund={() => navigatePage('fund')} />;
   } else if (service === 'gift-card') {
     content = <GiftCardPage onBack={closeService} />;
   } else if (service === 'tv-cable') {

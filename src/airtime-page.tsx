@@ -1,120 +1,119 @@
 'use client';
 
-import { useMemo, useState, useCallback, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   ArrowLeft,
   Check,
+  ChevronDown,
   Clock,
   Lock,
   Phone,
-  User,
+  Sparkles,
   Wallet,
   X,
   Zap,
+  AlertCircle,
 } from 'lucide-react';
-import './airtime-page.css';
 import type { AuthSession } from './auth/AuthFlow';
+import './airtime-page.css';
 
 type NetworkId = 'mtn' | 'airtel' | 'glo' | '9mobile';
 
-type Network = {
+interface NetworkOption {
   id: NetworkId;
   label: string;
-  brandColor: string;
-  bg: string;
-};
+}
 
-const NETWORKS: Network[] = [
-  { id: 'mtn', label: 'MTN', brandColor: '#FFCC00', bg: '#FFCC00' },
-  { id: 'airtel', label: 'Airtel', brandColor: '#E60000', bg: '#E60000' },
-  { id: 'glo', label: 'Glo', brandColor: '#00A651', bg: '#00A651' },
-  { id: '9mobile', label: '9mobile', brandColor: '#006F3C', bg: '#006F3C' },
+const NETWORKS: NetworkOption[] = [
+  { id: 'mtn', label: 'MTN' },
+  { id: 'airtel', label: 'Airtel' },
+  { id: 'glo', label: 'Glo' },
+  { id: '9mobile', label: '9mobile' },
 ];
 
-/** Quick amounts requested: Row 1 = 100, 200, 500, 1000 | Row 2 = 2000, 5000, 10000 */
+/** Quick amount chips: exactly 2 rows of 4 chips (8 total) */
 const QUICK_AMOUNTS_ROW_1 = [100, 200, 500, 1000];
-const QUICK_AMOUNTS_ROW_2 = [2000, 5000, 10000];
+const QUICK_AMOUNTS_ROW_2 = [2000, 5000, 10000, 20000];
 
-const RECENT_RECIPIENTS_KEY = 'verxor_airtime_recent_numbers';
+const RECENT_RECIPIENTS_KEY = 'verxor_airtime_recent_recipients_v1';
 
-type RecentRecipient = {
+interface RecentRecipient {
   phone: string;
   networkId?: NetworkId;
   lastUsed: number;
-};
+}
 
-/** Complete Nigerian mobile prefixes (including 091x, 070x, 080x, 081x). */
-const NIGERIAN_PREFIXES: Record<NetworkId, string[]> = {
-  mtn: [
-    '0803',
-    '0806',
-    '0810',
-    '0813',
-    '0814',
-    '0816',
-    '0903',
-    '0906',
-    '0913',
-    '0916',
-    '0703',
-    '0706',
-  ],
-  airtel: [
-    '0802',
-    '0808',
-    '0812',
-    '0701',
-    '0708',
-    '0901',
-    '0902',
-    '0904',
-    '0907',
-    '0911',
-    '0912',
-  ],
-  glo: ['0805', '0807', '0811', '0815', '0905', '0915', '0705'],
-  '9mobile': ['0809', '0817', '0818', '0908', '0909'],
-};
+/** Nigerian phone prefix detection */
+function detectNetwork(phone: string): NetworkId | null {
+  const clean = phone.replace(/\D/g, '');
+  let pfx = '';
+  if (clean.startsWith('234') && clean.length >= 6) {
+    pfx = '0' + clean.slice(3, 6);
+  } else if (clean.startsWith('0') && clean.length >= 4) {
+    pfx = clean.slice(0, 4);
+  }
+  if (!pfx) return null;
 
-function detectNetwork(raw: string): NetworkId | null {
-  let clean = raw.replace(/\D/g, '');
-  if (clean.startsWith('234') && clean.length >= 13) {
-    clean = '0' + clean.slice(3);
-  }
-  if (clean.length < 4) return null;
-  const prefix = clean.slice(0, 4);
-  for (const id of Object.keys(NIGERIAN_PREFIXES) as NetworkId[]) {
-    if (NIGERIAN_PREFIXES[id].includes(prefix)) return id;
-  }
+  // MTN prefixes
+  const mtn = [
+    '0803', '0806', '0703', '0706', '0813', '0816', '0810', '0814',
+    '0903', '0906', '0913', '0916', '07025', '07026', '0704',
+  ];
+  if (mtn.some((p) => pfx.startsWith(p))) return 'mtn';
+
+  // Airtel prefixes
+  const airtel = [
+    '0802', '0808', '0708', '0812', '0701', '0902', '0901', '0904',
+    '0907', '0912', '0911',
+  ];
+  if (airtel.some((p) => pfx.startsWith(p))) return 'airtel';
+
+  // Glo prefixes
+  const glo = ['0805', '0807', '0705', '0815', '0811', '0905', '0915'];
+  if (glo.some((p) => pfx.startsWith(p))) return 'glo';
+
+  // 9mobile prefixes
+  const etisalat = ['0809', '0817', '0818', '0909', '0908'];
+  if (etisalat.some((p) => pfx.startsWith(p))) return '9mobile';
+
   return null;
 }
 
 function normalizePhone(raw: string): string {
-  let clean = raw.replace(/\D/g, '');
-  if (clean.startsWith('234') && clean.length >= 13) {
-    clean = '0' + clean.slice(3);
+  const digits = raw.replace(/\D/g, '');
+  if (digits.startsWith('234') && digits.length === 13) {
+    return '0' + digits.slice(3);
   }
-  return clean.slice(0, 11);
+  return digits;
 }
 
 function formatPhoneDisplay(raw: string): string {
-  const c = normalizePhone(raw);
-  if (c.length === 11) {
-    return `${c.slice(0, 4)} ${c.slice(4, 7)} ${c.slice(7)}`;
-  }
-  return c;
+  const digits = raw.replace(/\D/g, '');
+  if (digits.length <= 4) return digits;
+  if (digits.length <= 7) return `${digits.slice(0, 4)} ${digits.slice(4)}`;
+  return `${digits.slice(0, 4)} ${digits.slice(4, 7)} ${digits.slice(7, 11)}`;
 }
 
 function money(n: number): string {
-  return '\u20a6' + n.toLocaleString('en-NG', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+  return `\u20a6${n.toLocaleString('en-NG')}`;
 }
 
 function moneyFull(n: number): string {
-  return '\u20a6' + n.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return `\u20a6${n.toLocaleString('en-NG', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
 }
 
-/** Official brand SVG logos with accurate geometry and typography */
-function NetworkLogo({ id, size = 32 }: { id: NetworkId; size?: number }) {
+function formatNaira(n: number): string {
+  return n.toLocaleString('en-NG', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
+/** Authentic Brand Vector Logos */
+function NetworkLogo({ id, size = 44 }: { id: NetworkId; size?: number }) {
   switch (id) {
     case 'mtn':
       return (
@@ -122,29 +121,29 @@ function NetworkLogo({ id, size = 32 }: { id: NetworkId; size?: number }) {
           width={size}
           height={size}
           viewBox="0 0 100 100"
-          aria-label="MTN"
-          className="air-brand-svg"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+          aria-label="MTN Logo"
         >
           <rect width="100" height="100" rx="20" fill="#FFCC00" />
           <ellipse
             cx="50"
             cy="50"
-            rx="42"
-            ry="25"
+            rx="38"
+            ry="24"
             fill="none"
-            stroke="#111827"
+            stroke="#000000"
             strokeWidth="5.5"
           />
           <text
             x="50"
-            y="58"
+            y="56"
             textAnchor="middle"
-            fill="#111827"
-            fontSize="26"
-            fontFamily="-apple-system, BlinkMacSystemFont, 'Inter', 'Arial Black', sans-serif"
+            fill="#000000"
+            fontSize="21"
             fontWeight="900"
-            fontStyle="italic"
-            letterSpacing="-1"
+            fontFamily="'Arial Black', Impact, sans-serif"
+            letterSpacing="-0.5"
           >
             MTN
           </text>
@@ -156,27 +155,18 @@ function NetworkLogo({ id, size = 32 }: { id: NetworkId; size?: number }) {
           width={size}
           height={size}
           viewBox="0 0 100 100"
-          aria-label="Airtel"
-          className="air-brand-svg"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+          aria-label="Airtel Logo"
         >
           <rect width="100" height="100" rx="20" fill="#E60000" />
-          {/* Official Airtel curved emblem */}
           <path
-            d="M50 16 C31 16 17 30 17 48 C17 63 26 75 40 78 L40 84 L45 84 L45 78 C47 78 48 78 50 78 C68 78 83 63 83 46 C83 29 68 16 50 16 Z M50 27 C62 27 72 36 72 47 C72 58 62 67 50 67 C48 67 47 67 45 66.8 L45 54 C45 45 39 39 31 39 L28 39 C31 31 39 27 50 27 Z"
-            fill="#FFFFFF"
+            d="M32 70V44C32 34.0589 40.0589 26 50 26C59.9411 26 68 34.0589 68 44V70"
+            stroke="#FFFFFF"
+            strokeWidth="11"
+            strokeLinecap="round"
           />
-          <text
-            x="50"
-            y="94"
-            textAnchor="middle"
-            fill="#FFFFFF"
-            fontSize="10"
-            fontFamily="Inter, sans-serif"
-            fontWeight="700"
-            letterSpacing="0.5"
-          >
-            airtel
-          </text>
+          <circle cx="50" cy="56" r="6" fill="#FFFFFF" />
         </svg>
       );
     case 'glo':
@@ -185,29 +175,21 @@ function NetworkLogo({ id, size = 32 }: { id: NetworkId; size?: number }) {
           width={size}
           height={size}
           viewBox="0 0 100 100"
-          aria-label="Glo"
-          className="air-brand-svg"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+          aria-label="Glo Logo"
         >
-          <rect width="100" height="100" rx="20" fill="#00A651" />
-          {/* Glo distinctive circle and typography */}
-          <circle
-            cx="50"
-            cy="50"
-            r="38"
-            fill="none"
-            stroke="#FFFFFF"
-            strokeWidth="6"
-            strokeDasharray="210 30"
-          />
+          <rect width="100" height="100" rx="20" fill="#2E8540" />
+          <circle cx="50" cy="50" r="32" fill="#00A859" />
           <text
-            x="50"
+            x="48"
             y="59"
             textAnchor="middle"
             fill="#FFFFFF"
             fontSize="30"
-            fontFamily="Inter, system-ui, sans-serif"
-            fontWeight="800"
-            letterSpacing="-0.5"
+            fontWeight="900"
+            fontFamily="Arial, sans-serif"
+            letterSpacing="-1.5"
           >
             glo
           </text>
@@ -219,23 +201,23 @@ function NetworkLogo({ id, size = 32 }: { id: NetworkId; size?: number }) {
           width={size}
           height={size}
           viewBox="0 0 100 100"
-          aria-label="9mobile"
-          className="air-brand-svg"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+          aria-label="9mobile Logo"
         >
-          <rect width="100" height="100" rx="20" fill="#005C3E" />
-          {/* 9mobile numeral emblem + signal ripple */}
-          <path
-            d="M50 20 C36 20 25 31 25 45 C25 58 36 69 50 69 C64 69 75 58 75 45 C75 39 73 34 69 30 L61 38 C63 40 64 42 64 45 C64 53 58 59 50 59 C42 59 36 53 36 45 C36 37 42 31 50 31 C54 31 57 32 60 34 L66 27 C61 22 56 20 50 20 Z"
-            fill="#98D800"
-          />
-          <circle cx="50" cy="45" r="5" fill="#98D800" />
-          <path
-            d="M50 82 L50 68 C58 68 64 62 64 54"
-            fill="none"
-            stroke="#98D800"
-            strokeWidth="5"
-            strokeLinecap="round"
-          />
+          <rect width="100" height="100" rx="20" fill="#005B38" />
+          <text
+            x="36"
+            y="65"
+            textAnchor="middle"
+            fill="#C2D500"
+            fontSize="44"
+            fontWeight="900"
+            fontFamily="'Arial Black', Impact, sans-serif"
+          >
+            9
+          </text>
+          <circle cx="70" cy="46" r="8" fill="#C2D500" />
         </svg>
       );
     default:
@@ -246,9 +228,11 @@ function NetworkLogo({ id, size = 32 }: { id: NetworkId; size?: number }) {
 export function AirtimePage({
   onBack,
   session,
+  onFund,
 }: {
   onBack: () => void;
   session?: AuthSession | null;
+  onFund: () => void;
 }) {
   const walletBalance = session?.balanceNgn ?? 0;
   const [networkId, setNetworkId] = useState<NetworkId | ''>('');
@@ -308,44 +292,41 @@ export function AirtimePage({
         ...recentRecipients.filter((r) => r.phone !== clean),
       ].slice(0, 3);
       setRecentRecipients(updated);
-      localStorage.setItem(RECENT_RECIPIENTS_KEY, JSON.stringify(updated));
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(RECENT_RECIPIENTS_KEY, JSON.stringify(updated));
+      }
     } catch {
       /* noop */
     }
   }, [recentRecipients]);
 
+  const showToast = (msg: string) => {
+    setToast(msg);
+    setTimeout(() => setToast(null), 3500);
+  };
+
+  /** Rock-solid navigation to Fund Wallet */
+  const handleFund = useCallback(() => onFund(), [onFund]);
+
+  const phoneDigits = useMemo(() => normalizePhone(phone), [phone]);
+  const phoneValid = phoneDigits.length === 11 && phoneDigits.startsWith('0');
   const amount = useMemo(() => {
-    const n = Number(String(amountStr).replace(/,/g, ''));
-    return Number.isFinite(n) && n > 0 ? n : 0;
+    const parsed = parseFloat(amountStr.replace(/,/g, ''));
+    return isNaN(parsed) ? 0 : parsed;
   }, [amountStr]);
 
-  const phoneDigits = normalizePhone(phone);
-  const phoneValid = /^0[7-9]\d{9}$/.test(phoneDigits);
-
   const insufficient = amount > 0 && amount > walletBalance;
-  const formReady = !!networkId && phoneValid && amount >= 100 && amount <= 50000;
+  const formReady = Boolean(networkId && phoneValid && amount >= 100 && amount <= 50000);
 
-  const showToast = useCallback((msg: string) => {
-    setToast(msg);
-    window.setTimeout(() => setToast(null), 3000);
-  }, []);
-
-  /** Single entry point: normalize phone digits + auto-select network */
-  const applyPhone = useCallback((raw: string) => {
-    const cleaned = normalizePhone(raw);
-    setPhone(cleaned);
-    if (cleaned.length < 4) {
-      setAutoDetected(false);
-      return;
-    }
-    const detected = detectNetwork(cleaned);
+  const applyPhone = (val: string) => {
+    const clean = normalizePhone(val);
+    setPhone(clean);
+    const detected = detectNetwork(clean);
     if (detected) {
       setNetworkId(detected);
       setAutoDetected(true);
-    } else {
-      setAutoDetected(false);
     }
-  }, []);
+  };
 
   const handlePhoneChange = (v: string) => {
     applyPhone(v);
@@ -420,10 +401,6 @@ export function AirtimePage({
     }
   };
 
-  const handleFund = async () => {
-    showToast('Opening Fund Wallet...');
-  };
-
   let ctaLabel = 'Buy Airtime';
   let ctaAction: () => void | Promise<void> = handleBuy;
   let ctaClass = 'air-cta';
@@ -452,7 +429,7 @@ export function AirtimePage({
 
   return (
     <div className="air-page">
-      {/* ── Top Bar ── */}
+      {/* ── Top Bar with Back, Title, and Fund Wallet Button ── */}
       <header className="air-topbar">
         <button
           type="button"
@@ -469,10 +446,13 @@ export function AirtimePage({
         <button
           type="button"
           className="air-wallet-btn"
-          aria-label="Wallet"
+          aria-label="Fund Wallet"
+          title="Fund Wallet"
           onClick={handleFund}
         >
-          <Wallet size={18} strokeWidth={2.2} />
+          <Wallet size={15} strokeWidth={2.2} />
+          <span className="air-wallet-val">₦{formatNaira(walletBalance)}</span>
+          <span className="air-wallet-plus">+</span>
         </button>
       </header>
 
@@ -520,60 +500,39 @@ export function AirtimePage({
                 rx="10"
                 fill="url(#phoneGrad)"
                 stroke="#6366F1"
-                strokeWidth="1.8"
+                strokeWidth="2"
               />
-              <rect x="3" y="3" width="44" height="80" rx="8" fill="#0B1120" opacity="0.9" />
-              {/* Speaker / camera pill */}
-              <rect x="18" y="6" width="14" height="3" rx="1.5" fill="#475569" />
-              {/* Screen signal icon */}
-              <circle cx="25" cy="40" r="12" fill="#3B82F6" opacity="0.15" />
+              {/* Phone screen */}
+              <rect x="4" y="8" width="42" height="70" rx="6" fill="#0B132B" opacity="0.9" />
+              {/* Signal waves on screen */}
               <path
-                d="M25 32 L25 48 M21 36 L21 48 M29 40 L29 48"
-                stroke="#60A5FA"
-                strokeWidth="2.2"
-                strokeLinecap="round"
-              />
-            </g>
-
-            {/* Cellular Tower & Radiating Signal Waves */}
-            <g transform="translate(15, 30)">
-              {/* Antenna Mast */}
-              <line x1="30" y1="28" x2="30" y2="68" stroke="#38BDF8" strokeWidth="2.5" strokeLinecap="round" />
-              <polygon points="30,28 20,68 40,68" stroke="#38BDF8" strokeWidth="1.6" fill="none" opacity="0.85" />
-              <line x1="25" y1="48" x2="35" y2="48" stroke="#38BDF8" strokeWidth="1.5" />
-              <circle cx="30" cy="26" r="3.5" fill="#38BDF8" />
-
-              {/* Radiating Waves */}
-              <path
-                d="M20 22 C26 16 34 16 40 22"
+                d="M16 48C20 44 30 44 34 48"
                 stroke="#38BDF8"
-                strokeWidth="2"
+                strokeWidth="2.5"
                 strokeLinecap="round"
-                fill="none"
-                opacity="0.95"
               />
               <path
-                d="M14 16 C23 7 37 7 46 16"
-                stroke="#818CF8"
-                strokeWidth="2"
+                d="M20 54C22.5 51.5 27.5 51.5 30 54"
+                stroke="#38BDF8"
+                strokeWidth="2.5"
                 strokeLinecap="round"
-                fill="none"
-                opacity="0.75"
               />
+              <circle cx="25" cy="59" r="2" fill="#38BDF8" />
+              {/* Speaker pill */}
+              <rect x="20" y="4" width="10" height="2" rx="1" fill="#475569" />
             </g>
 
-            {/* Small floating accents */}
-            <circle cx="102" cy="30" r="3" fill="#A855F7" opacity="0.8" />
-            <circle cx="106" cy="48" r="4" fill="#38BDF8" opacity="0.9" />
-            <circle cx="112" cy="62" r="2.5" fill="#C084FC" opacity="0.7" />
+            {/* Signal transmission particles */}
+            <circle cx="25" cy="30" r="2.5" fill="#38BDF8" opacity="0.9" />
+            <circle cx="15" cy="50" r="1.5" fill="#818CF8" opacity="0.7" />
+            <circle cx="35" cy="75" r="2" fill="#38BDF8" opacity="0.8" />
           </svg>
+        </div>
 
-          {/* Carousel dots */}
-          <div className="air-promo-dots">
-            <span className="dot active" />
-            <span className="dot" />
-            <span className="dot" />
-          </div>
+        {/* Carousel indicators */}
+        <div className="air-promo-dots" aria-hidden>
+          <span className="dot active" />
+          <span className="dot" />
         </div>
       </section>
 
@@ -609,7 +568,7 @@ export function AirtimePage({
                   </span>
                 )}
                 <div className="air-net-logo-wrap">
-                  <NetworkLogo id={net.id} size={48} />
+                  <NetworkLogo id={net.id} size={42} />
                 </div>
                 <span className="air-net-label">{net.label}</span>
               </button>
@@ -646,6 +605,7 @@ export function AirtimePage({
                 className="air-use-mine"
                 onClick={handleUseMyNumber}
               >
+                <Sparkles size={12} className="air-use-mine-ico" />
                 Use My Number
               </button>
               {recentRecipients.length > 0 && (
@@ -698,7 +658,22 @@ export function AirtimePage({
           </div>
         </div>
 
-        {/* ── Quick Amounts (Four-by-Four grid) ── */}
+        {/* ── Wallet Balance Strip & Fund Action ── */}
+        <div className="air-wallet-strip">
+          <div className="air-wallet-strip-left">
+            <Wallet size={13} className="air-strip-ico" />
+            <span>Available: <strong>₦{formatNaira(walletBalance)}</strong></span>
+          </div>
+          <button
+            type="button"
+            className="air-strip-fund-btn"
+            onClick={handleFund}
+          >
+            + Fund Wallet
+          </button>
+        </div>
+
+        {/* ── Quick Amounts (Four-by-Four grid with ₦20,000 added) ── */}
         <div className="air-quick">
           <span className="air-quick-label">Quick Amounts</span>
           <div className="air-quick-grid">
@@ -716,7 +691,7 @@ export function AirtimePage({
                 </button>
               );
             })}
-            {/* Second Row: 2,000, 5,000, 10,000 */}
+            {/* Second Row: 2,000, 5,000, 10,000, 20,000 */}
             {QUICK_AMOUNTS_ROW_2.map((n) => {
               const active = amount === n;
               return (
@@ -743,9 +718,12 @@ export function AirtimePage({
           </div>
           {insufficient && (
             <div className="air-summary-warn">
-              <span>Insufficient balance · Wallet: {moneyFull(walletBalance)}</span>
+              <div className="air-warn-text">
+                <AlertCircle size={15} />
+                <span>Insufficient balance · Need {moneyFull(amount - walletBalance)} more</span>
+              </div>
               <button type="button" className="air-warn-fund-link" onClick={handleFund}>
-                Fund now
+                Fund Wallet →
               </button>
             </div>
           )}
@@ -806,67 +784,58 @@ export function AirtimePage({
               </button>
             </div>
 
-            <div className="air-modal-content">
-              {/* Account phone option */}
+            <div className="air-modal-list">
+              {/* Option 1: Registered Account Phone */}
               {accountPhone ? (
-                <div className="air-modal-section">
-                  <span className="air-modal-subhead">My Account</span>
-                  <button
-                    type="button"
-                    className="air-recipient-item is-account"
-                    onClick={() => handleSelectRecipient(accountPhone)}
-                  >
-                    <div className="air-rec-icon">
-                      <User size={18} />
+                <button
+                  type="button"
+                  className="air-modal-item"
+                  onClick={() => handleSelectRecipient(accountPhone)}
+                >
+                  <div className="air-modal-item-icon account">
+                    <Phone size={18} />
+                  </div>
+                  <div className="air-modal-item-info">
+                    <div className="air-modal-item-top">
+                      <strong>{formatPhoneDisplay(accountPhone)}</strong>
+                      <span className="air-tag primary">My Account</span>
                     </div>
-                    <div className="air-rec-info">
-                      <span className="air-rec-title">Account Phone Number</span>
-                      <strong className="air-rec-phone">{formatPhoneDisplay(accountPhone)}</strong>
-                    </div>
-                    <span className="air-rec-tag">Primary</span>
-                  </button>
-                </div>
+                    <span className="air-modal-item-sub">Registered login number</span>
+                  </div>
+                </button>
               ) : null}
 
-              {/* Recent recipients section */}
-              <div className="air-modal-section">
-                <span className="air-modal-subhead">Recent Recharges</span>
-                {recentRecipients.length > 0 ? (
-                  <div className="air-rec-list">
-                    {recentRecipients.map((rec) => {
-                      const detected = rec.networkId || detectNetwork(rec.phone);
-                      return (
-                        <button
-                          key={rec.phone}
-                          type="button"
-                          className="air-recipient-item"
-                          onClick={() => handleSelectRecipient(rec.phone, detected || undefined)}
-                        >
-                          <div className="air-rec-icon air-rec-net">
-                            {detected ? (
-                              <NetworkLogo id={detected} size={28} />
-                            ) : (
-                              <Phone size={16} />
-                            )}
-                          </div>
-                          <div className="air-rec-info">
-                            <strong className="air-rec-phone">{formatPhoneDisplay(rec.phone)}</strong>
-                            <span className="air-rec-meta">
-                              {detected ? detected.toUpperCase() : 'Nigerian Network'}
-                            </span>
-                          </div>
-                          <span className="air-rec-action">Select</span>
-                        </button>
-                      );
-                    })}
+              {/* Option 2: Recent Recharged Numbers (up to 3) */}
+              {recentRecipients.map((rec) => (
+                <button
+                  key={rec.phone}
+                  type="button"
+                  className="air-modal-item"
+                  onClick={() => handleSelectRecipient(rec.phone, rec.networkId)}
+                >
+                  <div className="air-modal-item-icon recent">
+                    <Clock size={18} />
                   </div>
-                ) : (
-                  <div className="air-rec-empty">
-                    <Clock size={20} className="air-rec-empty-icon" />
-                    <p>No recent airtime recharges yet. Numbers you top up will appear here.</p>
+                  <div className="air-modal-item-info">
+                    <div className="air-modal-item-top">
+                      <strong>{formatPhoneDisplay(rec.phone)}</strong>
+                      {rec.networkId && (
+                        <span className={`air-tag net-${rec.networkId}`}>
+                          {rec.networkId.toUpperCase()}
+                        </span>
+                      )}
+                    </div>
+                    <span className="air-modal-item-sub">Previously recharged</span>
                   </div>
-                )}
-              </div>
+                </button>
+              ))}
+
+              {!accountPhone && recentRecipients.length === 0 && (
+                <div className="air-modal-empty">
+                  <p>No previous numbers found yet.</p>
+                  <span>Type a phone number above and it will be saved automatically.</span>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -875,7 +844,7 @@ export function AirtimePage({
       {/* ── Toast Notification ── */}
       {toast && (
         <div className="air-toast" role="status">
-          <Check size={16} strokeWidth={3} /> {toast}
+          <span>{toast}</span>
         </div>
       )}
     </div>
