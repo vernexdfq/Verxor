@@ -37,7 +37,7 @@ const QUICK_ACTIONS: {
   { id: 'boost', title: 'Boost Account', icon: Rocket, tone: 'qa-purple', service: 'boost' },
   { id: 'accounts', title: 'Buy Logs', icon: FileText, tone: 'qa-amber', service: 'accounts' },
   { id: 'rental', title: 'Rent Number', icon: PhoneCall, tone: 'qa-teal', service: 'rental' },
-  { id: 'esim', title: 'eSIM', icon: Globe, tone: 'qa-royal', service: 'esim' },
+  { id: 'esim', title: 'eSIM', icon: Globe, tone: 'qa-royal', service: 'esim', soon: true },
   { id: 'proxies', title: 'Proxies', icon: ShieldCheck, tone: 'qa-green', service: 'proxies', soon: true },
   { id: 'gift', title: 'Gift Card', icon: Gift, tone: 'qa-pink', service: 'gift-card', soon: true },
   { id: 'vcard', title: 'Virtual Card', icon: CreditCard, tone: 'qa-slate', service: 'virtual-card', soon: true },
