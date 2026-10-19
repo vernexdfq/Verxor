@@ -31,15 +31,16 @@ const QUICK_ACTIONS: {
   icon: typeof Phone;
   tone: string;
   service?: ServiceView;
+  soon?: boolean;
 }[] = [
   { id: 'virtual-numbers', title: 'Virtual Number', icon: Phone, tone: 'qa-blue', service: 'virtual-numbers' },
   { id: 'boost', title: 'Boost Account', icon: Rocket, tone: 'qa-purple', service: 'boost' },
   { id: 'accounts', title: 'Buy Logs', icon: FileText, tone: 'qa-amber', service: 'accounts' },
   { id: 'rental', title: 'Rent Number', icon: PhoneCall, tone: 'qa-teal', service: 'rental' },
   { id: 'esim', title: 'eSIM', icon: Globe, tone: 'qa-royal', service: 'esim' },
-  { id: 'proxies', title: 'Proxies', icon: ShieldCheck, tone: 'qa-green', service: 'proxies' },
-  { id: 'gift', title: 'Gift Card', icon: Gift, tone: 'qa-pink', service: 'gift-card' },
-  { id: 'vcard', title: 'Virtual Card', icon: CreditCard, tone: 'qa-slate', service: 'virtual-card' },
+  { id: 'proxies', title: 'Proxies', icon: ShieldCheck, tone: 'qa-green', service: 'proxies', soon: true },
+  { id: 'gift', title: 'Gift Card', icon: Gift, tone: 'qa-pink', service: 'gift-card', soon: true },
+  { id: 'vcard', title: 'Virtual Card', icon: CreditCard, tone: 'qa-slate', service: 'virtual-card', soon: true },
 ];
 
 const PROMO_SLIDES: {
@@ -186,7 +187,6 @@ export function HomePage({
     (async () => {
       setRecentLoading(true);
       try {
-        // Same auth resolution as History so Home always sees real ledger rows.
         let accessToken = loadSessionTokens()?.access_token || '';
         let userId = loadSessionProfile()?.userId || '';
         try {
@@ -202,7 +202,6 @@ export function HomePage({
           /* ignore */
         }
 
-        // New / signed-out users: keep the section clean (no fake rows).
         if (!userId && !accessToken) {
           if (!cancelled) {
             setRecent([]);
@@ -224,7 +223,6 @@ export function HomePage({
         }
         const data = (await res.json()) as { items?: ActivityItem[] };
         if (!cancelled) {
-          // Only the last two real transactions — never hard-coded.
           setRecent(Array.isArray(data.items) ? data.items.slice(0, 2) : []);
         }
       } catch {
@@ -286,18 +284,41 @@ export function HomePage({
       <section className="vx-quick" aria-label="Quick actions">
         <p className="vx-section-label">QUICK ACTIONS</p>
         <div className="vx-quick-grid">
-          {QUICK_ACTIONS.map(({ id, title, icon: Icon, tone, service }) => (
+          {QUICK_ACTIONS.map(({ id, title, icon: Icon, tone, service, soon }) => (
             <button
               key={id}
               type="button"
               className="vx-quick-tile"
-              aria-label={title}
+              aria-label={soon ? `${title} coming soon` : title}
               onClick={() => {
+                if (soon) {
+                  window.alert('Service coming soon');
+                  return;
+                }
                 if (service) openService(service);
               }}
             >
-              <span className={`vx-quick-icon ${tone}`}>
+              <span className={`vx-quick-icon ${tone}`} style={{ position: 'relative' }}>
                 <Icon size={20} strokeWidth={1.9} />
+                {soon ? (
+                  <span
+                    style={{
+                      position: 'absolute',
+                      top: -6,
+                      right: -10,
+                      background: '#f59e0b',
+                      color: '#fff',
+                      fontSize: 8,
+                      fontWeight: 800,
+                      letterSpacing: '0.04em',
+                      padding: '2px 5px',
+                      borderRadius: 999,
+                      lineHeight: 1.2,
+                    }}
+                  >
+                    SOON
+                  </span>
+                ) : null}
               </span>
               <strong>{title}</strong>
             </button>
