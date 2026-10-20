@@ -22,7 +22,6 @@ function toNgPhone(raw: string): string {
   return d.padStart(11, '0').slice(0, 11);
 }
 
-/** Same robust parser as the working /funding/generate route */
 function pickAccount(raw: Record<string, unknown>) {
   const data = (raw?.data as Record<string, unknown>) || raw;
   const bankAccounts = (data.bankAccounts || data.accounts || raw.bankAccounts || []) as Array<
@@ -67,6 +66,8 @@ function jsonError(message: string, status: number) {
 /**
  * Partner wholesale top-up via Verxor's single XixaPay.
  * Auth: X-Api-Key: vx_panel_*  (preferred) or Authorization: Bearer vx_panel_*
+ *
+ * Body { debug: true } → returns panel + config status without calling XixaPay.
  */
 export async function POST(req: NextRequest) {
   try {
@@ -74,9 +75,7 @@ export async function POST(req: NextRequest) {
     const secret = process.env.XIXAPAY_SECRET_KEY?.trim();
     const businessId = process.env.XIXAPAY_BUSINESS_ID?.trim();
 
-    if (!apiKey || !secret || !businessId) {
-      return jsonError('XixaPay is not configured on Verxor.', 503);
-    }
+    const xixapayConfigured = Boolean(apiKey && secret && businessId);
 
     let panel;
     try {
@@ -98,11 +97,28 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    let body: { amount?: number; amountNgn?: number } = {};
+    let body: { amount?: number; amountNgn?: number; debug?: boolean } = {};
     try {
       body = await req.json();
     } catch {
       /* empty ok */
+    }
+
+    // Debug mode: prove auth + config without touching XixaPay
+    if (body.debug === true) {
+      return NextResponse.json({
+        ok: true,
+        debug: true,
+        panel: { id: panel.id, name: panel.name, walletUserId: userId, source: panel.source },
+        xixapayConfigured,
+        message: xixapayConfigured
+          ? 'Panel auth OK. XixaPay env present. Ready to generate.'
+          : 'Panel auth OK but XixaPay env missing on Verxor.',
+      });
+    }
+
+    if (!xixapayConfigured) {
+      return jsonError('XixaPay is not configured on Verxor.', 503);
     }
 
     const amount = Math.round(Number(body.amountNgn ?? body.amount));
@@ -143,20 +159,29 @@ export async function POST(req: NextRequest) {
       callbackUrl,
     };
 
+    // Hard 10s race — never let the platform kill us with a HTML 502
     let xixapayRes: Response;
     try {
-      xixapayRes = await fetch(`${xixapayBase()}/api/v1/createVirtualAccount`, {
+      const fetchPromise = fetch(`${xixapayBase()}/api/v1/createVirtualAccount`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${secret}`,
-          'api-key': apiKey,
+          'api-key': apiKey!,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(payload),
         cache: 'no-store',
       });
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('XIXAPAY_TIMEOUT')), 10_000),
+      );
+      xixapayRes = await Promise.race([fetchPromise, timeoutPromise]);
     } catch (e) {
-      console.error('[partner/fund/generate] xixapay network', e);
+      const msg = e instanceof Error ? e.message : String(e);
+      console.error('[partner/fund/generate] xixapay network', msg);
+      if (msg === 'XIXAPAY_TIMEOUT') {
+        return jsonError('Payment provider timed out. Try again in a few seconds.', 502);
+      }
       return jsonError('Could not reach payment provider. Try again.', 502);
     }
 
