@@ -3,7 +3,7 @@ import { resolvePanelClient } from '@/lib/panel-auth';
 import { sbInsert, supabaseConfigured } from '@/lib/supabase-admin';
 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 25;
+export const maxDuration = 30;
 export const runtime = 'nodejs';
 
 const BANK = { code: '100004', name: 'OPay' };
@@ -23,18 +23,41 @@ function toNgPhone(raw: string): string {
   return d.padStart(11, '0').slice(0, 11);
 }
 
-function pickAccount(data: Record<string, unknown>) {
-  const accounts = (data.bankAccounts as Array<Record<string, unknown>>) || [];
-  const first = accounts[0] || {};
-  const accountNumber = String(first.accountNumber || first.account_number || '');
+/** Same robust parser as the working /funding/generate route */
+function pickAccount(raw: Record<string, unknown>) {
+  const data = (raw?.data as Record<string, unknown>) || raw;
+  const bankAccounts = (data.bankAccounts || data.accounts || raw.bankAccounts || []) as Array<
+    Record<string, unknown>
+  >;
+  const first = bankAccounts[0] || {};
+  const customer = (data.customer || raw.customer || {}) as Record<string, unknown>;
+
+  const accountNumber = String(
+    first.accountNumber ||
+      first.account_number ||
+      data.accountNumber ||
+      data.account_number ||
+      data.virtualAccountNumber ||
+      (data.account as Record<string, unknown> | undefined)?.number ||
+      '',
+  ).replace(/\D/g, '');
+
   const accountName = String(
-    first.accountName || first.account_name || data.accountName || '',
+    first.accountName ||
+      first.account_name ||
+      data.accountName ||
+      data.account_name ||
+      (data.account as Record<string, unknown> | undefined)?.name ||
+      '',
   );
-  const bankName = String(first.bankName || first.bank_name || BANK.name);
-  const customer = (data.customer as Record<string, unknown>) || {};
-  const providerCustomerId = String(customer.customer_id || data.customerId || '');
-  const expireAt =
-    first.expireAt || first.expire_at || data.expireAt || data.expire_at || null;
+  const bankName = String(
+    first.bankName || first.bank_name || data.bankName || data.bank_name || data.bank || BANK.name,
+  );
+  const providerCustomerId = String(
+    customer.customer_id || customer.id || data.customer_id || data.customerId || '',
+  );
+  const expireAt = first.expire_at || first.expireAt || data.expire_at || data.expireAt || null;
+
   return { accountNumber, accountName, bankName, providerCustomerId, expireAt };
 }
 
@@ -94,7 +117,8 @@ export async function POST(req: NextRequest) {
     const panelSlug =
       (panel.name || 'partner').toLowerCase().replace(/[^a-z0-9]+/g, '').slice(0, 24) ||
       'partner';
-    const accountName = `Verxor–${panelSlug}`.slice(0, 80);
+    // ASCII hyphen only — avoid special en-dash that some gateways choke on
+    const accountName = `Verxor-${panelSlug}`.slice(0, 80);
     const externalRef = `vxp-panel-${String(panel.id).slice(0, 8)}-${Date.now()}`;
     const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://www.verxor.com').replace(
       /\/$/,
@@ -104,7 +128,6 @@ export async function POST(req: NextRequest) {
       process.env.XIXAPAY_VIRTUAL_ACCOUNT_WEBHOOK_URL ||
       `${appUrl}/api/webhooks/xixapay/virtual-account`;
 
-    // Prefer a known-good Gmail for the vernexdigital panel
     const vaEmail =
       panelSlug === 'vernexdigital'
         ? 'vernexdigital@gmail.com'
@@ -122,10 +145,7 @@ export async function POST(req: NextRequest) {
       callbackUrl,
     };
 
-    // Strict 12s timeout — never let the function hit platform limits
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 12_000);
-
+    // Same pattern as the working /funding/generate route (no AbortController)
     let xixapayRes: Response;
     try {
       xixapayRes = await fetch(`${xixapayBase()}/api/v1/createVirtualAccount`, {
@@ -137,30 +157,13 @@ export async function POST(req: NextRequest) {
         },
         body: JSON.stringify(payload),
         cache: 'no-store',
-        signal: controller.signal,
       });
     } catch (e) {
-      clearTimeout(timer);
-      const aborted = e instanceof Error && e.name === 'AbortError';
       console.error('[partner/fund/generate] xixapay network', e);
-      return jsonError(
-        aborted
-          ? 'Payment provider timed out. Try again in a few seconds.'
-          : 'Could not reach payment provider. Try again.',
-        502,
-      );
-    } finally {
-      clearTimeout(timer);
+      return jsonError('Could not reach payment provider. Try again.', 502);
     }
 
-    let rawText = '';
-    try {
-      rawText = await xixapayRes.text();
-    } catch (e) {
-      console.error('[partner/fund/generate] read body', e);
-      return jsonError('Payment provider returned an unreadable response.', 502);
-    }
-
+    const rawText = await xixapayRes.text().catch(() => '');
     let raw: Record<string, unknown> = {};
     try {
       raw = JSON.parse(rawText) as Record<string, unknown>;
@@ -195,7 +198,6 @@ export async function POST(req: NextRequest) {
     const displayName = accountName;
     const accountNumber = String(picked.accountNumber).replace(/\D/g, '');
 
-    // Non-blocking save — never let DB issues kill the response
     if (supabaseConfigured()) {
       try {
         await sbInsert('virtual_accounts', {
