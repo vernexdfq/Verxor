@@ -4,7 +4,6 @@ import { sbInsert, supabaseConfigured } from '@/lib/supabase-admin';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
-export const runtime = 'nodejs';
 
 const BANK = { code: '100004', name: 'OPay' };
 const MIN_AMOUNT_NGN = 500;
@@ -117,7 +116,6 @@ export async function POST(req: NextRequest) {
     const panelSlug =
       (panel.name || 'partner').toLowerCase().replace(/[^a-z0-9]+/g, '').slice(0, 24) ||
       'partner';
-    // ASCII hyphen only — avoid special en-dash that some gateways choke on
     const accountName = `Verxor-${panelSlug}`.slice(0, 80);
     const externalRef = `vxp-panel-${String(panel.id).slice(0, 8)}-${Date.now()}`;
     const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://www.verxor.com').replace(
@@ -145,7 +143,6 @@ export async function POST(req: NextRequest) {
       callbackUrl,
     };
 
-    // Same pattern as the working /funding/generate route (no AbortController)
     let xixapayRes: Response;
     try {
       xixapayRes = await fetch(`${xixapayBase()}/api/v1/createVirtualAccount`, {
