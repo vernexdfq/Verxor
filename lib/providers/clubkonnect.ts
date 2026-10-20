@@ -40,12 +40,14 @@ function apiKey(): string {
 }
 
 function callbackUrl(): string {
-  return (
-    process.env.CLUBKONNECT_CALLBACK_URL ||
-    process.env.NEXT_PUBLIC_APP_URL
-      ? `${String(process.env.NEXT_PUBLIC_APP_URL).replace(/\/$/, '')}/api/webhooks/clubkonnect`
-      : 'https://verxor.com/api/webhooks/clubkonnect'
-  );
+  if (process.env.CLUBKONNECT_CALLBACK_URL) {
+    return process.env.CLUBKONNECT_CALLBACK_URL.trim();
+  }
+  const app = process.env.NEXT_PUBLIC_APP_URL;
+  if (app) {
+    return `${app.replace(/\/$/, '')}/api/webhooks/clubkonnect`;
+  }
+  return 'https://verxor.com/api/webhooks/clubkonnect';
 }
 
 export function isClubKonnectConfigured(): boolean {
@@ -233,7 +235,7 @@ export async function purchaseAirtime(opts: {
   const phone = normalizeNgPhone(opts.phone);
   const requestId = opts.ref || makeRef('AT');
 
-  // Official docs: APIAirtimeV1.asp + CallBackURL required in URL template
+  // Official docs: APIAirtimeV1.asp + CallBackURL
   const { data } = await ckGet('APIAirtimeV1.asp', {
     MobileNetwork: mobileNetwork,
     Amount: amount,
