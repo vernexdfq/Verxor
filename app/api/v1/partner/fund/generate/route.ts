@@ -23,6 +23,7 @@ function toNgPhone(raw: string): string {
   return d.padStart(11, '0').slice(0, 11);
 }
 
+/** Same parser as working /funding/generate */
 function pickAccount(raw: Record<string, unknown>) {
   const data = (raw?.data as Record<string, unknown>) || raw;
   const bankAccounts = (data.bankAccounts || data.accounts || raw.bankAccounts || []) as Array<
@@ -65,12 +66,14 @@ function jsonError(message: string, status: number) {
 }
 
 /**
- * Partner wholesale top-up via Verxor's single XixaPay.
- * Auth: X-Api-Key: vx_panel_*
- * Body { debug: true } → auth + config only (no XixaPay call).
+ * Partner wholesale top-up via Verxor's single XixaPay merchant.
+ * Auth: X-Api-Key: vx_panel_* only.
+ * Bank settlement → Verxor XixaPay account.
+ * Webhook → credits panel reseller_wallet.
  */
 export async function POST(req: NextRequest) {
   try {
+    // Verxor merchant credentials ONLY (never child-panel keys)
     const apiKey = process.env.XIXAPAY_API_KEY?.trim();
     const secret = process.env.XIXAPAY_SECRET_KEY?.trim();
     const businessId = process.env.XIXAPAY_BUSINESS_ID?.trim();
@@ -109,14 +112,15 @@ export async function POST(req: NextRequest) {
         debug: true,
         panel: { id: panel.id, name: panel.name, walletUserId: userId, source: panel.source },
         xixapayConfigured,
+        merchant: 'verxor',
         message: xixapayConfigured
-          ? 'Panel auth OK. XixaPay env present. Ready to generate.'
-          : 'Panel auth OK but XixaPay env missing on Verxor.',
+          ? 'Panel auth OK. Verxor XixaPay merchant ready. Money settles to Verxor.'
+          : 'Panel auth OK but XIXAPAY_* missing on Verxor server.',
       });
     }
 
     if (!xixapayConfigured) {
-      return jsonError('XixaPay is not configured on Verxor.', 503);
+      return jsonError('XixaPay is not configured on Verxor (merchant keys).', 503);
     }
 
     const amount = Math.round(Number(body.amountNgn ?? body.amount));
@@ -157,9 +161,7 @@ export async function POST(req: NextRequest) {
       callbackUrl,
     };
 
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 8000);
-
+    // Same call style as working user /funding/generate (no AbortController)
     let xixapayRes: Response;
     try {
       xixapayRes = await fetch(`${xixapayBase()}/api/v1/createVirtualAccount`, {
@@ -171,32 +173,13 @@ export async function POST(req: NextRequest) {
         },
         body: JSON.stringify(payload),
         cache: 'no-store',
-        signal: controller.signal,
       });
     } catch (e) {
-      clearTimeout(timer);
-      const aborted =
-        (e instanceof Error && e.name === 'AbortError') ||
-        (typeof e === 'object' && e !== null && 'name' in e && (e as any).name === 'AbortError');
       console.error('[partner/fund/generate] xixapay network', e);
-      return jsonError(
-        aborted
-          ? 'Payment provider timed out (8s). Try again.'
-          : 'Could not reach payment provider. Try again.',
-        502,
-      );
-    } finally {
-      clearTimeout(timer);
+      return jsonError('Could not reach payment provider. Try again.', 502);
     }
 
-    let rawText = '';
-    try {
-      rawText = await xixapayRes.text();
-    } catch (e) {
-      console.error('[partner/fund/generate] read body', e);
-      return jsonError('Payment provider returned unreadable response.', 502);
-    }
-
+    const rawText = await xixapayRes.text().catch(() => '');
     let raw: Record<string, unknown> = {};
     try {
       raw = JSON.parse(rawText) as Record<string, unknown>;
@@ -231,27 +214,31 @@ export async function POST(req: NextRequest) {
     const displayName = accountName;
     const accountNumber = String(picked.accountNumber).replace(/\D/g, '');
 
-    // Fire-and-forget VA save — never block the response
     if (supabaseConfigured()) {
-      sbInsert('virtual_accounts', {
-        user_id: userId,
-        provider: 'xixapay',
-        bank_code: BANK.code,
-        bank_name: bankName,
-        account_number: accountNumber,
-        account_name: displayName,
-        account_type: 'dynamic',
-        amount_ngn: amount,
-        external_ref: externalRef,
-        provider_customer_id: picked.providerCustomerId || null,
-        raw: {
-          expire_at: expireAt,
-          partner_fund: true,
-          wallet_type: 'reseller',
-          panel_id: panel.id,
-          panel_name: panel.name,
-        },
-      }).catch((e) => console.error('[partner/fund/generate] save VA (non-fatal)', e));
+      try {
+        await sbInsert('virtual_accounts', {
+          user_id: userId,
+          provider: 'xixapay',
+          bank_code: BANK.code,
+          bank_name: bankName,
+          account_number: accountNumber,
+          account_name: displayName,
+          account_type: 'dynamic',
+          amount_ngn: amount,
+          external_ref: externalRef,
+          provider_customer_id: picked.providerCustomerId || null,
+          raw: {
+            expire_at: expireAt,
+            partner_fund: true,
+            wallet_type: 'reseller',
+            panel_id: panel.id,
+            panel_name: panel.name,
+            merchant: 'verxor',
+          },
+        });
+      } catch (e) {
+        console.error('[partner/fund/generate] save VA (non-fatal)', e);
+      }
     }
 
     return NextResponse.json({
@@ -267,7 +254,9 @@ export async function POST(req: NextRequest) {
       externalReference: externalRef,
       externalRef,
       panel: { id: panel.id, name: panel.name },
-      message: 'Transfer the exact amount. Panel balance updates when the bank confirms.',
+      merchant: 'verxor',
+      message:
+        'Transfer the exact amount. Money settles to Verxor; panel wholesale balance updates when the bank confirms.',
     });
   } catch (e) {
     console.error('[partner/fund/generate] unhandled', e);
