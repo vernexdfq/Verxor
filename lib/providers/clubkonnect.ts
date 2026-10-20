@@ -7,7 +7,8 @@
  *   CLUBKONNECT_USER_ID
  *   CLUBKONNECT_API_KEY
  *   CLUBKONNECT_BASE_URL (optional)
- *   CLUBKONNECT_CALLBACK_URL (optional — defaults to https://verxor.com/api/webhooks/clubkonnect)
+ *
+ * Note: Do NOT send CallBackURL — this account returns CALLBACK NOT SUPPORTED.
  */
 
 export type CkNetworkSlug = 'mtn' | 'glo' | '9mobile' | 'airtel';
@@ -39,17 +40,6 @@ function apiKey(): string {
   return key.trim();
 }
 
-function callbackUrl(): string {
-  if (process.env.CLUBKONNECT_CALLBACK_URL) {
-    return process.env.CLUBKONNECT_CALLBACK_URL.trim();
-  }
-  const app = process.env.NEXT_PUBLIC_APP_URL;
-  if (app) {
-    return `${app.replace(/\/$/, '')}/api/webhooks/clubkonnect`;
-  }
-  return 'https://verxor.com/api/webhooks/clubkonnect';
-}
-
 export function isClubKonnectConfigured(): boolean {
   return Boolean(process.env.CLUBKONNECT_USER_ID && process.env.CLUBKONNECT_API_KEY);
 }
@@ -79,6 +69,7 @@ async function ckGet(
   qs.set('UserID', userId());
   qs.set('APIKey', apiKey());
   for (const [k, v] of Object.entries(params)) {
+    if (v === undefined || v === null || v === '') continue;
     qs.set(k, String(v));
   }
   const url = `${baseUrl()}/${endpoint.replace(/^\//, '')}?${qs.toString()}`;
@@ -131,8 +122,9 @@ function errorFromStatus(status: unknown, fallback: string): string {
     DUPLICATE_ORDER: 'Duplicate request — try again with a new reference',
     ORDER_CANCELLED: 'Order was cancelled by provider',
     ORDER_FAILED: 'Provider reported order failed',
+    'CALLBACK NOT SUPPORTED': 'ClubKonnect rejected CallBackURL — retry without callback',
     PAYMENT_SAVE_NOT_CONFIRMED_RETRY_SAME_REQUEST_ID:
-      'ClubKonnect could not debit wallet (PAYMENT_SAVE_NOT_CONFIRMED). Check: 1) wallet balance 2) clear Server IP in ClubKonnect Developer settings 3) API key is active',
+      'ClubKonnect could not debit wallet. Check wallet balance and clear Server IP in Developer settings',
   };
   if (map[s]) return map[s];
   if (s && s !== 'UNDEFINED' && s !== 'NULL' && s !== '[OBJECT OBJECT]') {
@@ -217,6 +209,10 @@ export async function getAirtimeDiscounts(): Promise<
   return out;
 }
 
+/**
+ * Buy airtime via ClubKonnect APIAirtimeV1.asp
+ * Params match official docs (without CallBackURL — not supported on this account).
+ */
 export async function purchaseAirtime(opts: {
   network: CkNetworkSlug;
   phone: string;
@@ -235,19 +231,19 @@ export async function purchaseAirtime(opts: {
   const phone = normalizeNgPhone(opts.phone);
   const requestId = opts.ref || makeRef('AT');
 
-  // Official docs: APIAirtimeV1.asp + CallBackURL
+  // Official: APIAirtimeV1.asp?UserID&APIKey&MobileNetwork&Amount&MobileNumber&RequestID
+  // Intentionally omit CallBackURL — account returns CALLBACK NOT SUPPORTED
   const { data } = await ckGet('APIAirtimeV1.asp', {
     MobileNetwork: mobileNetwork,
     Amount: amount,
     MobileNumber: phone,
     RequestID: requestId,
-    CallBackURL: callbackUrl(),
   });
 
   const status = data?.status ?? data?.Status ?? data?.orderstatus ?? data?.raw;
   const statusCode = data?.statuscode ?? data?.statusCode;
 
-  // Accept ORDER_RECEIVED (100) and ORDER_COMPLETED (200) as success
+  // ORDER_RECEIVED (100) and ORDER_COMPLETED (200) = success
   if (isSuccessStatus(status) || String(statusCode) === '100' || String(statusCode) === '200') {
     return {
       ref: String(data?.requestid || data?.RequestID || data?.orderid || data?.orderId || requestId),
