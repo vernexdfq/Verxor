@@ -4,17 +4,16 @@ import { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   ArrowLeft,
   Check,
-  ChevronDown,
   Clock,
   Lock,
   Phone,
   Sparkles,
   Wallet,
   X,
-  Zap,
   AlertCircle,
 } from 'lucide-react';
 import type { AuthSession } from './auth/AuthFlow';
+import { loadSessionProfile } from './auth/session-unlock';
 import './airtime-page.css';
 
 type NetworkId = 'mtn' | 'airtel' | 'glo' | '9mobile';
@@ -244,7 +243,7 @@ export function AirtimePage({
   const [pickerOpen, setPickerOpen] = useState(false);
   const [recentRecipients, setRecentRecipients] = useState<RecentRecipient[]>([]);
 
-  // Resolve logged-in customer's phone from session or local stored last phone
+  // Resolve logged-in customer's phone from session, stored profile, or last phone
   const accountPhone = useMemo(() => {
     if (session?.contact) {
       const clean = normalizePhone(session.contact);
@@ -252,11 +251,33 @@ export function AirtimePage({
     }
     if (typeof window !== 'undefined') {
       try {
+        const profile = loadSessionProfile();
+        if (profile?.contact) {
+          const clean = normalizePhone(profile.contact);
+          if (clean.length === 11) return clean;
+        }
+      } catch {
+        /* noop */
+      }
+      try {
         const raw = localStorage.getItem('verxor-last-phone');
         if (raw) {
           const parsed = JSON.parse(raw) as { national?: string };
           if (parsed?.national) {
             const clean = normalizePhone(parsed.national);
+            if (clean.length === 11) return clean;
+          }
+        }
+      } catch {
+        /* noop */
+      }
+      try {
+        const userRaw = localStorage.getItem('verxor-user');
+        if (userRaw) {
+          const u = JSON.parse(userRaw) as { phone?: string; contact?: string };
+          const c = u?.phone || u?.contact;
+          if (c) {
+            const clean = normalizePhone(c);
             if (clean.length === 11) return clean;
           }
         }
@@ -332,18 +353,18 @@ export function AirtimePage({
     applyPhone(v);
   };
 
-  /** Use My Number click: open rich recipient sheet if recent numbers exist, or apply directly */
+  /** Use My Number click: instantly applies the registered account number without obstructing typing */
   const handleUseMyNumber = () => {
+    if (accountPhone) {
+      applyPhone(accountPhone);
+      showToast(`Account number applied (${formatPhoneDisplay(accountPhone)})`);
+      return;
+    }
     if (recentRecipients.length > 0) {
       setPickerOpen(true);
       return;
     }
-    if (accountPhone) {
-      applyPhone(accountPhone);
-      showToast('Account phone number applied');
-    } else {
-      setPickerOpen(true);
-    }
+    showToast('No registered phone number found on account');
   };
 
   const handleSelectRecipient = (selectedPhone: string, netId?: NetworkId) => {
@@ -456,86 +477,6 @@ export function AirtimePage({
         </button>
       </header>
 
-      {/* ── Advertisement / Promo Banner Strip ── */}
-      <section className="air-promo-banner" aria-label="Promotion">
-        <div className="air-promo-content">
-          <div className="air-promo-badge">
-            <Zap size={11} className="air-promo-zap" />
-            <span>FAST TOP-UP</span>
-          </div>
-          <h2 className="air-promo-title">Airtime Recharge</h2>
-          <p className="air-promo-desc">
-            Buy airtime instantly for all major networks.
-          </p>
-        </div>
-
-        <div className="air-promo-art" aria-hidden>
-          <svg
-            className="air-tower-svg"
-            viewBox="0 0 120 120"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <defs>
-              <linearGradient id="phoneGrad" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0%" stopColor="#4F46E5" />
-                <stop offset="100%" stopColor="#1E1B4B" />
-              </linearGradient>
-              <linearGradient id="glowGrad" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0%" stopColor="#38BDF8" stopOpacity="0.8" />
-                <stop offset="100%" stopColor="#818CF8" stopOpacity="0.2" />
-              </linearGradient>
-            </defs>
-
-            {/* Glowing background halo */}
-            <circle cx="80" cy="50" r="35" fill="url(#glowGrad)" filter="blur(16px)" />
-
-            {/* Isometric Smartphone */}
-            <g transform="translate(45, 12) rotate(8)">
-              <rect
-                x="0"
-                y="0"
-                width="50"
-                height="86"
-                rx="10"
-                fill="url(#phoneGrad)"
-                stroke="#6366F1"
-                strokeWidth="2"
-              />
-              {/* Phone screen */}
-              <rect x="4" y="8" width="42" height="70" rx="6" fill="#0B132B" opacity="0.9" />
-              {/* Signal waves on screen */}
-              <path
-                d="M16 48C20 44 30 44 34 48"
-                stroke="#38BDF8"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-              />
-              <path
-                d="M20 54C22.5 51.5 27.5 51.5 30 54"
-                stroke="#38BDF8"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-              />
-              <circle cx="25" cy="59" r="2" fill="#38BDF8" />
-              {/* Speaker pill */}
-              <rect x="20" y="4" width="10" height="2" rx="1" fill="#475569" />
-            </g>
-
-            {/* Signal transmission particles */}
-            <circle cx="25" cy="30" r="2.5" fill="#38BDF8" opacity="0.9" />
-            <circle cx="15" cy="50" r="1.5" fill="#818CF8" opacity="0.7" />
-            <circle cx="35" cy="75" r="2" fill="#38BDF8" opacity="0.8" />
-          </svg>
-        </div>
-
-        {/* Carousel indicators */}
-        <div className="air-promo-dots" aria-hidden>
-          <span className="dot active" />
-          <span className="dot" />
-        </div>
-      </section>
-
       {/* ── Select Network ── */}
       <section className="air-section">
         <div className="air-section-head">
@@ -584,8 +525,34 @@ export function AirtimePage({
           <p>Enter recipient and amount.</p>
         </div>
 
-        {/* Recipient Phone Field */}
+        {/* Recipient Phone Field with clean header actions that do not obstruct typing */}
         <div className="air-field">
+          <div className="air-field-header">
+            <span className="air-field-label">Phone Number</span>
+            <div className="air-field-actions">
+              <button
+                type="button"
+                className="air-use-mine-pill"
+                onClick={handleUseMyNumber}
+                title="Use your registered account number"
+              >
+                <Sparkles size={11} className="air-use-mine-ico" />
+                Use My Number
+              </button>
+              {recentRecipients.length > 0 && (
+                <button
+                  type="button"
+                  className="air-recent-pill"
+                  title="Choose from recent recharges"
+                  aria-label="Choose from recent recharges"
+                  onClick={() => setPickerOpen(true)}
+                >
+                  <Clock size={11} />
+                  Recent
+                </button>
+              )}
+            </div>
+          </div>
           <div className={phoneDigits && !phoneValid ? 'air-input-wrap is-error' : 'air-input-wrap'}>
             <div className="air-input-lead-icon">
               <Phone size={17} strokeWidth={2.2} />
@@ -599,27 +566,20 @@ export function AirtimePage({
               onChange={(e) => handlePhoneChange(e.target.value)}
               aria-label="Phone number"
             />
-            <div className="air-input-actions">
+            {phone ? (
               <button
                 type="button"
-                className="air-use-mine"
-                onClick={handleUseMyNumber}
+                className="air-clear"
+                aria-label="Clear phone number"
+                title="Clear phone number"
+                onClick={() => {
+                  setPhone('');
+                  setAutoDetected(false);
+                }}
               >
-                <Sparkles size={12} className="air-use-mine-ico" />
-                Use My Number
+                <X size={14} strokeWidth={2.5} />
               </button>
-              {recentRecipients.length > 0 && (
-                <button
-                  type="button"
-                  className="air-recent-btn"
-                  title="Recent recipients"
-                  aria-label="Recent recipients"
-                  onClick={() => setPickerOpen(true)}
-                >
-                  <Clock size={15} />
-                </button>
-              )}
-            </div>
+            ) : null}
           </div>
           {phoneDigits && !phoneValid && (
             <p className="air-field-error" role="alert">
@@ -630,12 +590,16 @@ export function AirtimePage({
 
         {/* Amount Field */}
         <div className="air-field">
+          <div className="air-field-header">
+            <span className="air-field-label">Amount</span>
+            <span className="air-field-hint">₦100 - ₦50,000</span>
+          </div>
           <div className="air-input-wrap">
             <div className="air-input-lead-icon">
               <Wallet size={17} strokeWidth={2.2} />
             </div>
             <span className="air-naira" aria-hidden>
-              {'\u20a6'}
+              {'₦'}
             </span>
             <input
               type="text"
@@ -650,27 +614,13 @@ export function AirtimePage({
                 type="button"
                 className="air-clear"
                 aria-label="Clear amount"
+                title="Clear amount"
                 onClick={() => setAmountStr('')}
               >
                 <X size={14} strokeWidth={2.5} />
               </button>
             ) : null}
           </div>
-        </div>
-
-        {/* ── Wallet Balance Strip & Fund Action ── */}
-        <div className="air-wallet-strip">
-          <div className="air-wallet-strip-left">
-            <Wallet size={13} className="air-strip-ico" />
-            <span>Available: <strong>₦{formatNaira(walletBalance)}</strong></span>
-          </div>
-          <button
-            type="button"
-            className="air-strip-fund-btn"
-            onClick={handleFund}
-          >
-            + Fund Wallet
-          </button>
         </div>
 
         {/* ── Quick Amounts (Four-by-Four grid with ₦20,000 added) ── */}
