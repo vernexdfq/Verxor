@@ -1,14 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
 import {
   isClubKonnectConfigured,
-  purchaseAirtime,
+  purchaseAirtime as purchaseClubKonnect,
   type CkNetworkSlug,
 } from '@/lib/providers/clubkonnect';
+import {
+  isApi247Configured,
+  purchaseAirtime247,
+  type Api247NetworkSlug,
+} from '@/lib/providers/api247';
 
 const NETWORKS = new Set(['mtn', 'glo', '9mobile', 'airtel']);
 
 export async function POST(req: NextRequest) {
-  if (!isClubKonnectConfigured()) {
+  const ckReady = isClubKonnectConfigured();
+  const api247Ready = isApi247Configured();
+
+  if (!ckReady && !api247Ready) {
     return NextResponse.json(
       { ok: false, error: 'Airtime provider not configured' },
       { status: 503 },
@@ -40,27 +48,73 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  try {
-    const result = await purchaseAirtime({
-      network: network as CkNetworkSlug,
-      phone: String(body.phone || ''),
-      amount,
-      ref: body.ref,
-    });
-    return NextResponse.json({
-      ok: true,
-      order: {
-        ref: result.ref,
-        status: result.status,
-        phone: result.phone,
-        amount: result.amount,
-        network: result.network,
-        message: result.message,
-        provider: 'clubkonnect',
-      },
-    });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : 'Airtime purchase failed';
-    return NextResponse.json({ ok: false, error: message }, { status: 502 });
+  const phone = String(body.phone || '');
+  const ref = body.ref;
+  const errors: string[] = [];
+
+  // 1) Primary: ClubKonnect
+  if (ckReady) {
+    try {
+      const result = await purchaseClubKonnect({
+        network: network as CkNetworkSlug,
+        phone,
+        amount,
+        ref,
+      });
+      return NextResponse.json({
+        ok: true,
+        order: {
+          ref: result.ref,
+          status: result.status,
+          phone: result.phone,
+          amount: result.amount,
+          network: result.network,
+          message: result.message,
+          provider: 'clubkonnect',
+        },
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'ClubKonnect failed';
+      errors.push(`clubkonnect: ${message}`);
+    }
   }
+
+  // 2) Backup: 247API (only if primary failed or not configured)
+  if (api247Ready) {
+    try {
+      const result = await purchaseAirtime247({
+        network: network as Api247NetworkSlug,
+        phone,
+        amount,
+        ref,
+      });
+      return NextResponse.json({
+        ok: true,
+        order: {
+          ref: result.ref,
+          status: result.status,
+          phone: result.phone,
+          amount: result.amount,
+          network: result.network,
+          message: result.message,
+          provider: 'api247',
+        },
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : '247API failed';
+      errors.push(`api247: ${message}`);
+    }
+  }
+
+  return NextResponse.json(
+    {
+      ok: false,
+      error: errors.join(' | ') || 'Airtime purchase failed',
+      tried: [
+        ...(ckReady ? ['clubkonnect'] : []),
+        ...(api247Ready ? ['api247'] : []),
+      ],
+    },
+    { status: 502 },
+  );
 }
