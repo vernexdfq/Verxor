@@ -267,6 +267,70 @@
   height: 66%;
 }
 
+.air-network-logo-vitel {
+  background: #FFFFFF;
+  border-color: #DCE6F2;
+}
+
+.air-network-logo-vitel img {
+  width: 86%;
+  height: 86%;
+  object-fit: contain;
+}
+
+.air-net-unavailable {
+  opacity: 0.72;
+}
+
+.air-net-unavailable .air-net-label::after {
+  content: 'Unavailable';
+  display: block;
+  margin-top: 2px;
+  color: #B45309;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.air-vitel-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 1px solid #FDE68A;
+  border-radius: 12px;
+  background: #FFFBEB;
+  color: #92400E;
+}
+
+.air-vitel-notice-icon {
+  flex: 0 0 auto;
+  margin-top: 1px;
+}
+
+.air-vitel-notice-content strong,
+.air-vitel-notice-content span {
+  display: block;
+}
+
+.air-vitel-notice-content strong {
+  margin-bottom: 2px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.air-vitel-notice-content span {
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.air-cta.air-cta-unavailable {
+  background: #CBD5E1;
+  color: #475569;
+  box-shadow: none;
+}
+
 .air-net-label {
   max-width: 100%;
   font-size: 10.5px;
@@ -899,3 +963,5 @@
   white-space: nowrap;
   border: 0;
 }
+
+.air-tag.net-vitel { background: #DBEAFE; color: #1D4ED8; }

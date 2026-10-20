@@ -16,7 +16,7 @@ import type { AuthSession } from './auth/AuthFlow';
 import { loadSessionProfile } from './auth/session-unlock';
 import './airtime-page.css';
 
-type NetworkId = 'mtn' | 'airtel' | 'glo' | '9mobile'; // 9mobile is the provider API's legacy slug for T2 Mobile.
+type NetworkId = 'mtn' | 'airtel' | 'glo' | '9mobile' | 'vitel'; // 9mobile is legacy slug for T2 Mobile; vitel is Vitel Wireless (NCC series 0712).
 
 interface NetworkOption {
   id: NetworkId;
@@ -28,6 +28,7 @@ const NETWORKS: NetworkOption[] = [
   { id: 'airtel', label: 'Airtel' },
   { id: 'glo', label: 'Glo' },
   { id: '9mobile', label: 'T2 Mobile' },
+  { id: 'vitel', label: 'VITEL' },
 ];
 
 /** Quick amount chips: exactly 2 rows of 4 chips (8 total) */
@@ -47,9 +48,9 @@ function detectNetwork(phone: string): NetworkId | null {
   const clean = phone.replace(/\D/g, '');
   let pfx = '';
   if (clean.startsWith('234') && clean.length >= 6) {
-    pfx = '0' + clean.slice(3, 6);
+    pfx = '0' + clean.slice(3, 8);
   } else if (clean.startsWith('0') && clean.length >= 4) {
-    pfx = clean.slice(0, 4);
+    pfx = clean.slice(0, 5);
   }
   if (!pfx) return null;
 
@@ -74,6 +75,10 @@ function detectNetwork(phone: string): NetworkId | null {
   // 9mobile prefixes
   const etisalat = ['0809', '0817', '0818', '0909', '0908'];
   if (etisalat.some((p) => pfx.startsWith(p))) return '9mobile';
+
+  // Vitel Wireless prefixes (first MVNO in Nigeria, NCC series 0712)
+  const vitel = ['0712'];
+  if (vitel.some((p) => pfx.startsWith(p))) return 'vitel';
 
   return null;
 }
@@ -118,6 +123,7 @@ function NetworkLogo({ id, size = 44 }: { id: NetworkId; size?: number }) {
     airtel: { src: '/brand/networks/airtel.svg', alt: 'Airtel' },
     glo: { src: '/brand/networks/glo.png', alt: 'Glo' },
     '9mobile': { src: '/brand/networks/t2-mobile.png', alt: 'T2 Mobile' },
+    vitel: { src: '/brand/networks/vitel.png', alt: 'VITEL' },
   };
   const asset = assets[id];
 
@@ -292,6 +298,10 @@ export function AirtimePage({
 
   const handleBuy = async () => {
     if (!formReady || insufficient || submitting || !networkId) return;
+    if (networkId === 'vitel') {
+      showToast('VITEL airtime is temporarily unavailable from upstream provider');
+      return;
+    }
     setSubmitting(true);
     try {
       const res = await fetch('/api/v1/airtime', {
@@ -332,7 +342,11 @@ export function AirtimePage({
   let ctaClass = 'air-cta';
   let ctaDisabled = submitting || !formReady;
 
-  if (insufficient && formReady) {
+  if (networkId === 'vitel') {
+    ctaLabel = 'VITEL Temporarily Unavailable';
+    ctaDisabled = true;
+    ctaClass = 'air-cta air-cta-unavailable';
+  } else if (insufficient && formReady) {
     ctaLabel = 'Fund Wallet';
     ctaAction = handleFund;
     ctaClass = 'air-cta air-cta-fund';
@@ -402,7 +416,7 @@ export function AirtimePage({
                 type="button"
                 role="option"
                 aria-selected={selected}
-                className={selected ? 'air-net selected' : 'air-net'}
+                className={`air-net${selected ? ' selected' : ''}${net.id === 'vitel' ? ' air-net-unavailable' : ''}`}
                 onClick={() => {
                   setNetworkId(net.id);
                   setAutoDetected(false);
@@ -421,6 +435,18 @@ export function AirtimePage({
             );
           })}
         </div>
+
+        {networkId === 'vitel' && (
+          <div className="air-vitel-notice" role="alert">
+            <AlertCircle size={16} className="air-vitel-notice-icon" />
+            <div className="air-vitel-notice-content">
+              <strong>VITEL Service Unavailable</strong>
+              <span>
+                Our upstream provider does not currently support VITEL top-ups. Please select another network or check back later.
+              </span>
+            </div>
+          </div>
+        )}
       </section>
 
       {/* ── Recharge Details ── */}
