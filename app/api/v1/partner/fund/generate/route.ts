@@ -5,7 +5,8 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 export const maxDuration = 30;
 
-const BANK_CODE = '100004';
+const BANK_CODES = ['100004', '20867', '29007'];
+const BANK_NAMES: Record<string, string> = { '100004': 'OPay', '20867': 'Palmpay', '29007': 'Safehaven' };
 const BANK_NAME = 'OPay';
 const MIN = 500;
 
@@ -92,8 +93,8 @@ export async function POST(req: NextRequest) {
           ? 'vernexdigital@gmail.com'
           : `partner.${panelSlug}@gmail.com`,
       name: accountName,
-      phoneNumber: '08000000000',
-      bankCode: [BANK_CODE],
+      phoneNumber: panel.name.toLowerCase().replace(/[^a-z0-9]+/g, '') === 'vernexdigital' ? '09164159443' : '08141620644',
+      bankCode: BANK_CODES,
       businessId,
       accountType: 'dynamic',
       amount,
@@ -179,7 +180,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const bankName = String(first.bankName || first.bank_name || data.bankName || BANK_NAME);
+    const resultBankCode = String(first.bankCode || first.bank_code || data.bankCode || '100004');
+    const bankName = String(first.bankName || first.bank_name || data.bankName || BANK_NAMES[resultBankCode] || BANK_NAME);
     const expireAt = first.expire_at || first.expireAt || data.expire_at || data.expireAt || null;
     const customer = (data.customer || raw.customer || {}) as Record<string, unknown>;
     const providerCustomerId = String(
@@ -204,7 +206,7 @@ export async function POST(req: NextRequest) {
           body: JSON.stringify({
             user_id: userId,
             provider: 'xixapay',
-            bank_code: BANK_CODE,
+            bank_code: resultBankCode,
             bank_name: bankName,
             account_number: accountNumber,
             account_name: accountName,
@@ -233,6 +235,7 @@ export async function POST(req: NextRequest) {
       amount,
       amountNgn: amount,
       bankName,
+      bankCode: resultBankCode,
       accountNumber,
       accountName,
       reservedAccountId: providerCustomerId || null,

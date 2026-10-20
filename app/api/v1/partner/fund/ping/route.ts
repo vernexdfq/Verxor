@@ -5,7 +5,12 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 export const maxDuration = 30;
 
-const BANK_CODE = '100004';
+const BANK_NAMES: Record<string, string> = {
+  '100004': 'OPay',
+  '20867': 'Palmpay',
+  '29007': 'Safehaven',
+  '20987': 'Kolomoni MFB',
+};
 
 function pickAccount(parsed: Record<string, unknown>) {
   const data = (parsed.data as Record<string, unknown>) || parsed;
@@ -16,14 +21,28 @@ function pickAccount(parsed: Record<string, unknown>) {
   const accountNumber = String(
     first.accountNumber || first.account_number || data.accountNumber || data.account_number || '',
   ).replace(/\D/g, '');
-  const bankName = String(first.bankName || first.bank_name || data.bankName || 'OPay');
+  const rawCode = String(first.bankCode || first.bank_code || data.bankCode || '').trim();
+  const bankName = String(
+    first.bankName ||
+      first.bank_name ||
+      data.bankName ||
+      (rawCode && BANK_NAMES[rawCode]) ||
+      'OPay',
+  );
   const ex = first.expire_at || first.expireAt || data.expire_at || data.expireAt;
   const expireAt = ex ? String(ex) : null;
   const customer = (data.customer || parsed.customer || {}) as Record<string, unknown>;
   const providerCustomerId = String(
     customer.customer_id || customer.id || data.customer_id || data.customerId || '',
   );
-  return { accountNumber, bankName, expireAt, providerCustomerId, accountsLen: accounts.length };
+  return {
+    accountNumber,
+    bankName,
+    bankCode: rawCode || '100004',
+    expireAt,
+    providerCustomerId,
+    accountsLen: accounts.length,
+  };
 }
 
 async function callXixaPay(
@@ -82,7 +101,7 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    let body: { amount?: number } = {};
+    let body: { amount?: number; phone?: string; phoneNumber?: string } = {};
     try {
       body = await req.json();
     } catch {
@@ -115,15 +134,24 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Step 1: create with full customer details (Option 2)
+    const userPhone =
+      (body.phone || body.phoneNumber || '').trim() ||
+      (panelSlug === 'vernexdigital' ? '09164159443' : '08141620644');
+    const customerEmail =
+      panelSlug === 'vernexdigital'
+        ? 'vernexdigital@gmail.com'
+        : `partner.${panelSlug}@gmail.com`;
+    const customerName = `Verxor ${panelSlug}`;
+
+    // Supported partner banks in order of priority: OPay, Palmpay, Safehaven
+    const candidateBanks = ['100004', '20867', '29007'];
+
+    // Step 1: create with customer details + candidate banks list
     const payload1 = {
-      email:
-        panelSlug === 'vernexdigital'
-          ? 'vernexdigital@gmail.com'
-          : `partner.${panelSlug}@gmail.com`,
-      name: accountName,
-      phoneNumber: '08000000000',
-      bankCode: [BANK_CODE],
+      email: customerEmail,
+      name: customerName,
+      phoneNumber: userPhone,
+      bankCode: candidateBanks,
       businessId,
       accountType: 'dynamic',
       amount,
@@ -134,27 +162,60 @@ export async function POST(req: NextRequest) {
     let result = await callXixaPay(base, apiKey, secret, payload1);
     let picked = pickAccount(result.parsed);
 
-    // Step 2: if customer ok but no bank account, retry with customer_id only (Option 1)
     const customer = (result.parsed.customer || {}) as Record<string, unknown>;
     const customerId = String(customer.customer_id || customer.id || '');
     const errors = result.parsed.errors;
     const errList = Array.isArray(errors) ? errors.map(String) : [];
 
+    // Step 2: if customer exists but no account, retry individual banks with customer_id (Option 1)
     if (!picked.accountNumber && customerId) {
-      const payload2 = {
-        customer_id: customerId,
-        bankCode: [BANK_CODE],
-        businessId,
-        accountType: 'dynamic',
-        amount,
-        externalReference: `${externalRef}-r2`,
-        callbackUrl,
-      };
-      result = await callXixaPay(base, apiKey, secret, payload2);
-      picked = pickAccount(result.parsed);
-      const errors2 = result.parsed.errors;
-      if (Array.isArray(errors2)) {
-        errList.push(...errors2.map(String));
+      for (const b of candidateBanks) {
+        const payload2 = {
+          customer_id: customerId,
+          bankCode: [b],
+          businessId,
+          accountType: 'dynamic',
+          amount,
+          externalReference: `${externalRef}-${b}`,
+          callbackUrl,
+        };
+        const r2 = await callXixaPay(base, apiKey, secret, payload2);
+        const p2 = pickAccount(r2.parsed);
+        if (p2.accountNumber) {
+          result = r2;
+          picked = p2;
+          break;
+        }
+        if (Array.isArray(r2.parsed.errors)) {
+          errList.push(...r2.parsed.errors.map(String));
+        }
+      }
+    }
+
+    // Step 3: if still no account and no customerId, retry individual banks with raw customer data
+    if (!picked.accountNumber && !customerId) {
+      for (const b of ['20867', '29007', '100004']) {
+        const payload3 = {
+          email: customerEmail,
+          name: customerName,
+          phoneNumber: userPhone,
+          bankCode: [b],
+          businessId,
+          accountType: 'dynamic',
+          amount,
+          externalReference: `${externalRef}-${b}`,
+          callbackUrl,
+        };
+        const r3 = await callXixaPay(base, apiKey, secret, payload3);
+        const p3 = pickAccount(r3.parsed);
+        if (p3.accountNumber) {
+          result = r3;
+          picked = p3;
+          break;
+        }
+        if (Array.isArray(r3.parsed.errors)) {
+          errList.push(...r3.parsed.errors.map(String));
+        }
       }
     }
 
@@ -199,7 +260,7 @@ export async function POST(req: NextRequest) {
           body: JSON.stringify({
             user_id: panel.walletUserId,
             provider: 'xixapay',
-            bank_code: BANK_CODE,
+            bank_code: picked.bankCode,
             bank_name: picked.bankName,
             account_number: picked.accountNumber,
             account_name: accountName,
@@ -231,6 +292,7 @@ export async function POST(req: NextRequest) {
       accountNumber: picked.accountNumber,
       accountName,
       bankName: picked.bankName,
+      bankCode: picked.bankCode,
       amount,
       expireAt: picked.expireAt,
       externalReference: externalRef,
