@@ -3,7 +3,61 @@ import { resolvePanelClient } from '@/lib/panel-auth';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
-export const maxDuration = 25;
+export const maxDuration = 30;
+
+const BANK_CODE = '100004';
+
+function pickAccount(parsed: Record<string, unknown>) {
+  const data = (parsed.data as Record<string, unknown>) || parsed;
+  const accounts = (data.bankAccounts || data.accounts || parsed.bankAccounts || []) as Array<
+    Record<string, unknown>
+  >;
+  const first = accounts[0] || {};
+  const accountNumber = String(
+    first.accountNumber || first.account_number || data.accountNumber || data.account_number || '',
+  ).replace(/\D/g, '');
+  const bankName = String(first.bankName || first.bank_name || data.bankName || 'OPay');
+  const ex = first.expire_at || first.expireAt || data.expire_at || data.expireAt;
+  const expireAt = ex ? String(ex) : null;
+  const customer = (data.customer || parsed.customer || {}) as Record<string, unknown>;
+  const providerCustomerId = String(
+    customer.customer_id || customer.id || data.customer_id || data.customerId || '',
+  );
+  return { accountNumber, bankName, expireAt, providerCustomerId, accountsLen: accounts.length };
+}
+
+async function callXixaPay(
+  base: string,
+  apiKey: string,
+  secret: string,
+  payload: Record<string, unknown>,
+) {
+  const controller = new AbortController();
+  const t = setTimeout(() => controller.abort(), 15_000);
+  try {
+    const res = await fetch(`${base}/api/v1/createVirtualAccount`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${secret}`,
+        'api-key': apiKey,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+      cache: 'no-store',
+      signal: controller.signal,
+    });
+    const bodyText = await res.text().catch(() => '');
+    let parsed: Record<string, unknown> = {};
+    try {
+      parsed = JSON.parse(bodyText) as Record<string, unknown>;
+    } catch {
+      parsed = { raw: bodyText.slice(0, 400) };
+    }
+    return { status: res.status, bodyText, parsed };
+  } finally {
+    clearTimeout(t);
+  }
+}
 
 export async function POST(req: NextRequest) {
   const started = Date.now();
@@ -43,155 +97,158 @@ export async function POST(req: NextRequest) {
     const accountName = `Verxor-${panelSlug}`;
     const externalRef = `vxp-panel-${String(panel.id).slice(0, 8)}-${Date.now()}`;
     const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://www.verxor.com').replace(/\/$/, '');
+    const callbackUrl =
+      process.env.XIXAPAY_VIRTUAL_ACCOUNT_WEBHOOK_URL ||
+      `${appUrl}/api/webhooks/xixapay/virtual-account`;
 
-    const payload = fullTest
-      ? {
-          email:
-            panelSlug === 'vernexdigital'
-              ? 'vernexdigital@gmail.com'
-              : `partner.${panelSlug}@gmail.com`,
-          name: accountName,
-          phoneNumber: '08000000000',
-          bankCode: ['100004'],
-          businessId,
-          accountType: 'dynamic',
-          amount,
-          externalReference: externalRef,
-          callbackUrl: `${appUrl}/api/webhooks/xixapay/virtual-account`,
-        }
-      : { businessId };
-
-    let status = 0;
-    let bodyText = '';
-    let networkError = '';
-
-    try {
-      const controller = new AbortController();
-      const t = setTimeout(() => controller.abort(), 15_000);
-      const res = await fetch(`${base}/api/v1/createVirtualAccount`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${secret}`,
-          'api-key': apiKey,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-        cache: 'no-store',
-        signal: controller.signal,
+    if (!fullTest) {
+      const probe = await callXixaPay(base, apiKey, secret, { businessId });
+      return NextResponse.json({
+        ok: probe.status > 0,
+        step: 'xixapay',
+        fullTest: false,
+        merchant: 'verxor',
+        xixapayHttpStatus: probe.status,
+        xixapayBody: probe.bodyText.slice(0, 400),
+        ms: Date.now() - started,
+        message: 'Reachability OK',
       });
-      clearTimeout(t);
-      status = res.status;
-      bodyText = await res.text().catch(() => '');
-    } catch (e) {
-      networkError = e instanceof Error ? `${e.name}: ${e.message}` : String(e);
     }
 
-    const reachable = !networkError && status > 0;
-    let parsed: Record<string, unknown> = {};
-    try {
-      parsed = JSON.parse(bodyText) as Record<string, unknown>;
-    } catch {
-      /* ignore */
-    }
+    // Step 1: create with full customer details (Option 2)
+    const payload1 = {
+      email:
+        panelSlug === 'vernexdigital'
+          ? 'vernexdigital@gmail.com'
+          : `partner.${panelSlug}@gmail.com`,
+      name: accountName,
+      phoneNumber: '08000000000',
+      bankCode: [BANK_CODE],
+      businessId,
+      accountType: 'dynamic',
+      amount,
+      externalReference: externalRef,
+      callbackUrl,
+    };
 
-    // Parse account from success payload
-    let accountNumber = '';
-    let bankName = 'OPay';
-    let expireAt: string | null = null;
-    let providerCustomerId = '';
-    if (fullTest && (status === 200 || status === 201) && parsed.status !== 'fail') {
-      const data = (parsed.data as Record<string, unknown>) || parsed;
-      const accounts = (data.bankAccounts || data.accounts || parsed.bankAccounts || []) as Array<
-        Record<string, unknown>
-      >;
-      const first = accounts[0] || {};
-      accountNumber = String(
-        first.accountNumber || first.account_number || data.accountNumber || '',
-      ).replace(/\D/g, '');
-      bankName = String(first.bankName || first.bank_name || data.bankName || 'OPay');
-      const ex = first.expire_at || first.expireAt || data.expire_at || data.expireAt;
-      expireAt = ex ? String(ex) : null;
-      const customer = (data.customer || parsed.customer || {}) as Record<string, unknown>;
-      providerCustomerId = String(
-        customer.customer_id || customer.id || data.customer_id || data.customerId || '',
-      );
+    let result = await callXixaPay(base, apiKey, secret, payload1);
+    let picked = pickAccount(result.parsed);
 
-      // Save VA for webhook credit
-      if (accountNumber) {
-        try {
-          const sbUrl = (process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '')
-            .replace(/\/rest\/v1\/?$/, '')
-            .replace(/\/$/, '');
-          const sbKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-          if (sbUrl && sbKey && panel.walletUserId) {
-            await fetch(`${sbUrl}/rest/v1/virtual_accounts`, {
-              method: 'POST',
-              headers: {
-                apikey: sbKey,
-                Authorization: `Bearer ${sbKey}`,
-                'Content-Type': 'application/json',
-                Prefer: 'return=minimal',
-              },
-              body: JSON.stringify({
-                user_id: panel.walletUserId,
-                provider: 'xixapay',
-                bank_code: '100004',
-                bank_name: bankName,
-                account_number: accountNumber,
-                account_name: accountName,
-                account_type: 'dynamic',
-                amount_ngn: amount,
-                external_ref: externalRef,
-                provider_customer_id: providerCustomerId || null,
-                raw: {
-                  partner_fund: true,
-                  wallet_type: 'reseller',
-                  panel_id: panel.id,
-                  panel_name: panel.name,
-                  merchant: 'verxor',
-                },
-              }),
-            });
-          }
-        } catch (e) {
-          console.error('[partner/fund/ping] va save', e);
-        }
+    // Step 2: if customer ok but no bank account, retry with customer_id only (Option 1)
+    const customer = (result.parsed.customer || {}) as Record<string, unknown>;
+    const customerId = String(customer.customer_id || customer.id || '');
+    const errors = result.parsed.errors;
+    const errList = Array.isArray(errors) ? errors.map(String) : [];
+
+    if (!picked.accountNumber && customerId) {
+      const payload2 = {
+        customer_id: customerId,
+        bankCode: [BANK_CODE],
+        businessId,
+        accountType: 'dynamic',
+        amount,
+        externalReference: `${externalRef}-r2`,
+        callbackUrl,
+      };
+      result = await callXixaPay(base, apiKey, secret, payload2);
+      picked = pickAccount(result.parsed);
+      const errors2 = result.parsed.errors;
+      if (Array.isArray(errors2)) {
+        errList.push(...errors2.map(String));
       }
     }
 
+    if (!picked.accountNumber) {
+      const authFail = errList.some((e) => /auth/i.test(e));
+      const msg =
+        errList.filter(Boolean).join('; ') ||
+        (typeof result.parsed.message === 'string' ? result.parsed.message : null) ||
+        `XixaPay returned no account number (HTTP ${result.status})`;
+      return NextResponse.json({
+        ok: false,
+        step: 'full_create',
+        fullTest: true,
+        merchant: 'verxor',
+        xixapayHttpStatus: result.status,
+        xixapayBody: result.bodyText.slice(0, 600),
+        providerMessage: typeof result.parsed.message === 'string' ? result.parsed.message : null,
+        errors: errList,
+        accountNumber: null,
+        ms: Date.now() - started,
+        message: authFail
+          ? `XixaPay bank auth failed: ${msg}. Check API Key + Secret + Business ID match the enabled credentials in XixaPay dashboard, then redeploy Verxor.`
+          : msg,
+      });
+    }
+
+    // Save VA for webhook
+    try {
+      const sbUrl = (process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '')
+        .replace(/\/rest\/v1\/?$/, '')
+        .replace(/\/$/, '');
+      const sbKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+      if (sbUrl && sbKey && panel.walletUserId) {
+        await fetch(`${sbUrl}/rest/v1/virtual_accounts`, {
+          method: 'POST',
+          headers: {
+            apikey: sbKey,
+            Authorization: `Bearer ${sbKey}`,
+            'Content-Type': 'application/json',
+            Prefer: 'return=minimal',
+          },
+          body: JSON.stringify({
+            user_id: panel.walletUserId,
+            provider: 'xixapay',
+            bank_code: BANK_CODE,
+            bank_name: picked.bankName,
+            account_number: picked.accountNumber,
+            account_name: accountName,
+            account_type: 'dynamic',
+            amount_ngn: amount,
+            external_ref: externalRef,
+            provider_customer_id: picked.providerCustomerId || null,
+            raw: {
+              partner_fund: true,
+              wallet_type: 'reseller',
+              panel_id: panel.id,
+              panel_name: panel.name,
+              merchant: 'verxor',
+            },
+          }),
+        });
+      }
+    } catch (e) {
+      console.error('[partner/fund/ping] va save', e);
+    }
+
     return NextResponse.json({
-      ok: reachable && (!fullTest || Boolean(accountNumber)),
-      step: fullTest ? 'full_create' : 'xixapay',
-      fullTest,
+      ok: true,
+      step: 'full_create',
+      fullTest: true,
       merchant: 'verxor',
       panel: { id: panel.id, name: panel.name },
-      xixapayHttpStatus: status,
-      xixapayBody: bodyText.slice(0, 800),
-      networkError: networkError || null,
-      providerMessage: typeof parsed.message === 'string' ? parsed.message : null,
-      // Success fields for partner-fund to consume
-      accountNumber: accountNumber || null,
+      xixapayHttpStatus: result.status,
+      accountNumber: picked.accountNumber,
       accountName,
-      bankName,
-      amount: fullTest ? amount : null,
-      expireAt,
-      externalReference: fullTest ? externalRef : null,
-      reservedAccountId: providerCustomerId || null,
+      bankName: picked.bankName,
+      amount,
+      expireAt: picked.expireAt,
+      externalReference: externalRef,
+      reservedAccountId: picked.providerCustomerId || null,
       ms: Date.now() - started,
-      message: networkError
-        ? `Cannot reach XixaPay: ${networkError}`
-        : accountNumber
-          ? 'Account created on Verxor merchant'
-          : fullTest
-            ? `Full create HTTP ${status}`
-            : 'Reachability OK',
+      message: 'Account created on Verxor merchant',
     });
   } catch (e) {
+    const aborted = e instanceof Error && e.name === 'AbortError';
     return NextResponse.json(
       {
         ok: false,
         step: 'crash',
-        message: e instanceof Error ? e.message : 'error',
+        message: aborted
+          ? 'Payment provider timed out'
+          : e instanceof Error
+            ? e.message
+            : 'error',
         ms: Date.now() - started,
       },
       { status: 500 },
