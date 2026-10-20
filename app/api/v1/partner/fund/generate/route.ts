@@ -13,6 +13,53 @@ function xixapayBase() {
   return (process.env.XIXAPAY_BASE_URL || 'https://api.xixapay.com').replace(/\/$/, '');
 }
 
+function toNgPhone(raw: string): string {
+  const d = (raw || '').replace(/\D/g, '');
+  if (!d) return '08000000000';
+  if (d.startsWith('0') && d.length >= 11) return d.slice(0, 11);
+  if (d.startsWith('234') && d.length >= 13) return `0${d.slice(3, 13)}`;
+  const last10 = d.slice(-10);
+  if (last10.length === 10) return `0${last10}`;
+  return d.padStart(11, '0').slice(0, 11);
+}
+
+async function loadWalletProfile(userId: string): Promise<{ email: string; phone: string; name: string }> {
+  const base = (process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '')
+    .replace(/\/rest\/v1\/?$/, '')
+    .replace(/\/$/, '');
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!base || !serviceKey || !userId) {
+    return { email: '', phone: '', name: '' };
+  }
+  try {
+    const res = await fetch(
+      `${base}/rest/v1/profiles?id=eq.${encodeURIComponent(userId)}&select=email,phone,full_name,name&limit=1`,
+      {
+        headers: {
+          apikey: serviceKey,
+          Authorization: `Bearer ${serviceKey}`,
+        },
+        cache: 'no-store',
+      },
+    );
+    if (!res.ok) return { email: '', phone: '', name: '' };
+    const rows = (await res.json()) as Array<{
+      email?: string;
+      phone?: string;
+      full_name?: string;
+      name?: string;
+    }>;
+    const row = rows[0] || {};
+    return {
+      email: (row.email || '').trim().toLowerCase(),
+      phone: (row.phone || '').trim(),
+      name: (row.full_name || row.name || '').trim(),
+    };
+  } catch {
+    return { email: '', phone: '', name: '' };
+  }
+}
+
 function pickAccount(raw: Record<string, unknown>) {
   const data = (raw?.data as Record<string, unknown>) || raw;
   const bankAccounts = (data.bankAccounts || data.accounts || raw.bankAccounts || []) as Array<
@@ -119,17 +166,17 @@ export async function POST(req: NextRequest) {
   const panelSlug =
     (panel.name || 'partner').toLowerCase().replace(/[^a-z0-9]+/g, '').slice(0, 24) || 'partner';
 
-  // Same identity rules as working funding/generate: real email + valid NG phone.
-  // Fake @verxor.local emails create the customer but XixaPay returns bankAccounts=[] + Authentication failed.
-  const name = `Verxor-${panelSlug}`;
+  // Load the linked wallet owner's profile — same identity source as working customer funding
+  const profile = await loadWalletProfile(userId);
   const email =
-    panelSlug === 'vernexdigital'
+    profile.email ||
+    (panelSlug === 'vernexdigital'
       ? 'vernexdigital@gmail.com'
       : panelSlug === 'prozydata'
         ? 'prozydata@gmail.com'
-        : `partner.${panelSlug}@gmail.com`;
-  // Valid 11-digit NG mobile (same style as funding path fallback)
-  const phone = '08000000000';
+        : `partner.${panelSlug}@gmail.com`);
+  const phone = toNgPhone(profile.phone || '08000000000');
+  const name = (`Verxor-${panelSlug}` || profile.name || 'Verxor Partner').slice(0, 80);
 
   const externalRef = `vxp-${String(panel.id).slice(0, 8)}-${Date.now()}`;
   const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://www.verxor.com').replace(/\/$/, '');
@@ -140,7 +187,7 @@ export async function POST(req: NextRequest) {
   // Exact same payload shape as app/api/v1/funding/generate (working path)
   const payload: Record<string, unknown> = {
     email,
-    name: name.slice(0, 80),
+    name,
     phoneNumber: phone,
     bankCode: [BANK.code],
     businessId,
@@ -152,16 +199,23 @@ export async function POST(req: NextRequest) {
 
   let xixapayRes: Response;
   try {
-    xixapayRes = await fetch(`${xixapayBase()}/api/v1/createVirtualAccount`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${secret}`,
-        'api-key': apiKey,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(payload),
-      cache: 'no-store',
-    });
+    const controller = new AbortController();
+    const t = setTimeout(() => controller.abort(), 18_000);
+    try {
+      xixapayRes = await fetch(`${xixapayBase()}/api/v1/createVirtualAccount`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${secret}`,
+          'api-key': apiKey,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+        cache: 'no-store',
+        signal: controller.signal,
+      });
+    } finally {
+      clearTimeout(t);
+    }
   } catch (e) {
     console.error('[partner/fund/generate] xixapay network', e);
     return NextResponse.json(
