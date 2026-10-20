@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 export const maxDuration = 30;
 
-/** Same bank as working user funding path */
+/** Same bank + payload shape as working app/api/v1/funding/generate */
 const BANK = { code: '100004', name: 'OPay' };
 const MIN = 500;
 
@@ -119,12 +119,17 @@ export async function POST(req: NextRequest) {
   const panelSlug =
     (panel.name || 'partner').toLowerCase().replace(/[^a-z0-9]+/g, '').slice(0, 24) || 'partner';
 
-  // Unique identity per request — same pattern as user funding (avoids reused-customer bank auth fail)
-  const stamp = String(Date.now()).slice(-8);
+  // Same identity rules as working funding/generate: real email + valid NG phone.
+  // Fake @verxor.local emails create the customer but XixaPay returns bankAccounts=[] + Authentication failed.
   const name = `Verxor-${panelSlug}`;
-  const email = `partner.${panelSlug}.${stamp}@verxor.local`;
-  // Valid NG mobile format (08 + 9 digits)
-  const phone = `08${stamp.padStart(9, '0').slice(0, 9)}`;
+  const email =
+    panelSlug === 'vernexdigital'
+      ? 'vernexdigital@gmail.com'
+      : panelSlug === 'prozydata'
+        ? 'prozydata@gmail.com'
+        : `partner.${panelSlug}@gmail.com`;
+  // Valid 11-digit NG mobile (same style as funding path fallback)
+  const phone = '08000000000';
 
   const externalRef = `vxp-${String(panel.id).slice(0, 8)}-${Date.now()}`;
   const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://www.verxor.com').replace(/\/$/, '');
