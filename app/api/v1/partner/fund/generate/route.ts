@@ -119,14 +119,12 @@ export async function POST(req: NextRequest) {
   const panelSlug =
     (panel.name || 'partner').toLowerCase().replace(/[^a-z0-9]+/g, '').slice(0, 24) || 'partner';
 
-  // Mirror user funding: real-looking identity (same pattern as Verxor-Denny success)
+  // Unique identity per request — same pattern as user funding (avoids reused-customer bank auth fail)
+  const stamp = String(Date.now()).slice(-8);
   const name = `Verxor-${panelSlug}`;
-  const email =
-    panelSlug === 'vernexdigital'
-      ? 'vernexdigital@gmail.com'
-      : `partner.${panelSlug}@gmail.com`;
-  // Use a valid NG mobile format (same style as working user path)
-  const phone = panelSlug === 'vernexdigital' ? '09164159443' : '08141620644';
+  const email = `partner.${panelSlug}.${stamp}@verxor.local`;
+  // Valid NG mobile format (08 + 9 digits)
+  const phone = `08${stamp.padStart(9, '0').slice(0, 9)}`;
 
   const externalRef = `vxp-${String(panel.id).slice(0, 8)}-${Date.now()}`;
   const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://www.verxor.com').replace(/\/$/, '');
@@ -213,7 +211,6 @@ export async function POST(req: NextRequest) {
   const bankName = picked.bankName || BANK.name;
   const expireAt = picked.expireAt ? String(picked.expireAt) : null;
 
-  // Register VA so webhook can credit reseller_wallet
   try {
     const sbUrl = (process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '')
       .replace(/\/rest\/v1\/?$/, '')
