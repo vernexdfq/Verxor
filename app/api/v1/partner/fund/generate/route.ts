@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { resolvePanelClient } from '@/lib/panel-auth';
-import { sbInsert, supabaseConfigured } from '@/lib/supabase-admin';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -23,14 +22,18 @@ export async function POST(req: NextRequest) {
 
     const panel = await resolvePanelClient(req).catch(() => null);
     if (!panel) {
-      return json({ ok: false, message: 'Missing or invalid panel API key. Use X-Api-Key: vx_panel_…' }, 401);
+      return json(
+        { ok: false, message: 'Missing or invalid panel API key. Use X-Api-Key: vx_panel_…' },
+        401,
+      );
     }
     const userId = (panel.walletUserId || '').trim();
     if (!userId) {
       return json(
         {
           ok: false,
-          message: 'Panel key has no linked wallet. Regenerate with ownerEmail of a Verxor account.',
+          message:
+            'Panel key has no linked wallet. Regenerate with ownerEmail of a Verxor account.',
         },
         400,
       );
@@ -56,7 +59,10 @@ export async function POST(req: NextRequest) {
     }
 
     if (!apiKey || !secret || !businessId) {
-      return json({ ok: false, message: 'XixaPay is not configured on Verxor (merchant keys).' }, 503);
+      return json(
+        { ok: false, message: 'XixaPay is not configured on Verxor (merchant keys).' },
+        503,
+      );
     }
 
     const amount = Math.round(Number(body.amountNgn ?? body.amount));
@@ -68,16 +74,23 @@ export async function POST(req: NextRequest) {
     }
 
     const panelSlug =
-      (panel.name || 'partner').toLowerCase().replace(/[^a-z0-9]+/g, '').slice(0, 24) || 'partner';
+      (panel.name || 'partner').toLowerCase().replace(/[^a-z0-9]+/g, '').slice(0, 24) ||
+      'partner';
     const accountName = `Verxor-${panelSlug}`;
     const externalRef = `vxp-panel-${String(panel.id).slice(0, 8)}-${Date.now()}`;
-    const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://www.verxor.com').replace(/\/$/, '');
+    const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://www.verxor.com').replace(
+      /\/$/,
+      '',
+    );
     const callbackUrl =
       process.env.XIXAPAY_VIRTUAL_ACCOUNT_WEBHOOK_URL ||
       `${appUrl}/api/webhooks/xixapay/virtual-account`;
 
     const payload = {
-      email: panelSlug === 'vernexdigital' ? 'vernexdigital@gmail.com' : `partner.${panelSlug}@gmail.com`,
+      email:
+        panelSlug === 'vernexdigital'
+          ? 'vernexdigital@gmail.com'
+          : `partner.${panelSlug}@gmail.com`,
       name: accountName,
       phoneNumber: '08000000000',
       bankCode: [BANK_CODE],
@@ -89,6 +102,7 @@ export async function POST(req: NextRequest) {
     };
 
     const base = (process.env.XIXAPAY_BASE_URL || 'https://api.xixapay.com').replace(/\/$/, '');
+
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 15_000);
 
@@ -146,7 +160,11 @@ export async function POST(req: NextRequest) {
     >;
     const first = accounts[0] || {};
     const accountNumber = String(
-      first.accountNumber || first.account_number || data.accountNumber || data.account_number || '',
+      first.accountNumber ||
+        first.account_number ||
+        data.accountNumber ||
+        data.account_number ||
+        '',
     ).replace(/\D/g, '');
 
     if (!accountNumber) {
@@ -154,6 +172,7 @@ export async function POST(req: NextRequest) {
         {
           ok: false,
           message: 'Provider returned no account number. Try again.',
+          providerRaw: rawText.slice(0, 200),
           ms: Date.now() - started,
         },
         502,
@@ -167,32 +186,45 @@ export async function POST(req: NextRequest) {
       customer.customer_id || customer.id || data.customer_id || data.customerId || '',
     );
 
-    // Non-blocking save for webhook lookup
-    if (supabaseConfigured()) {
-      try {
-        await sbInsert('virtual_accounts', {
-          user_id: userId,
-          provider: 'xixapay',
-          bank_code: BANK_CODE,
-          bank_name: bankName,
-          account_number: accountNumber,
-          account_name: accountName,
-          account_type: 'dynamic',
-          amount_ngn: amount,
-          external_ref: externalRef,
-          provider_customer_id: providerCustomerId || null,
-          raw: {
-            expire_at: expireAt ? String(expireAt) : null,
-            partner_fund: true,
-            wallet_type: 'reseller',
-            panel_id: panel.id,
-            panel_name: panel.name,
-            merchant: 'verxor',
+    // Register VA for webhook (inline fetch — no heavy import path)
+    try {
+      const sbUrl = (process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '')
+        .replace(/\/rest\/v1\/?$/, '')
+        .replace(/\/$/, '');
+      const sbKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+      if (sbUrl && sbKey) {
+        await fetch(`${sbUrl}/rest/v1/virtual_accounts`, {
+          method: 'POST',
+          headers: {
+            apikey: sbKey,
+            Authorization: `Bearer ${sbKey}`,
+            'Content-Type': 'application/json',
+            Prefer: 'return=minimal',
           },
+          body: JSON.stringify({
+            user_id: userId,
+            provider: 'xixapay',
+            bank_code: BANK_CODE,
+            bank_name: bankName,
+            account_number: accountNumber,
+            account_name: accountName,
+            account_type: 'dynamic',
+            amount_ngn: amount,
+            external_ref: externalRef,
+            provider_customer_id: providerCustomerId || null,
+            raw: {
+              expire_at: expireAt ? String(expireAt) : null,
+              partner_fund: true,
+              wallet_type: 'reseller',
+              panel_id: panel.id,
+              panel_name: panel.name,
+              merchant: 'verxor',
+            },
+          }),
         });
-      } catch (e) {
-        console.error('[partner/fund/generate] va save non-fatal', e);
       }
+    } catch (e) {
+      console.error('[partner/fund/generate] va save non-fatal', e);
     }
 
     return json({
