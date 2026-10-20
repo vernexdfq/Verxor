@@ -47,7 +47,7 @@ export function isClubKonnectConfigured(): boolean {
 function makeRef(prefix: string): string {
   const t = Date.now().toString(36).toUpperCase();
   const r = Math.random().toString(36).slice(2, 8).toUpperCase();
-  return `${prefix}${t}${r}`.slice(0, 32);
+  return `${prefix}${t}${r}`.slice(0, 30);
 }
 
 function normalizeNgPhone(raw: string): string {
@@ -64,7 +64,7 @@ function normalizeNgPhone(raw: string): string {
 async function ckGet(
   endpoint: string,
   params: Record<string, string | number> = {},
-): Promise<{ ok: boolean; status: number; data: any; url: string }> {
+): Promise<{ ok: boolean; status: number; data: any }> {
   const qs = new URLSearchParams();
   qs.set('UserID', userId());
   qs.set('APIKey', apiKey());
@@ -87,7 +87,11 @@ async function ckGet(
   } catch {
     data = { raw: text.slice(0, 500), status: text.slice(0, 120) };
   }
-  return { ok: res.ok, status: res.status, data, url };
+  return { ok: res.ok, status: res.status, data };
+}
+
+function pickStatus(data: any): string {
+  return String(data?.status ?? data?.Status ?? data?.orderstatus ?? data?.raw ?? '').trim();
 }
 
 function isSuccessStatus(status: unknown): boolean {
@@ -103,11 +107,16 @@ function isSuccessStatus(status: unknown): boolean {
   );
 }
 
+function isPaymentNotConfirmed(status: unknown): boolean {
+  const s = String(status ?? '').toUpperCase();
+  return s.includes('PAYMENT_SAVE_NOT_CONFIRMED');
+}
+
 function errorFromStatus(status: unknown, fallback: string): string {
   const s = String(status ?? '').toUpperCase().trim();
   const map: Record<string, string> = {
     INSUFFICIENT_BALANCE: 'ClubKonnect wallet has insufficient balance — fund the wallet',
-    INVALID_CREDENTIALS: 'ClubKonnect UserID / APIKey is invalid',
+    INVALID_CREDENTIALS: 'ClubKonnect UserID / APIKey is invalid — regenerate API key and update Vercel env',
     INVALID_APIKEY: 'ClubKonnect API key is invalid',
     INVALID_USERID: 'ClubKonnect User ID is invalid',
     MISSING_CREDENTIALS: 'ClubKonnect credentials missing in request',
@@ -122,9 +131,9 @@ function errorFromStatus(status: unknown, fallback: string): string {
     DUPLICATE_ORDER: 'Duplicate request — try again with a new reference',
     ORDER_CANCELLED: 'Order was cancelled by provider',
     ORDER_FAILED: 'Provider reported order failed',
-    'CALLBACK NOT SUPPORTED': 'ClubKonnect rejected CallBackURL — retry without callback',
+    'CALLBACK NOT SUPPORTED': 'ClubKonnect rejected CallBackURL',
     PAYMENT_SAVE_NOT_CONFIRMED_RETRY_SAME_REQUEST_ID:
-      'ClubKonnect could not debit wallet. Check wallet balance and clear Server IP in Developer settings',
+      'ClubKonnect could not confirm wallet debit. Fund wallet, wait 2–5 mins after funding, then retry',
   };
   if (map[s]) return map[s];
   if (s && s !== 'UNDEFINED' && s !== 'NULL' && s !== '[OBJECT OBJECT]') {
@@ -141,12 +150,15 @@ export async function getClubKonnectBalance(): Promise<{
   status: string;
 }> {
   const { data } = await ckGet('APIWallet.asp');
-  const status = String(data?.status ?? data?.Status ?? '');
-  if (!isSuccessStatus(status) && data?.wallet == null) {
+  const status = pickStatus(data);
+  if (!isSuccessStatus(status) && data?.wallet == null && data?.Wallet == null) {
     throw new Error(errorFromStatus(status, 'Failed to read ClubKonnect balance'));
   }
-  const raw = String(data.wallet ?? '0').replace(/,/g, '');
-  const name = [data.firstname, data.lastname].filter(Boolean).join(' ').trim();
+  const raw = String(data.wallet ?? data.Wallet ?? '0').replace(/,/g, '');
+  const name = [data.firstname, data.lastname, data.FirstName, data.LastName]
+    .filter(Boolean)
+    .join(' ')
+    .trim();
   return {
     name,
     balance: Number(raw) || 0,
@@ -155,63 +167,13 @@ export async function getClubKonnectBalance(): Promise<{
   };
 }
 
-/** Live airtime discounts per network. */
-export async function getAirtimeDiscounts(): Promise<
-  Array<{
-    network: CkNetworkSlug;
-    id: string;
-    discountPercent: number;
-    youPayPer100: number;
-    minAmount: number;
-    maxAmount: number;
-  }>
-> {
-  const { data } = await ckGet('APIAirtimeDiscountV1.asp');
-  const nets = data?.MOBILE_NETWORK;
-  if (!nets || typeof nets !== 'object') {
-    throw new Error('Failed to load ClubKonnect airtime discounts');
-  }
-
-  const out: Array<{
-    network: CkNetworkSlug;
-    id: string;
-    discountPercent: number;
-    youPayPer100: number;
-    minAmount: number;
-    maxAmount: number;
-  }> = [];
-
-  const mapKey = (key: string): CkNetworkSlug | null => {
-    const k = key.toLowerCase();
-    if (k === 'mtn') return 'mtn';
-    if (k === 'glo') return 'glo';
-    if (k === 'airtel') return 'airtel';
-    if (k.includes('9mobile') || k === 'm_9mobile' || k === 't2mobile') return '9mobile';
-    return null;
-  };
-
-  for (const [key, rows] of Object.entries(nets)) {
-    const slug = mapKey(key);
-    if (!slug || !Array.isArray(rows) || !rows[0]) continue;
-    const row = rows[0] as any;
-    const discountStr = String(row.PRODUCT_DISCOUNT || '0').replace('%', '');
-    const discountPercent = Number(discountStr) || 0;
-    const youPay = Number(row.PRODUCT_DISCOUNT_AMOUNT);
-    out.push({
-      network: slug,
-      id: String(row.ID || CK_NETWORK_ID[slug]),
-      discountPercent,
-      youPayPer100: Number.isFinite(youPay) ? youPay * 100 : 100 - discountPercent,
-      minAmount: Number(row.MINAMOUNT) || 50,
-      maxAmount: Number(row.MAXAMOUNT) || 200000,
-    });
-  }
-  return out;
+function sleep(ms: number) {
+  return new Promise((r) => setTimeout(r, ms));
 }
 
 /**
  * Buy airtime via ClubKonnect APIAirtimeV1.asp
- * Params match official docs (without CallBackURL — not supported on this account).
+ * On PAYMENT_SAVE_NOT_CONFIRMED, retry once with the SAME RequestID (per ClubKonnect docs).
  */
 export async function purchaseAirtime(opts: {
   network: CkNetworkSlug;
@@ -231,19 +193,43 @@ export async function purchaseAirtime(opts: {
   const phone = normalizeNgPhone(opts.phone);
   const requestId = opts.ref || makeRef('AT');
 
-  // Official: APIAirtimeV1.asp?UserID&APIKey&MobileNetwork&Amount&MobileNumber&RequestID
-  // Intentionally omit CallBackURL — account returns CALLBACK NOT SUPPORTED
-  const { data } = await ckGet('APIAirtimeV1.asp', {
+  // Pre-check wallet so user gets a clear message
+  let walletBal: number | null = null;
+  try {
+    const w = await getClubKonnectBalance();
+    walletBal = w.balance;
+    // MTN/Airtel ~3% discount → need roughly amount * 0.97; use amount as safe floor
+    if (walletBal < amount * 0.9) {
+      throw new Error(
+        `ClubKonnect wallet too low (₦${walletBal.toFixed(2)}). Need about ₦${amount} for this purchase — fund wallet first`,
+      );
+    }
+  } catch (e) {
+    if (e instanceof Error && e.message.includes('wallet too low')) throw e;
+    // If balance check fails with invalid credentials, surface it
+    if (e instanceof Error && /invalid|credential|apikey|userid/i.test(e.message)) throw e;
+    // Otherwise continue — purchase will fail with real status
+  }
+
+  const params = {
     MobileNetwork: mobileNetwork,
     Amount: amount,
     MobileNumber: phone,
     RequestID: requestId,
-  });
+  };
 
-  const status = data?.status ?? data?.Status ?? data?.orderstatus ?? data?.raw;
-  const statusCode = data?.statuscode ?? data?.statusCode;
+  let data: any = (await ckGet('APIAirtimeV1.asp', params)).data;
+  let status = pickStatus(data);
+  let statusCode = data?.statuscode ?? data?.statusCode;
 
-  // ORDER_RECEIVED (100) and ORDER_COMPLETED (200) = success
+  // ClubKonnect docs: on PAYMENT_SAVE_NOT_CONFIRMED retry with SAME RequestID
+  if (isPaymentNotConfirmed(status)) {
+    await sleep(1500);
+    data = (await ckGet('APIAirtimeV1.asp', params)).data;
+    status = pickStatus(data);
+    statusCode = data?.statuscode ?? data?.statusCode;
+  }
+
   if (isSuccessStatus(status) || String(statusCode) === '100' || String(statusCode) === '200') {
     return {
       ref: String(data?.requestid || data?.RequestID || data?.orderid || data?.orderId || requestId),
@@ -257,7 +243,7 @@ export async function purchaseAirtime(opts: {
     };
   }
 
-  throw new Error(
-    errorFromStatus(status, `Airtime purchase failed (${JSON.stringify(data).slice(0, 180)})`),
-  );
+  const base = errorFromStatus(status, `Airtime purchase failed (${JSON.stringify(data).slice(0, 160)})`);
+  const balNote = walletBal != null ? ` (wallet ₦${walletBal.toFixed(2)})` : '';
+  throw new Error(`${base}${balNote}`);
 }
