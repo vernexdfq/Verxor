@@ -7,11 +7,12 @@
  *   CLUBKONNECT_USER_ID
  *   CLUBKONNECT_API_KEY
  *   CLUBKONNECT_BASE_URL (optional)
+ *   CLUBKONNECT_CALLBACK_URL (optional — defaults to https://verxor.com/api/webhooks/clubkonnect)
  */
 
 export type CkNetworkSlug = 'mtn' | 'glo' | '9mobile' | 'airtel';
 
-/** ClubKonnect MobileNetwork codes from APIAirtimeDiscountV1 */
+/** ClubKonnect MobileNetwork codes from official docs */
 export const CK_NETWORK_ID: Record<CkNetworkSlug, string> = {
   mtn: '01',
   glo: '02',
@@ -29,13 +30,22 @@ function baseUrl(): string {
 function userId(): string {
   const id = process.env.CLUBKONNECT_USER_ID;
   if (!id) throw new Error('CLUBKONNECT_USER_ID is not configured');
-  return id;
+  return id.trim();
 }
 
 function apiKey(): string {
   const key = process.env.CLUBKONNECT_API_KEY;
   if (!key) throw new Error('CLUBKONNECT_API_KEY is not configured');
-  return key;
+  return key.trim();
+}
+
+function callbackUrl(): string {
+  return (
+    process.env.CLUBKONNECT_CALLBACK_URL ||
+    process.env.NEXT_PUBLIC_APP_URL
+      ? `${String(process.env.NEXT_PUBLIC_APP_URL).replace(/\/$/, '')}/api/webhooks/clubkonnect`
+      : 'https://verxor.com/api/webhooks/clubkonnect'
+  );
 }
 
 export function isClubKonnectConfigured(): boolean {
@@ -62,7 +72,7 @@ function normalizeNgPhone(raw: string): string {
 async function ckGet(
   endpoint: string,
   params: Record<string, string | number> = {},
-): Promise<{ ok: boolean; status: number; data: any }> {
+): Promise<{ ok: boolean; status: number; data: any; url: string }> {
   const qs = new URLSearchParams();
   qs.set('UserID', userId());
   qs.set('APIKey', apiKey());
@@ -82,10 +92,9 @@ async function ckGet(
   try {
     data = text ? JSON.parse(text) : null;
   } catch {
-    // ClubKonnect sometimes returns querystring-style bodies
-    data = { raw: text.slice(0, 500), status: text };
+    data = { raw: text.slice(0, 500), status: text.slice(0, 120) };
   }
-  return { ok: res.ok, status: res.status, data };
+  return { ok: res.ok, status: res.status, data, url };
 }
 
 function isSuccessStatus(status: unknown): boolean {
@@ -93,6 +102,7 @@ function isSuccessStatus(status: unknown): boolean {
   return (
     s === 'ORDER_RECEIVED' ||
     s === 'ORDER_COMPLETED' ||
+    s === 'ORDER_ONHOLD' ||
     s === 'SUCCESS' ||
     s === 'SUCCESSFUL' ||
     s === 'WALLET_SUCCESS' ||
@@ -101,25 +111,30 @@ function isSuccessStatus(status: unknown): boolean {
 }
 
 function errorFromStatus(status: unknown, fallback: string): string {
-  const s = String(status ?? '').toUpperCase();
+  const s = String(status ?? '').toUpperCase().trim();
   const map: Record<string, string> = {
-    INSUFFICIENT_BALANCE: 'Provider wallet has insufficient balance',
-    INVALID_CREDENTIALS: 'ClubKonnect credentials are invalid',
+    INSUFFICIENT_BALANCE: 'ClubKonnect wallet has insufficient balance — fund the wallet',
+    INVALID_CREDENTIALS: 'ClubKonnect UserID / APIKey is invalid',
     INVALID_APIKEY: 'ClubKonnect API key is invalid',
     INVALID_USERID: 'ClubKonnect User ID is invalid',
+    MISSING_CREDENTIALS: 'ClubKonnect credentials missing in request',
+    MISSING_USERID: 'ClubKonnect UserID missing',
+    MISSING_APIKEY: 'ClubKonnect APIKey missing',
     INVALID_AMOUNT: 'Invalid airtime amount',
+    MINIMUM_50: 'Minimum airtime is ₦50',
+    INVALID_RECIPIENT: 'Invalid phone number',
     INVALID_MOBILE_NUMBER: 'Invalid phone number',
     INVALID_MOBILE_NETWORK: 'Invalid network selected',
-    NETWORK_NOT_SUPPORTED: 'Network not supported by provider',
+    NETWORK_NOT_SUPPORTED: 'Network not supported by ClubKonnect',
     DUPLICATE_ORDER: 'Duplicate request — try again with a new reference',
     ORDER_CANCELLED: 'Order was cancelled by provider',
     ORDER_FAILED: 'Provider reported order failed',
     PAYMENT_SAVE_NOT_CONFIRMED_RETRY_SAME_REQUEST_ID:
-      'Provider could not confirm payment — check wallet balance and retry',
+      'ClubKonnect could not debit wallet (PAYMENT_SAVE_NOT_CONFIRMED). Check: 1) wallet balance 2) clear Server IP in ClubKonnect Developer settings 3) API key is active',
   };
   if (map[s]) return map[s];
-  if (s && s !== 'UNDEFINED' && s !== 'NULL') {
-    return s.replace(/_/g, ' ').toLowerCase();
+  if (s && s !== 'UNDEFINED' && s !== 'NULL' && s !== '[OBJECT OBJECT]') {
+    return `ClubKonnect: ${s.replace(/_/g, ' ')}`;
   }
   return fallback;
 }
@@ -129,9 +144,10 @@ export async function getClubKonnectBalance(): Promise<{
   name: string;
   balance: number;
   walletRaw: string;
+  status: string;
 }> {
   const { data } = await ckGet('APIWallet.asp');
-  const status = data?.status ?? data?.Status;
+  const status = String(data?.status ?? data?.Status ?? '');
   if (!isSuccessStatus(status) && data?.wallet == null) {
     throw new Error(errorFromStatus(status, 'Failed to read ClubKonnect balance'));
   }
@@ -141,6 +157,7 @@ export async function getClubKonnectBalance(): Promise<{
     name,
     balance: Number(raw) || 0,
     walletRaw: raw,
+    status,
   };
 }
 
@@ -175,7 +192,7 @@ export async function getAirtimeDiscounts(): Promise<
     if (k === 'mtn') return 'mtn';
     if (k === 'glo') return 'glo';
     if (k === 'airtel') return 'airtel';
-    if (k.includes('9mobile') || k === 'm_9mobile') return '9mobile';
+    if (k.includes('9mobile') || k === 'm_9mobile' || k === 't2mobile') return '9mobile';
     return null;
   };
 
@@ -216,26 +233,33 @@ export async function purchaseAirtime(opts: {
   const phone = normalizeNgPhone(opts.phone);
   const requestId = opts.ref || makeRef('AT');
 
-  const { data } = await ckGet('APIAirTimeV1.asp', {
+  // Official docs: APIAirtimeV1.asp + CallBackURL required in URL template
+  const { data } = await ckGet('APIAirtimeV1.asp', {
     MobileNetwork: mobileNetwork,
     Amount: amount,
     MobileNumber: phone,
     RequestID: requestId,
+    CallBackURL: callbackUrl(),
   });
 
-  const status = data?.status ?? data?.Status ?? data?.raw;
-  if (!isSuccessStatus(status)) {
-    throw new Error(errorFromStatus(status, 'Airtime purchase failed'));
+  const status = data?.status ?? data?.Status ?? data?.orderstatus ?? data?.raw;
+  const statusCode = data?.statuscode ?? data?.statusCode;
+
+  // Accept ORDER_RECEIVED (100) and ORDER_COMPLETED (200) as success
+  if (isSuccessStatus(status) || String(statusCode) === '100' || String(statusCode) === '200') {
+    return {
+      ref: String(data?.requestid || data?.RequestID || data?.orderid || data?.orderId || requestId),
+      status: 'successful' as const,
+      phone,
+      amount,
+      network: opts.network,
+      message: String(data?.remark || data?.message || data?.orderremark || 'Airtime order received'),
+      provider: 'clubkonnect' as const,
+      raw: data,
+    };
   }
 
-  return {
-    ref: String(data?.requestid || data?.RequestID || requestId),
-    status: 'successful' as const,
-    phone,
-    amount,
-    network: opts.network,
-    message: String(data?.remark || data?.message || 'Airtime purchase successful'),
-    provider: 'clubkonnect' as const,
-    raw: data,
-  };
+  throw new Error(
+    errorFromStatus(status, `Airtime purchase failed (${JSON.stringify(data).slice(0, 180)})`),
+  );
 }
