@@ -4,6 +4,7 @@ import { sbInsert, supabaseConfigured } from '@/lib/supabase-admin';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
+export const runtime = 'nodejs';
 
 const BANK = { code: '100004', name: 'OPay' };
 const MIN_AMOUNT_NGN = 500;
@@ -65,16 +66,14 @@ function jsonError(message: string, status: number) {
 
 /**
  * Partner wholesale top-up via Verxor's single XixaPay.
- * Auth: X-Api-Key: vx_panel_*  (preferred) or Authorization: Bearer vx_panel_*
- *
- * Body { debug: true } → returns panel + config status without calling XixaPay.
+ * Auth: X-Api-Key: vx_panel_*
+ * Body { debug: true } → auth + config only (no XixaPay call).
  */
 export async function POST(req: NextRequest) {
   try {
     const apiKey = process.env.XIXAPAY_API_KEY?.trim();
     const secret = process.env.XIXAPAY_SECRET_KEY?.trim();
     const businessId = process.env.XIXAPAY_BUSINESS_ID?.trim();
-
     const xixapayConfigured = Boolean(apiKey && secret && businessId);
 
     let panel;
@@ -101,10 +100,9 @@ export async function POST(req: NextRequest) {
     try {
       body = await req.json();
     } catch {
-      /* empty ok */
+      /* empty */
     }
 
-    // Debug mode: prove auth + config without touching XixaPay
     if (body.debug === true) {
       return NextResponse.json({
         ok: true,
@@ -147,22 +145,24 @@ export async function POST(req: NextRequest) {
         ? 'vernexdigital@gmail.com'
         : `partner.${panelSlug}@gmail.com`;
 
-    const payload: Record<string, unknown> = {
+    const payload = {
       email: vaEmail,
       name: accountName,
       phoneNumber: toNgPhone('08000000000'),
       bankCode: [BANK.code],
-      businessId,
+      businessId: businessId!,
       accountType: 'dynamic',
       amount,
       externalReference: externalRef,
       callbackUrl,
     };
 
-    // Hard 10s race — never let the platform kill us with a HTML 502
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 8000);
+
     let xixapayRes: Response;
     try {
-      const fetchPromise = fetch(`${xixapayBase()}/api/v1/createVirtualAccount`, {
+      xixapayRes = await fetch(`${xixapayBase()}/api/v1/createVirtualAccount`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${secret}`,
@@ -171,21 +171,32 @@ export async function POST(req: NextRequest) {
         },
         body: JSON.stringify(payload),
         cache: 'no-store',
+        signal: controller.signal,
       });
-      const timeoutPromise = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('XIXAPAY_TIMEOUT')), 10_000),
-      );
-      xixapayRes = await Promise.race([fetchPromise, timeoutPromise]);
     } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      console.error('[partner/fund/generate] xixapay network', msg);
-      if (msg === 'XIXAPAY_TIMEOUT') {
-        return jsonError('Payment provider timed out. Try again in a few seconds.', 502);
-      }
-      return jsonError('Could not reach payment provider. Try again.', 502);
+      clearTimeout(timer);
+      const aborted =
+        (e instanceof Error && e.name === 'AbortError') ||
+        (typeof e === 'object' && e !== null && 'name' in e && (e as any).name === 'AbortError');
+      console.error('[partner/fund/generate] xixapay network', e);
+      return jsonError(
+        aborted
+          ? 'Payment provider timed out (8s). Try again.'
+          : 'Could not reach payment provider. Try again.',
+        502,
+      );
+    } finally {
+      clearTimeout(timer);
     }
 
-    const rawText = await xixapayRes.text().catch(() => '');
+    let rawText = '';
+    try {
+      rawText = await xixapayRes.text();
+    } catch (e) {
+      console.error('[partner/fund/generate] read body', e);
+      return jsonError('Payment provider returned unreadable response.', 502);
+    }
+
     let raw: Record<string, unknown> = {};
     try {
       raw = JSON.parse(rawText) as Record<string, unknown>;
@@ -220,30 +231,27 @@ export async function POST(req: NextRequest) {
     const displayName = accountName;
     const accountNumber = String(picked.accountNumber).replace(/\D/g, '');
 
+    // Fire-and-forget VA save — never block the response
     if (supabaseConfigured()) {
-      try {
-        await sbInsert('virtual_accounts', {
-          user_id: userId,
-          provider: 'xixapay',
-          bank_code: BANK.code,
-          bank_name: bankName,
-          account_number: accountNumber,
-          account_name: displayName,
-          account_type: 'dynamic',
-          amount_ngn: amount,
-          external_ref: externalRef,
-          provider_customer_id: picked.providerCustomerId || null,
-          raw: {
-            expire_at: expireAt,
-            partner_fund: true,
-            wallet_type: 'reseller',
-            panel_id: panel.id,
-            panel_name: panel.name,
-          },
-        });
-      } catch (e) {
-        console.error('[partner/fund/generate] save VA (non-fatal)', e);
-      }
+      sbInsert('virtual_accounts', {
+        user_id: userId,
+        provider: 'xixapay',
+        bank_code: BANK.code,
+        bank_name: bankName,
+        account_number: accountNumber,
+        account_name: displayName,
+        account_type: 'dynamic',
+        amount_ngn: amount,
+        external_ref: externalRef,
+        provider_customer_id: picked.providerCustomerId || null,
+        raw: {
+          expire_at: expireAt,
+          partner_fund: true,
+          wallet_type: 'reseller',
+          panel_id: panel.id,
+          panel_name: panel.name,
+        },
+      }).catch((e) => console.error('[partner/fund/generate] save VA (non-fatal)', e));
     }
 
     return NextResponse.json({
