@@ -16,7 +16,7 @@ import type { AuthSession } from './auth/AuthFlow';
 import { loadSessionProfile } from './auth/session-unlock';
 import './airtime-page.css';
 
-type NetworkId = 'mtn' | 'airtel' | 'glo' | '9mobile';
+type NetworkId = 'mtn' | 'airtel' | 'glo' | '9mobile'; // 9mobile is the provider API's legacy slug for T2 Mobile.
 
 interface NetworkOption {
   id: NetworkId;
@@ -27,7 +27,7 @@ const NETWORKS: NetworkOption[] = [
   { id: 'mtn', label: 'MTN' },
   { id: 'airtel', label: 'Airtel' },
   { id: 'glo', label: 'Glo' },
-  { id: '9mobile', label: '9mobile' },
+  { id: '9mobile', label: 'T2 Mobile' },
 ];
 
 /** Quick amount chips: exactly 2 rows of 4 chips (8 total) */
@@ -111,117 +111,22 @@ function formatNaira(n: number): string {
   });
 }
 
-/** Authentic Brand Vector Logos */
+/** Carrier artwork is stored locally so the selector never depends on third-party hosts. */
 function NetworkLogo({ id, size = 44 }: { id: NetworkId; size?: number }) {
-  switch (id) {
-    case 'mtn':
-      return (
-        <svg
-          width={size}
-          height={size}
-          viewBox="0 0 100 100"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-          aria-label="MTN Logo"
-        >
-          <rect width="100" height="100" rx="20" fill="#FFCC00" />
-          <ellipse
-            cx="50"
-            cy="50"
-            rx="38"
-            ry="24"
-            fill="none"
-            stroke="#000000"
-            strokeWidth="5.5"
-          />
-          <text
-            x="50"
-            y="56"
-            textAnchor="middle"
-            fill="#000000"
-            fontSize="21"
-            fontWeight="900"
-            fontFamily="'Arial Black', Impact, sans-serif"
-            letterSpacing="-0.5"
-          >
-            MTN
-          </text>
-        </svg>
-      );
-    case 'airtel':
-      return (
-        <svg
-          width={size}
-          height={size}
-          viewBox="0 0 100 100"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-          aria-label="Airtel Logo"
-        >
-          <rect width="100" height="100" rx="20" fill="#E60000" />
-          <path
-            d="M32 70V44C32 34.0589 40.0589 26 50 26C59.9411 26 68 34.0589 68 44V70"
-            stroke="#FFFFFF"
-            strokeWidth="11"
-            strokeLinecap="round"
-          />
-          <circle cx="50" cy="56" r="6" fill="#FFFFFF" />
-        </svg>
-      );
-    case 'glo':
-      return (
-        <svg
-          width={size}
-          height={size}
-          viewBox="0 0 100 100"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-          aria-label="Glo Logo"
-        >
-          <rect width="100" height="100" rx="20" fill="#2E8540" />
-          <circle cx="50" cy="50" r="32" fill="#00A859" />
-          <text
-            x="48"
-            y="59"
-            textAnchor="middle"
-            fill="#FFFFFF"
-            fontSize="30"
-            fontWeight="900"
-            fontFamily="Arial, sans-serif"
-            letterSpacing="-1.5"
-          >
-            glo
-          </text>
-        </svg>
-      );
-    case '9mobile':
-      return (
-        <svg
-          width={size}
-          height={size}
-          viewBox="0 0 100 100"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-          aria-label="9mobile Logo"
-        >
-          <rect width="100" height="100" rx="20" fill="#005B38" />
-          <text
-            x="36"
-            y="65"
-            textAnchor="middle"
-            fill="#C2D500"
-            fontSize="44"
-            fontWeight="900"
-            fontFamily="'Arial Black', Impact, sans-serif"
-          >
-            9
-          </text>
-          <circle cx="70" cy="46" r="8" fill="#C2D500" />
-        </svg>
-      );
-    default:
-      return null;
-  }
+  const assets: Record<NetworkId, { src: string; alt: string }> = {
+    mtn: { src: '/brand/networks/mtn.svg', alt: 'MTN' },
+    airtel: { src: '/brand/networks/airtel.svg', alt: 'Airtel' },
+    glo: { src: '/brand/networks/glo.png', alt: 'Glo' },
+    '9mobile': { src: '/brand/networks/t2-mobile.png', alt: 'T2 Mobile' },
+  };
+  const asset = assets[id];
+
+  return (
+    <span className={`air-network-logo air-network-logo-${id}`} style={{ width: size, height: size }}>
+      <img src={asset.src} alt="" aria-hidden="true" />
+      <span className="sr-only">{asset.alt}</span>
+    </span>
+  );
 }
 
 export function AirtimePage({
@@ -771,7 +676,7 @@ export function AirtimePage({
                       <strong>{formatPhoneDisplay(rec.phone)}</strong>
                       {rec.networkId && (
                         <span className={`air-tag net-${rec.networkId}`}>
-                          {rec.networkId.toUpperCase()}
+                          {NETWORKS.find((network) => network.id === rec.networkId)?.label ?? rec.networkId.toUpperCase()}
                         </span>
                       )}
                     </div>
