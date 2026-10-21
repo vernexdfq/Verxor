@@ -251,37 +251,16 @@
   justify-content: center;
   overflow: hidden;
   border-radius: 50%;
-  background: #FFFFFF;
-  border: 1px solid rgba(15, 23, 42, 0.06);
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+  background: transparent;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.08);
 }
 
 .air-network-logo img {
   display: block;
   width: 100%;
   height: 100%;
+  border-radius: 50%;
   object-fit: cover;
-}
-
-/* Authentic, uniform circular brand marks */
-.air-network-logo-mtn {
-  background: #FFCB05;
-  border-color: #E5B700;
-}
-
-.air-network-logo-airtel {
-  background: #E30713;
-  border-color: #DC2626;
-}
-
-.air-network-logo-glo {
-  background: #008753;
-  border-color: #059669;
-}
-
-.air-network-logo-9mobile {
-  background: #0B201A;
-  border-color: #071713;
 }
 
 .air-net-label {

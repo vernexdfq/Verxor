@@ -117,8 +117,8 @@ function formatNaira(n: number): string {
 /** Carrier artwork is stored locally so the selector never depends on third-party hosts. */
 function NetworkLogo({ id, size = 44 }: { id: NetworkId; size?: number }) {
   const assets: Record<NetworkId, { src: string; alt: string }> = {
-    mtn: { src: '/brand/networks/mtn.svg', alt: 'MTN' },
-    airtel: { src: '/brand/networks/airtel.svg', alt: 'Airtel' },
+    mtn: { src: '/brand/networks/mtn.png', alt: 'MTN' },
+    airtel: { src: '/brand/networks/airtel.png', alt: 'Airtel' },
     glo: { src: '/brand/networks/glo.png', alt: 'Glo' },
     '9mobile': { src: '/brand/networks/9mobile.png', alt: '9mobile' },
   };
@@ -422,7 +422,7 @@ export function AirtimePage({
                   </span>
                 )}
                 <div className="air-net-logo-wrap">
-                  <NetworkLogo id={net.id} size={42} />
+                  <NetworkLogo id={net.id} size={44} />
                 </div>
                 <span className="air-net-label">{net.label}</span>
               </button>
