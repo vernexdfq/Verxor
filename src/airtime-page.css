@@ -235,32 +235,37 @@
 }
 
 .air-net-logo-wrap {
-  width: 44px;
-  height: 44px;
+  width: 48px;
+  height: 48px;
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
 
+/* Full brand mark — no crop. Matches reference rounded tiles. */
 .air-network-logo {
-  width: 44px;
-  height: 44px;
-  flex: 0 0 44px;
+  width: 48px;
+  height: 48px;
+  flex: 0 0 48px;
   display: flex;
   align-items: center;
   justify-content: center;
-  overflow: hidden;
-  border-radius: 50%;
+  overflow: visible;
+  border-radius: 14px;
   background: transparent;
-  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.08);
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.10);
 }
 
 .air-network-logo img {
   display: block;
-  width: 100%;
-  height: 100%;
-  border-radius: 50%;
-  object-fit: cover;
+  width: 48px;
+  height: 48px;
+  max-width: 100%;
+  max-height: 100%;
+  border-radius: 14px;
+  object-fit: contain;
+  object-position: center;
 }
 
 .air-net-label {
