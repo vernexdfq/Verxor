@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import './data-page.css';
 import type { AuthSession } from './auth/AuthFlow';
+import { loadSessionProfile } from './auth/session-unlock';
 
 export type NetworkId = 'mtn' | 'airtel' | 'glo' | '9mobile';
 
@@ -84,6 +85,14 @@ function detectNetwork(raw: string): NetworkId | null {
     '0908': '9mobile', '0909': '9mobile',
   };
   return map[prefix] ?? null;
+}
+
+function normalizePhone(raw: string): string {
+  const digits = raw.replace(/\D/g, '');
+  if (digits.startsWith('234') && digits.length === 13) {
+    return '0' + digits.slice(3);
+  }
+  return digits;
 }
 
 function formatPhone(raw: string): string {
@@ -192,7 +201,49 @@ export interface DataPageProps {
 
 export function DataPage({ onBack, session, onFund }: DataPageProps) {
   const walletBalance = session?.balanceNgn ?? 0;
-  const userAccountPhone = session?.user?.phone || MY_NUMBER;
+  const userAccountPhone = useMemo(() => {
+    if (session?.contact) {
+      const clean = normalizePhone(session.contact);
+      if (clean.length === 11) return clean;
+    }
+    if (typeof window !== 'undefined') {
+      try {
+        const profile = loadSessionProfile();
+        if (profile?.contact) {
+          const clean = normalizePhone(profile.contact);
+          if (clean.length === 11) return clean;
+        }
+      } catch {
+        /* noop */
+      }
+      try {
+        const raw = localStorage.getItem('verxor-last-phone');
+        if (raw) {
+          const parsed = JSON.parse(raw) as { national?: string };
+          if (parsed?.national) {
+            const clean = normalizePhone(parsed.national);
+            if (clean.length === 11) return clean;
+          }
+        }
+      } catch {
+        /* noop */
+      }
+      try {
+        const userRaw = localStorage.getItem('verxor-user');
+        if (userRaw) {
+          const u = JSON.parse(userRaw) as { phone?: string; contact?: string };
+          const c = u?.phone || u?.contact;
+          if (c) {
+            const clean = normalizePhone(c);
+            if (clean.length === 11) return clean;
+          }
+        }
+      } catch {
+        /* noop */
+      }
+    }
+    return MY_NUMBER;
+  }, [session]);
 
   const [networkId, setNetworkId] = useState<NetworkId>('mtn');
   const [activeCategory, setActiveCategory] = useState<CategoryId>('hot');
