@@ -7,6 +7,8 @@ import {
   Clock,
   Lock,
   Phone,
+  Radio,
+  Receipt,
   Sparkles,
   Wallet,
   X,
@@ -16,7 +18,7 @@ import type { AuthSession } from './auth/AuthFlow';
 import { loadSessionProfile } from './auth/session-unlock';
 import './airtime-page.css';
 
-type NetworkId = 'mtn' | 'airtel' | 'glo' | '9mobile' | 'vitel'; // 9mobile is legacy slug for T2 Mobile; vitel is Vitel Wireless (NCC series 0712).
+type NetworkId = 'mtn' | 'airtel' | 'glo' | '9mobile';
 
 interface NetworkOption {
   id: NetworkId;
@@ -27,8 +29,7 @@ const NETWORKS: NetworkOption[] = [
   { id: 'mtn', label: 'MTN' },
   { id: 'airtel', label: 'Airtel' },
   { id: 'glo', label: 'Glo' },
-  { id: '9mobile', label: 'T2 Mobile' },
-  { id: 'vitel', label: 'VITEL' },
+  { id: '9mobile', label: '9mobile' },
 ];
 
 /** Quick amount chips: exactly 2 rows of 4 chips (8 total) */
@@ -76,9 +77,6 @@ function detectNetwork(phone: string): NetworkId | null {
   const etisalat = ['0809', '0817', '0818', '0909', '0908'];
   if (etisalat.some((p) => pfx.startsWith(p))) return '9mobile';
 
-  // Vitel Wireless prefixes (first MVNO in Nigeria, NCC series 0712)
-  const vitel = ['0712'];
-  if (vitel.some((p) => pfx.startsWith(p))) return 'vitel';
 
   return null;
 }
@@ -122,8 +120,7 @@ function NetworkLogo({ id, size = 44 }: { id: NetworkId; size?: number }) {
     mtn: { src: '/brand/networks/mtn.svg', alt: 'MTN' },
     airtel: { src: '/brand/networks/airtel.svg', alt: 'Airtel' },
     glo: { src: '/brand/networks/glo.png', alt: 'Glo' },
-    '9mobile': { src: '/brand/networks/t2-mobile.png', alt: 'T2 Mobile' },
-    vitel: { src: '/brand/networks/vitel.png', alt: 'VITEL' },
+    '9mobile': { src: '/brand/networks/9mobile.png', alt: '9mobile' },
   };
   const asset = assets[id];
 
@@ -298,10 +295,6 @@ export function AirtimePage({
 
   const handleBuy = async () => {
     if (!formReady || insufficient || submitting || !networkId) return;
-    if (networkId === 'vitel') {
-      showToast('VITEL airtime is temporarily unavailable from upstream provider');
-      return;
-    }
     setSubmitting(true);
     try {
       const res = await fetch('/api/v1/airtime', {
@@ -342,11 +335,7 @@ export function AirtimePage({
   let ctaClass = 'air-cta';
   let ctaDisabled = submitting || !formReady;
 
-  if (networkId === 'vitel') {
-    ctaLabel = 'VITEL Temporarily Unavailable';
-    ctaDisabled = true;
-    ctaClass = 'air-cta air-cta-unavailable';
-  } else if (insufficient && formReady) {
+  if (insufficient && formReady) {
     ctaLabel = 'Fund Wallet';
     ctaAction = handleFund;
     ctaClass = 'air-cta air-cta-fund';
@@ -399,12 +388,17 @@ export function AirtimePage({
       {/* ── Select Network ── */}
       <section className="air-section">
         <div className="air-section-head">
-          <h2>Select Network</h2>
-          <p>
-            {autoDetected && networkId
-              ? 'Network detected from recipient number.'
-              : 'Auto-detect works when you type number.'}
-          </p>
+          <div className="air-head-badge" aria-hidden>
+            <Radio size={18} strokeWidth={2.2} />
+          </div>
+          <div className="air-head-text">
+            <h2>Select Network</h2>
+            <p>
+              {autoDetected && networkId
+                ? 'Network detected from recipient number'
+                : 'Auto-detect works when you type number'}
+            </p>
+          </div>
         </div>
 
         <div className="air-networks" role="listbox" aria-label="Mobile networks">
@@ -416,7 +410,7 @@ export function AirtimePage({
                 type="button"
                 role="option"
                 aria-selected={selected}
-                className={`air-net${selected ? ' selected' : ''}${net.id === 'vitel' ? ' air-net-unavailable' : ''}`}
+                className={`air-net${selected ? ' selected' : ''}`}
                 onClick={() => {
                   setNetworkId(net.id);
                   setAutoDetected(false);
@@ -436,24 +430,19 @@ export function AirtimePage({
           })}
         </div>
 
-        {networkId === 'vitel' && (
-          <div className="air-vitel-notice" role="alert">
-            <AlertCircle size={16} className="air-vitel-notice-icon" />
-            <div className="air-vitel-notice-content">
-              <strong>VITEL Service Unavailable</strong>
-              <span>
-                Our upstream provider does not currently support VITEL top-ups. Please select another network or check back later.
-              </span>
-            </div>
-          </div>
-        )}
+
       </section>
 
       {/* ── Recharge Details ── */}
       <section className="air-section air-details">
         <div className="air-section-head">
-          <h2>Recharge Details</h2>
-          <p>Enter recipient and amount.</p>
+          <div className="air-head-badge" aria-hidden>
+            <Receipt size={18} strokeWidth={2.2} />
+          </div>
+          <div className="air-head-text">
+            <h2>Recharge Details</h2>
+            <p>Enter recipient and amount</p>
+          </div>
         </div>
 
         {/* Recipient Phone Field with clean header actions that do not obstruct typing */}
@@ -588,52 +577,51 @@ export function AirtimePage({
             })}
           </div>
         </div>
-      </section>
-
-      {/* ── Summary & Insufficient Balance Notice ── */}
-      {amount > 0 && (
-        <div className="air-summary">
-          <div className="air-summary-row">
-            <span>You pay</span>
-            <strong>{moneyFull(amount)}</strong>
-          </div>
-          {insufficient && (
-            <div className="air-summary-warn">
-              <div className="air-warn-text">
-                <AlertCircle size={15} />
-                <span>Insufficient balance · Need {moneyFull(amount - walletBalance)} more</span>
-              </div>
-              <button type="button" className="air-warn-fund-link" onClick={handleFund}>
-                Fund Wallet →
-              </button>
+        {/* ── Summary & Insufficient Balance Notice ── */}
+        {amount > 0 && (
+          <div className="air-summary">
+            <div className="air-summary-row">
+              <span>You pay</span>
+              <strong>{moneyFull(amount)}</strong>
             </div>
-          )}
-        </div>
-      )}
-
-      {/* ── Primary Action Button ── */}
-      <button
-        type="button"
-        className={ctaClass}
-        disabled={ctaDisabled}
-        onClick={() => void ctaAction()}
-      >
-        {insufficient && formReady ? (
-          <>
-            <Wallet size={18} strokeWidth={2.2} /> {ctaLabel}
-          </>
-        ) : (
-          <>
-            <Lock size={16} strokeWidth={2.4} /> {ctaLabel}
-          </>
+            {insufficient && (
+              <div className="air-summary-warn">
+                <div className="air-warn-text">
+                  <AlertCircle size={15} />
+                  <span>Insufficient balance · Need {moneyFull(amount - walletBalance)} more</span>
+                </div>
+                <button type="button" className="air-warn-fund-link" onClick={handleFund}>
+                  Fund Wallet →
+                </button>
+              </div>
+            )}
+          </div>
         )}
-      </button>
+
+        {/* ── Primary Action Button (Inside Card Flow) ── */}
+        <button
+          type="button"
+          className={ctaClass}
+          disabled={ctaDisabled}
+          onClick={() => void ctaAction()}
+        >
+          {insufficient && formReady ? (
+            <>
+              <Wallet size={18} strokeWidth={2.2} /> {ctaLabel}
+            </>
+          ) : (
+            <>
+              <Lock size={16} strokeWidth={2.4} /> {ctaLabel}
+            </>
+          )}
+        </button>
+      </section>
 
       {/* ── Instant Delivery Trust Card ── */}
       <div className="air-trust">
-        <span className="air-trust-icon" aria-hidden>
-          <Check size={14} strokeWidth={3.5} />
-        </span>
+        <div className="air-trust-icon" aria-hidden>
+          <Check size={18} strokeWidth={3} />
+        </div>
         <div className="air-trust-body">
           <strong>Instant Delivery</strong>
           <p>Airtime is delivered immediately after successful payment.</p>

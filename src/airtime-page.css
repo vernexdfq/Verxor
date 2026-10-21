@@ -1,7 +1,8 @@
 /* ==========================================================================
    Verxor — Buy Airtime Page (Grade-One FinTech Polish)
-   Refined spacing, authentic brand presentation, 4x2 quick amounts, and full
-   navigation to Fund Wallet across all balance touchpoints.
+   Clean 4-carrier layout (MTN, Airtel, Glo, 9mobile), authentic brand marks,
+   ergonomic input cards, 4x2 quick-amount chips, inside-card CTA, and
+   rock-solid navigation to Fund Wallet across all balance touchpoints.
    ========================================================================== */
 
 .air-page {
@@ -10,7 +11,7 @@
   gap: 16px;
   max-width: 440px;
   margin: 0 auto;
-  padding: 10px 16px 36px;
+  padding: 12px 16px 40px;
   background: #F8FAFC;
   min-height: 100%;
   box-sizing: border-box;
@@ -36,8 +37,8 @@
 }
 
 .air-back {
-  width: 38px;
-  height: 38px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   background: #FFFFFF;
   border: 1px solid #E2E8F0;
@@ -47,7 +48,7 @@
   color: #0F172A;
   cursor: pointer;
   transition: all 0.15s ease;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
   flex-shrink: 0;
 }
 
@@ -67,7 +68,7 @@
 
 .air-title {
   margin: 0;
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 800;
   color: #0F172A;
   letter-spacing: -0.02em;
@@ -76,7 +77,7 @@
 
 .air-subtitle {
   margin: 2px 0 0;
-  font-size: 11.5px;
+  font-size: 12px;
   color: #64748B;
   font-weight: 500;
 }
@@ -86,13 +87,13 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 10px;
+  padding: 7px 12px;
   border-radius: 20px;
   background: #FFFFFF;
   border: 1px solid #E2E8F0;
   color: #0F172A;
   cursor: pointer;
-  font-size: 12px;
+  font-size: 12.5px;
   font-weight: 700;
   box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
   transition: all 0.15s ease;
@@ -100,9 +101,9 @@
 }
 
 .air-wallet-btn:hover {
-  background: #EEF2FF;
-  border-color: #C7D2FE;
-  color: #4338CA;
+  background: #FAF5FF;
+  border-color: #D8B4FE;
+  color: #6D28D9;
 }
 
 .air-wallet-btn:active {
@@ -118,71 +119,94 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 16px;
-  height: 16px;
+  width: 17px;
+  height: 17px;
   border-radius: 50%;
-  background: #4F46E5;
+  background: #7C3AED;
   color: #FFFFFF;
   font-size: 11px;
   font-weight: 800;
   line-height: 1;
 }
 
-/* Promo banner removed for cleaner, above-the-fold layout */
-
 /* ── Section Cards ── */
 .air-section {
   background: #FFFFFF;
-  border: 1px solid #E2E8F0;
-  border-radius: 18px;
-  padding: 18px;
+  border: 1px solid #ECEEF2;
+  border-radius: 24px;
+  padding: 20px 18px 22px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+  gap: 16px;
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.03);
 }
 
-.air-section-head h2 {
+/* Two-column section head with icon badge */
+.air-section-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.air-head-badge {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  background: #F3E8FF;
+  color: #7C3AED;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.air-head-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.air-head-text h2 {
   margin: 0;
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 700;
   color: #0F172A;
   letter-spacing: -0.01em;
+  line-height: 1.25;
 }
 
-.air-section-head p {
+.air-head-text p {
   margin: 2px 0 0;
-  font-size: 11.5px;
+  font-size: 12px;
   color: #64748B;
   font-weight: 500;
 }
 
-/* Five compact, balanced carrier options with consistent touch targets. */
+/* ── Four Balanced Carrier Options (MTN, Airtel, Glo, 9mobile) ── */
 .air-networks {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 8px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
 }
 
 .air-net {
   position: relative;
-  background: #F8FAFC;
-  border: 1.5px solid #E2E8F0;
-  border-radius: 14px;
+  background: #FFFFFF;
+  border: 1.5px solid #F1F5F9;
+  border-radius: 18px;
   min-width: 0;
-  padding: 10px 3px 8px;
+  padding: 14px 4px 12px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   user-select: none;
 }
 
 .air-net:hover {
-  background: #F1F5F9;
-  border-color: #CBD5E1;
+  background: #F8FAFC;
+  border-color: #E2E8F0;
 }
 
 .air-net:active {
@@ -190,28 +214,29 @@
 }
 
 .air-net.selected {
-  background: #FFFFFF;
-  border-color: #4F46E5;
-  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.14);
+  background: #FAF5FF;
+  border-color: #8B5CF6;
+  box-shadow: 0 4px 14px rgba(139, 92, 246, 0.18);
 }
 
 .air-net-badge {
   position: absolute;
-  top: 5px;
-  right: 5px;
-  width: 16px;
-  height: 16px;
+  top: 6px;
+  right: 6px;
+  width: 17px;
+  height: 17px;
   border-radius: 50%;
-  background: #4F46E5;
+  background: #7C3AED;
   color: #FFFFFF;
   display: flex;
   align-items: center;
   justify-content: center;
+  box-shadow: 0 1px 3px rgba(124, 58, 237, 0.35);
 }
 
 .air-net-logo-wrap {
-  width: 42px;
-  height: 42px;
+  width: 44px;
+  height: 44px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -236,19 +261,32 @@
   object-fit: contain;
 }
 
+/* Individual network logo treatments matching authentic brand marks */
 .air-network-logo-mtn {
   background: #FFCB05;
-  border-color: #F2C000;
+  border-color: #E5B700;
+  border-radius: 14px;
 }
 
 .air-network-logo-mtn img {
-  width: 82%;
-  height: 58%;
+  width: 84%;
+  height: 60%;
+}
+
+.air-network-logo-airtel {
+  background: #FFFFFF;
+  border-color: #FEE2E2;
+  border-radius: 14px;
 }
 
 .air-network-logo-airtel img {
-  width: 76%;
-  height: 76%;
+  width: 80%;
+  height: 80%;
+}
+
+.air-network-logo-glo {
+  background: #FFFFFF;
+  border-radius: 50%;
 }
 
 .air-network-logo-glo img {
@@ -258,170 +296,55 @@
 }
 
 .air-network-logo-9mobile {
-  background: #FFF7F1;
-  border-color: #FFE1D1;
+  background: #0B201A;
+  border-radius: 50%;
+  border-color: #071713;
 }
 
 .air-network-logo-9mobile img {
-  width: 78%;
-  height: 66%;
-}
-
-.air-network-logo-vitel {
-  background: #FFFFFF;
-  border-color: #DCE6F2;
-}
-
-.air-network-logo-vitel img {
-  width: 86%;
-  height: 86%;
-  object-fit: contain;
-}
-
-.air-net-unavailable {
-  opacity: 0.72;
-}
-
-.air-net-unavailable .air-net-label::after {
-  content: 'Unavailable';
-  display: block;
-  margin-top: 2px;
-  color: #B45309;
-  font-size: 8px;
-  font-weight: 700;
-  letter-spacing: 0;
-}
-
-.air-vitel-notice {
-  display: flex;
-  align-items: flex-start;
-  gap: 9px;
-  margin-top: 12px;
-  padding: 10px 12px;
-  border: 1px solid #FDE68A;
-  border-radius: 12px;
-  background: #FFFBEB;
-  color: #92400E;
-}
-
-.air-vitel-notice-icon {
-  flex: 0 0 auto;
-  margin-top: 1px;
-}
-
-.air-vitel-notice-content strong,
-.air-vitel-notice-content span {
-  display: block;
-}
-
-.air-vitel-notice-content strong {
-  margin-bottom: 2px;
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.air-vitel-notice-content span {
-  font-size: 11px;
-  line-height: 1.45;
-}
-
-.air-cta.air-cta-unavailable {
-  background: #CBD5E1;
-  color: #475569;
-  box-shadow: none;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .air-net-label {
-  max-width: 100%;
-  font-size: 10.5px;
-  line-height: 1.15;
+  font-size: 13px;
   font-weight: 700;
-  color: #1E293B;
+  color: #0F172A;
   letter-spacing: -0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
   text-align: center;
-  overflow-wrap: anywhere;
 }
 
-/* ── Input Fields ── */
+.air-net.selected .air-net-label {
+  color: #0F172A;
+}
+
+/* ── Recharge Details Section ── */
+.air-details {
+  gap: 16px;
+}
+
 .air-field {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-}
-
-.air-input-wrap {
-  display: flex;
-  align-items: center;
-  background: #F8FAFC;
-  border: 1.5px solid #E2E8F0;
-  border-radius: 14px;
-  padding: 0 12px;
-  height: 52px;
-  transition: all 0.15s ease;
-}
-
-.air-input-wrap:focus-within {
-  background: #FFFFFF;
-  border-color: #4F46E5;
-  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.08);
-}
-
-.air-input-wrap.is-error {
-  border-color: #EF4444;
-  background: #FEF2F2;
-}
-
-.air-input-lead-icon {
-  color: #64748B;
-  display: flex;
-  align-items: center;
-  margin-right: 8px;
-  flex-shrink: 0;
-}
-
-.air-input-wrap input {
-  flex: 1;
-  border: none;
-  background: transparent;
-  outline: none;
-  font-size: 15px;
-  font-weight: 600;
-  color: #0F172A;
-  min-width: 0;
-  font-family: inherit;
-}
-
-.air-input-wrap input::placeholder {
-  color: #94A3B8;
-  font-weight: 400;
-}
-
-.air-naira {
-  font-size: 18px;
-  font-weight: 800;
-  color: #0F172A;
-  margin-right: 6px;
-  user-select: none;
+  gap: 7px;
 }
 
 .air-field-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 6px;
   gap: 8px;
 }
 
 .air-field-label {
-  font-size: 12.5px;
-  font-weight: 600;
-  color: #475569;
-}
-
-.air-field-hint {
-  font-size: 11px;
-  color: #94A3B8;
-  font-weight: 500;
+  font-size: 13px;
+  font-weight: 700;
+  color: #334155;
 }
 
 .air-field-actions {
@@ -430,57 +353,111 @@
   gap: 6px;
 }
 
-.air-use-mine-pill {
-  background: #EEF2FF;
-  border: 1px solid #C7D2FE;
-  color: #4338CA;
-  font-size: 11px;
-  font-weight: 700;
-  padding: 3px 8px;
-  border-radius: 6px;
-  cursor: pointer;
+.air-use-mine-pill,
+.air-recent-pill {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  white-space: nowrap;
+  padding: 4px 9px;
+  border-radius: 12px;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid #E2E8F0;
+  background: #FFFFFF;
+  color: #475569;
   transition: all 0.15s ease;
+}
+
+.air-use-mine-pill {
+  background: #F3E8FF;
+  border-color: #E9D5FF;
+  color: #7C3AED;
 }
 
 .air-use-mine-pill:hover {
-  background: #E0E7FF;
-}
-
-.air-use-mine-pill:active {
-  transform: scale(0.96);
+  background: #EDE9FE;
+  border-color: #DDD6FE;
+  color: #6D28D9;
 }
 
 .air-use-mine-ico {
-  color: #4F46E5;
-}
-
-.air-recent-pill {
-  background: #F8FAFC;
-  border: 1px solid #CBD5E1;
-  color: #475569;
-  font-size: 11px;
-  font-weight: 600;
-  padding: 3px 8px;
-  border-radius: 6px;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  white-space: nowrap;
-  transition: all 0.15s ease;
+  color: #7C3AED;
 }
 
 .air-recent-pill:hover {
   background: #F1F5F9;
+  border-color: #CBD5E1;
   color: #0F172A;
 }
 
-.air-recent-pill:active {
-  transform: scale(0.96);
+.air-field-hint {
+  font-size: 11.5px;
+  color: #94A3B8;
+  font-weight: 500;
+}
+
+/* Modern Input Wrap with Left Badge Icon */
+.air-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #F8FAFC;
+  border: 1.5px solid #E2E8F0;
+  border-radius: 18px;
+  padding: 6px 14px 6px 8px;
+  height: 54px;
+  transition: all 0.2s ease;
+}
+
+.air-input-wrap:focus-within {
+  border-color: #7C3AED;
+  background: #FFFFFF;
+  box-shadow: 0 0 0 3.5px rgba(124, 58, 237, 0.12);
+}
+
+.air-input-wrap.is-error {
+  border-color: #EF4444;
+  background: #FEF2F2;
+}
+
+.air-input-lead-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  background: #F3E8FF;
+  color: #7C3AED;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.air-naira {
+  font-size: 17px;
+  font-weight: 700;
+  color: #0F172A;
+  margin-left: 2px;
+  user-select: none;
+}
+
+.air-input-wrap input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  outline: none;
+  font-size: 15.5px;
+  font-weight: 600;
+  color: #0F172A;
+  font-family: inherit;
+  padding: 0;
+}
+
+.air-input-wrap input::placeholder {
+  color: #94A3B8;
+  font-weight: 400;
 }
 
 .air-clear {
@@ -494,8 +471,8 @@
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  flex-shrink: 0;
   transition: all 0.15s ease;
+  flex-shrink: 0;
 }
 
 .air-clear:hover {
@@ -504,73 +481,72 @@
 }
 
 .air-field-error {
-  margin: 2px 0 0 4px;
-  font-size: 11px;
-  color: #EF4444;
+  margin: 2px 0 0;
+  font-size: 11.5px;
+  color: #DC2626;
   font-weight: 600;
 }
 
-/* Wallet strip inside details removed (balance shown in top bar) */
-
-/* ── Quick Amounts (Four-by-Four grid with ₦20,000) ── */
+/* ── Quick Amounts (Fintech Pill Chips 4x2) ── */
 .air-quick {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  margin-top: 2px;
 }
 
 .air-quick-label {
   font-size: 12.5px;
   font-weight: 700;
-  color: #475569;
-  letter-spacing: -0.01em;
+  color: #334155;
 }
 
 .air-quick-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
 }
 
 .air-chip {
   height: 40px;
-  border-radius: 12px;
-  background: #F8FAFC;
-  border: 1.5px solid #E2E8F0;
-  color: #1E293B;
-  font-size: 12.5px;
+  border-radius: 14px;
+  background: #F3E8FF;
+  color: #6D28D9;
+  border: 1px solid #E9D5FF;
+  font-size: 13px;
   font-weight: 700;
-  cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
+  cursor: pointer;
   transition: all 0.15s ease;
+  font-family: inherit;
   user-select: none;
+  white-space: nowrap;
 }
 
 .air-chip:hover {
-  background: #F1F5F9;
-  border-color: #CBD5E1;
+  background: #EDE9FE;
+  border-color: #DDD6FE;
+  transform: translateY(-1px);
 }
 
 .air-chip:active {
-  transform: scale(0.96);
+  transform: translateY(0);
 }
 
 .air-chip.active {
-  background: #4F46E5;
-  border-color: #4F46E5;
+  background: #7C3AED;
   color: #FFFFFF;
-  box-shadow: 0 4px 10px rgba(79, 70, 229, 0.25);
+  border-color: #7C3AED;
+  box-shadow: 0 4px 10px rgba(124, 58, 237, 0.25);
 }
 
-/* ── Summary & Insufficient Warning ── */
+/* ── Summary & Warning ── */
 .air-summary {
-  background: #FFFFFF;
+  background: #F8FAFC;
   border: 1px solid #E2E8F0;
   border-radius: 16px;
-  padding: 12px 16px;
+  padding: 12px 14px;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -580,18 +556,14 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 14px;
-}
-
-.air-summary-row span {
-  color: #64748B;
-  font-weight: 500;
+  font-size: 13px;
+  color: #475569;
 }
 
 .air-summary-row strong {
-  font-size: 17px;
-  color: #0F172A;
+  font-size: 16px;
   font-weight: 800;
+  color: #0F172A;
 }
 
 .air-summary-warn {
@@ -599,10 +571,8 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  background: #FEF2F2;
-  border: 1px solid #FECACA;
-  border-radius: 10px;
-  padding: 8px 10px;
+  padding-top: 8px;
+  border-top: 1px dashed #E2E8F0;
 }
 
 .air-warn-text {
@@ -610,120 +580,135 @@
   align-items: center;
   gap: 6px;
   font-size: 11.5px;
-  color: #B91C1C;
+  color: #DC2626;
   font-weight: 600;
 }
 
 .air-warn-fund-link {
-  background: #DC2626;
-  color: #FFFFFF;
+  background: none;
   border: none;
-  font-size: 11px;
+  padding: 0;
+  font-size: 11.5px;
   font-weight: 700;
-  padding: 4px 9px;
-  border-radius: 6px;
+  color: #7C3AED;
   cursor: pointer;
   white-space: nowrap;
-  transition: all 0.15s ease;
 }
 
 .air-warn-fund-link:hover {
-  background: #B91C1C;
+  text-decoration: underline;
 }
 
-/* ── Primary Action Button (CTA) ── */
+/* ── Primary CTA Button (Inside Card Flow, matching reference) ── */
 .air-cta {
   width: 100%;
   height: 52px;
   border-radius: 16px;
-  border: none;
-  background: linear-gradient(135deg, #4338CA 0%, #4F46E5 100%);
+  background: linear-gradient(135deg, #7C3AED 0%, #8B5CF6 100%);
   color: #FFFFFF;
   font-size: 15.5px;
   font-weight: 700;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
+  border: none;
   cursor: pointer;
-  box-shadow: 0 8px 20px rgba(79, 70, 229, 0.28);
+  box-shadow: 0 4px 14px rgba(124, 58, 237, 0.28);
   transition: all 0.15s ease;
+  font-family: inherit;
+  margin-top: 4px;
 }
 
 .air-cta:hover:not(:disabled) {
-  opacity: 0.96;
-  box-shadow: 0 10px 24px rgba(79, 70, 229, 0.36);
+  filter: brightness(1.05);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(124, 58, 237, 0.35);
 }
 
 .air-cta:active:not(:disabled) {
-  transform: scale(0.98);
+  transform: translateY(0);
+  filter: brightness(0.95);
 }
 
 .air-cta:disabled {
   opacity: 0.55;
   cursor: not-allowed;
   box-shadow: none;
-  background: #94A3B8;
 }
 
-.air-cta.air-cta-fund {
-  background: linear-gradient(135deg, #059669 0%, #10B981 100%);
-  box-shadow: 0 8px 20px rgba(16, 185, 129, 0.28);
+.air-cta-fund {
+  background: linear-gradient(135deg, #2563EB 0%, #3B82F6 100%);
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.28);
+}
+
+.air-cta-fund:hover:not(:disabled) {
+  box-shadow: 0 6px 18px rgba(37, 99, 235, 0.35);
 }
 
 /* ── Instant Delivery Trust Card ── */
 .air-trust {
+  background: #FFFFFF;
+  border: 1px solid #ECEEF2;
+  border-radius: 20px;
+  padding: 16px 18px;
   display: flex;
   align-items: center;
-  gap: 10px;
-  background: #ECFDF5;
-  border: 1px solid #A7F3D0;
-  border-radius: 14px;
-  padding: 12px 14px;
+  gap: 14px;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.02);
 }
 
 .air-trust-icon {
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  background: #10B981;
-  color: #FFFFFF;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: #DCFCE7;
+  color: #16A34A;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
 }
 
+.air-trust-body {
+  flex: 1;
+  min-width: 0;
+}
+
 .air-trust-body strong {
   display: block;
-  font-size: 12.5px;
+  font-size: 14.5px;
   font-weight: 700;
-  color: #065F46;
+  color: #0F172A;
+  line-height: 1.25;
 }
 
 .air-trust-body p {
-  margin: 1px 0 0;
-  font-size: 11px;
-  color: #047857;
-  line-height: 1.3;
+  margin: 3px 0 0;
+  font-size: 12px;
+  color: #64748B;
+  font-weight: 500;
+  line-height: 1.35;
 }
 
-/* ── Recipient Picker Sheet / Modal ── */
+/* ── Recipient Picker Modal ── */
 .air-modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.55);
+  background: rgba(15, 23, 42, 0.45);
   backdrop-filter: blur(4px);
-  z-index: 9999;
+  z-index: 999;
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  animation: airFadeIn 0.15s ease-out;
+  padding: 0;
 }
 
-@keyframes airFadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+@media (min-width: 640px) {
+  .air-modal-backdrop {
+    align-items: center;
+    padding: 16px;
+  }
 }
 
 .air-modal-card {
@@ -731,35 +716,34 @@
   width: 100%;
   max-width: 440px;
   border-radius: 24px 24px 0 0;
-  padding: 20px 18px 32px;
+  padding: 20px 18px 28px;
+  box-shadow: 0 -4px 24px rgba(15, 23, 42, 0.12);
   display: flex;
   flex-direction: column;
   gap: 16px;
-  box-shadow: 0 -8px 30px rgba(15, 23, 42, 0.18);
-  animation: airSlideUp 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-  max-height: 85vh;
+  max-height: 80vh;
   overflow-y: auto;
 }
 
-@keyframes airSlideUp {
-  from { transform: translateY(100%); }
-  to { transform: translateY(0); }
+@media (min-width: 640px) {
+  .air-modal-card {
+    border-radius: 24px;
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.16);
+  }
 }
 
 .air-modal-header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  border-bottom: 1px solid #F1F5F9;
-  padding-bottom: 12px;
+  gap: 12px;
 }
 
 .air-modal-title-wrap h3 {
   margin: 0;
   font-size: 17px;
-  font-weight: 800;
+  font-weight: 700;
   color: #0F172A;
-  letter-spacing: -0.01em;
 }
 
 .air-modal-title-wrap p {
@@ -772,8 +756,8 @@
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  border: 1px solid #E2E8F0;
-  background: #F8FAFC;
+  background: #F1F5F9;
+  border: none;
   color: #64748B;
   display: flex;
   align-items: center;
@@ -783,7 +767,7 @@
 }
 
 .air-modal-close:hover {
-  background: #F1F5F9;
+  background: #E2E8F0;
   color: #0F172A;
 }
 
@@ -798,27 +782,24 @@
   align-items: center;
   gap: 12px;
   padding: 12px 14px;
-  border-radius: 14px;
+  border-radius: 16px;
   border: 1.5px solid #F1F5F9;
   background: #FFFFFF;
   cursor: pointer;
-  text-align: left;
   transition: all 0.15s ease;
+  text-align: left;
+  font-family: inherit;
   width: 100%;
 }
 
 .air-modal-item:hover {
-  background: #F8FAFC;
-  border-color: #CBD5E1;
-}
-
-.air-modal-item:active {
-  transform: scale(0.98);
+  background: #FAF5FF;
+  border-color: #DDD6FE;
 }
 
 .air-modal-item-icon {
-  width: 40px;
-  height: 40px;
+  width: 38px;
+  height: 38px;
   border-radius: 12px;
   display: flex;
   align-items: center;
@@ -827,141 +808,120 @@
 }
 
 .air-modal-item-icon.account {
-  background: #EEF2FF;
-  color: #4F46E5;
+  background: #F3E8FF;
+  color: #7C3AED;
 }
 
 .air-modal-item-icon.recent {
   background: #F1F5F9;
-  color: #0284C7;
+  color: #64748B;
 }
 
 .air-modal-item-info {
   flex: 1;
   min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
 }
 
 .air-modal-item-top {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 6px;
+  gap: 8px;
 }
 
 .air-modal-item-top strong {
-  font-size: 14.5px;
+  font-size: 14px;
   font-weight: 700;
   color: #0F172A;
 }
 
+.air-modal-item-sub {
+  display: block;
+  font-size: 11.5px;
+  color: #64748B;
+  margin-top: 2px;
+}
+
 .air-tag {
-  font-size: 10px;
-  font-weight: 800;
+  display: inline-block;
   padding: 2px 7px;
   border-radius: 6px;
-  letter-spacing: 0.03em;
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
 }
 
 .air-tag.primary {
-  background: #EEF2FF;
-  color: #4338CA;
+  background: #F3E8FF;
+  color: #7C3AED;
 }
 
-.air-tag.net-mtn { background: #FEF08A; color: #854D0E; }
-.air-tag.net-airtel { background: #FEE2E2; color: #991B1B; }
-.air-tag.net-glo { background: #DCFCE7; color: #166534; }
-.air-tag.net-9mobile { background: #ECFCCB; color: #3F6212; }
+.air-tag.net-mtn {
+  background: #FEF08A;
+  color: #854D0E;
+}
 
-.air-modal-item-sub {
-  font-size: 11px;
-  color: #64748B;
+.air-tag.net-airtel {
+  background: #FEE2E2;
+  color: #991B1B;
+}
+
+.air-tag.net-glo {
+  background: #DCFCE7;
+  color: #166534;
+}
+
+.air-tag.net-9mobile {
+  background: #DCFCE7;
+  color: #065F46;
 }
 
 .air-modal-empty {
+  padding: 24px 16px;
   text-align: center;
-  padding: 24px 12px;
   color: #64748B;
 }
 
 .air-modal-empty p {
   margin: 0;
-  font-size: 13px;
+  font-size: 13.5px;
   font-weight: 600;
-  color: #1E293B;
+  color: #334155;
 }
 
 .air-modal-empty span {
   display: block;
+  font-size: 12px;
   margin-top: 4px;
-  font-size: 11.5px;
   color: #94A3B8;
 }
 
-
-.air-modal-footer {
-  padding: 12px 18px 16px;
-  border-top: 1px solid #F1F5F9;
-}
-
-.air-modal-new-btn {
-  width: 100%;
-  height: 42px;
-  border-radius: 12px;
-  background: #F8FAFC;
-  border: 1.5px dashed #CBD5E1;
-  color: #4338CA;
-  font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.15s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.air-modal-new-btn:hover {
-  background: #EEF2FF;
-  border-color: #818CF8;
-}
-
-/* ── Toast Notification ── */
+/* ── Toast ── */
 .air-toast {
   position: fixed;
   bottom: 24px;
   left: 50%;
   transform: translateX(-50%);
-  background: rgba(15, 23, 42, 0.94);
+  background: #0F172A;
   color: #FFFFFF;
   padding: 10px 18px;
-  border-radius: 20px;
+  border-radius: 24px;
   font-size: 13px;
   font-weight: 600;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25);
-  backdrop-filter: blur(8px);
-  z-index: 10000;
-  animation: airToastIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.25);
+  z-index: 1000;
   white-space: nowrap;
+  animation: airToastFade 0.2s ease;
 }
 
-@keyframes airToastIn {
-  from { opacity: 0; transform: translate(-50%, 10px); }
-  to { opacity: 1; transform: translate(-50%, 0); }
+@keyframes airToastFade {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 8px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
 }
-
-
-.sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
-}
-
-.air-tag.net-vitel { background: #DBEAFE; color: #1D4ED8; }
