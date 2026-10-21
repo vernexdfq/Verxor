@@ -243,7 +243,9 @@
 }
 
 .air-network-logo {
-  flex: 0 0 auto;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -258,53 +260,28 @@
   display: block;
   width: 100%;
   height: 100%;
-  object-fit: contain;
+  object-fit: cover;
 }
 
-/* Individual network logo treatments matching authentic brand marks */
+/* Authentic, uniform circular brand marks */
 .air-network-logo-mtn {
   background: #FFCB05;
   border-color: #E5B700;
-  border-radius: 14px;
-}
-
-.air-network-logo-mtn img {
-  width: 84%;
-  height: 60%;
 }
 
 .air-network-logo-airtel {
-  background: #FFFFFF;
-  border-color: #FEE2E2;
-  border-radius: 14px;
-}
-
-.air-network-logo-airtel img {
-  width: 80%;
-  height: 80%;
+  background: #E30713;
+  border-color: #DC2626;
 }
 
 .air-network-logo-glo {
-  background: #FFFFFF;
-  border-radius: 50%;
-}
-
-.air-network-logo-glo img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
+  background: #008753;
+  border-color: #059669;
 }
 
 .air-network-logo-9mobile {
   background: #0B201A;
-  border-radius: 50%;
   border-color: #071713;
-}
-
-.air-network-logo-9mobile img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
 }
 
 .air-net-label {
