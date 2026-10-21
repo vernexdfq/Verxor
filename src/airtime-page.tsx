@@ -114,20 +114,31 @@ function formatNaira(n: number): string {
   });
 }
 
-/** Carrier artwork is stored locally so the selector never depends on third-party hosts. */
-function NetworkLogo({ id, size = 44 }: { id: NetworkId; size?: number }) {
+/**
+ * Carrier marks — local SVG badges so the full brand logo always fits
+ * (no circular crop / object-fit clipping that was breaking the PNG tiles).
+ */
+function NetworkLogo({ id, size = 48 }: { id: NetworkId; size?: number }) {
   const assets: Record<NetworkId, { src: string; alt: string }> = {
-    mtn: { src: '/brand/networks/mtn.png', alt: 'MTN' },
-    airtel: { src: '/brand/networks/airtel.png', alt: 'Airtel' },
-    glo: { src: '/brand/networks/glo.png', alt: 'Glo' },
-    '9mobile': { src: '/brand/networks/9mobile.png', alt: '9mobile' },
+    mtn: { src: '/brand/networks/mtn.svg', alt: 'MTN' },
+    airtel: { src: '/brand/networks/airtel.svg', alt: 'Airtel' },
+    glo: { src: '/brand/networks/glo.svg', alt: 'Glo' },
+    '9mobile': { src: '/brand/networks/9mobile.svg', alt: '9mobile' },
   };
   const asset = assets[id];
 
   return (
-    <span className={`air-network-logo air-network-logo-${id}`} style={{ width: size, height: size }}>
-      <img src={asset.src} alt="" aria-hidden="true" />
-      <span className="sr-only">{asset.alt}</span>
+    <span
+      className={`air-network-logo air-network-logo-${id}`}
+      style={{ width: size, height: size }}
+    >
+      <img
+        src={asset.src}
+        alt={asset.alt}
+        width={size}
+        height={size}
+        draggable={false}
+      />
     </span>
   );
 }
@@ -422,7 +433,7 @@ export function AirtimePage({
                   </span>
                 )}
                 <div className="air-net-logo-wrap">
-                  <NetworkLogo id={net.id} size={44} />
+                  <NetworkLogo id={net.id} size={48} />
                 </div>
                 <span className="air-net-label">{net.label}</span>
               </button>
@@ -591,36 +602,28 @@ export function AirtimePage({
                   <span>Insufficient balance · Need {moneyFull(amount - walletBalance)} more</span>
                 </div>
                 <button type="button" className="air-warn-fund-link" onClick={handleFund}>
-                  Fund Wallet →
+                  Fund Wallet
                 </button>
               </div>
             )}
           </div>
         )}
 
-        {/* ── Primary Action Button (Inside Card Flow) ── */}
         <button
           type="button"
           className={ctaClass}
           disabled={ctaDisabled}
           onClick={() => void ctaAction()}
         >
-          {insufficient && formReady ? (
-            <>
-              <Wallet size={18} strokeWidth={2.2} /> {ctaLabel}
-            </>
-          ) : (
-            <>
-              <Lock size={16} strokeWidth={2.4} /> {ctaLabel}
-            </>
-          )}
+          {!formReady || insufficient ? null : <Lock size={16} strokeWidth={2.4} />}
+          {ctaLabel}
         </button>
       </section>
 
-      {/* ── Instant Delivery Trust Card ── */}
+      {/* ── Instant Delivery Trust ── */}
       <div className="air-trust">
         <div className="air-trust-icon" aria-hidden>
-          <Check size={18} strokeWidth={3} />
+          <Check size={20} strokeWidth={2.6} />
         </div>
         <div className="air-trust-body">
           <strong>Instant Delivery</strong>
@@ -628,81 +631,73 @@ export function AirtimePage({
         </div>
       </div>
 
-      {/* ── Recipient Picker Sheet / Modal ── */}
+      {/* ── Recipient Picker Modal ── */}
       {pickerOpen && (
         <div className="air-modal-backdrop" onClick={() => setPickerOpen(false)}>
           <div
             className="air-modal-card"
             onClick={(e) => e.stopPropagation()}
             role="dialog"
-            aria-modal="true"
-            aria-label="Select recipient"
+            aria-label="Choose recipient"
           >
             <div className="air-modal-header">
               <div className="air-modal-title-wrap">
-                <h3>Select Recipient</h3>
-                <p>Choose your account phone or a recent recharge</p>
+                <h3>Choose Recipient</h3>
+                <p>Your number or recent recharges</p>
               </div>
               <button
                 type="button"
                 className="air-modal-close"
-                onClick={() => setPickerOpen(false)}
                 aria-label="Close"
+                onClick={() => setPickerOpen(false)}
               >
-                <X size={18} />
+                <X size={16} />
               </button>
             </div>
-
             <div className="air-modal-list">
-              {/* Option 1: Registered Account Phone */}
-              {accountPhone ? (
+              {accountPhone && (
                 <button
                   type="button"
                   className="air-modal-item"
                   onClick={() => handleSelectRecipient(accountPhone)}
                 >
                   <div className="air-modal-item-icon account">
-                    <Phone size={18} />
+                    <Sparkles size={16} />
                   </div>
                   <div className="air-modal-item-info">
                     <div className="air-modal-item-top">
                       <strong>{formatPhoneDisplay(accountPhone)}</strong>
-                      <span className="air-tag primary">My Account</span>
+                      <span className="air-tag primary">My number</span>
                     </div>
-                    <span className="air-modal-item-sub">Registered login number</span>
+                    <span className="air-modal-item-sub">Registered on your account</span>
                   </div>
                 </button>
-              ) : null}
-
-              {/* Option 2: Recent Recharged Numbers (up to 3) */}
-              {recentRecipients.map((rec) => (
+              )}
+              {recentRecipients.map((r) => (
                 <button
-                  key={rec.phone}
+                  key={r.phone}
                   type="button"
                   className="air-modal-item"
-                  onClick={() => handleSelectRecipient(rec.phone, rec.networkId)}
+                  onClick={() => handleSelectRecipient(r.phone, r.networkId)}
                 >
                   <div className="air-modal-item-icon recent">
-                    <Clock size={18} />
+                    <Clock size={16} />
                   </div>
                   <div className="air-modal-item-info">
                     <div className="air-modal-item-top">
-                      <strong>{formatPhoneDisplay(rec.phone)}</strong>
-                      {rec.networkId && (
-                        <span className={`air-tag net-${rec.networkId}`}>
-                          {NETWORKS.find((network) => network.id === rec.networkId)?.label ?? rec.networkId.toUpperCase()}
-                        </span>
+                      <strong>{formatPhoneDisplay(r.phone)}</strong>
+                      {r.networkId && (
+                        <span className={`air-tag net-${r.networkId}`}>{r.networkId}</span>
                       )}
                     </div>
-                    <span className="air-modal-item-sub">Previously recharged</span>
+                    <span className="air-modal-item-sub">Recent recharge</span>
                   </div>
                 </button>
               ))}
-
               {!accountPhone && recentRecipients.length === 0 && (
                 <div className="air-modal-empty">
-                  <p>No previous numbers found yet.</p>
-                  <span>Type a phone number above and it will be saved automatically.</span>
+                  <p>No saved numbers yet</p>
+                  <span>Recharge once to see them here</span>
                 </div>
               )}
             </div>
@@ -710,12 +705,7 @@ export function AirtimePage({
         </div>
       )}
 
-      {/* ── Toast Notification ── */}
-      {toast && (
-        <div className="air-toast" role="status">
-          <span>{toast}</span>
-        </div>
-      )}
+      {toast && <div className="air-toast">{toast}</div>}
     </div>
   );
 }
