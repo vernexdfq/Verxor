@@ -405,7 +405,7 @@ export function VerxorApp() {
   } else if (service === 'accounts') {
     content = <AccountsPage onBack={closeService} session={auth} />;
   } else if (service === 'boost') {
-    content = <BoostPage onBack={closeService} session={auth} />;
+    content = <BoostPage onBack={closeService} session={auth} onFund={() => navigatePage('fund')} />;
   } else if (service === 'airtime') {
     content = <AirtimePage onBack={closeService} session={auth} onFund={() => navigatePage('fund')} />;
   } else if (service === 'data') {
