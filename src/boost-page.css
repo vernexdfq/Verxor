@@ -7,8 +7,8 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
-  max-width: 480px;
-  margin: 0 auto;
+  max-width: none;
+  margin: 0;
   padding: 8px 12px 36px;
   background: #F1F5F9;
   min-height: 100%;
@@ -22,6 +22,12 @@
 .boost-page *,
 .boost-page *::before,
 .boost-page *::after { box-sizing: border-box; }
+
+/* Let the Boost page use the app's full content width while preserving a clean edge gutter. */
+.app-frame.deep-service .content:has(.boost-page) {
+  padding-left: 0;
+  padding-right: 0;
+}
 
 .boost-topbar {
   display: flex;
