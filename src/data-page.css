@@ -889,12 +889,12 @@
 
 
 /* ==========================================================================
-   DATA PAGE SPECIFIC EXTENSIONS: TABS, 3-COLUMN BUNDLE CARDS, SUMMARY
+   Verxor — Data Specific Elements (Category Tabs, 3-Col Bundles, Checkout)
    ========================================================================== */
 
-/* Category Tabs (Hot deals, Daily, Weekly, Monthly, Yearly) */
+/* Category Tabs: Hot deals, Daily, Weekly, Monthly, Yearly */
 .data-tabs-wrap {
-  margin: 6px 0 16px;
+  margin: 16px 0 14px;
   position: relative;
 }
 
@@ -902,7 +902,7 @@
   display: flex;
   gap: 8px;
   overflow-x: auto;
-  padding: 4px 2px 8px;
+  padding: 2px 2px 6px;
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
 }
@@ -914,151 +914,135 @@
 .data-tab {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   padding: 8px 16px;
   border-radius: 9999px;
   background: #F1F5F9;
-  border: 1.5px solid #E2E8F0;
+  border: 1px solid #E2E8F0;
   color: #475569;
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: -0.01em;
   white-space: nowrap;
   cursor: pointer;
-  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: all 0.15s ease;
   flex-shrink: 0;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
 }
 
 .data-tab:hover {
   background: #E2E8F0;
   color: #0F172A;
-  border-color: #CBD5E1;
 }
 
 .data-tab.active {
   background: #7C3AED;
   border-color: #7C3AED;
   color: #FFFFFF;
-  box-shadow: 0 3px 12px rgba(124, 58, 237, 0.32);
-}
-
-.data-tab.active:hover {
-  background: #6D28D9;
-  border-color: #6D28D9;
-  color: #FFFFFF;
+  box-shadow: 0 2px 8px rgba(124, 58, 237, 0.28);
 }
 
 .data-tab-icon {
-  font-size: 14px;
+  font-size: 12px;
   line-height: 1;
 }
 
-/* 3-Column Bundle Cards Grid (OPay & Moniepoint Style) */
+/* ── 3-Column Data Bundles Grid (OPay & Moniepoint layout) ── */
 .data-bundles-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
-  margin-bottom: 18px;
+  margin-bottom: 8px;
 }
 
 @media (max-width: 360px) {
   .data-bundles-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 8px;
   }
 }
 
 .data-bundle-card {
   position: relative;
-  background: #FFFFFF;
-  border: 1.5px solid #F1F5F9;
-  border-radius: 16px;
-  padding: 14px 6px 12px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: space-between;
-  min-height: 110px;
-  cursor: pointer;
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
-  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
   text-align: center;
+  padding: 12px 8px 10px;
+  background: #FFFFFF;
+  border: 1.5px solid #E2E8F0;
+  border-radius: 14px;
+  cursor: pointer;
+  transition: all 0.16s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
 }
 
 .data-bundle-card:hover {
   border-color: #CBD5E1;
+  background: #F8FAFC;
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
+  box-shadow: 0 3px 8px rgba(15, 23, 42, 0.07);
 }
 
 .data-bundle-card:active {
-  transform: scale(0.98);
+  transform: scale(0.97);
 }
 
 .data-bundle-card.selected {
+  border-color: #7C3AED;
   background: #FAF5FF;
-  border-color: #8B5CF6;
-  box-shadow: 0 4px 16px rgba(139, 92, 246, 0.2);
+  box-shadow: 0 0 0 1px #7C3AED, 0 4px 12px rgba(124, 58, 237, 0.16);
 }
 
-/* Active Checkmark Badge */
 .data-bundle-check {
   position: absolute;
   top: 6px;
   right: 6px;
-  width: 17px;
-  height: 17px;
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
   background: #7C3AED;
   color: #FFFFFF;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 2px 4px rgba(124, 58, 237, 0.35);
-  animation: popIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* Hot Badge */
 .data-bundle-hot-badge {
   position: absolute;
-  top: -7px;
+  top: -6px;
   left: 8px;
-  background: linear-gradient(135deg, #FF6B00 0%, #EA580C 100%);
+  background: #EF4444;
   color: #FFFFFF;
-  font-size: 8.5px;
+  font-size: 9px;
   font-weight: 800;
-  padding: 2px 6px;
+  padding: 1px 5px;
   border-radius: 6px;
-  text-transform: uppercase;
   letter-spacing: 0.04em;
-  box-shadow: 0 2px 4px rgba(234, 88, 12, 0.28);
+  box-shadow: 0 1px 4px rgba(239, 68, 68, 0.35);
 }
 
-/* Bundle Volume */
 .data-bundle-volume {
-  font-size: 16.5px;
+  font-size: 15px;
   font-weight: 800;
   color: #0F172A;
   letter-spacing: -0.02em;
   line-height: 1.15;
   margin-top: 2px;
-  word-break: break-word;
 }
 
 .data-bundle-card.selected .data-bundle-volume {
   color: #6D28D9;
 }
 
-/* Bundle Validity */
 .data-bundle-validity {
-  font-size: 11.5px;
+  font-size: 11px;
   font-weight: 600;
   color: #64748B;
   margin: 4px 0 10px;
   line-height: 1.2;
 }
 
-/* Pay Pill Button (Moniepoint / OPay signature) */
+/* Pay Pill Button inside Bundle Card */
 .data-bundle-pay-pill {
   width: 100%;
   padding: 5px 4px;
@@ -1087,55 +1071,14 @@
   box-shadow: 0 2px 6px rgba(124, 58, 237, 0.3);
 }
 
-/* Selected Plan Summary */
-.data-summary {
-  background: #F8FAFC;
-  border: 1px dashed #CBD5E1;
-  border-radius: 14px;
-  padding: 12px 14px;
-  margin-bottom: 16px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-}
-
-.data-summary-left {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-
-.data-summary-plan {
-  font-size: 13.5px;
-  font-weight: 700;
-  color: #0F172A;
-  letter-spacing: -0.01em;
-}
-
-.data-summary-recipient {
-  font-size: 12px;
-  color: #64748B;
-  font-weight: 500;
-}
-
-.data-summary-price {
-  font-size: 18px;
-  font-weight: 800;
-  color: #7C3AED;
-  letter-spacing: -0.02em;
-  font-variant-numeric: tabular-nums;
-  flex-shrink: 0;
-}
-
-/* Empty State & Error */
+/* Empty State */
 .data-empty-state {
   background: #F8FAFC;
   border: 1.5px dashed #E2E8F0;
   border-radius: 16px;
   padding: 24px 16px;
   text-align: center;
-  margin-bottom: 18px;
+  margin-bottom: 8px;
 }
 
 .data-empty-state p {
@@ -1153,17 +1096,7 @@
   flex-wrap: wrap;
 }
 
-.data-empty-state.error {
-  border-color: #FECACA;
-  background: #FEF2F2;
-}
-
-.data-empty-state.error p {
-  color: #DC2626;
-  font-weight: 600;
-}
-
-/* Skeleton Loaders */
+/* Skeletons */
 .data-bundles-skeleton {
   pointer-events: none;
 }
@@ -1201,4 +1134,123 @@
 @keyframes pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.45; }
+}
+
+/* ── Checkout Confirmation Modal Sheet ── */
+.data-confirm-card {
+  max-width: 440px;
+}
+
+.data-confirm-details {
+  background: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: 16px;
+  padding: 14px 16px;
+  margin-bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.data-confirm-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13.5px;
+}
+
+.data-confirm-row.subtle {
+  font-size: 12px;
+  color: #64748B;
+}
+
+.data-confirm-label {
+  color: #64748B;
+  font-weight: 500;
+}
+
+.data-confirm-val {
+  color: #0F172A;
+  font-weight: 600;
+}
+
+.data-confirm-val.strong {
+  font-weight: 700;
+  color: #0F172A;
+}
+
+.data-confirm-amount {
+  font-size: 18px;
+  font-weight: 800;
+  color: #7C3AED;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.data-confirm-divider {
+  height: 1px;
+  background: #E2E8F0;
+  margin: 4px 0;
+}
+
+.data-confirm-warn {
+  margin-bottom: 8px;
+  padding: 12px 14px;
+  background: #FEF2F2;
+  border: 1px solid #FECACA;
+  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.data-confirm-warn-text {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #DC2626;
+}
+
+.data-confirm-btn {
+  width: 100%;
+  height: 48px;
+  border-radius: 14px;
+  font-size: 14.5px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  border: none;
+}
+
+.data-confirm-btn.pay {
+  background: #7C3AED;
+  color: #FFFFFF;
+  box-shadow: 0 4px 14px rgba(124, 58, 237, 0.35);
+}
+
+.data-confirm-btn.pay:hover:not(:disabled) {
+  background: #6D28D9;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(124, 58, 237, 0.42);
+}
+
+.data-confirm-btn.pay:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.data-confirm-btn.fund {
+  background: #EF4444;
+  color: #FFFFFF;
+  box-shadow: 0 4px 14px rgba(239, 68, 68, 0.3);
+}
+
+.data-confirm-btn.fund:hover {
+  background: #DC2626;
 }

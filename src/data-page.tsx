@@ -1,20 +1,17 @@
-'use client';
-
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import {
   ArrowLeft,
   Check,
-  Globe2,
+  Clock,
   Lock,
   Phone,
-  RotateCcw,
+  Radio,
+  Receipt,
   ShieldCheck,
   Sparkles,
-  Trash2,
-  User,
   Wallet,
-  Wifi,
   X,
+  AlertCircle,
 } from 'lucide-react';
 import './data-page.css';
 import type { AuthSession } from './auth/AuthFlow';
@@ -26,12 +23,10 @@ export type CategoryId = 'hot' | 'daily' | 'weekly' | 'monthly' | 'yearly';
 
 export interface LivePlan {
   id: number;
-  networkId: number;
-  network: string;
   name: string;
-  type: string;
-  days: string;
   price: number;
+  days: string;
+  planType?: string;
 }
 
 interface NetworkOption {
@@ -42,8 +37,8 @@ interface NetworkOption {
 
 interface RecentRecipient {
   phone: string;
-  networkId: NetworkId;
-  lastUsed: number;
+  networkId?: NetworkId;
+  lastUsed?: number;
 }
 
 const NETWORKS: NetworkOption[] = [
@@ -62,7 +57,61 @@ const CATEGORIES: { id: CategoryId; label: string; icon?: string }[] = [
 ];
 
 const RECENT_KEY = 'verxor_data_recent_recipients_v1';
+const AIRTIME_RECENT_KEY = 'verxor_airtime_recent_recipients_v1';
 const MY_NUMBER = '08141620644';
+
+const FALLBACK_PLANS: Record<NetworkId, LivePlan[]> = {
+  mtn: [
+    { id: 101, name: '100MB Daily', price: 100, days: '1', planType: 'Daily' },
+    { id: 102, name: '1GB Daily', price: 350, days: '1', planType: 'Daily' },
+    { id: 103, name: '2GB (2 Days)', price: 600, days: '2', planType: 'Daily' },
+    { id: 104, name: '1GB Weekly', price: 600, days: '7', planType: 'Weekly' },
+    { id: 105, name: '1.5GB Weekly', price: 1000, days: '7', planType: 'Weekly' },
+    { id: 106, name: '3.5GB Weekly', price: 1500, days: '7', planType: 'Weekly' },
+    { id: 107, name: '5GB Weekly', price: 2000, days: '7', planType: 'Weekly' },
+    { id: 108, name: '1.5GB Monthly', price: 1200, days: '30', planType: 'Monthly' },
+    { id: 109, name: '2GB Monthly', price: 1500, days: '30', planType: 'Monthly' },
+    { id: 110, name: '3GB Monthly', price: 2000, days: '30', planType: 'Monthly' },
+    { id: 111, name: '5GB Monthly', price: 3000, days: '30', planType: 'Monthly' },
+    { id: 112, name: '10GB Monthly', price: 5000, days: '30', planType: 'Monthly' },
+    { id: 113, name: '15GB Monthly', price: 6000, days: '30', planType: 'Monthly' },
+    { id: 114, name: '120GB Yearly', price: 50000, days: '365', planType: 'Yearly' },
+  ],
+  airtel: [
+    { id: 201, name: '100MB Daily', price: 100, days: '1', planType: 'Daily' },
+    { id: 202, name: '1GB Daily', price: 350, days: '1', planType: 'Daily' },
+    { id: 203, name: '2GB (2 Days)', price: 600, days: '2', planType: 'Daily' },
+    { id: 204, name: '1.5GB Weekly', price: 1000, days: '7', planType: 'Weekly' },
+    { id: 205, name: '3.5GB Weekly', price: 1500, days: '7', planType: 'Weekly' },
+    { id: 206, name: '1.5GB Monthly', price: 1200, days: '30', planType: 'Monthly' },
+    { id: 207, name: '2GB Monthly', price: 1500, days: '30', planType: 'Monthly' },
+    { id: 208, name: '3GB Monthly', price: 2000, days: '30', planType: 'Monthly' },
+    { id: 209, name: '5GB Monthly', price: 3000, days: '30', planType: 'Monthly' },
+    { id: 210, name: '10GB Monthly', price: 5000, days: '30', planType: 'Monthly' },
+    { id: 211, name: '120GB Yearly', price: 50000, days: '365', planType: 'Yearly' },
+  ],
+  glo: [
+    { id: 301, name: '1GB Daily', price: 300, days: '1', planType: 'Daily' },
+    { id: 302, name: '2GB (2 Days)', price: 500, days: '2', planType: 'Daily' },
+    { id: 303, name: '1.5GB Weekly', price: 800, days: '7', planType: 'Weekly' },
+    { id: 304, name: '3.5GB Weekly', price: 1200, days: '7', planType: 'Weekly' },
+    { id: 305, name: '2GB Monthly', price: 1200, days: '30', planType: 'Monthly' },
+    { id: 306, name: '3.5GB Monthly', price: 1500, days: '30', planType: 'Monthly' },
+    { id: 307, name: '5.5GB Monthly', price: 2000, days: '30', planType: 'Monthly' },
+    { id: 308, name: '10GB Monthly', price: 4000, days: '30', planType: 'Monthly' },
+    { id: 309, name: '120GB Yearly', price: 45000, days: '365', planType: 'Yearly' },
+  ],
+  '9mobile': [
+    { id: 401, name: '1GB Daily', price: 350, days: '1', planType: 'Daily' },
+    { id: 402, name: '2GB (3 Days)', price: 600, days: '3', planType: 'Daily' },
+    { id: 403, name: '2GB Weekly', price: 1000, days: '7', planType: 'Weekly' },
+    { id: 404, name: '1.5GB Monthly', price: 1200, days: '30', planType: 'Monthly' },
+    { id: 405, name: '3GB Monthly', price: 2000, days: '30', planType: 'Monthly' },
+    { id: 406, name: '5GB Monthly', price: 3000, days: '30', planType: 'Monthly' },
+    { id: 407, name: '11GB Monthly', price: 5000, days: '30', planType: 'Monthly' },
+    { id: 408, name: '100GB Yearly', price: 50000, days: '365', planType: 'Yearly' },
+  ],
+};
 
 function detectNetwork(raw: string): NetworkId | null {
   let clean = raw.replace(/\D/g, '');
@@ -96,7 +145,9 @@ function normalizePhone(raw: string): string {
 }
 
 function formatPhone(raw: string): string {
-  return raw.replace(/\D/g, '').slice(0, 11);
+  let digits = raw.replace(/\D/g, '');
+  if (digits.startsWith('234')) digits = '0' + digits.slice(3);
+  return digits.slice(0, 11);
 }
 
 function formatPhoneDisplay(raw: string): string {
@@ -115,8 +166,7 @@ function parseVolume(name: string): string {
   if (m) {
     const num = parseFloat(m[1]);
     const unit = m[2].toUpperCase();
-    const numStr = Number.isInteger(num) ? `${num}` : `${num}`;
-    return `${numStr} ${unit}`;
+    return `${num} ${unit}`;
   }
   return name;
 }
@@ -251,32 +301,78 @@ export function DataPage({ onBack, session, onFund }: DataPageProps) {
   const [phone, setPhone] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [loadingPlans, setLoadingPlans] = useState(false);
-  const [plansError, setPlansError] = useState<string | null>(null);
-  const [livePlans, setLivePlans] = useState<LivePlan[]>([]);
+  const [livePlans, setLivePlans] = useState<LivePlan[]>(FALLBACK_PLANS['mtn']);
   const [toast, setToast] = useState<string | null>(null);
   const [autoDetected, setAutoDetected] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const [recentRecipients, setRecentRecipients] = useState<RecentRecipient[]>([]);
 
   const showToast = useCallback((msg: string) => {
     setToast(msg);
-    window.setTimeout(() => setToast(null), 3400);
+    setTimeout(() => {
+      setToast((curr) => (curr === msg ? null : curr));
+    }, 2800);
   }, []);
 
-  // Load recent recipients from localStorage
+  const phoneDigits = formatPhone(phone);
+  const phoneValid = phoneDigits.length === 11;
+  const selectedNetObj = NETWORKS.find((n) => n.id === networkId) || NETWORKS[0];
+
+  // Load recent recipients from both Data and Airtime keys
   useEffect(() => {
     try {
-      const raw = localStorage.getItem(RECENT_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed)) {
-          setRecentRecipients(parsed.slice(0, 3));
+      const rawData = localStorage.getItem(RECENT_KEY);
+      const rawAir = localStorage.getItem(AIRTIME_RECENT_KEY);
+      const listData: RecentRecipient[] = rawData ? JSON.parse(rawData) : [];
+      const listAir: RecentRecipient[] = rawAir ? JSON.parse(rawAir) : [];
+
+      const mergedMap = new Map<string, RecentRecipient>();
+      [...listData, ...listAir].forEach((r) => {
+        if (r && r.phone && !mergedMap.has(r.phone)) {
+          mergedMap.set(r.phone, r);
         }
-      }
+      });
+      setRecentRecipients(Array.from(mergedMap.values()).slice(0, 5));
     } catch {
-      // Ignore storage errors
+      // Ignore
     }
   }, []);
+
+  const handleApplyPhone = useCallback((v: string, netHint?: NetworkId) => {
+    const digits = formatPhone(v);
+    setPhone(digits);
+    if (netHint) {
+      setNetworkId(netHint);
+      setAutoDetected(true);
+    } else if (digits.length >= 4) {
+      const detected = detectNetwork(digits);
+      if (detected) {
+        setNetworkId(detected);
+        setAutoDetected(true);
+      }
+    } else {
+      setAutoDetected(false);
+    }
+  }, []);
+
+  const handlePhoneChange = (v: string) => {
+    handleApplyPhone(v);
+  };
+
+  /** Use My Number click: instantly applies the registered account number like Airtime */
+  const handleUseMyNumber = () => {
+    if (userAccountPhone) {
+      handleApplyPhone(userAccountPhone);
+      showToast(`Account number applied (${formatPhoneDisplay(userAccountPhone)})`);
+      return;
+    }
+    if (recentRecipients.length > 0) {
+      setPickerOpen(true);
+      return;
+    }
+    showToast('No registered phone number found on account');
+  };
 
   const saveRecentRecipient = useCallback((p: string, net: NetworkId) => {
     try {
@@ -286,47 +382,36 @@ export function DataPage({ onBack, session, onFund }: DataPageProps) {
       const next: RecentRecipient[] = [
         { phone: clean, networkId: net, lastUsed: Date.now() },
         ...prev,
-      ].slice(0, 3);
+      ].slice(0, 5);
       setRecentRecipients(next);
       localStorage.setItem(RECENT_KEY, JSON.stringify(next));
+      localStorage.setItem(AIRTIME_RECENT_KEY, JSON.stringify(next));
     } catch {
       // Ignore storage errors
     }
   }, [recentRecipients]);
 
-  const clearRecentRecipients = useCallback(() => {
-    try {
-      localStorage.removeItem(RECENT_KEY);
-      setRecentRecipients([]);
-      showToast('Recent recipients cleared');
-    } catch {
-      // Ignore
-    }
-  }, [showToast]);
-
-  /** Load live plans whenever network changes */
+  /** Load live plans whenever network changes; falls back gracefully to standard bundles */
   useEffect(() => {
     let cancelled = false;
     setLoadingPlans(true);
-    setPlansError(null);
     setSelectedPlanId(null);
 
     fetch(`/api/v1/data/plans?network=${networkId}`)
       .then(async (res) => {
         const data = await res.json().catch(() => ({}));
-        if (!res.ok || !data.ok) {
-          throw new Error(data.error || 'Failed to load plans');
+        if (!res.ok || !data.ok || !Array.isArray(data.plans) || data.plans.length === 0) {
+          throw new Error(data.error || 'No provider plans');
         }
-        return (data.plans || []) as LivePlan[];
+        return data.plans as LivePlan[];
       })
       .then((plans) => {
         if (cancelled) return;
         setLivePlans(plans);
       })
-      .catch((err) => {
+      .catch(() => {
         if (cancelled) return;
-        setLivePlans([]);
-        setPlansError(err instanceof Error ? err.message : 'Failed to load plans');
+        setLivePlans(FALLBACK_PLANS[networkId] || FALLBACK_PLANS['mtn']);
       })
       .finally(() => {
         if (!cancelled) setLoadingPlans(false);
@@ -344,7 +429,6 @@ export function DataPage({ onBack, session, onFund }: DataPageProps) {
     const monthly: LivePlan[] = [];
     const yearly: LivePlan[] = [];
 
-    // Sort all plans ascending by price
     const sorted = [...livePlans].sort((a, b) => a.price - b.price);
 
     sorted.forEach((p) => {
@@ -355,7 +439,7 @@ export function DataPage({ onBack, session, onFund }: DataPageProps) {
       else monthly.push(p);
     });
 
-    // Curate Hot deals: select popular bundle volumes across categories
+    // Curate Hot deals
     const targetSizes = [
       '1 gb', '2 gb', '2.5 gb', '3 gb', '5 gb', '10 gb',
       '500 mb', '1.5 gb', '20 gb',
@@ -374,7 +458,6 @@ export function DataPage({ onBack, session, onFund }: DataPageProps) {
       }
     }
 
-    // Fill up to 6-9 deals if not enough target sizes found
     if (hot.length < 6) {
       const remaining = sorted.filter((p) => !hot.some((h) => h.id === p.id));
       hot.push(...remaining.slice(0, 9 - hot.length));
@@ -395,67 +478,64 @@ export function DataPage({ onBack, session, onFund }: DataPageProps) {
     return categorizedPlans[activeCategory] || [];
   }, [categorizedPlans, activeCategory]);
 
-  // Set default selected plan when plans load or category changes
   useEffect(() => {
     if (currentCategoryPlans.length > 0) {
       if (!currentCategoryPlans.some((p) => p.id === selectedPlanId)) {
         setSelectedPlanId(currentCategoryPlans[0].id);
       }
-    } else if (activeCategory === 'hot' && livePlans.length > 0) {
-      setSelectedPlanId(livePlans[0].id);
     } else {
       setSelectedPlanId(null);
     }
-  }, [currentCategoryPlans, activeCategory, livePlans, selectedPlanId]);
+  }, [currentCategoryPlans, selectedPlanId]);
 
   const selectedPlan = useMemo(() => {
-    return livePlans.find((p) => p.id === selectedPlanId) ?? null;
+    return livePlans.find((p) => p.id === selectedPlanId) || null;
   }, [livePlans, selectedPlanId]);
 
-  const phoneDigits = formatPhone(phone);
-  const phoneValid = /^0[7-9]\d{9}$/.test(phoneDigits);
-  const price = selectedPlan?.price ?? 0;
-  const insufficient = price > 0 && price > walletBalance;
-  const deficit = insufficient ? price - walletBalance : 0;
-  const formReady = phoneValid && !!selectedPlan;
-
-  // Auto-detect network from phone number
-  useEffect(() => {
-    if (phoneDigits.length < 4) {
-      setAutoDetected(false);
+  /** Tapping a plan card triggers validation or opens the checkout sheet */
+  const handleSelectPlan = (plan: LivePlan) => {
+    setSelectedPlanId(plan.id);
+    if (!phoneDigits) {
+      showToast('Enter recipient phone number to proceed');
+      const inputEl = document.getElementById('data-phone-input');
+      if (inputEl) inputEl.focus();
       return;
     }
-    const detected = detectNetwork(phoneDigits);
-    if (detected && detected !== networkId) {
-      setNetworkId(detected);
-      setAutoDetected(true);
-    } else if (detected && detected === networkId) {
-      setAutoDetected(true);
+    if (!phoneValid) {
+      showToast('Enter a valid 11-digit Nigerian number');
+      const inputEl = document.getElementById('data-phone-input');
+      if (inputEl) inputEl.focus();
+      return;
     }
-  }, [phoneDigits, networkId]);
-
-  const handlePhoneChange = (v: string) => {
-    setPhone(v.replace(/[^\d+]/g, ''));
+    setConfirmOpen(true);
   };
 
-  const handleApplyPhone = (num: string, net?: NetworkId) => {
-    const formatted = formatPhone(num);
-    setPhone(formatted);
-    const detected = net || detectNetwork(formatted);
-    if (detected) {
-      setNetworkId(detected);
-      setAutoDetected(true);
+  const handleFund = () => {
+    if (onFund) {
+      onFund();
+    } else {
+      showToast('Redirecting to wallet funding...');
+      window.location.hash = '#fund';
     }
-    setPickerOpen(false);
   };
 
-  const handleNetworkSelect = (id: NetworkId) => {
-    setNetworkId(id);
-    setAutoDetected(false);
-  };
+  const executePurchase = async () => {
+    if (!selectedPlan) {
+      showToast('Please select a data bundle');
+      return;
+    }
+    if (!phoneValid) {
+      showToast('Enter a valid 11-digit phone number');
+      return;
+    }
 
-  const handlePurchase = async () => {
-    if (!formReady || insufficient || submitting || !selectedPlan) return;
+    const price = selectedPlan.price;
+    if (walletBalance < price) {
+      setConfirmOpen(false);
+      showToast(`Insufficient balance. Please fund ₦${Math.round(price - walletBalance).toLocaleString('en-NG')}`);
+      return;
+    }
+
     setSubmitting(true);
     try {
       const res = await fetch('/api/v1/data', {
@@ -467,52 +547,34 @@ export function DataPage({ onBack, session, onFund }: DataPageProps) {
           dataPlanId: selectedPlan.id,
         }),
       });
-      const data = (await res.json().catch(() => ({}))) as {
-        ok?: boolean;
-        error?: string;
-        order?: { message?: string };
-      };
+
+      const data = await res.json().catch(() => ({}));
       if (!res.ok || !data.ok) {
-        showToast(data.error || 'Data purchase failed. Check balance and try again.');
-        return;
+        throw new Error(data.error || 'Failed to complete data purchase');
       }
+
       saveRecentRecipient(phoneDigits, networkId);
-      showToast(
-        data.order?.message ||
-          `🎉 ${selectedPlan.name} sent to ${formatPhoneDisplay(phoneDigits)}!`
-      );
-      setPhone('');
-      setAutoDetected(false);
-    } catch {
-      showToast('Network error — please verify connection and try again');
+      setConfirmOpen(false);
+      showToast(`Data recharge of ${parseVolume(selectedPlan.name)} to ${formatPhoneDisplay(phoneDigits)} successful!`);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Purchase failed. Please try again';
+      showToast(msg);
     } finally {
       setSubmitting(false);
     }
   };
 
-  const handleFund = () => {
-    if (onFund) {
-      onFund();
-    } else if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('verxor:fund-wallet'));
-    } else {
-      showToast('Opening Fund Wallet...');
-    }
-  };
-
-  const selectedNetObj = NETWORKS.find((n) => n.id === networkId) || NETWORKS[0];
-
   return (
     <div className="air-page">
-      {/* Top bar with back, title, and wallet balance */}
+      {/* ── Top Bar with Back, Title, and Fund Wallet Button ── */}
       <header className="air-topbar">
         <button
           type="button"
           className="air-back"
           onClick={onBack}
-          aria-label="Back to dashboard"
+          aria-label="Back"
         >
-          <ArrowLeft size={18} />
+          <ArrowLeft size={18} strokeWidth={2.4} />
         </button>
         <div className="air-title-wrap">
           <h1 className="air-title">Buy Data</h1>
@@ -521,42 +583,50 @@ export function DataPage({ onBack, session, onFund }: DataPageProps) {
         <button
           type="button"
           className="air-wallet-btn"
+          aria-label="Fund Wallet"
+          title="Fund Wallet"
           onClick={handleFund}
-          title="Wallet balance · Tap to fund"
         >
-          <Wallet size={13} className="air-wallet-btn-icon" />
-          <span>{money(walletBalance)}</span>
+          <Wallet size={15} strokeWidth={2.2} />
+          <span className="air-wallet-val">{money(walletBalance)}</span>
           <span className="air-wallet-plus">+</span>
         </button>
       </header>
 
-      {/* Card 1: Network Selection */}
+      {/* ── Card 1: Network Selection ── */}
       <section className="air-section">
         <div className="air-section-head">
           <div className="air-head-badge" aria-hidden>
-            <Wifi size={18} />
+            <Radio size={18} strokeWidth={2.2} />
           </div>
           <div className="air-head-text">
             <h2>Select Network</h2>
-            <p>Auto-detect works when you type number</p>
+            <p>
+              {autoDetected && networkId
+                ? 'Network detected from recipient number'
+                : 'Auto-detect works when you type number'}
+            </p>
           </div>
         </div>
 
         <div className="air-networks" role="listbox" aria-label="Mobile networks">
           {NETWORKS.map((net) => {
-            const isSelected = net.id === networkId;
+            const selected = networkId === net.id;
             return (
               <button
                 key={net.id}
                 type="button"
                 role="option"
-                aria-selected={isSelected}
-                className={`air-net air-net-${net.id}${isSelected ? ' selected' : ''}`}
-                onClick={() => handleNetworkSelect(net.id)}
+                aria-selected={selected}
+                className={`air-net${selected ? ' selected' : ''}`}
+                onClick={() => {
+                  setNetworkId(net.id);
+                  setAutoDetected(false);
+                }}
               >
-                {isSelected && (
+                {selected && (
                   <span className="air-net-badge" aria-hidden>
-                    <Check size={10} strokeWidth={3.5} />
+                    <Check size={11} strokeWidth={3.5} />
                   </span>
                 )}
                 <div className="air-net-logo-wrap">
@@ -569,81 +639,83 @@ export function DataPage({ onBack, session, onFund }: DataPageProps) {
         </div>
       </section>
 
-      {/* Card 2: Choose Data Bundle (Recharge Details) */}
+      {/* ── Card 2: Recharge Details & Bundles ── */}
       <section className="air-section air-details">
         <div className="air-section-head">
           <div className="air-head-badge" aria-hidden>
-            <Globe2 size={18} />
+            <Receipt size={18} strokeWidth={2.2} />
           </div>
           <div className="air-head-text">
-            <h2>Choose Data Bundle</h2>
-            <p>Enter recipient and select bundle</p>
+            <h2>Recharge Details</h2>
+            <p>Enter recipient and choose bundle</p>
           </div>
         </div>
 
-        {/* Recipient Phone Field */}
+        {/* Recipient Phone Field with clean header actions that do not obstruct typing */}
         <div className="air-field">
           <div className="air-field-header">
-            <label htmlFor="data-phone-input" className="air-field-label">
-              Phone Number
-            </label>
+            <span className="air-field-label">Phone Number</span>
             <div className="air-field-actions">
               <button
                 type="button"
-                className="air-pill-btn air-pill-btn-sparkle"
-                onClick={() => handleApplyPhone(userAccountPhone)}
+                className="air-use-mine-pill"
+                onClick={handleUseMyNumber}
+                title="Use your registered account number"
               >
-                <Sparkles size={11} />
+                <Sparkles size={11} className="air-use-mine-ico" />
                 <span>Use My Number</span>
               </button>
               <button
                 type="button"
-                className="air-pill-btn"
+                className="air-recent-pill"
+                title="Choose from recent recharges"
+                aria-label="Choose from recent recharges"
                 onClick={() => setPickerOpen(true)}
               >
-                <RotateCcw size={11} />
+                <Clock size={11} />
                 <span>Recent</span>
               </button>
             </div>
           </div>
 
           <div
-            className={`air-input-wrap${
-              phoneDigits.length === 11 && !phoneValid ? ' air-input-error' : ''
-            }`}
+            className={
+              phoneDigits && !phoneValid ? 'air-input-wrap is-error' : 'air-input-wrap'
+            }
           >
             <div className="air-input-lead-icon" aria-hidden>
-              <Phone size={15} />
+              <Phone size={17} strokeWidth={2.2} />
             </div>
             <input
               id="data-phone-input"
               type="tel"
-              inputMode="numeric"
-              placeholder="e.g. 0801 234 5678"
-              value={formatPhoneDisplay(phone)}
+              inputMode="tel"
+              autoComplete="tel"
+              placeholder="08012345678"
+              value={phone}
               onChange={(e) => handlePhoneChange(e.target.value)}
-              maxLength={13}
+              aria-label="Phone number"
             />
-            {phone && (
+            {phone ? (
               <button
                 type="button"
-                className="air-input-clear"
+                className="air-clear"
                 onClick={() => {
                   setPhone('');
                   setAutoDetected(false);
                 }}
                 aria-label="Clear phone number"
+                title="Clear phone number"
               >
-                <X size={13} />
+                <X size={14} strokeWidth={2.5} />
               </button>
-            )}
+            ) : null}
           </div>
 
-          {autoDetected && phoneValid && (
-            <div className="air-autodetect-hint">
-              <Check size={11} />
-              <span>Network auto-detected as {selectedNetObj.label}</span>
-            </div>
+          {phoneDigits && !phoneValid && (
+            <p className="air-field-error" role="alert">
+              Enter a valid 11-digit Nigerian number
+            </p>
           )}
         </div>
 
@@ -680,25 +752,6 @@ export function DataPage({ onBack, session, onFund }: DataPageProps) {
               </div>
             ))}
           </div>
-        ) : plansError ? (
-          <div className="data-empty-state error">
-            <p>{plansError}</p>
-            <button
-              type="button"
-              className="air-pill-btn"
-              onClick={() => {
-                setLoadingPlans(true);
-                setPlansError(null);
-                fetch(`/api/v1/data/plans?network=${networkId}`)
-                  .then((r) => r.json())
-                  .then((d) => setLivePlans(d.plans || []))
-                  .catch((e) => setPlansError(e.message))
-                  .finally(() => setLoadingPlans(false));
-              }}
-            >
-              Retry
-            </button>
-          </div>
         ) : currentCategoryPlans.length === 0 ? (
           <div className="data-empty-state">
             <p>
@@ -707,14 +760,14 @@ export function DataPage({ onBack, session, onFund }: DataPageProps) {
             <div className="data-empty-actions">
               <button
                 type="button"
-                className="air-pill-btn air-pill-btn-sparkle"
+                className="air-use-mine-pill"
                 onClick={() => setActiveCategory('monthly')}
               >
                 View Monthly Bundles
               </button>
               <button
                 type="button"
-                className="air-pill-btn"
+                className="air-recent-pill"
                 onClick={() => setActiveCategory('hot')}
               >
                 View Hot Deals
@@ -736,7 +789,7 @@ export function DataPage({ onBack, session, onFund }: DataPageProps) {
                   role="radio"
                   aria-checked={isSelected}
                   className={`data-bundle-card${isSelected ? ' selected' : ''}`}
-                  onClick={() => setSelectedPlanId(plan.id)}
+                  onClick={() => handleSelectPlan(plan)}
                 >
                   {isSelected && (
                     <span className="data-bundle-check" aria-hidden>
@@ -756,92 +809,26 @@ export function DataPage({ onBack, session, onFund }: DataPageProps) {
             })}
           </div>
         )}
-
-        {/* Selected Plan Summary Row */}
-        {selectedPlan && (
-          <div className="data-summary">
-            <div className="data-summary-left">
-              <div className="data-summary-plan">
-                {selectedNetObj.label} · {parseVolume(selectedPlan.name)} ({parseValidity(selectedPlan.days, selectedPlan.name)})
-              </div>
-              <div className="data-summary-recipient">
-                To: {phoneDigits ? formatPhoneDisplay(phoneDigits) : 'Recipient number'}
-              </div>
-            </div>
-            <div className="data-summary-price">
-              {money(selectedPlan.price)}
-            </div>
-          </div>
-        )}
-
-        {/* Insufficient Balance Notice */}
-        {insufficient && formReady && (
-          <div className="air-summary-warn">
-            <div className="air-warn-text">
-              <strong>Insufficient Balance:</strong> Need {money(deficit)} more
-              (Available: {money(walletBalance)})
-            </div>
-            <button
-              type="button"
-              className="air-warn-fund-btn"
-              onClick={handleFund}
-            >
-              Fund Wallet
-            </button>
-          </div>
-        )}
-
-        {/* Main CTA Button */}
-        {insufficient && formReady ? (
-          <button
-            type="button"
-            className="air-cta air-cta-fund"
-            onClick={handleFund}
-          >
-            <Wallet size={16} />
-            <span>Fund Wallet · Need {money(deficit)}</span>
-          </button>
-        ) : (
-          <button
-            type="button"
-            className="air-cta"
-            disabled={!formReady || submitting || loadingPlans}
-            onClick={handlePurchase}
-          >
-            <Lock size={15} />
-            <span>
-              {submitting
-                ? 'Processing Order...'
-                : !phoneDigits
-                ? 'Enter Phone Number'
-                : !phoneValid
-                ? 'Enter a Valid Number'
-                : !selectedPlan
-                ? (loadingPlans ? 'Loading Plans...' : 'Select a Data Plan')
-                : `Buy Data · Pay ${money(price)}`}
-            </span>
-          </button>
-        )}
       </section>
 
-      {/* Card 3: Instant Delivery Trust Card */}
+      {/* ── Card 3: Instant Delivery Trust Card ── */}
       <div className="air-trust">
         <div className="air-trust-icon" aria-hidden>
-          <ShieldCheck size={20} />
+          <ShieldCheck size={20} strokeWidth={2.2} />
         </div>
         <div className="air-trust-body">
-          <h3>Instant Delivery</h3>
+          <strong>Instant Delivery</strong>
           <p>
             Data bundles are credited immediately to the recipient line after successful payment.
           </p>
         </div>
       </div>
 
-      {/* Recipient Picker Modal */}
+      {/* ── Recipient Picker Modal (matching Airtime page) ── */}
       {pickerOpen && (
         <div className="air-modal-backdrop" onClick={() => setPickerOpen(false)}>
           <div
-            className="air-modal-sheet"
+            className="air-modal-card"
             onClick={(e) => e.stopPropagation()}
             role="dialog"
             aria-label="Choose recipient"
@@ -849,96 +836,170 @@ export function DataPage({ onBack, session, onFund }: DataPageProps) {
             <div className="air-modal-header">
               <div className="air-modal-title-wrap">
                 <h3>Choose Recipient</h3>
-                <p>Pick from your account or recent recharges</p>
+                <p>Your number or recent recharges</p>
               </div>
               <button
                 type="button"
                 className="air-modal-close"
-                onClick={() => setPickerOpen(false)}
                 aria-label="Close"
+                onClick={() => setPickerOpen(false)}
               >
-                <X size={15} />
+                <X size={16} />
               </button>
             </div>
-
             <div className="air-modal-list">
-              <div className="air-modal-group-label">YOUR ACCOUNT</div>
-              <button
-                type="button"
-                className="air-modal-item"
-                onClick={() => handleApplyPhone(userAccountPhone)}
-              >
-                <div className="air-modal-item-icon account">
-                  <User size={16} />
-                </div>
-                <div className="air-modal-item-info">
-                  <div className="air-modal-item-top">
-                    <span className="air-modal-item-name">Account Number</span>
-                    <span className="air-modal-item-badge">You</span>
+              {userAccountPhone && (
+                <button
+                  type="button"
+                  className="air-modal-item"
+                  onClick={() => {
+                    handleApplyPhone(userAccountPhone);
+                    setPickerOpen(false);
+                    showToast(`Account number applied (${formatPhoneDisplay(userAccountPhone)})`);
+                  }}
+                >
+                  <div className="air-modal-item-icon account">
+                    <Sparkles size={16} />
                   </div>
-                  <div className="air-modal-item-phone">
-                    {formatPhoneDisplay(userAccountPhone)}
+                  <div className="air-modal-item-info">
+                    <div className="air-modal-item-top">
+                      <strong>{formatPhoneDisplay(userAccountPhone)}</strong>
+                      <span className="air-tag primary">My number</span>
+                    </div>
+                    <span className="air-modal-item-sub">Registered on your account</span>
                   </div>
-                </div>
-              </button>
-
-              <div className="air-modal-group-header-row">
-                <div className="air-modal-group-label">RECENT RECHARGES</div>
-                {recentRecipients.length > 0 && (
-                  <button
-                    type="button"
-                    className="air-modal-clear-link"
-                    onClick={clearRecentRecipients}
-                  >
-                    <Trash2 size={11} />
-                    <span>Clear</span>
-                  </button>
-                )}
-              </div>
-
-              {recentRecipients.length === 0 ? (
+                </button>
+              )}
+              {recentRecipients.map((r) => (
+                <button
+                  key={r.phone}
+                  type="button"
+                  className="air-modal-item"
+                  onClick={() => {
+                    handleApplyPhone(r.phone, r.networkId);
+                    setPickerOpen(false);
+                    showToast(`Selected ${formatPhoneDisplay(r.phone)}`);
+                  }}
+                >
+                  <div className="air-modal-item-icon recent">
+                    <Clock size={16} />
+                  </div>
+                  <div className="air-modal-item-info">
+                    <div className="air-modal-item-top">
+                      <strong>{formatPhoneDisplay(r.phone)}</strong>
+                      {r.networkId && (
+                        <span className={`air-tag net-${r.networkId}`}>{r.networkId}</span>
+                      )}
+                    </div>
+                    <span className="air-modal-item-sub">Recent recharge</span>
+                  </div>
+                </button>
+              ))}
+              {!userAccountPhone && recentRecipients.length === 0 && (
                 <div className="air-modal-empty">
-                  No recent recharges yet. Numbers you recharge will appear here.
+                  <p>No saved numbers yet</p>
+                  <span>Recharge once to see them here</span>
                 </div>
-              ) : (
-                recentRecipients.map((rec) => {
-                  const net = NETWORKS.find((n) => n.id === rec.networkId);
-                  return (
-                    <button
-                      key={rec.phone}
-                      type="button"
-                      className="air-modal-item"
-                      onClick={() => handleApplyPhone(rec.phone, rec.networkId)}
-                    >
-                      <div className="air-modal-item-icon recent">
-                        <RotateCcw size={15} />
-                      </div>
-                      <div className="air-modal-item-info">
-                        <div className="air-modal-item-top">
-                          <span className="air-modal-item-name">
-                            {net?.label || 'Phone Number'}
-                          </span>
-                          <span className="air-modal-item-date">
-                            {new Date(rec.lastUsed).toLocaleDateString('en-NG', {
-                              month: 'short',
-                              day: 'numeric',
-                            })}
-                          </span>
-                        </div>
-                        <div className="air-modal-item-phone">
-                          {formatPhoneDisplay(rec.phone)}
-                        </div>
-                      </div>
-                    </button>
-                  );
-                })
               )}
             </div>
           </div>
         </div>
       )}
 
-      {/* Toast Notification */}
+      {/* ── Checkout Confirmation Modal Sheet ── */}
+      {confirmOpen && selectedPlan && (
+        <div className="air-modal-backdrop" onClick={() => !submitting && setConfirmOpen(false)}>
+          <div
+            className="air-modal-card data-confirm-card"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-label="Confirm Data Purchase"
+          >
+            <div className="air-modal-header">
+              <div className="air-modal-title-wrap">
+                <h3>Confirm Data Purchase</h3>
+                <p>Review details before paying</p>
+              </div>
+              <button
+                type="button"
+                className="air-modal-close"
+                aria-label="Close"
+                disabled={submitting}
+                onClick={() => setConfirmOpen(false)}
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="data-confirm-details">
+              <div className="data-confirm-row">
+                <span className="data-confirm-label">Network</span>
+                <span className="data-confirm-val strong">{selectedNetObj.label}</span>
+              </div>
+              <div className="data-confirm-row">
+                <span className="data-confirm-label">Recipient</span>
+                <span className="data-confirm-val strong">{formatPhoneDisplay(phone)}</span>
+              </div>
+              <div className="data-confirm-row">
+                <span className="data-confirm-label">Data Bundle</span>
+                <span className="data-confirm-val strong">
+                  {parseVolume(selectedPlan.name)} · {parseValidity(selectedPlan.days, selectedPlan.name)}
+                </span>
+              </div>
+              <div className="data-confirm-divider" />
+              <div className="data-confirm-row">
+                <span className="data-confirm-label">Amount</span>
+                <span className="data-confirm-amount">{money(selectedPlan.price)}</span>
+              </div>
+              <div className="data-confirm-row subtle">
+                <span className="data-confirm-label">Wallet Balance</span>
+                <span className="data-confirm-val">{money(walletBalance)}</span>
+              </div>
+              {walletBalance >= selectedPlan.price ? (
+                <div className="data-confirm-row subtle">
+                  <span className="data-confirm-label">Balance After</span>
+                  <span className="data-confirm-val">{money(walletBalance - selectedPlan.price)}</span>
+                </div>
+              ) : null}
+            </div>
+
+            {walletBalance < selectedPlan.price ? (
+              <div className="data-confirm-warn">
+                <div className="data-confirm-warn-text">
+                  <AlertCircle size={15} />
+                  <span>
+                    Insufficient balance · Need {money(selectedPlan.price - walletBalance)} more
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  className="data-confirm-btn fund"
+                  onClick={() => {
+                    setConfirmOpen(false);
+                    handleFund();
+                  }}
+                >
+                  <Wallet size={16} />
+                  <span>Fund Wallet to Continue</span>
+                </button>
+              </div>
+            ) : (
+              <div className="data-confirm-actions">
+                <button
+                  type="button"
+                  className="data-confirm-btn pay"
+                  disabled={submitting}
+                  onClick={executePurchase}
+                >
+                  <Lock size={16} strokeWidth={2.4} />
+                  <span>{submitting ? 'Processing Payment...' : `Confirm & Pay ${money(selectedPlan.price)}`}</span>
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {toast && <div className="air-toast">{toast}</div>}
     </div>
   );
