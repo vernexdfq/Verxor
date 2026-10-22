@@ -12,6 +12,15 @@ import {
 
 const NETWORKS = new Set(['mtn', 'glo', '9mobile', 'airtel']);
 
+/**
+ * Airtime routing (phase 1 — 247API primary, test first):
+ *   ALL networks → 247API first (MTN uses plan_id 10 then standard VTU)
+ *   ClubKonnect → backup only if 247 fails or is not configured
+ *
+ * Later (when ClubKonnect is re-enabled as specialty):
+ *   9mobile primary ClubKonnect → fallback 247
+ *   MTN/Glo/Airtel primary 247 → fallback ClubKonnect
+ */
 export async function POST(req: NextRequest) {
   const ckReady = isClubKonnectConfigured();
   const api247Ready = isApi247Configured();
@@ -51,9 +60,40 @@ export async function POST(req: NextRequest) {
   const phone = String(body.phone || '');
   const ref = body.ref;
   const errors: string[] = [];
+  const tried: string[] = [];
 
-  // 1) Primary: ClubKonnect
+  // 1) Primary: 247API (MTN plan_id 10 → fallback standard VTU inside provider)
+  if (api247Ready) {
+    tried.push('api247');
+    try {
+      const result = await purchaseAirtime247({
+        network: network as Api247NetworkSlug,
+        phone,
+        amount,
+        ref,
+      });
+      return NextResponse.json({
+        ok: true,
+        order: {
+          ref: result.ref,
+          status: result.status,
+          phone: result.phone,
+          amount: result.amount,
+          network: result.network,
+          message: result.message,
+          provider: 'api247',
+          planId: result.planId,
+        },
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : '247API failed';
+      errors.push(`api247: ${message}`);
+    }
+  }
+
+  // 2) Backup: ClubKonnect (only if primary failed or not configured)
   if (ckReady) {
+    tried.push('clubkonnect');
     try {
       const result = await purchaseClubKonnect({
         network: network as CkNetworkSlug,
@@ -79,41 +119,11 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // 2) Backup: 247API (only if primary failed or not configured)
-  if (api247Ready) {
-    try {
-      const result = await purchaseAirtime247({
-        network: network as Api247NetworkSlug,
-        phone,
-        amount,
-        ref,
-      });
-      return NextResponse.json({
-        ok: true,
-        order: {
-          ref: result.ref,
-          status: result.status,
-          phone: result.phone,
-          amount: result.amount,
-          network: result.network,
-          message: result.message,
-          provider: 'api247',
-        },
-      });
-    } catch (err) {
-      const message = err instanceof Error ? err.message : '247API failed';
-      errors.push(`api247: ${message}`);
-    }
-  }
-
   return NextResponse.json(
     {
       ok: false,
       error: errors.join(' | ') || 'Airtime purchase failed',
-      tried: [
-        ...(ckReady ? ['clubkonnect'] : []),
-        ...(api247Ready ? ['api247'] : []),
-      ],
+      tried,
     },
     { status: 502 },
   );
