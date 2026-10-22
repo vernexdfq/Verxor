@@ -32,7 +32,8 @@ async function resolveUserId(req: NextRequest, bodyUserId?: string): Promise<str
   }
 }
 
-async function debitWallet(userId: string, amount: number, reference: string) {
+/** Retail end-user wallet (wallets table via debit_wallet RPC). */
+async function debitRetailWallet(userId: string, amount: number, reference: string) {
   const base = supabaseBase();
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!base || !serviceKey) throw new Error('Wallet backend not configured');
@@ -62,7 +63,84 @@ async function debitWallet(userId: string, amount: number, reference: string) {
   return res.json();
 }
 
-async function creditWallet(userId: string, amount: number, reference: string) {
+/**
+ * Partner / child-panel wholesale balance (reseller_wallet).
+ * This is where Partner Fund deposits land — must be used for panel buys.
+ */
+async function debitResellerWallet(userId: string, amount: number, reference: string) {
+  const base = supabaseBase();
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!base || !serviceKey) throw new Error('Wallet backend not configured');
+
+  const hdr = {
+    apikey: serviceKey,
+    Authorization: `Bearer ${serviceKey}`,
+  };
+
+  // Ensure row exists
+  await fetch(`${base}/rest/v1/reseller_wallet`, {
+    method: 'POST',
+    headers: {
+      ...hdr,
+      'Content-Type': 'application/json',
+      Prefer: 'resolution=ignore-duplicates,return=minimal',
+    },
+    body: JSON.stringify({ user_id: userId, balance: 0 }),
+  }).catch(() => null);
+
+  const balRes = await fetch(
+    `${base}/rest/v1/reseller_wallet?user_id=eq.${encodeURIComponent(userId)}&select=balance&limit=1`,
+    { headers: hdr, cache: 'no-store' },
+  );
+  if (!balRes.ok) {
+    throw new Error(`Reseller balance read failed: ${balRes.status}`);
+  }
+  const rows = (await balRes.json()) as Array<{ balance: number }>;
+  const prev = Number(rows?.[0]?.balance) || 0;
+  if (prev < amount) {
+    throw new Error('INSUFFICIENT_BALANCE');
+  }
+  const next = Math.round((prev - amount) * 100) / 100;
+
+  const up = await fetch(`${base}/rest/v1/reseller_wallet?user_id=eq.${encodeURIComponent(userId)}`, {
+    method: 'PATCH',
+    headers: {
+      ...hdr,
+      'Content-Type': 'application/json',
+      Prefer: 'return=representation',
+    },
+    body: JSON.stringify({ balance: next, updated_at: new Date().toISOString() }),
+  });
+  if (!up.ok) {
+    const t = await up.text().catch(() => '');
+    throw new Error(`Reseller debit failed: ${t.slice(0, 200)}`);
+  }
+
+  // Ledger row (best-effort)
+  try {
+    await fetch(`${base}/rest/v1/transactions`, {
+      method: 'POST',
+      headers: {
+        ...hdr,
+        'Content-Type': 'application/json',
+        Prefer: 'return=minimal',
+      },
+      body: JSON.stringify({
+        user_id: userId,
+        kind: 'panel_vn_debit',
+        status: 'completed',
+        amount: -amount,
+        meta: { reference, mode: 'reseller_wallet' },
+      }),
+    });
+  } catch {
+    /* optional */
+  }
+
+  return { balance: next };
+}
+
+async function creditRetailWallet(userId: string, amount: number, reference: string) {
   const base = supabaseBase();
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!base || !serviceKey) return;
@@ -82,10 +160,60 @@ async function creditWallet(userId: string, amount: number, reference: string) {
   });
 }
 
+async function creditResellerWallet(userId: string, amount: number, reference: string) {
+  const base = supabaseBase();
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!base || !serviceKey || amount <= 0) return;
+
+  const hdr = {
+    apikey: serviceKey,
+    Authorization: `Bearer ${serviceKey}`,
+  };
+
+  const balRes = await fetch(
+    `${base}/rest/v1/reseller_wallet?user_id=eq.${encodeURIComponent(userId)}&select=balance&limit=1`,
+    { headers: hdr, cache: 'no-store' },
+  );
+  const rows = balRes.ok ? ((await balRes.json()) as Array<{ balance: number }>) : [];
+  const prev = Number(rows?.[0]?.balance) || 0;
+  const next = Math.round((prev + amount) * 100) / 100;
+
+  await fetch(`${base}/rest/v1/reseller_wallet?user_id=eq.${encodeURIComponent(userId)}`, {
+    method: 'PATCH',
+    headers: {
+      ...hdr,
+      'Content-Type': 'application/json',
+      Prefer: 'return=minimal',
+    },
+    body: JSON.stringify({ balance: next, updated_at: new Date().toISOString() }),
+  });
+
+  try {
+    await fetch(`${base}/rest/v1/transactions`, {
+      method: 'POST',
+      headers: {
+        ...hdr,
+        'Content-Type': 'application/json',
+        Prefer: 'return=minimal',
+      },
+      body: JSON.stringify({
+        user_id: userId,
+        kind: 'panel_vn_refund',
+        status: 'completed',
+        amount,
+        meta: { reference, mode: 'reseller_wallet' },
+      }),
+    });
+  } catch {
+    /* optional */
+  }
+}
+
 /**
  * Buy a virtual number (Grizzly).
  * Auth: retail JWT or child-panel API key (vx_panel_*) with linked wallet.
- * Refunds wallet if provider fails after debit.
+ * Panel buys debit reseller_wallet (Partner Fund). Retail buys debit wallets via debit_wallet.
+ * Refunds the same wallet if provider fails after debit.
  */
 export async function POST(req: NextRequest) {
   if (!grizzly.isConfigured()) {
@@ -158,18 +286,28 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  const useReseller = Boolean(panel);
   const debitRef = `vn-buy-${panel ? `panel-${panel.id}` : userId}-${Date.now()}`;
   let debited = false;
 
   if (priceNgn > 0 && userId && supabaseConfigured()) {
     try {
-      await debitWallet(userId, priceNgn, debitRef);
+      if (useReseller) {
+        await debitResellerWallet(userId, priceNgn, debitRef);
+      } else {
+        await debitRetailWallet(userId, priceNgn, debitRef);
+      }
       debited = true;
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Debit failed';
       if (msg === 'INSUFFICIENT_BALANCE') {
         return NextResponse.json(
-          { ok: false, error: 'Insufficient wallet balance. Fund the panel wallet first.' },
+          {
+            ok: false,
+            error: useReseller
+              ? 'Insufficient panel wholesale balance. Fund the partner wallet first.'
+              : 'Insufficient wallet balance. Fund your wallet first.',
+          },
           { status: 402 },
         );
       }
@@ -209,6 +347,7 @@ export async function POST(req: NextRequest) {
           raw: {
             access: result.raw,
             debitRef: debited ? debitRef : null,
+            walletMode: useReseller ? 'reseller_wallet' : 'retail',
             panelId: panel?.id || null,
             panelName: panel?.name || null,
           },
@@ -235,7 +374,11 @@ export async function POST(req: NextRequest) {
     });
   } catch (err) {
     if (debited && userId) {
-      await creditWallet(userId, priceNgn, `refund-${debitRef}`);
+      if (useReseller) {
+        await creditResellerWallet(userId, priceNgn, `refund-${debitRef}`);
+      } else {
+        await creditRetailWallet(userId, priceNgn, `refund-${debitRef}`);
+      }
     }
     const message = err instanceof Error ? err.message : 'Purchase failed';
     return NextResponse.json({ ok: false, error: message }, { status: 502 });
