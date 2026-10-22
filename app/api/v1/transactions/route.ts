@@ -53,7 +53,6 @@ function polishTitle(raw: string, kind: string, reference?: string | null): stri
   const k = (kind || '').toLowerCase();
   const ref = (reference || '').toLowerCase();
 
-  // Strip internal / provider noise → clean bank labels
   if (
     lower.startsWith('manual credit') ||
     lower.includes('xixapay') ||
@@ -78,10 +77,36 @@ function polishTitle(raw: string, kind: string, reference?: string | null): stri
     if (lower.includes('virtual') || lower.includes('number') || ref.includes('vn')) {
       return 'Refund — Virtual Number';
     }
+    if (lower.includes('airtime')) {
+      return t.startsWith('Refund') ? t : `Refund — ${t.replace(/^refund\s*[—-]\s*/i, '')}`;
+    }
+    if (lower.includes('data')) {
+      return t.startsWith('Refund') ? t : `Refund — ${t.replace(/^refund\s*[—-]\s*/i, '')}`;
+    }
     if (lower.includes('boost') || lower.includes('cancel')) {
       return 'Refund — Cancelled Order';
     }
     return t.startsWith('Refund') ? t : 'Refund';
+  }
+  // Airtime / data VTU — keep full bank-style title with ₦ amount
+  if (lower.includes('airtime') || ref.startsWith('at-') || k === 'airtime') {
+    if (t) {
+      if (lower.includes('was successful')) return t;
+      if (lower.includes('airtime purchase')) return `${t} was successful`;
+      return t;
+    }
+    return 'Airtime Purchase';
+  }
+  if (
+    lower.includes('data') &&
+    (lower.includes('purchase') || lower.includes('bundle') || ref.startsWith('data-'))
+  ) {
+    if (t) {
+      if (lower.includes('was successful')) return t;
+      if (lower.includes('data')) return t.includes('successful') ? t : `${t} was successful`;
+      return t;
+    }
+    return 'Data Purchase';
   }
   if (k === 'purchase' || lower.includes('virtual number') || ref.startsWith('vn-')) {
     if (t && !lower.startsWith('purchase') && lower.includes('virtual')) return t;
@@ -110,12 +135,20 @@ function titleFromLedger(kind: string, meta: Record<string, unknown>, reference?
       case 'purchase':
         raw = 'Virtual Number Purchase';
         break;
+      case 'airtime':
+        raw = 'Airtime Purchase';
+        break;
+      case 'data':
+        raw = 'Data Purchase';
+        break;
       case 'refund':
         raw = 'Refund';
         break;
       default:
         if (reference && String(reference).startsWith('xixapay:')) raw = 'Wallet Fund';
         else if (reference && String(reference).startsWith('vn-')) raw = 'Virtual Number Purchase';
+        else if (reference && String(reference).startsWith('at-')) raw = 'Airtime Purchase';
+        else if (reference && String(reference).startsWith('data-')) raw = 'Data Purchase';
         else if (reference && String(reference).startsWith('refund-')) raw = 'Refund';
         else raw = kind ? kind.charAt(0).toUpperCase() + kind.slice(1) : 'Transaction';
     }
@@ -135,7 +168,9 @@ function signedAmountNgn(
         ? Number(amountUsd)
         : 0;
   const k = (kind || '').toLowerCase();
-  if (k === 'purchase' || k === 'wholesale_debit') return -Math.abs(raw);
+  if (k === 'purchase' || k === 'wholesale_debit' || k === 'airtime' || k === 'data') {
+    return -Math.abs(raw);
+  }
   if (k === 'fund' || k === 'refund') return Math.abs(raw);
   return raw;
 }
@@ -153,7 +188,6 @@ export async function GET(req: NextRequest) {
   const items: TxItem[] = [];
   const seen = new Set<string>();
 
-  // 1) Primary: wallet_ledger
   try {
     const rows = (await sbSelect(
       'wallet_ledger',
@@ -168,7 +202,6 @@ export async function GET(req: NextRequest) {
         seen.add(id);
         if (ref) seen.add(ref);
         if (ref.startsWith('vn-')) seen.add(ref);
-        // Also mark bare order id if reference is vn-<uuid>
         if (ref.startsWith('vn-') && ref.length > 3) seen.add(ref.slice(3));
         const kind = String(r.kind || 'adjustment');
         const meta = (r.meta && typeof r.meta === 'object' ? r.meta : {}) as Record<
@@ -199,7 +232,6 @@ export async function GET(req: NextRequest) {
     console.warn('[transactions] wallet_ledger', e);
   }
 
-  // 2) Secondary: wallet_transactions
   try {
     const rows = (await sbSelect(
       'wallet_transactions',
@@ -217,8 +249,11 @@ export async function GET(req: NextRequest) {
         const rawAmt = Number(r.amount_ngn ?? r.amount ?? 0);
         let amount = rawAmt;
         const k = kind.toLowerCase();
-        if (k.includes('debit') || k.includes('purchase') || k === 'out') amount = -Math.abs(rawAmt);
-        else if (k.includes('credit') || k.includes('fund') || k === 'in') amount = Math.abs(rawAmt);
+        if (k.includes('debit') || k.includes('purchase') || k === 'out' || k.includes('airtime') || k.includes('data')) {
+          amount = -Math.abs(rawAmt);
+        } else if (k.includes('credit') || k.includes('fund') || k === 'in') {
+          amount = Math.abs(rawAmt);
+        }
 
         const desc =
           (typeof r.description === 'string' && r.description) ||
@@ -243,7 +278,6 @@ export async function GET(req: NextRequest) {
     /* table may not exist */
   }
 
-  // 3) vn_orders
   try {
     const rows = (await sbSelect(
       'vn_orders',
@@ -282,7 +316,6 @@ export async function GET(req: NextRequest) {
     /* optional */
   }
 
-  // 4) number_orders (legacy)
   try {
     const rows = (await sbSelect(
       'number_orders',
@@ -318,8 +351,6 @@ export async function GET(req: NextRequest) {
     /* optional */
   }
 
-  // Same event can land in wallet_ledger + wallet_transactions + vn_orders
-  // with different IDs. Collapse logical duplicates (title + amount + minute).
   const unique: TxItem[] = [];
   const logicalSeen = new Set<string>();
   for (const item of items) {
