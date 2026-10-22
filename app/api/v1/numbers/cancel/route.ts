@@ -37,7 +37,7 @@ async function resolveUserId(req: NextRequest, bodyUserId?: string): Promise<str
   return null;
 }
 
-async function creditWallet(
+async function creditRetailWallet(
   userId: string,
   amount: number,
   reference: string,
@@ -104,10 +104,90 @@ async function creditWallet(
   }
 }
 
+/** Refund panel buys back into reseller_wallet (Partner Fund balance). */
+async function creditResellerWallet(
+  userId: string,
+  amount: number,
+  reference: string,
+): Promise<{ ok: boolean; detail?: string }> {
+  const base = supabaseBase();
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!base || !serviceKey || amount <= 0) {
+    return { ok: false, detail: 'wallet backend not configured or amount=0' };
+  }
+
+  const hdr = {
+    apikey: serviceKey,
+    Authorization: `Bearer ${serviceKey}`,
+  };
+
+  try {
+    await fetch(`${base}/rest/v1/reseller_wallet`, {
+      method: 'POST',
+      headers: {
+        ...hdr,
+        'Content-Type': 'application/json',
+        Prefer: 'resolution=ignore-duplicates,return=minimal',
+      },
+      body: JSON.stringify({ user_id: userId, balance: 0 }),
+    }).catch(() => null);
+
+    const balRes = await fetch(
+      `${base}/rest/v1/reseller_wallet?user_id=eq.${encodeURIComponent(userId)}&select=balance&limit=1`,
+      { headers: hdr, cache: 'no-store' },
+    );
+    if (!balRes.ok) {
+      return { ok: false, detail: `balance_read_${balRes.status}` };
+    }
+    const rows = (await balRes.json()) as Array<{ balance: number }>;
+    const prev = Number(rows?.[0]?.balance) || 0;
+    const next = Math.round((prev + amount) * 100) / 100;
+
+    const up = await fetch(`${base}/rest/v1/reseller_wallet?user_id=eq.${encodeURIComponent(userId)}`, {
+      method: 'PATCH',
+      headers: {
+        ...hdr,
+        'Content-Type': 'application/json',
+        Prefer: 'return=minimal',
+      },
+      body: JSON.stringify({ balance: next, updated_at: new Date().toISOString() }),
+    });
+    if (!up.ok) {
+      const t = await up.text().catch(() => '');
+      return { ok: false, detail: `patch_${up.status}:${t.slice(0, 120)}` };
+    }
+
+    try {
+      await fetch(`${base}/rest/v1/transactions`, {
+        method: 'POST',
+        headers: {
+          ...hdr,
+          'Content-Type': 'application/json',
+          Prefer: 'return=minimal',
+        },
+        body: JSON.stringify({
+          user_id: userId,
+          kind: 'panel_vn_refund',
+          status: 'completed',
+          amount,
+          meta: { reference, mode: 'reseller_wallet', source: 'vn-cancel' },
+        }),
+      });
+    } catch {
+      /* optional */
+    }
+
+    return { ok: true, detail: 'reseller_wallet' };
+  } catch (e) {
+    return { ok: false, detail: e instanceof Error ? e.message : 'reseller credit failed' };
+  }
+}
+
 /**
  * Cancel a waiting activation on Grizzly (status=8) and refund the user/panel wallet.
  * Body: { providerOrderId, orderId?, priceNgn?, userId? }
  * Auth: retail JWT or child-panel API key (linked wallet).
+ * Panel cancels refund reseller_wallet; retail refunds wallets via credit_wallet.
  */
 export async function POST(req: NextRequest) {
   let body: {
@@ -202,7 +282,9 @@ export async function POST(req: NextRequest) {
     refundDetail = 'supabase not configured';
   } else {
     const ref = `refund-vn-cancel-${providerOrderId}`;
-    const result = await creditWallet(userId, priceNgn, ref);
+    const result = panel
+      ? await creditResellerWallet(userId, priceNgn, ref)
+      : await creditRetailWallet(userId, priceNgn, ref);
     refunded = result.ok;
     refundDetail = result.detail;
   }
