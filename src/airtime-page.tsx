@@ -359,7 +359,11 @@ export function AirtimePage({
           showToast(data.error || 'Insufficient balance — fund your wallet');
         } else {
           const rawErr = data.error || 'Airtime purchase failed';
-          const cleanErr = rawErr.replace(/^(api247|clubkonnect):\s*/i, '');
+          const cleanErr = rawErr
+            .split(/\s*\|\s*/)
+            .map((part: string) => part.replace(/^(api247|clubkonnect):\s*/i, '').trim())
+            .filter(Boolean)
+            .join(' • ') || 'Airtime purchase failed';
           showToast(cleanErr);
         }
         return;
