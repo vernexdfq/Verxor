@@ -1,10 +1,14 @@
 import { NextResponse } from 'next/server';
+import { isApi247Configured } from '@/lib/providers/api247';
+import { isClubKonnectConfigured } from '@/lib/providers/clubkonnect';
 
 /** Operator status — booleans only, no key values. */
 export async function GET() {
   return NextResponse.json({
     ok: true,
     providers: {
+      api247: isApi247Configured(),
+      clubkonnect: isClubKonnectConfigured(),
       fivesim: Boolean(process.env.FIVESIM_API_KEY),
       grizzly: Boolean(process.env.GRIZZLYSMS_API_KEY),
       smsbower: Boolean(process.env.SMSBOWER_API_KEY),

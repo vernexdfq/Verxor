@@ -2,34 +2,26 @@
  * 247API — primary airtime provider.
  * Docs: https://247api.com.ng/documentation/airtime-request
  *
- * Env (any of these work):
- *   API_247_KEY or API247_API_KEY   (required)
- *   API_247_BASE_URL or API247_BASE_URL  (optional, default https://247api.com.ng/api)
+ * Env (checked in order of common convention):
+ *   API_247_KEY, API247_KEY, API_247_API_KEY, API247_API_KEY,
+ *   API_247_TOKEN, API247_TOKEN, API_247_SECRET, API247_SECRET,
+ *   API_247, API247
  *
- * Networks (live GET /get-networks?service=airtime):
- *   1 = MTN, 2 = Glo, 3 = 9mobile, 4 = Airtel
- *
- * Dashboard plan discounts (YOUR PRICE):
- *   Plan 1  MTN VTU 3.00%
- *   Plan 2  Glo VTU 10.00%
- *   Plan 3  9mobile VTU 3.00%
- *   Plan 4  Airtel VTU 3.10%
- *   Plan 10 MTN VTU 4.00%  ← preferred for MTN
+ * Networks (verified live from GET /get-networks?service=airtime):
+ *   1 = MTN
+ *   2 = Airtel
+ *   3 = Glo
+ *   4 = 9mobile
  */
 
-export type Api247NetworkSlug = 'mtn' | 'glo' | '9mobile' | 'airtel';
+export type Api247NetworkSlug = 'mtn' | 'airtel' | 'glo' | '9mobile';
 
-/** Live network IDs from GET /get-networks?service=airtime */
-const NETWORK_ID: Record<Api247NetworkSlug, number> = {
+/** Official 247API Network IDs */
+export const API247_NETWORK_ID: Record<Api247NetworkSlug, number> = {
   mtn: 1,
-  glo: 2,
-  '9mobile': 3,
-  airtel: 4,
-};
-
-/** Preferred plan_id when known (MTN 4% product). */
-const PREFERRED_PLAN_ID: Partial<Record<Api247NetworkSlug, number>> = {
-  mtn: 10,
+  airtel: 2,
+  glo: 3,
+  '9mobile': 4,
 };
 
 function baseUrl(): string {
@@ -40,14 +32,42 @@ function baseUrl(): string {
   return raw.replace(/\/$/, '');
 }
 
-function apiKey(): string {
-  const key = process.env.API_247_KEY || process.env.API247_API_KEY;
-  if (!key) throw new Error('API_247_KEY is not configured');
+function rawApiKey(): string {
+  const key =
+    process.env.API_247_KEY ||
+    process.env.API247_KEY ||
+    process.env.API_247_API_KEY ||
+    process.env.API247_API_KEY ||
+    process.env.API_247_TOKEN ||
+    process.env.API247_TOKEN ||
+    process.env.API_247_SECRET ||
+    process.env.API247_SECRET ||
+    process.env.API_247 ||
+    process.env.API247;
+
+  if (!key) throw new Error('API_247_KEY is not configured in environment');
   return key.trim();
 }
 
 export function isApi247Configured(): boolean {
-  return Boolean(process.env.API_247_KEY || process.env.API247_API_KEY);
+  return Boolean(
+    process.env.API_247_KEY ||
+    process.env.API247_KEY ||
+    process.env.API_247_API_KEY ||
+    process.env.API247_API_KEY ||
+    process.env.API_247_TOKEN ||
+    process.env.API247_TOKEN ||
+    process.env.API_247_SECRET ||
+    process.env.API247_SECRET ||
+    process.env.API_247 ||
+    process.env.API247,
+  );
+}
+
+function cleanToken(): string {
+  const raw = rawApiKey();
+  // Strip any leading "Token " or "Bearer " prefix if user added it into the env variable
+  return raw.replace(/^(Token|Bearer)\s+/i, '').trim();
 }
 
 function normalizeNgPhone(raw: string): string {
@@ -67,17 +87,17 @@ function makeRef(prefix: string): string {
   return `${prefix}${t}${r}`.slice(0, 36);
 }
 
-function authHeaders(): HeadersInit {
-  return {
-    Authorization: `Token ${apiKey()}`,
-    'Content-Type': 'application/json',
-    Accept: 'application/json',
-  };
-}
-
 function isSuccess(data: any): boolean {
-  const s = String(data?.status ?? data?.Status ?? '').toLowerCase();
-  return s === 'success' || s === 'successful' || s === 'ok';
+  if (!data || typeof data !== 'object') return false;
+  const s = String(data.status ?? data.Status ?? data.code ?? '').toLowerCase();
+  if (['success', 'successful', 'ok', 'true', '200'].includes(s)) return true;
+  if (data.success === true || data.ok === true) return true;
+
+  const msg = String(data.message ?? data.response ?? data.api_response ?? '').toLowerCase();
+  if (msg.includes('successful') || msg.includes('sent to') || msg.includes('delivered')) {
+    return true;
+  }
+  return false;
 }
 
 async function postAirtime(body: Record<string, unknown>): Promise<{
@@ -85,39 +105,69 @@ async function postAirtime(body: Record<string, unknown>): Promise<{
   status: number;
   data: any;
 }> {
-  const res = await fetch(`${baseUrl()}/airtime`, {
+  const token = cleanToken();
+  const url = `${baseUrl()}/airtime`;
+
+  // 1) Primary header specified by 247API docs: Token <key>
+  let res = await fetch(url, {
     method: 'POST',
-    headers: authHeaders(),
+    headers: {
+      Authorization: `Token ${token}`,
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+      'User-Agent': 'Verxor/1.0',
+    },
     body: JSON.stringify(body),
     cache: 'no-store',
   });
 
+  let text = await res.text().catch(() => '');
   let data: any = null;
-  const text = await res.text().catch(() => '');
   try {
     data = text ? JSON.parse(text) : null;
   } catch {
     data = { raw: text.slice(0, 400) };
   }
+
+  // 2) If 401 unauthorized with Token prefix, retry with Bearer prefix as documented in JS SDK
+  if (res.status === 401) {
+    const retryRes = await fetch(url, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+        'User-Agent': 'Verxor/1.0',
+      },
+      body: JSON.stringify(body),
+      cache: 'no-store',
+    });
+
+    const retryText = await retryRes.text().catch(() => '');
+    let retryData: any = null;
+    try {
+      retryData = retryText ? JSON.parse(retryText) : null;
+    } catch {
+      retryData = { raw: retryText.slice(0, 400) };
+    }
+    return { ok: retryRes.ok, status: retryRes.status, data: retryData };
+  }
+
   return { ok: res.ok, status: res.status, data };
 }
 
 /**
  * Purchase airtime via 247API POST /airtime
- *
- * MTN: tries plan_id 10 first (4% product). On failure, retries without plan_id
- * (standard VTU / plan 1 path).
  */
 export async function purchaseAirtime247(opts: {
   network: Api247NetworkSlug;
   phone: string;
   amount: number;
   ref?: string;
-  /** Force a specific plan_id; omit to use preferred → fallback logic */
-  planId?: number;
+  bypass?: boolean;
 }) {
-  const networkId = NETWORK_ID[opts.network];
-  if (!networkId) throw new Error('Invalid network');
+  const networkId = API247_NETWORK_ID[opts.network];
+  if (!networkId) throw new Error(`Invalid network: ${opts.network}`);
 
   const amount = Math.round(Number(opts.amount));
   if (!Number.isFinite(amount) || amount < 50) {
@@ -125,71 +175,125 @@ export async function purchaseAirtime247(opts: {
   }
 
   const phone = normalizeNgPhone(opts.phone);
-  const requestId = opts.ref || makeRef('AT247');
+  const requestId = (opts.ref || makeRef('AT247')).slice(0, 36);
 
-  const preferred =
-    opts.planId ?? PREFERRED_PLAN_ID[opts.network] ?? undefined;
+  const body: Record<string, unknown> = {
+    network: networkId,
+    phone,
+    amount: String(amount),
+    type: 'VTU',
+    'request-id': requestId,
+    bypass: opts.bypass ?? false,
+  };
 
-  const attempts: Array<{ planId?: number; label: string }> = [];
-  if (preferred != null) {
-    attempts.push({ planId: preferred, label: `plan_id ${preferred}` });
-  }
-  // Fallback: standard VTU (no plan_id) — dashboard Plan 1 path for MTN
-  attempts.push({ planId: undefined, label: 'standard VTU' });
+  const { data, status } = await postAirtime(body);
 
-  let lastError = '247API airtime failed';
-
-  for (let i = 0; i < attempts.length; i++) {
-    const attempt = attempts[i];
-    // Unique request-id per attempt so a failed preferred plan does not block retry
-    const attemptRef =
-      i === 0 ? requestId : `${requestId}F${i}`.slice(0, 36);
-
-    const body: Record<string, unknown> = {
-      network: networkId,
+  if (isSuccess(data)) {
+    return {
+      ref: String(data?.['request-id'] || data?.request_id || requestId),
+      status: 'successful' as const,
       phone,
-      amount: String(amount),
-      type: 'VTU',
-      'request-id': attemptRef,
+      amount,
+      network: opts.network,
+      message: String(
+        data?.message ||
+          data?.response ||
+          data?.api_response ||
+          'Airtime purchase successful',
+      ),
+      provider: 'api247' as const,
+      raw: data,
     };
-    if (attempt.planId != null) {
-      body.plan_id = attempt.planId;
-    }
+  }
 
-    const { data, status } = await postAirtime(body);
+  let errorMsg = String(
+    data?.message ||
+      data?.response ||
+      data?.api_response ||
+      data?.msg ||
+      data?.error ||
+      data?.raw ||
+      `247API error HTTP ${status}`,
+  );
 
-    if (isSuccess(data)) {
+  // If failed due to validation check and bypass was false, retry once with bypass: true
+  if (
+    !body.bypass &&
+    /validation|invalid phone|phone number|network|mismatch|port/i.test(errorMsg)
+  ) {
+    body.bypass = true;
+    const retry = await postAirtime(body);
+    if (isSuccess(retry.data)) {
       return {
-        ref: String(data?.['request-id'] || data?.request_id || attemptRef),
+        ref: String(retry.data?.['request-id'] || retry.data?.request_id || requestId),
         status: 'successful' as const,
         phone,
         amount,
         network: opts.network,
         message: String(
-          data?.message ||
-            data?.response ||
-            data?.api_response ||
+          retry.data?.message ||
+            retry.data?.response ||
+            retry.data?.api_response ||
             'Airtime purchase successful',
         ),
         provider: 'api247' as const,
-        planId: attempt.planId ?? null,
-        raw: data,
+        raw: retry.data,
       };
     }
 
-    lastError = String(
-      data?.message ||
-        data?.response ||
-        data?.api_response ||
-        data?.raw ||
-        `247API error HTTP ${status}`,
+    errorMsg = String(
+      retry.data?.message ||
+        retry.data?.response ||
+        retry.data?.api_response ||
+        retry.data?.msg ||
+        retry.data?.error ||
+        errorMsg,
     );
-
-    // Do not retry on insufficient balance / validation — same result on next attempt
-    if (/insufficient|invalid phone|minimum|maximum|not configured/i.test(lastError)) {
-      break;
-    }
   }
 
-  throw new Error(lastError);
+  throw new Error(errorMsg);
+}
+
+/**
+ * Check 247API user details and wallet balance via GET /api/user
+ */
+export async function queryUser247(): Promise<{
+  ok: boolean;
+  wallet?: string;
+  balance?: string;
+  user?: any;
+  raw?: any;
+}> {
+  if (!isApi247Configured()) {
+    throw new Error('API_247_KEY is not configured');
+  }
+
+  const token = cleanToken();
+  const url = `${baseUrl()}/user`;
+
+  const res = await fetch(url, {
+    method: 'GET',
+    headers: {
+      Authorization: `Token ${token}`,
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+    },
+    cache: 'no-store',
+  });
+
+  const text = await res.text().catch(() => '');
+  let data: any = null;
+  try {
+    data = text ? JSON.parse(text) : null;
+  } catch {
+    data = { raw: text.slice(0, 400) };
+  }
+
+  return {
+    ok: res.ok,
+    wallet: data?.wallet || data?.user?.wallet,
+    balance: data?.balance,
+    user: data?.user,
+    raw: data,
+  };
 }

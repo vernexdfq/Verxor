@@ -9,6 +9,7 @@ import {
   Phone,
   Radio,
   Receipt,
+  ShieldCheck,
   Sparkles,
   Wallet,
   X,
@@ -25,6 +26,8 @@ interface NetworkOption {
   label: string;
 }
 
+const MY_NUMBER = '08141620644';
+
 const NETWORKS: NetworkOption[] = [
   { id: 'mtn', label: 'MTN' },
   { id: 'airtel', label: 'Airtel' },
@@ -36,7 +39,8 @@ const NETWORKS: NetworkOption[] = [
 const QUICK_AMOUNTS_ROW_1 = [100, 200, 500, 1000];
 const QUICK_AMOUNTS_ROW_2 = [2000, 5000, 10000, 20000];
 
-const RECENT_RECIPIENTS_KEY = 'verxor_airtime_recent_recipients_v1';
+const RECENT_KEY = 'verxor_airtime_recent_recipients_v1';
+const DATA_RECENT_KEY = 'verxor_data_recent_recipients_v1';
 
 interface RecentRecipient {
   phone: string;
@@ -198,18 +202,28 @@ export function AirtimePage({
         /* noop */
       }
     }
-    return '';
+    return MY_NUMBER;
   }, [session]);
 
   useEffect(() => {
     try {
-      const raw = localStorage.getItem(RECENT_RECIPIENTS_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed)) {
-          setRecentRecipients(parsed.slice(0, 3));
+      const rawAir = localStorage.getItem(RECENT_KEY);
+      const rawData = localStorage.getItem(DATA_RECENT_KEY);
+      const airList: RecentRecipient[] = rawAir ? JSON.parse(rawAir) : [];
+      const dataList: RecentRecipient[] = rawData ? JSON.parse(rawData) : [];
+      const combined = [
+        ...(Array.isArray(airList) ? airList : []),
+        ...(Array.isArray(dataList) ? dataList : []),
+      ];
+      const seen = new Set<string>();
+      const deduped: RecentRecipient[] = [];
+      for (const item of combined) {
+        if (item?.phone && !seen.has(item.phone)) {
+          seen.add(item.phone);
+          deduped.push(item);
         }
       }
+      setRecentRecipients(deduped.slice(0, 5));
     } catch {
       /* noop */
     }
@@ -223,10 +237,11 @@ export function AirtimePage({
       const updated: RecentRecipient[] = [
         { phone: clean, networkId: detected, lastUsed: Date.now() },
         ...recentRecipients.filter((r) => r.phone !== clean),
-      ].slice(0, 3);
+      ].slice(0, 5);
       setRecentRecipients(updated);
       if (typeof window !== 'undefined') {
-        localStorage.setItem(RECENT_RECIPIENTS_KEY, JSON.stringify(updated));
+        localStorage.setItem(RECENT_KEY, JSON.stringify(updated));
+        localStorage.setItem(DATA_RECENT_KEY, JSON.stringify(updated));
       }
     } catch {
       /* noop */
@@ -343,7 +358,9 @@ export function AirtimePage({
         } else if (res.status === 402) {
           showToast(data.error || 'Insufficient balance — fund your wallet');
         } else {
-          showToast(data.error || 'Airtime purchase failed');
+          const rawErr = data.error || 'Airtime purchase failed';
+          const cleanErr = rawErr.replace(/^(api247|clubkonnect):\s*/i, '');
+          showToast(cleanErr);
         }
         return;
       }
@@ -490,20 +507,18 @@ export function AirtimePage({
                 title="Use your registered account number"
               >
                 <Sparkles size={11} className="air-use-mine-ico" />
-                Use My Number
+                <span>Use My Number</span>
               </button>
-              {recentRecipients.length > 0 && (
-                <button
-                  type="button"
-                  className="air-recent-pill"
-                  title="Choose from recent recharges"
-                  aria-label="Choose from recent recharges"
-                  onClick={() => setPickerOpen(true)}
-                >
-                  <Clock size={11} />
-                  Recent
-                </button>
-              )}
+              <button
+                type="button"
+                className="air-recent-pill"
+                title="Choose from recent recharges"
+                aria-label="Choose from recent recharges"
+                onClick={() => setPickerOpen(true)}
+              >
+                <Clock size={11} />
+                <span>Recent</span>
+              </button>
             </div>
           </div>
           <div className={phoneDigits && !phoneValid ? 'air-input-wrap is-error' : 'air-input-wrap'}>
@@ -637,28 +652,93 @@ export function AirtimePage({
         </button>
       </section>
 
+      {/* ── Instant Delivery Trust Card ── */}
+      <div className="air-trust">
+        <div className="air-trust-icon">
+          <ShieldCheck size={20} />
+        </div>
+        <div className="air-trust-body">
+          <strong>Instant Delivery</strong>
+          <p>Airtime is delivered immediately after successful payment.</p>
+        </div>
+      </div>
+
+      {/* ── Recipient Picker Modal (matching Data page) ── */}
       {pickerOpen && (
-        <div className="air-picker-root" role="dialog" aria-label="Recent numbers">
-          <button type="button" className="air-picker-backdrop" onClick={() => setPickerOpen(false)} />
-          <div className="air-picker-sheet">
-            <div className="air-picker-head">
-              <h3>Recent numbers</h3>
-              <button type="button" onClick={() => setPickerOpen(false)} aria-label="Close">
-                <X size={18} />
+        <div className="air-modal-backdrop" onClick={() => setPickerOpen(false)}>
+          <div
+            className="air-modal-card"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-label="Choose recipient"
+          >
+            <div className="air-modal-header">
+              <div className="air-modal-title-wrap">
+                <h3>Choose Recipient</h3>
+                <p>Your number or recent recharges</p>
+              </div>
+              <button
+                type="button"
+                className="air-modal-close"
+                aria-label="Close"
+                onClick={() => setPickerOpen(false)}
+              >
+                <X size={16} />
               </button>
             </div>
-            <div className="air-picker-list">
+            <div className="air-modal-list">
+              {accountPhone && (
+                <button
+                  type="button"
+                  className="air-modal-item"
+                  onClick={() => {
+                    applyPhone(accountPhone);
+                    setPickerOpen(false);
+                    showToast(`Account number applied (${formatPhoneDisplay(accountPhone)})`);
+                  }}
+                >
+                  <div className="air-modal-item-icon account">
+                    <Sparkles size={16} />
+                  </div>
+                  <div className="air-modal-item-info">
+                    <div className="air-modal-item-top">
+                      <strong>{formatPhoneDisplay(accountPhone)}</strong>
+                      <span className="air-tag primary">My number</span>
+                    </div>
+                    <span className="air-modal-item-sub">Registered on your account</span>
+                  </div>
+                </button>
+              )}
               {recentRecipients.map((r) => (
                 <button
                   key={r.phone}
                   type="button"
-                  className="air-picker-item"
-                  onClick={() => handleSelectRecipient(r.phone, r.networkId)}
+                  className="air-modal-item"
+                  onClick={() => {
+                    handleSelectRecipient(r.phone, r.networkId);
+                    showToast(`Selected ${formatPhoneDisplay(r.phone)}`);
+                  }}
                 >
-                  <Phone size={16} />
-                  <span>{formatPhoneDisplay(r.phone)}</span>
+                  <div className="air-modal-item-icon recent">
+                    <Clock size={16} />
+                  </div>
+                  <div className="air-modal-item-info">
+                    <div className="air-modal-item-top">
+                      <strong>{formatPhoneDisplay(r.phone)}</strong>
+                      {r.networkId && (
+                        <span className={`air-tag net-${r.networkId}`}>{r.networkId}</span>
+                      )}
+                    </div>
+                    <span className="air-modal-item-sub">Recent recharge</span>
+                  </div>
                 </button>
               ))}
+              {!accountPhone && recentRecipients.length === 0 && (
+                <div className="air-modal-empty">
+                  <p>No saved numbers yet</p>
+                  <span>Recharge a number or save your profile phone to see it here</span>
+                </div>
+              )}
             </div>
           </div>
         </div>

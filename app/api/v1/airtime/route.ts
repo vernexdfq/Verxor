@@ -223,7 +223,6 @@ export async function POST(req: NextRequest) {
           network: result.network,
           message: successTitle,
           provider: 'api247',
-          planId: result.planId,
           title: successTitle,
         },
         balanceDebited: amount,
