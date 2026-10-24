@@ -42,7 +42,6 @@ function baseUrl(): string {
     process.env.API247_BASE_URL ||
     'https://247api.com.ng/api';
   raw = raw.trim().replace(/\/$/, '');
-  // User may set https://247api.com.ng — ensure /api suffix
   if (!/\/api$/i.test(raw)) {
     raw = `${raw}/api`;
   }
@@ -170,7 +169,6 @@ async function postAirtime(body: Record<string, unknown>): Promise<{
 /**
  * Purchase airtime — fast path.
  * MTN: plan_id 10 (4%) then plain VTU once if needed.
- * Does not buy unless the app calls this function.
  */
 export async function purchaseAirtime247(opts: {
   network: Api247NetworkSlug;
@@ -191,7 +189,6 @@ export async function purchaseAirtime247(opts: {
   const baseRef = (opts.ref || makeRef('AT247')).slice(0, 30);
   const preferredPlan = opts.planId ?? planConfig.planId;
 
-  // Fast: preferred plan first, then one plain VTU (docs body)
   const attempts: { planId?: number; ref: string }[] = [];
   if (preferredPlan != null) {
     attempts.push({ planId: preferredPlan, ref: baseRef });
@@ -244,6 +241,60 @@ export async function purchaseAirtime247(opts: {
   }
 
   throw new Error(lastError);
+}
+
+/** Read-only wallet / user check. Used by balance route. Never purchases. */
+export async function queryUser247(): Promise<{
+  ok: boolean;
+  wallet?: string | number;
+  balance?: string | number;
+  user?: any;
+  raw?: any;
+}> {
+  if (!isApi247Configured()) {
+    throw new Error('API_247_KEY is not configured');
+  }
+
+  const token = cleanToken();
+  const url = `${baseUrl()}/user`;
+
+  let res = await fetch(url, {
+    method: 'GET',
+    headers: {
+      Authorization: `Token ${token}`,
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+    },
+    cache: 'no-store',
+  });
+
+  if (res.status === 401) {
+    res = await fetch(url, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      cache: 'no-store',
+    });
+  }
+
+  const text = await res.text().catch(() => '');
+  let data: any = null;
+  try {
+    data = text ? JSON.parse(text) : null;
+  } catch {
+    data = { raw: text.slice(0, 400) };
+  }
+
+  return {
+    ok: res.ok,
+    wallet: data?.wallet ?? data?.user?.wallet,
+    balance: data?.balance,
+    user: data?.user,
+    raw: data,
+  };
 }
 
 /** Read-only: key + wallet + networks. Never purchases. */
