@@ -1,51 +1,54 @@
 /**
  * 247API — primary airtime provider.
  * Docs: https://247api.com.ng/documentation/airtime-request
- * Pricing portal: https://247api.com.ng/pricing
+ * Pricing: https://www.247api.com.ng/pricing (dashboard Plan IDs)
  *
- * Env (checked in order of common convention):
- *   API_247_KEY, API247_KEY, API_247_API_KEY, API247_API_KEY,
- *   API_247_TOKEN, API247_TOKEN, API_247_SECRET, API247_SECRET,
- *   API_247, API247
+ * Env (any of these):
+ *   API_247_KEY | API247_KEY | API247_API_KEY | API_247_API_KEY
+ *   API_247_BASE_URL | API247_BASE_URL  (default https://247api.com.ng/api)
  *
- * Live Network IDs (from GET /get-networks?service=airtime):
- *   MTN = 1, Airtel = 2, Glo = 3, 9mobile = 4
+ * ── LIVE network IDs (GET /get-networks?service=airtime) ──
+ *   MTN = 1 | Glo = 2 | 9mobile = 3 | Airtel = 4
+ *   (Official docs sample swaps Glo/Airtel — ALWAYS trust live API.)
  *
- * Dashboard Plan IDs (from https://247api.com.ng/pricing):
- *   MTN:
- *     Plan ID 10: MTN VTU Airtime — 4.00% cashback / discount (preferred)
- *     Plan ID 1:  MTN VTU Airtime — 3.00% discount (standard)
- *   Glo:
- *     Plan ID 2:  Glo VTU Airtime — 10.00% discount
- *   9mobile:
- *     Plan ID 3:  9mobile VTU Airtime — 3.00% discount
- *   Airtel:
- *     Plan ID 4:  Airtel VTU Airtime — 3.10% discount
+ * ── Dashboard Plan IDs (pricing portal / YOUR PRICE) ──
+ *   Plan 10  MTN VTU   4.00%  ← preferred for MTN
+ *   Plan 1   MTN VTU   3.00%  ← MTN fallback
+ *   Plan 2   Glo VTU  10.00%
+ *   Plan 3   9mobile   3.00%
+ *   Plan 4   Airtel    3.10%
+ *
+ * Purchase body (docs):
+ *   network (int), phone, amount, type=VTU, request-id?
+ * Optional: plan_id (used so MTN hits the 4% product)
  */
 
-export type Api247NetworkSlug = 'mtn' | 'airtel' | 'glo' | '9mobile';
+export type Api247NetworkSlug = 'mtn' | 'glo' | '9mobile' | 'airtel';
 
-/** Official 247API Network IDs */
+/** LIVE network IDs — verified 2026-10-24 against production API */
 export const API247_NETWORK_ID: Record<Api247NetworkSlug, number> = {
   mtn: 1,
-  airtel: 2,
-  glo: 3,
-  '9mobile': 4,
+  glo: 2,
+  '9mobile': 3,
+  airtel: 4,
 };
 
-/** Plan configuration from 247API pricing portal */
 export interface Api247PlanConfig {
+  /** LIVE network id for POST /airtime */
   networkId: number;
-  planId: number;
+  /** Preferred dashboard plan_id (MTN 10 = 4%) */
+  planId?: number;
+  /** Fallback dashboard plan_id if preferred fails */
   fallbackPlanId?: number;
-  altNetworkId?: number;
 }
 
 export const API247_PLANS: Record<Api247NetworkSlug, Api247PlanConfig> = {
-  mtn: { networkId: 1, planId: 10, fallbackPlanId: 1, altNetworkId: 10 },
-  glo: { networkId: 3, planId: 2, altNetworkId: 2 },
-  '9mobile': { networkId: 4, planId: 3, altNetworkId: 3 },
-  airtel: { networkId: 2, planId: 4, altNetworkId: 4 },
+  // MTN: Plan 10 (4%) first, then Plan 1 (3%) / plain VTU
+  mtn: { networkId: 1, planId: 10, fallbackPlanId: 1 },
+  // Glo / 9mobile / Airtel: network id = dashboard plan id
+  glo: { networkId: 2, planId: 2 },
+  '9mobile': { networkId: 3, planId: 3 },
+  airtel: { networkId: 4, planId: 4 },
 };
 
 function baseUrl(): string {
@@ -64,8 +67,6 @@ function rawApiKey(): string {
     process.env.API247_API_KEY ||
     process.env.API_247_TOKEN ||
     process.env.API247_TOKEN ||
-    process.env.API_247_SECRET ||
-    process.env.API247_SECRET ||
     process.env.API_247 ||
     process.env.API247;
 
@@ -76,21 +77,18 @@ function rawApiKey(): string {
 export function isApi247Configured(): boolean {
   return Boolean(
     process.env.API_247_KEY ||
-    process.env.API247_KEY ||
-    process.env.API_247_API_KEY ||
-    process.env.API247_API_KEY ||
-    process.env.API_247_TOKEN ||
-    process.env.API247_TOKEN ||
-    process.env.API_247_SECRET ||
-    process.env.API247_SECRET ||
-    process.env.API_247 ||
-    process.env.API247,
+      process.env.API247_KEY ||
+      process.env.API_247_API_KEY ||
+      process.env.API247_API_KEY ||
+      process.env.API_247_TOKEN ||
+      process.env.API247_TOKEN ||
+      process.env.API_247 ||
+      process.env.API247,
   );
 }
 
 function cleanToken(): string {
-  const raw = rawApiKey();
-  return raw.replace(/^(Token|Bearer)\s+/i, '').trim();
+  return rawApiKey().replace(/^(Token|Bearer)\s+/i, '').trim();
 }
 
 function normalizeNgPhone(raw: string): string {
@@ -114,23 +112,14 @@ function isSuccess(data: any): boolean {
   if (!data || typeof data !== 'object') return false;
 
   const statusStr = String(data.status ?? data.Status ?? data.code ?? '').toLowerCase();
-  // Failure takes strict priority over substring matches
   if (['fail', 'failed', 'error', 'false', 'rejected'].includes(statusStr)) {
     return false;
   }
-  if (data.success === false || data.ok === false) {
-    return false;
-  }
+  if (data.success === false || data.ok === false) return false;
 
-  // Explicit positive status
-  if (['success', 'successful', 'ok', 'true', '200'].includes(statusStr)) {
-    return true;
-  }
-  if (data.success === true || data.ok === true) {
-    return true;
-  }
+  if (['success', 'successful', 'ok', 'true', '200'].includes(statusStr)) return true;
+  if (data.success === true || data.ok === true) return true;
 
-  // Message substring check
   const msg = String(data.message ?? data.response ?? data.api_response ?? '').toLowerCase();
   if (msg.includes('successful') || msg.includes('sent to') || msg.includes('delivered')) {
     return true;
@@ -143,23 +132,15 @@ function extractErrorMessage(data: any, status: number): string {
   if (typeof data === 'string') return data.slice(0, 300);
 
   const parts: string[] = [];
-  const fields = ['message', 'response', 'api_response', 'msg', 'error', 'detail'];
-  for (const f of fields) {
+  for (const f of ['message', 'response', 'api_response', 'msg', 'error', 'detail']) {
     const val = data[f];
-    if (typeof val === 'string' && val.trim().length > 0) {
-      const trimmed = val.trim();
-      if (!parts.includes(trimmed)) {
-        parts.push(trimmed);
-      }
+    if (typeof val === 'string' && val.trim()) {
+      const t = val.trim();
+      if (!parts.includes(t)) parts.push(t);
     }
   }
-
-  if (parts.length > 0) {
-    return parts.join(' — ');
-  }
-  if (data.raw) {
-    return String(data.raw).slice(0, 300);
-  }
+  if (parts.length) return parts.join(' — ');
+  if (data.raw) return String(data.raw).slice(0, 300);
   return `247API error (HTTP ${status})`;
 }
 
@@ -171,7 +152,7 @@ async function postAirtime(body: Record<string, unknown>): Promise<{
   const token = cleanToken();
   const url = `${baseUrl()}/airtime`;
 
-  // 1) Primary header specified by 247API docs: Token <key>
+  // Docs: Authorization: Token <key> (JS examples also accept Bearer)
   let res = await fetch(url, {
     method: 'POST',
     headers: {
@@ -192,7 +173,6 @@ async function postAirtime(body: Record<string, unknown>): Promise<{
     data = { raw: text.slice(0, 400) };
   }
 
-  // 2) If 401 unauthorized with Token prefix, retry with Bearer prefix as documented in JS SDK
   if (res.status === 401) {
     const retryRes = await fetch(url, {
       method: 'POST',
@@ -205,7 +185,6 @@ async function postAirtime(body: Record<string, unknown>): Promise<{
       body: JSON.stringify(body),
       cache: 'no-store',
     });
-
     const retryText = await retryRes.text().catch(() => '');
     let retryData: any = null;
     try {
@@ -221,12 +200,8 @@ async function postAirtime(body: Record<string, unknown>): Promise<{
 
 /**
  * Purchase airtime via 247API POST /airtime
- *
- * Supports preferred plan IDs matching https://www.247api.com.ng/pricing:
- * - MTN: Plan 10 (4% discount) primary, Plan 1 (3%) fallback
- * - Glo: Plan 2 (10% discount)
- * - 9mobile: Plan 3 (3% discount)
- * - Airtel: Plan 4 (3.10% discount)
+ * MTN always tries plan_id 10 (4%) first, then plan_id 1 / plain VTU.
+ * No airtime is purchased by this module during deploy — only when the app calls it.
  */
 export async function purchaseAirtime247(opts: {
   network: Api247NetworkSlug;
@@ -247,47 +222,37 @@ export async function purchaseAirtime247(opts: {
   const phone = normalizeNgPhone(opts.phone);
   const baseRef = (opts.ref || makeRef('AT247')).slice(0, 30);
 
-  // Build ordered attempts:
-  // 1) Preferred plan (e.g. Plan 10 for MTN 4% discount) with standard network ID
-  // 2) Preferred plan with alternative network ID (in case backend maps network to plan_id)
-  // 3) Fallback plan if available (e.g. Plan 1 for MTN 3%)
-  // 4) Clean VTU payload without plan parameters
-  interface Attempt {
-    network: number;
-    planId?: number;
-    label: string;
-  }
-
+  type Attempt = { network: number; planId?: number; label: string };
   const attempts: Attempt[] = [];
 
-  const targetPlan = opts.planId ?? planConfig.planId;
-  attempts.push({
-    network: planConfig.networkId,
-    planId: targetPlan,
-    label: `network ${planConfig.networkId} + plan ${targetPlan}`,
-  });
+  const preferredPlan = opts.planId ?? planConfig.planId;
 
-  if (planConfig.altNetworkId != null && planConfig.altNetworkId !== planConfig.networkId) {
+  // 1) Preferred plan (MTN → 10)
+  if (preferredPlan != null) {
     attempts.push({
-      network: planConfig.altNetworkId,
-      planId: targetPlan,
-      label: `network ${planConfig.altNetworkId} + plan ${targetPlan}`,
+      network: planConfig.networkId,
+      planId: preferredPlan,
+      label: `network ${planConfig.networkId} plan_id ${preferredPlan}`,
     });
   }
 
-  if (planConfig.fallbackPlanId != null && planConfig.fallbackPlanId !== targetPlan) {
+  // 2) Fallback plan (MTN → 1)
+  if (
+    planConfig.fallbackPlanId != null &&
+    planConfig.fallbackPlanId !== preferredPlan
+  ) {
     attempts.push({
       network: planConfig.networkId,
       planId: planConfig.fallbackPlanId,
-      label: `fallback plan ${planConfig.fallbackPlanId}`,
+      label: `network ${planConfig.networkId} plan_id ${planConfig.fallbackPlanId}`,
     });
   }
 
-  // Final fallback: standard VTU with no plan parameter
+  // 3) Docs-only payload: network + amount + type (no plan_id)
   attempts.push({
     network: planConfig.networkId,
     planId: undefined,
-    label: `standard VTU network ${planConfig.networkId}`,
+    label: `network ${planConfig.networkId} standard VTU`,
   });
 
   let lastError = '247API airtime failed';
@@ -296,21 +261,16 @@ export async function purchaseAirtime247(opts: {
     const attempt = attempts[i];
     const attemptRef = i === 0 ? baseRef : `${baseRef}_R${i}`.slice(0, 36);
 
+    // Docs body fields only + optional plan_id
     const body: Record<string, unknown> = {
       network: attempt.network,
       phone,
       amount: String(amount),
       type: 'VTU',
-      bypass: opts.bypass ?? true, // skip number validation to prevent false negatives on ported lines
       'request-id': attemptRef,
-      request_id: attemptRef,
     };
-
-    if (attempt.planId != null) {
-      body.plan_id = attempt.planId;
-      body.plan = attempt.planId;
-      body.planId = attempt.planId;
-    }
+    if (opts.bypass != null) body.bypass = opts.bypass;
+    if (attempt.planId != null) body.plan_id = attempt.planId;
 
     const { data, status } = await postAirtime(body);
 
@@ -335,10 +295,10 @@ export async function purchaseAirtime247(opts: {
 
     lastError = extractErrorMessage(data, status);
 
-    // Terminal errors where retrying other plans is futile
+    // Stop retrying on auth / wallet problems
     if (
       status === 401 ||
-      /insufficient|wallet balance|low balance|fund your wallet|invalid token|expired token|unauthorized|user not found/i.test(
+      /insufficient|wallet balance|low balance|fund your wallet|invalid token|unauthorized/i.test(
         lastError,
       )
     ) {
@@ -349,9 +309,7 @@ export async function purchaseAirtime247(opts: {
   throw new Error(lastError);
 }
 
-/**
- * Check 247API user details and wallet balance via GET /api/user
- */
+/** Read-only wallet check — does not purchase */
 export async function queryUser247(): Promise<{
   ok: boolean;
   wallet?: string;
