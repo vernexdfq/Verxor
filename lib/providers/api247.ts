@@ -1,31 +1,21 @@
 /**
  * 247API — primary airtime provider.
  * Docs: https://247api.com.ng/documentation/airtime-request
- * Pricing: https://www.247api.com.ng/pricing (dashboard Plan IDs)
  *
- * Env (any of these):
- *   API_247_KEY | API247_KEY | API247_API_KEY | API_247_API_KEY
- *   API_247_BASE_URL | API247_BASE_URL  (default https://247api.com.ng/api)
+ * Env:
+ *   API_247_KEY (required)
+ *   API_247_BASE_URL (optional, default https://247api.com.ng/api)
  *
- * ── LIVE network IDs (GET /get-networks?service=airtime) ──
- *   MTN = 1 | Glo = 2 | 9mobile = 3 | Airtel = 4
- *   (Official docs sample swaps Glo/Airtel — ALWAYS trust live API.)
+ * LIVE network IDs (GET /get-networks?service=airtime):
+ *   MTN=1  Glo=2  9mobile=3  Airtel=4
  *
- * ── Dashboard Plan IDs (pricing portal / YOUR PRICE) ──
- *   Plan 10  MTN VTU   4.00%  ← preferred for MTN
- *   Plan 1   MTN VTU   3.00%  ← MTN fallback
- *   Plan 2   Glo VTU  10.00%
- *   Plan 3   9mobile   3.00%
- *   Plan 4   Airtel    3.10%
- *
- * Purchase body (docs):
- *   network (int), phone, amount, type=VTU, request-id?
- * Optional: plan_id (used so MTN hits the 4% product)
+ * Dashboard plan discounts:
+ *   Plan 10 MTN 4%  |  Plan 1 MTN 3%  |  Plan 2 Glo 10%
+ *   Plan 3 9mobile 3%  |  Plan 4 Airtel 3.10%
  */
 
 export type Api247NetworkSlug = 'mtn' | 'glo' | '9mobile' | 'airtel';
 
-/** LIVE network IDs — verified 2026-10-24 against production API */
 export const API247_NETWORK_ID: Record<Api247NetworkSlug, number> = {
   mtn: 1,
   glo: 2,
@@ -34,29 +24,29 @@ export const API247_NETWORK_ID: Record<Api247NetworkSlug, number> = {
 };
 
 export interface Api247PlanConfig {
-  /** LIVE network id for POST /airtime */
   networkId: number;
-  /** Preferred dashboard plan_id (MTN 10 = 4%) */
   planId?: number;
-  /** Fallback dashboard plan_id if preferred fails */
-  fallbackPlanId?: number;
 }
 
+/** Preferred plan_id per network (MTN uses 10 for 4% cashback) */
 export const API247_PLANS: Record<Api247NetworkSlug, Api247PlanConfig> = {
-  // MTN: Plan 10 (4%) first, then Plan 1 (3%) / plain VTU
-  mtn: { networkId: 1, planId: 10, fallbackPlanId: 1 },
-  // Glo / 9mobile / Airtel: network id = dashboard plan id
+  mtn: { networkId: 1, planId: 10 },
   glo: { networkId: 2, planId: 2 },
   '9mobile': { networkId: 3, planId: 3 },
   airtel: { networkId: 4, planId: 4 },
 };
 
 function baseUrl(): string {
-  const raw =
+  let raw =
     process.env.API_247_BASE_URL ||
     process.env.API247_BASE_URL ||
     'https://247api.com.ng/api';
-  return raw.replace(/\/$/, '');
+  raw = raw.trim().replace(/\/$/, '');
+  // User may set https://247api.com.ng — ensure /api suffix
+  if (!/\/api$/i.test(raw)) {
+    raw = `${raw}/api`;
+  }
+  return raw;
 }
 
 function rawApiKey(): string {
@@ -110,27 +100,18 @@ function makeRef(prefix: string): string {
 
 function isSuccess(data: any): boolean {
   if (!data || typeof data !== 'object') return false;
-
   const statusStr = String(data.status ?? data.Status ?? data.code ?? '').toLowerCase();
-  if (['fail', 'failed', 'error', 'false', 'rejected'].includes(statusStr)) {
-    return false;
-  }
+  if (['fail', 'failed', 'error', 'false', 'rejected'].includes(statusStr)) return false;
   if (data.success === false || data.ok === false) return false;
-
   if (['success', 'successful', 'ok', 'true', '200'].includes(statusStr)) return true;
   if (data.success === true || data.ok === true) return true;
-
   const msg = String(data.message ?? data.response ?? data.api_response ?? '').toLowerCase();
-  if (msg.includes('successful') || msg.includes('sent to') || msg.includes('delivered')) {
-    return true;
-  }
-  return false;
+  return msg.includes('successful') || msg.includes('sent to') || msg.includes('delivered');
 }
 
 function extractErrorMessage(data: any, status: number): string {
-  if (!data) return `247API error (HTTP ${status})`;
-  if (typeof data === 'string') return data.slice(0, 300);
-
+  if (!data) return `247API HTTP ${status}`;
+  if (typeof data === 'string') return data.slice(0, 280);
   const parts: string[] = [];
   for (const f of ['message', 'response', 'api_response', 'msg', 'error', 'detail']) {
     const val = data[f];
@@ -139,32 +120,32 @@ function extractErrorMessage(data: any, status: number): string {
       if (!parts.includes(t)) parts.push(t);
     }
   }
-  if (parts.length) return parts.join(' — ');
-  if (data.raw) return String(data.raw).slice(0, 300);
-  return `247API error (HTTP ${status})`;
+  if (parts.length) return parts.join(' — ').slice(0, 280);
+  if (data.raw) return String(data.raw).slice(0, 280);
+  return `247API HTTP ${status}`;
 }
 
 async function postAirtime(body: Record<string, unknown>): Promise<{
-  ok: boolean;
   status: number;
   data: any;
 }> {
   const token = cleanToken();
   const url = `${baseUrl()}/airtime`;
 
-  // Docs: Authorization: Token <key> (JS examples also accept Bearer)
-  let res = await fetch(url, {
-    method: 'POST',
-    headers: {
-      Authorization: `Token ${token}`,
-      'Content-Type': 'application/json',
-      Accept: 'application/json',
-      'User-Agent': 'Verxor/1.0',
-    },
-    body: JSON.stringify(body),
-    cache: 'no-store',
-  });
+  const doFetch = (auth: string) =>
+    fetch(url, {
+      method: 'POST',
+      headers: {
+        Authorization: auth,
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+        'User-Agent': 'Verxor/1.0',
+      },
+      body: JSON.stringify(body),
+      cache: 'no-store',
+    });
 
+  let res = await doFetch(`Token ${token}`);
   let text = await res.text().catch(() => '');
   let data: any = null;
   try {
@@ -174,34 +155,22 @@ async function postAirtime(body: Record<string, unknown>): Promise<{
   }
 
   if (res.status === 401) {
-    const retryRes = await fetch(url, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-        'User-Agent': 'Verxor/1.0',
-      },
-      body: JSON.stringify(body),
-      cache: 'no-store',
-    });
-    const retryText = await retryRes.text().catch(() => '');
-    let retryData: any = null;
+    res = await doFetch(`Bearer ${token}`);
+    text = await res.text().catch(() => '');
     try {
-      retryData = retryText ? JSON.parse(retryText) : null;
+      data = text ? JSON.parse(text) : null;
     } catch {
-      retryData = { raw: retryText.slice(0, 400) };
+      data = { raw: text.slice(0, 400) };
     }
-    return { ok: retryRes.ok, status: retryRes.status, data: retryData };
   }
 
-  return { ok: res.ok, status: res.status, data };
+  return { status: res.status, data };
 }
 
 /**
- * Purchase airtime via 247API POST /airtime
- * MTN always tries plan_id 10 (4%) first, then plan_id 1 / plain VTU.
- * No airtime is purchased by this module during deploy — only when the app calls it.
+ * Purchase airtime — fast path.
+ * MTN: plan_id 10 (4%) then plain VTU once if needed.
+ * Does not buy unless the app calls this function.
  */
 export async function purchaseAirtime247(opts: {
   network: Api247NetworkSlug;
@@ -209,7 +178,6 @@ export async function purchaseAirtime247(opts: {
   amount: number;
   ref?: string;
   planId?: number;
-  bypass?: boolean;
 }) {
   const planConfig = API247_PLANS[opts.network];
   if (!planConfig) throw new Error(`Invalid network: ${opts.network}`);
@@ -221,72 +189,42 @@ export async function purchaseAirtime247(opts: {
 
   const phone = normalizeNgPhone(opts.phone);
   const baseRef = (opts.ref || makeRef('AT247')).slice(0, 30);
-
-  type Attempt = { network: number; planId?: number; label: string };
-  const attempts: Attempt[] = [];
-
   const preferredPlan = opts.planId ?? planConfig.planId;
 
-  // 1) Preferred plan (MTN → 10)
+  // Fast: preferred plan first, then one plain VTU (docs body)
+  const attempts: { planId?: number; ref: string }[] = [];
   if (preferredPlan != null) {
-    attempts.push({
-      network: planConfig.networkId,
-      planId: preferredPlan,
-      label: `network ${planConfig.networkId} plan_id ${preferredPlan}`,
-    });
+    attempts.push({ planId: preferredPlan, ref: baseRef });
   }
-
-  // 2) Fallback plan (MTN → 1)
-  if (
-    planConfig.fallbackPlanId != null &&
-    planConfig.fallbackPlanId !== preferredPlan
-  ) {
-    attempts.push({
-      network: planConfig.networkId,
-      planId: planConfig.fallbackPlanId,
-      label: `network ${planConfig.networkId} plan_id ${planConfig.fallbackPlanId}`,
-    });
-  }
-
-  // 3) Docs-only payload: network + amount + type (no plan_id)
   attempts.push({
-    network: planConfig.networkId,
     planId: undefined,
-    label: `network ${planConfig.networkId} standard VTU`,
+    ref: preferredPlan != null ? `${baseRef}_V`.slice(0, 36) : baseRef,
   });
 
   let lastError = '247API airtime failed';
 
-  for (let i = 0; i < attempts.length; i++) {
-    const attempt = attempts[i];
-    const attemptRef = i === 0 ? baseRef : `${baseRef}_R${i}`.slice(0, 36);
-
-    // Docs body fields only + optional plan_id
+  for (const attempt of attempts) {
     const body: Record<string, unknown> = {
-      network: attempt.network,
+      network: planConfig.networkId,
       phone,
       amount: String(amount),
       type: 'VTU',
-      'request-id': attemptRef,
+      'request-id': attempt.ref,
     };
-    if (opts.bypass != null) body.bypass = opts.bypass;
     if (attempt.planId != null) body.plan_id = attempt.planId;
 
-    const { data, status } = await postAirtime(body);
+    const { status, data } = await postAirtime(body);
 
     if (isSuccess(data)) {
       return {
-        ref: String(data?.['request-id'] || data?.request_id || attemptRef),
+        ref: String(data?.['request-id'] || data?.request_id || attempt.ref),
         status: 'successful' as const,
         phone,
         amount,
         network: opts.network,
         planId: attempt.planId ?? null,
         message: String(
-          data?.message ||
-            data?.response ||
-            data?.api_response ||
-            'Airtime purchase successful',
+          data?.message || data?.response || data?.api_response || 'Airtime purchase successful',
         ),
         provider: 'api247' as const,
         raw: data,
@@ -295,7 +233,6 @@ export async function purchaseAirtime247(opts: {
 
     lastError = extractErrorMessage(data, status);
 
-    // Stop retrying on auth / wallet problems
     if (
       status === 401 ||
       /insufficient|wallet balance|low balance|fund your wallet|invalid token|unauthorized/i.test(
@@ -309,56 +246,88 @@ export async function purchaseAirtime247(opts: {
   throw new Error(lastError);
 }
 
-/** Read-only wallet check — does not purchase */
-export async function queryUser247(): Promise<{
+/** Read-only: key + wallet + networks. Never purchases. */
+export async function healthCheck247(): Promise<{
   ok: boolean;
-  wallet?: string;
-  balance?: string;
-  user?: any;
-  raw?: any;
+  configured: boolean;
+  baseUrl: string;
+  wallet?: number;
+  canUseApi?: boolean;
+  networks?: { id: number; network: string }[];
+  error?: string;
 }> {
   if (!isApi247Configured()) {
-    throw new Error('API_247_KEY is not configured');
+    return {
+      ok: false,
+      configured: false,
+      baseUrl: baseUrl(),
+      error: 'API_247_KEY missing in environment',
+    };
   }
 
   const token = cleanToken();
-  const url = `${baseUrl()}/user`;
+  const base = baseUrl();
 
-  let res = await fetch(url, {
-    method: 'GET',
-    headers: {
-      Authorization: `Token ${token}`,
-      'Content-Type': 'application/json',
-      Accept: 'application/json',
-    },
-    cache: 'no-store',
-  });
-
-  if (res.status === 401) {
-    res = await fetch(url, {
-      method: 'GET',
+  try {
+    const userRes = await fetch(`${base}/user`, {
       headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
+        Authorization: `Token ${token}`,
         Accept: 'application/json',
       },
       cache: 'no-store',
     });
-  }
+    const userText = await userRes.text();
+    let userData: any = null;
+    try {
+      userData = userText ? JSON.parse(userText) : null;
+    } catch {
+      userData = null;
+    }
 
-  const text = await res.text().catch(() => '');
-  let data: any = null;
-  try {
-    data = text ? JSON.parse(text) : null;
-  } catch {
-    data = { raw: text.slice(0, 400) };
-  }
+    if (!userRes.ok || userData?.status === 'fail') {
+      return {
+        ok: false,
+        configured: true,
+        baseUrl: base,
+        error: `User check failed HTTP ${userRes.status}: ${userText.slice(0, 200)}`,
+      };
+    }
 
-  return {
-    ok: res.ok,
-    wallet: data?.wallet || data?.user?.wallet,
-    balance: data?.balance,
-    user: data?.user,
-    raw: data,
-  };
+    const netRes = await fetch(`${base}/get-networks?service=airtime`, {
+      headers: {
+        Authorization: `Token ${token}`,
+        Accept: 'application/json',
+      },
+      cache: 'no-store',
+    });
+    const netText = await netRes.text();
+    let networks: any[] = [];
+    try {
+      const parsed = JSON.parse(netText);
+      networks = Array.isArray(parsed) ? parsed : parsed?.data || [];
+    } catch {
+      networks = [];
+    }
+
+    const wallet = Number(userData?.wallet ?? userData?.balance ?? userData?.user?.wallet ?? 0);
+
+    return {
+      ok: true,
+      configured: true,
+      baseUrl: base,
+      wallet,
+      canUseApi: Boolean(userData?.user?.can_use_api ?? true),
+      networks: networks.map((n) => ({
+        id: Number(n.id),
+        network: String(n.network || n.name || ''),
+      })),
+    };
+  } catch (e) {
+    return {
+      ok: false,
+      configured: true,
+      baseUrl: base,
+      error: e instanceof Error ? e.message : 'Health check failed',
+    };
+  }
 }
