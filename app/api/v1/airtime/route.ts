@@ -2,11 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import {
   isClubKonnectConfigured,
   purchaseAirtime as purchaseClubKonnect,
+  getClubKonnectBalance,
   type CkNetworkSlug,
 } from '@/lib/providers/clubkonnect';
 import {
   isApi247Configured,
   purchaseAirtime247,
+  healthCheck247,
   type Api247NetworkSlug,
 } from '@/lib/providers/api247';
 import { supabaseConfigured } from '@/lib/supabase-admin';
@@ -114,11 +116,72 @@ async function creditRetailWallet(
 }
 
 /**
- * Airtime purchase:
- *   Auth → debit wallet → 247API (primary) → ClubKonnect (backup) → refund on provider fail
- *
- * History title example:
- *   "MTN airtime purchase of ₦200 was successful"
+ * GET /api/v1/airtime — read-only provider health (no purchase, no debit).
+ */
+export async function GET() {
+  const result: {
+    ok: boolean;
+    timestamp: string;
+    providers: Record<string, unknown>;
+  } = {
+    ok: true,
+    timestamp: new Date().toISOString(),
+    providers: {},
+  };
+
+  if (isApi247Configured()) {
+    try {
+      const h = await healthCheck247();
+      result.providers.api247 = h;
+      if (!h.ok) result.ok = false;
+    } catch (e) {
+      result.providers.api247 = {
+        ok: false,
+        configured: true,
+        error: e instanceof Error ? e.message : 'check failed',
+      };
+      result.ok = false;
+    }
+  } else {
+    result.providers.api247 = {
+      ok: false,
+      configured: false,
+      error: 'API_247_KEY not set',
+    };
+    result.ok = false;
+  }
+
+  if (isClubKonnectConfigured()) {
+    try {
+      const bal = await getClubKonnectBalance();
+      result.providers.clubkonnect = {
+        ok: true,
+        configured: true,
+        wallet: bal.balance,
+        name: bal.name,
+        status: bal.status,
+      };
+    } catch (e) {
+      result.providers.clubkonnect = {
+        ok: false,
+        configured: true,
+        error: e instanceof Error ? e.message : 'check failed',
+      };
+    }
+  } else {
+    result.providers.clubkonnect = {
+      ok: false,
+      configured: false,
+      error: 'CLUBKONNECT_USER_ID / CLUBKONNECT_API_KEY not set',
+    };
+  }
+
+  return NextResponse.json(result, { status: result.ok ? 200 : 503 });
+}
+
+/**
+ * POST /api/v1/airtime
+ * Auth → debit wallet → 247API (primary) → ClubKonnect (backup) → refund on fail
  */
 export async function POST(req: NextRequest) {
   const ckReady = isClubKonnectConfigured();
@@ -203,7 +266,6 @@ export async function POST(req: NextRequest) {
   const errors: string[] = [];
   const tried: string[] = [];
 
-  // 1) Primary: 247API
   if (api247Ready) {
     tried.push('api247');
     try {
@@ -233,7 +295,6 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // 2) Backup: ClubKonnect
   if (ckReady) {
     tried.push('clubkonnect');
     try {
@@ -263,7 +324,6 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Provider failed after debit → refund
   if (debited) {
     await creditRetailWallet(
       userId,
