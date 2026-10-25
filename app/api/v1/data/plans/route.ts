@@ -1,42 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
-import {
-  isSmeConfigured,
-  listDataPlans,
-  type SmeNetworkSlug,
-} from '@/lib/providers/smeapi';
+import { catalogForNetwork, toLivePlan } from '@/lib/data-catalog';
 
 const NETWORKS = new Set(['mtn', 'glo', '9mobile', 'airtel']);
 
+/**
+ * GET /api/v1/data/plans?network=mtn
+ * Returns curated catalog (retail prices). Only networks/tabs we have locked.
+ */
 export async function GET(req: NextRequest) {
-  if (!isSmeConfigured()) {
-    return NextResponse.json(
-      { ok: false, error: 'Data provider not configured' },
-      { status: 503 },
-    );
-  }
-
   const networkParam = req.nextUrl.searchParams.get('network')?.toLowerCase();
   const network =
-    networkParam && NETWORKS.has(networkParam)
-      ? (networkParam as SmeNetworkSlug)
-      : undefined;
+    networkParam && NETWORKS.has(networkParam) ? networkParam : 'mtn';
 
-  try {
-    const plans = await listDataPlans(network);
-    return NextResponse.json({
-      ok: true,
-      plans: plans.map((p) => ({
-        id: p.id,
-        networkId: p.network_id,
-        network: p.network.toLowerCase() === 'airtel' ? 'airtel' : p.network.toLowerCase(),
-        name: p.name,
-        type: p.type,
-        days: p.days,
-        price: p.price,
-      })),
-    });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : 'Failed to load plans';
-    return NextResponse.json({ ok: false, error: message }, { status: 502 });
-  }
+  const curated = catalogForNetwork(network).map(toLivePlan);
+
+  return NextResponse.json({
+    ok: true,
+    network,
+    plans: curated,
+    source: 'catalog',
+  });
 }
