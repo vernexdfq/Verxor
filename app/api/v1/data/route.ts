@@ -1,14 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import {
-  isSmeConfigured,
-  purchaseData,
-  type SmeNetworkSlug,
-} from '@/lib/providers/smeapi';
+import { isApi247Configured, purchaseData247 } from '@/lib/providers/api247';
+import { findCatalogPlan } from '@/lib/data-catalog';
 import { supabaseConfigured } from '@/lib/supabase-admin';
 
 export const dynamic = 'force-dynamic';
 
-const NETWORKS = new Set<SmeNetworkSlug>(['mtn', 'glo', '9mobile', 'airtel']);
+const NETWORKS = new Set(['mtn', 'glo', '9mobile', 'airtel']);
 
 const NETWORK_LABEL: Record<string, string> = {
   mtn: 'MTN',
@@ -106,8 +103,12 @@ async function creditRetailWallet(
   });
 }
 
+/**
+ * POST /api/v1/data
+ * Auth → resolve catalog plan → debit retail price → 247API purchase → refund on fail
+ */
 export async function POST(req: NextRequest) {
-  if (!isSmeConfigured()) {
+  if (!isApi247Configured()) {
     return NextResponse.json(
       { ok: false, error: 'Data provider not configured' },
       { status: 503 },
@@ -131,7 +132,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: 'Invalid JSON' }, { status: 400 });
   }
 
-  const network = String(body.network || '').toLowerCase() as SmeNetworkSlug;
+  const network = String(body.network || '').toLowerCase();
   if (!NETWORKS.has(network)) {
     return NextResponse.json({ ok: false, error: 'Invalid network' }, { status: 400 });
   }
@@ -141,15 +142,29 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: 'Invalid data plan' }, { status: 400 });
   }
 
-  const amount = Math.round(Number(body.amount) || 0);
-  if (!Number.isFinite(amount) || amount < 50) {
+  const catalog = findCatalogPlan(dataPlanId);
+  if (!catalog) {
     return NextResponse.json(
-      { ok: false, error: 'Valid plan amount is required (min ₦50)' },
+      { ok: false, error: 'This plan is not available yet. Try another bundle.' },
       { status: 400 },
     );
   }
 
+  if (catalog.network !== network) {
+    return NextResponse.json(
+      { ok: false, error: 'Plan does not match selected network' },
+      { status: 400 },
+    );
+  }
+
+  const amount = Math.round(catalog.retail);
+  if (amount < 50) {
+    return NextResponse.json({ ok: false, error: 'Invalid plan price' }, { status: 400 });
+  }
+
+  const phone = String(body.phone || '');
   const userId = await resolveUserId(req, body.userId);
+
   if (!userId) {
     return NextResponse.json(
       { ok: false, error: 'Unauthorized. Sign in to buy data.' },
@@ -165,10 +180,10 @@ export async function POST(req: NextRequest) {
   }
 
   const netLabel = NETWORK_LABEL[network] || network.toUpperCase();
-  const planLabel = (body.planName || 'data').trim() || 'data';
-  const debitDesc = `${netLabel} data purchase of ${formatNaira(amount)} (${planLabel})`;
-  const successTitle = `${netLabel} data purchase of ${formatNaira(amount)} was successful`;
-  const debitRef = body.ref || `data-${userId.slice(0, 8)}-${Date.now()}`;
+  const planLabel = `${catalog.size} (${catalog.days} day${catalog.days === '1' ? '' : 's'})`;
+  const successTitle = `${netLabel} data ${planLabel} purchase of ${formatNaira(amount)} was successful`;
+  const debitDesc = `${netLabel} data ${planLabel} of ${formatNaira(amount)}`;
+  const debitRef = body.ref || `dt-${userId.slice(0, 8)}-${Date.now()}`;
   let debited = false;
 
   try {
@@ -186,24 +201,26 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const result = await purchaseData({
-      network,
-      phone: String(body.phone || ''),
-      dataPlanId,
-      ported: Boolean(body.ported),
+    const result = await purchaseData247({
+      planId: catalog.id,
+      phone,
       ref: debitRef,
+      bypass: true,
     });
+
     return NextResponse.json({
       ok: true,
       order: {
         ref: result.ref,
         status: result.status,
         phone: result.phone,
-        dataPlanId: result.dataPlanId,
-        network: result.network,
-        message: successTitle,
-        title: successTitle,
         amount,
+        network,
+        planId: catalog.id,
+        planName: planLabel,
+        message: successTitle,
+        provider: 'api247',
+        title: successTitle,
       },
       balanceDebited: amount,
     });
