@@ -7,6 +7,8 @@
  *  - No SME / Gifting / AWOOF labels
  *  - Tabs by validity: daily / weekly / monthly / yearly
  *  - Hot deals chosen later after full catalog
+ *
+ * Networks: MTN Daily + MTN Weekly locked.
  */
 
 export type DataNetwork = 'mtn' | 'glo' | 'airtel' | '9mobile';
