@@ -414,7 +414,7 @@ export function VerxorApp() {
   } else if (service === 'virtual-card') {
     content = <VirtualCardPage onBack={closeService} session={auth} />;
   } else if (service === 'gift-card') {
-    content = <GiftCardPage onBack={closeService} />;
+    content = <GiftCardPage onBack={closeService} session={auth} />;
   } else if (service === 'tv-cable') {
     content = <TvPage onBack={closeService} />;
   } else if (service === 'electricity') {
