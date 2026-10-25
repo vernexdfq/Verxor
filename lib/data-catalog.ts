@@ -47,8 +47,25 @@ export const MTN_DAILY: CatalogPlan[] = [
   { id: 108, network: 'mtn', size: '6.5GB', days: '2', tab: 'daily', retail: 1700, apiPrice: 1585, cost: 1485 },
 ];
 
+/** MTN Weekly — confirmed with user */
+export const MTN_WEEKLY: CatalogPlan[] = [
+  { id: 10, network: 'mtn', size: '500MB', days: '7', tab: 'weekly', retail: 500, apiPrice: 240, cost: 220 },
+  { id: 9, network: 'mtn', size: '1GB', days: '7', tab: 'weekly', retail: 795, apiPrice: 385, cost: 375 },
+  { id: 260, network: 'mtn', size: '1.2GB', days: '7', tab: 'weekly', retail: 950, apiPrice: 750, cost: 721.5 },
+  { id: 261, network: 'mtn', size: '1.5GB', days: '7', tab: 'weekly', retail: 1000, apiPrice: 972, cost: 962 },
+  { id: 8, network: 'mtn', size: '2GB', days: '7', tab: 'weekly', retail: 1100, apiPrice: 800, cost: 670 },
+  { id: 503, network: 'mtn', size: '2GB', days: '7', tab: 'weekly', retail: 1090, apiPrice: 790, cost: 670 },
+  { id: 101, network: 'mtn', size: '3.5GB', days: '7', tab: 'weekly', retail: 1500, apiPrice: 1465, cost: 1445 },
+  { id: 262, network: 'mtn', size: '6GB', days: '7', tab: 'weekly', retail: 2550, apiPrice: 2450, cost: 2405 },
+  { id: 102, network: 'mtn', size: '11GB', days: '7', tab: 'weekly', retail: 3500, apiPrice: 3380, cost: 3360 },
+  { id: 300, network: 'mtn', size: '12.5GB', days: '14', tab: 'weekly', retail: 4550, apiPrice: 4350, cost: 4330 },
+  { id: 301, network: 'mtn', size: '15GB', days: '7', tab: 'weekly', retail: 4100, apiPrice: 3950, cost: 3850 },
+  { id: 302, network: 'mtn', size: '18GB', days: '14', tab: 'weekly', retail: 6100, apiPrice: 5870, cost: 5770 },
+  { id: 303, network: 'mtn', size: '28GB', days: '14', tab: 'weekly', retail: 8200, apiPrice: 7850, cost: 7700 },
+];
+
 /** All curated plans (grows as we add tabs/networks) */
-export const DATA_CATALOG: CatalogPlan[] = [...MTN_DAILY];
+export const DATA_CATALOG: CatalogPlan[] = [...MTN_DAILY, ...MTN_WEEKLY];
 
 export function catalogForNetwork(network: string): CatalogPlan[] {
   const n = network.toLowerCase();
