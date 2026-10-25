@@ -1,6 +1,6 @@
 /**
- * 247API — primary airtime provider.
- * Docs: https://247api.com.ng/documentation/airtime-request
+ * 247API — primary airtime + data provider.
+ * Docs: https://247api.com.ng/documentation
  *
  * Env:
  *   API_247_KEY (required)
@@ -381,4 +381,76 @@ export async function healthCheck247(): Promise<{
       error: e instanceof Error ? e.message : 'Health check failed',
     };
   }
+}
+
+/** Purchase data bundle — 247API POST /data (plan = plan_id). */
+export async function purchaseData247(opts: {
+  planId: number;
+  phone: string;
+  ref?: string;
+  bypass?: boolean;
+}) {
+  const phone = normalizeNgPhone(opts.phone);
+  const planId = Number(opts.planId);
+  if (!Number.isFinite(planId) || planId <= 0) {
+    throw new Error('Invalid data plan');
+  }
+  const requestId = (opts.ref || makeRef('DT247')).slice(0, 36);
+  const token = cleanToken();
+  const url = `${baseUrl()}/data`;
+  const body = {
+    phone,
+    plan: planId,
+    bypass: opts.bypass !== false,
+    'request-id': requestId,
+  };
+
+  const doFetch = (auth: string) =>
+    fetch(url, {
+      method: 'POST',
+      headers: {
+        Authorization: auth,
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+        'User-Agent': 'Verxor/1.0',
+      },
+      body: JSON.stringify(body),
+      cache: 'no-store',
+    });
+
+  let res = await doFetch(`Token ${token}`);
+  let text = await res.text().catch(() => '');
+  let data: any = null;
+  try {
+    data = text ? JSON.parse(text) : null;
+  } catch {
+    data = { raw: text.slice(0, 400) };
+  }
+
+  if (res.status === 401) {
+    res = await doFetch(`Bearer ${token}`);
+    text = await res.text().catch(() => '');
+    try {
+      data = text ? JSON.parse(text) : null;
+    } catch {
+      data = { raw: text.slice(0, 400) };
+    }
+  }
+
+  if (isSuccess(data)) {
+    return {
+      ref: String(data?.['request-id'] || data?.request_id || requestId),
+      status: 'successful' as const,
+      phone,
+      planId,
+      amount: Number(data?.amount || 0),
+      message: String(
+        data?.message || data?.response || data?.api_response || 'Data purchase successful',
+      ),
+      provider: 'api247' as const,
+      raw: data,
+    };
+  }
+
+  throw new Error(extractErrorMessage(data, res.status));
 }
