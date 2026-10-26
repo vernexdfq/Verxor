@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { isApi247Configured, purchaseData247 } from '@/lib/providers/api247';
 import { findCatalogPlan } from '@/lib/data-catalog';
 import { supabaseConfigured } from '@/lib/supabase-admin';
+import { sendDataReceipt } from '@/lib/email/receipts';
 
 export const dynamic = 'force-dynamic';
 
@@ -208,6 +209,17 @@ export async function POST(req: NextRequest) {
       bypass: true,
     });
 
+    await sendDataReceipt(userId, {
+      status: 'successful',
+      amountNgn: amount,
+      reference: result.ref || debitRef,
+      details: [
+        { label: 'Network', value: netLabel },
+        { label: 'Mobile number', value: phone },
+        { label: 'Bundle', value: planLabel },
+        { label: 'Provider', value: '247API' },
+      ],
+    }).then((mail) => { if (!mail.ok) console.warn('[email] Data receipt not sent:', mail.error); });
     return NextResponse.json({
       ok: true,
       order: {

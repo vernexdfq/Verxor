@@ -12,6 +12,7 @@ import {
   type Api247NetworkSlug,
 } from '@/lib/providers/api247';
 import { supabaseConfigured } from '@/lib/supabase-admin';
+import { sendAirtimeReceipt, sendDataReceipt } from '@/lib/email/receipts';
 
 export const dynamic = 'force-dynamic';
 
@@ -275,6 +276,16 @@ export async function POST(req: NextRequest) {
         amount,
         ref: debitRef,
       });
+      await sendAirtimeReceipt(userId, {
+        status: 'successful',
+        amountNgn: amount,
+        reference: result.ref || debitRef,
+        details: [
+          { label: 'Network', value: netLabel },
+          { label: 'Mobile number', value: phone },
+          { label: 'Provider', value: '247API' },
+        ],
+      }).then((mail) => { if (!mail.ok) console.warn('[email] Airtime receipt not sent:', mail.error); });
       return NextResponse.json({
         ok: true,
         order: {
@@ -304,6 +315,16 @@ export async function POST(req: NextRequest) {
         amount,
         ref: debitRef,
       });
+      await sendAirtimeReceipt(userId, {
+        status: 'successful',
+        amountNgn: amount,
+        reference: result.ref || debitRef,
+        details: [
+          { label: 'Network', value: netLabel },
+          { label: 'Mobile number', value: phone },
+          { label: 'Provider', value: 'ClubKonnect' },
+        ],
+      }).then((mail) => { if (!mail.ok) console.warn('[email] Airtime receipt not sent:', mail.error); });
       return NextResponse.json({
         ok: true,
         order: {
