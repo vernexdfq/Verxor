@@ -19,7 +19,14 @@ import { loadSessionProfile } from './auth/session-unlock';
 
 export type NetworkId = 'mtn' | 'airtel' | 'glo' | '9mobile';
 
-export type CategoryId = 'hot' | 'daily' | 'weekly' | 'monthly' | 'yearly';
+export type CategoryId =
+  | 'hot'
+  | 'daily'
+  | 'weekly'
+  | 'monthly'
+  | 'threemonths'
+  | 'router'
+  | 'yearly';
 
 export interface LivePlan {
   id: number;
@@ -48,13 +55,28 @@ const NETWORKS: NetworkOption[] = [
   { id: '9mobile', label: '9mobile', prefixHint: '0809, 0817, 0818...' },
 ];
 
-const CATEGORIES: { id: CategoryId; label: string; icon?: string }[] = [
-  { id: 'hot', label: 'Hot deals', icon: '🔥' },
-  { id: 'daily', label: 'Daily' },
-  { id: 'weekly', label: 'Weekly' },
-  { id: 'monthly', label: 'Monthly' },
-  { id: 'yearly', label: 'Yearly' },
-];
+export interface CategoryItem {
+  id: CategoryId;
+  label: string;
+  icon?: string;
+}
+
+export const CATEGORY_DEFINITIONS: Record<CategoryId, CategoryItem> = {
+  hot: { id: 'hot', label: 'Hot deals', icon: '🔥' },
+  daily: { id: 'daily', label: 'Daily' },
+  weekly: { id: 'weekly', label: 'Weekly' },
+  monthly: { id: 'monthly', label: 'Monthly' },
+  threemonths: { id: 'threemonths', label: '3months+' },
+  router: { id: 'router', label: 'Router' },
+  yearly: { id: 'yearly', label: 'Yearly' },
+};
+
+export const NETWORK_CATEGORY_IDS: Record<NetworkId, CategoryId[]> = {
+  mtn: ['hot', 'daily', 'weekly', 'monthly', 'threemonths', 'yearly'],
+  glo: ['hot', 'daily', 'weekly', 'monthly', 'threemonths', 'yearly'],
+  airtel: ['hot', 'daily', 'weekly', 'monthly', 'threemonths', 'router', 'yearly'],
+  '9mobile': ['hot', 'monthly'],
+};
 
 const RECENT_KEY = 'verxor_data_recent_recipients_v1';
 const AIRTIME_RECENT_KEY = 'verxor_airtime_recent_recipients_v1';
@@ -209,10 +231,26 @@ function parseValidity(days: string, name: string): string {
 
 function getPlanCategory(plan: LivePlan): Exclude<CategoryId, 'hot'> {
   const v = parseValidity(plan.days, plan.name).toLowerCase();
+  const n = (plan.name || '').toLowerCase();
+  const t = (plan.planType || '').toLowerCase();
+
+  // Router plans
+  if (n.includes('router') || t.includes('router')) return 'router';
+
+  // 3 months+ (90-day validity or explicit planType)
   const m = v.match(/\d+/);
   const d = m ? parseInt(m[0], 10) : 30;
 
-  if (v.includes('year') || d >= 120) return 'yearly';
+  if (v.includes('year') || d >= 300) return 'yearly';
+  if (
+    t.includes('3 month') ||
+    t.includes('threemonths') ||
+    v.includes('3 month') ||
+    v.includes('90 day') ||
+    (d >= 75 && d < 300)
+  ) {
+    return 'threemonths';
+  }
   if (d >= 15) return 'monthly';
   if (d >= 4) return 'weekly';
   return 'daily';
@@ -427,6 +465,8 @@ export function DataPage({ onBack, session, onFund }: DataPageProps) {
     const daily: LivePlan[] = [];
     const weekly: LivePlan[] = [];
     const monthly: LivePlan[] = [];
+    const threemonths: LivePlan[] = [];
+    const router: LivePlan[] = [];
     const yearly: LivePlan[] = [];
 
     const sorted = [...livePlans].sort((a, b) => a.price - b.price);
@@ -435,6 +475,8 @@ export function DataPage({ onBack, session, onFund }: DataPageProps) {
       const cat = getPlanCategory(p);
       if (cat === 'daily') daily.push(p);
       else if (cat === 'weekly') weekly.push(p);
+      else if (cat === 'threemonths') threemonths.push(p);
+      else if (cat === 'router') router.push(p);
       else if (cat === 'yearly') yearly.push(p);
       else monthly.push(p);
     });
@@ -470,9 +512,24 @@ export function DataPage({ onBack, session, onFund }: DataPageProps) {
       daily,
       weekly,
       monthly,
+      threemonths,
+      router,
       yearly,
     };
   }, [livePlans]);
+
+  const availableCategories = useMemo(() => {
+    const ids = NETWORK_CATEGORY_IDS[networkId] || NETWORK_CATEGORY_IDS['mtn'];
+    return ids.map((id) => CATEGORY_DEFINITIONS[id]);
+  }, [networkId]);
+
+  // Keep activeCategory valid for currently selected network
+  useEffect(() => {
+    const validIds = NETWORK_CATEGORY_IDS[networkId] || [];
+    if (!validIds.includes(activeCategory)) {
+      setActiveCategory(validIds[0] || 'hot');
+    }
+  }, [networkId, activeCategory]);
 
   const currentCategoryPlans = useMemo(() => {
     return categorizedPlans[activeCategory] || [];
@@ -722,7 +779,7 @@ export function DataPage({ onBack, session, onFund }: DataPageProps) {
         {/* Category Tabs: Hot deals, Daily, Weekly, Monthly, Yearly */}
         <div className="data-tabs-wrap">
           <div className="data-tabs" role="tablist" aria-label="Data bundle validity">
-            {CATEGORIES.map((cat) => {
+            {availableCategories.map((cat) => {
               const isActive = cat.id === activeCategory;
               return (
                 <button
@@ -755,7 +812,7 @@ export function DataPage({ onBack, session, onFund }: DataPageProps) {
         ) : currentCategoryPlans.length === 0 ? (
           <div className="data-empty-state">
             <p>
-              No {CATEGORIES.find((c) => c.id === activeCategory)?.label.toLowerCase()} plans currently listed for {selectedNetObj.label}.
+              No {CATEGORY_DEFINITIONS[activeCategory]?.label.toLowerCase() || 'selected'} plans currently listed for {selectedNetObj.label}.
             </p>
             <div className="data-empty-actions">
               <button
