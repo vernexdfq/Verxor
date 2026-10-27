@@ -49,21 +49,21 @@ export const MTN_DAILY: CatalogPlan[] = [
   { id: 108, network: 'mtn', size: '6.5GB', days: '2', tab: 'daily', retail: 1800, apiPrice: 1585, cost: 1485 },
 ];
 
-/** MTN Weekly — confirmed with user */
+/** MTN Weekly — locked from live 247API (Gifting + AWOOF + SME1 DataShare) */
 export const MTN_WEEKLY: CatalogPlan[] = [
-  { id: 10, network: 'mtn', size: '500MB', days: '7', tab: 'weekly', retail: 500, apiPrice: 240, cost: 220 },
-  { id: 9, network: 'mtn', size: '1GB', days: '7', tab: 'weekly', retail: 795, apiPrice: 385, cost: 375 },
-  { id: 260, network: 'mtn', size: '1.5GB', days: '7', tab: 'weekly', retail: 950, apiPrice: 750, cost: 740 },
-  { id: 261, network: 'mtn', size: '2GB', days: '7', tab: 'weekly', retail: 1000, apiPrice: 972, cost: 960 },
-  { id: 8, network: 'mtn', size: '2.5GB', days: '7', tab: 'weekly', retail: 1100, apiPrice: 800, cost: 790 },
-  { id: 503, network: 'mtn', size: '2.5GB', days: '7', tab: 'weekly', retail: 1090, apiPrice: 790, cost: 780 },
-  { id: 101, network: 'mtn', size: '3GB', days: '7', tab: 'weekly', retail: 1500, apiPrice: 1465, cost: 1450 },
-  { id: 262, network: 'mtn', size: '5GB', days: '7', tab: 'weekly', retail: 2550, apiPrice: 2450, cost: 2430 },
-  { id: 102, network: 'mtn', size: '7GB', days: '7', tab: 'weekly', retail: 3500, apiPrice: 3380, cost: 3360 },
-  { id: 300, network: 'mtn', size: '10GB', days: '7', tab: 'weekly', retail: 4550, apiPrice: 4350, cost: 4320 },
-  { id: 301, network: 'mtn', size: '11GB', days: '7', tab: 'weekly', retail: 4100, apiPrice: 3950, cost: 3920 },
-  { id: 302, network: 'mtn', size: '15GB', days: '7', tab: 'weekly', retail: 6100, apiPrice: 5870, cost: 5840 },
-  { id: 303, network: 'mtn', size: '20GB', days: '7', tab: 'weekly', retail: 8200, apiPrice: 7850, cost: 7820 },
+  { id: 10, network: 'mtn', size: '500MB', days: '7', tab: 'weekly', retail: 495, apiPrice: 240, cost: 220 },
+  { id: 9, network: 'mtn', size: '1GB', days: '7', tab: 'weekly', retail: 790, apiPrice: 385, cost: 375 },
+  { id: 261, network: 'mtn', size: '1.5GB', days: '7', tab: 'weekly', retail: 1000, apiPrice: 972, cost: 962 },
+  { id: 8, network: 'mtn', size: '2GB', days: '7', tab: 'weekly', retail: 900, apiPrice: 800, cost: 670 },
+  { id: 101, network: 'mtn', size: '3.5GB', days: '7', tab: 'weekly', retail: 1545, apiPrice: 1465, cost: 1445 },
+  { id: 262, network: 'mtn', size: '6GB', days: '7', tab: 'weekly', retail: 2700, apiPrice: 2450, cost: 2405 },
+  { id: 263, network: 'mtn', size: '7GB', days: '7', tab: 'weekly', retail: 3600, apiPrice: 3500, cost: 3367 },
+  { id: 102, network: 'mtn', size: '11GB', days: '7', tab: 'weekly', retail: 3713, apiPrice: 3380, cost: 3360 },
+  { id: 300, network: 'mtn', size: '12.5GB', days: '14', tab: 'weekly', retail: 4550, apiPrice: 4350, cost: 4330 },
+  { id: 301, network: 'mtn', size: '15GB', days: '7', tab: 'weekly', retail: 4100, apiPrice: 3950, cost: 3850 },
+  { id: 302, network: 'mtn', size: '18GB', days: '14', tab: 'weekly', retail: 6100, apiPrice: 5870, cost: 5770 },
+  { id: 303, network: 'mtn', size: '28GB', days: '14', tab: 'weekly', retail: 8200, apiPrice: 7850, cost: 7700 },
+  { id: 304, network: 'mtn', size: '40GB', days: '14', tab: 'weekly', retail: 10300, apiPrice: 10000, cost: 9620 },
 ];
 
 /** MTN Monthly — confirmed with user */
