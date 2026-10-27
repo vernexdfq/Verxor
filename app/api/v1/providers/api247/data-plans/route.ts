@@ -1,10 +1,11 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 
 /**
- * GET /api/v1/providers/api247/data-plans
- * Read-only: lists 247API data plans. Never purchases.
+ * GET /api/v1/providers/api247/data-plans?network=1
+ * network: 1=MTN 2=Glo 3=9mobile 4=Airtel
+ * Read-only. Never purchases.
  */
-export async function GET() {
+export async function GET(req: NextRequest) {
   const key = (
     process.env.API_247_KEY ||
     process.env.API247_KEY ||
@@ -31,7 +32,11 @@ export async function GET() {
     .replace(/\/$/, '');
   if (!/\/api$/i.test(base)) base = `${base}/api`;
 
-  const url = `${base}/get-data-plans`;
+  const network = req.nextUrl.searchParams.get('network') || '1';
+  const type = req.nextUrl.searchParams.get('type') || 'data';
+
+  const qs = new URLSearchParams({ network, type });
+  const url = `${base}/get-data-plans?${qs.toString()}`;
 
   try {
     let res = await fetch(url, {
