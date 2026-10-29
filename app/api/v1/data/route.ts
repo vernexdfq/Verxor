@@ -217,7 +217,6 @@ export async function POST(req: NextRequest) {
         { label: 'Network', value: netLabel },
         { label: 'Mobile number', value: phone },
         { label: 'Bundle', value: planLabel },
-        { label: 'Provider', value: '247API' },
       ],
     }).then((mail) => { if (!mail.ok) console.warn('[email] Data receipt not sent:', mail.error); });
     return NextResponse.json({
@@ -231,7 +230,6 @@ export async function POST(req: NextRequest) {
         planId: catalog.id,
         planName: planLabel,
         message: successTitle,
-        provider: 'api247',
         title: successTitle,
       },
       balanceDebited: amount,
@@ -245,9 +243,10 @@ export async function POST(req: NextRequest) {
         `Refund — ${debitDesc}`,
       );
     }
-    const message = err instanceof Error ? err.message : 'Data purchase failed';
+    const rawMessage = err instanceof Error ? err.message : 'Data purchase failed';
+    const cleanMessage = rawMessage.replace(/(api247|clubkonnect|smeplug|provider|upstream):\s*/gi, '').trim() || 'Data purchase failed. Please try again shortly.';
     return NextResponse.json(
-      { ok: false, error: message, refunded: debited },
+      { ok: false, error: cleanMessage, refunded: debited },
       { status: 502 },
     );
   }

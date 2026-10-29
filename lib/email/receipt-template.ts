@@ -71,7 +71,7 @@ export function buildFintechReceiptHtml(options: ReceiptTemplateOptions): string
     dateStyle: 'medium', timeStyle: 'short', timeZone: 'Africa/Lagos',
   });
   const safeRef = escapeHtml(options.reference || 'Not provided');
-  const details = (options.details || []).slice(0, 8).map(({ label: key, value }) =>
+  const details = (options.details || []).filter(({ label: key }) => !/^(provider|supplier|gateway|vendor|upstream)$/i.test(key.trim())).slice(0, 8).map(({ label: key, value }) =>
     `<tr><td style="padding:12px 0;color:#667085;font-size:14px;border-bottom:1px solid #edf0f4">${escapeHtml(key)}</td><td style="padding:12px 0;color:#172033;font-size:14px;text-align:right;border-bottom:1px solid #edf0f4;font-weight:600">${escapeHtml(value)}</td></tr>`,
   ).join('');
   const balance = Number.isFinite(options.balanceAfterNgn)

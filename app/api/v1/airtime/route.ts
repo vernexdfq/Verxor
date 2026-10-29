@@ -283,7 +283,6 @@ export async function POST(req: NextRequest) {
         details: [
           { label: 'Network', value: netLabel },
           { label: 'Mobile number', value: phone },
-          { label: 'Provider', value: '247API' },
         ],
       }).then((mail) => { if (!mail.ok) console.warn('[email] Airtime receipt not sent:', mail.error); });
       return NextResponse.json({
@@ -295,7 +294,6 @@ export async function POST(req: NextRequest) {
           amount: result.amount,
           network: result.network,
           message: successTitle,
-          provider: 'api247',
           title: successTitle,
         },
         balanceDebited: amount,
@@ -322,7 +320,6 @@ export async function POST(req: NextRequest) {
         details: [
           { label: 'Network', value: netLabel },
           { label: 'Mobile number', value: phone },
-          { label: 'Provider', value: 'ClubKonnect' },
         ],
       }).then((mail) => { if (!mail.ok) console.warn('[email] Airtime receipt not sent:', mail.error); });
       return NextResponse.json({
@@ -334,7 +331,6 @@ export async function POST(req: NextRequest) {
           amount: result.amount,
           network: result.network,
           message: successTitle,
-          provider: 'clubkonnect',
           title: successTitle,
         },
         balanceDebited: amount,
@@ -357,8 +353,10 @@ export async function POST(req: NextRequest) {
   return NextResponse.json(
     {
       ok: false,
-      error: errors.join(' | ') || 'Airtime purchase failed',
-      tried,
+      error: (
+        errors.join(' | ').replace(/(api247|clubkonnect|smeplug|provider|upstream):\s*/gi, '').trim() ||
+        'Airtime service is temporarily unavailable for this network. Please try again shortly.'
+      ),
       refunded: debited,
     },
     { status: 502 },
