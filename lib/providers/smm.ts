@@ -6,8 +6,9 @@
  * - Exclusion of any service with wholesale rate > $10 / 1,000 USD.
  * - Retail pricing formula:
  *     <= $0.50 USD  -> 4.0x multiplier
- *     $0.51 - $2.00 -> 2.5x multiplier
- *     > $2.00 USD   -> 1.8x multiplier
+ *     $0.51 - $1.00 -> 3.0x multiplier
+ *     $1.01 - $2.00 -> 2.0x multiplier
+ *     > $2.00 USD   -> 1.5x multiplier
  *     USD -> NGN fixed exchange rate: 1,380
  * - Alphabetical sorting of all discovered platforms.
  * - Correct scoping of categories and services per platform.
@@ -82,15 +83,17 @@ export const SMM_EXCHANGE_RATE = 1380;
 export const SMM_MAX_USD_CUTOFF = 10.0;
 
 /**
- * Multiplier tiers agreed for Verxor Boost:
+ * Multiplier tiers agreed for Verxor Boost retail pricing:
  * <= $0.50      -> 4.0x
- * $0.51 - $2.00 -> 2.5x
- * > $2.00       -> 1.8x
+ * $0.51 - $1.00 -> 3.0x
+ * $1.01 - $2.00 -> 2.0x
+ * > $2.00       -> 1.5x
  */
 export function getSmmMultiplier(costUsd: number): number {
   if (costUsd <= 0.50) return 4.0;
-  if (costUsd <= 2.00) return 2.5;
-  return 1.8;
+  if (costUsd <= 1.00) return 3.0;
+  if (costUsd <= 2.00) return 2.0;
+  return 1.5;
 }
 
 export function calculateSmmPriceNgn(costUsd: number): number {
