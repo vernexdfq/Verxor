@@ -9,6 +9,8 @@
  * Status: order  → { charge, start_count, status, remains, currency }
  * Cancel: orders (comma-separated) → [{ order, cancel: 1 | { error } }]
  * Balance: → { balance, currency }
+ *
+ * Credentials: SMM_PANEL_API_KEY (primary), then JUSTANOTHER_API_KEY / YOYOMEDIA_API_KEY.
  */
 import { fetchSmmCatalog, type BoostService } from '@/lib/providers/smm';
 
@@ -142,10 +144,11 @@ export async function smmCancelOrder(orderId: number | string): Promise<{
     };
     const cancelVal = row.cancel;
     if (cancelVal && typeof cancelVal === 'object' && 'error' in cancelVal) {
-      throw new Error(String(cancelVal.error || 'Cancel rejected'));
+      throw new Error(String((cancelVal as { error?: string }).error || 'Cancel rejected'));
     }
-    const ok = cancelVal === 1 || cancelVal === '1' || cancelVal === true;
-    return { ok: Boolean(ok), cancel: cancelVal as number | string, raw: data };
+    // JAP returns cancel: 1 on success (number or string "1")
+    const ok = cancelVal === 1 || cancelVal === '1';
+    return { ok, cancel: (ok ? cancelVal : 0) as number | string, raw: data };
   }
   if (data && typeof data === 'object') {
     const row = data as { cancel?: number | string; error?: string };
