@@ -7,8 +7,8 @@
   },
   "scripts": {
     "dev": "next dev",
-    "prebuild": "node scripts/apply-restore.cjs && node scripts/apply-live-boost.cjs && node scripts/fix-boost-types.cjs && node scripts/inflate-boost-page.cjs",
-    "build": "node scripts/apply-restore.cjs && node scripts/apply-live-boost.cjs && node scripts/fix-boost-types.cjs && node scripts/inflate-boost-page.cjs && next build",
+    "prebuild": "node scripts/inflate-boost-page.cjs",
+    "build": "node scripts/inflate-boost-page.cjs && next build",
     "start": "next start",
     "lint": "next lint",
     "cf:preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",

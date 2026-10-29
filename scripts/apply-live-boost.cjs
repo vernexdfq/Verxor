@@ -1,3 +1,3 @@
 #!/usr/bin/env node
-console.error("[apply-live-boost] not restored — run apply-restore.cjs first");
-process.exit(1);
+console.log('[apply-live-boost] skipped (inflate provides live page)');
+process.exit(0);
