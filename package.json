@@ -7,13 +7,13 @@
   },
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "prebuild": "node scripts/apply-live-boost.cjs && node scripts/inflate-boost-page.cjs",
+    "build": "node scripts/apply-live-boost.cjs && node scripts/inflate-boost-page.cjs && next build",
     "start": "next start",
     "lint": "next lint",
     "cf:preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
     "cf:deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
-    "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts",
-    "prebuild": "node scripts/apply-live-boost.cjs && node scripts/inflate-boost-page.cjs"
+    "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.1",
