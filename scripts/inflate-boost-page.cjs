@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
- * Inflates surgically-wired Boost page (live orders, original UI) before build.
- * Payload: scripts/boost-page.live.part0..N (base64 gzip chunks)
+ * Inflates surgically-wired Boost page before build.
+ * Skips when page already calls live API (placeBoostOrder or loadSessionTokens).
  */
 const fs = require('fs');
 const path = require('path');
@@ -9,6 +9,18 @@ const zlib = require('zlib');
 
 const root = path.join(__dirname, '..');
 const outPath = path.join(root, 'src', 'boost-page.tsx');
+
+if (fs.existsSync(outPath)) {
+  const existing = fs.readFileSync(outPath, 'utf8');
+  if (
+    (existing.includes('placeBoostOrder') || existing.includes('loadSessionTokens')) &&
+    existing.includes('/api/v1/boost') &&
+    !existing.includes('setTimeout(r, 850)')
+  ) {
+    console.log('[inflate-boost] already live-wired — skip (' + existing.length + ' bytes)');
+    process.exit(0);
+  }
+}
 
 let b64 = '';
 const single = path.join(__dirname, 'boost-page.live.gz.b64');
@@ -31,6 +43,4 @@ if (!b64) {
 
 const buf = zlib.gunzipSync(Buffer.from(b64, 'base64'));
 fs.writeFileSync(outPath, buf);
-console.log(
-  '[inflate-boost] wrote src/boost-page.tsx (' + buf.length + ' bytes, live orders + original UI)',
-);
+console.log('[inflate-boost] wrote src/boost-page.tsx (' + buf.length + ' bytes)');
