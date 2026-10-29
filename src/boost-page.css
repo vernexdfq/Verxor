@@ -215,11 +215,10 @@
 .boost-select-chevron { color: #94A3B8; flex-shrink: 0; margin-left: 6px; }
 .boost-select-trigger-service .boost-select-trigger-text {
   white-space: normal;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  line-height: 1.25;
+  display: block;
+  line-height: 1.35;
   font-size: 13.5px;
+  word-break: break-word;
 }
 
 .boost-link-row { display: flex; align-items: center; gap: 6px; }
