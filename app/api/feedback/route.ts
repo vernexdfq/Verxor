@@ -177,6 +177,10 @@ export async function POST(req: Request) {
     message,
     '',
     `Reply directly to this email to reach the user (if Reply-To is set).`,
+    '',
+    `Verxor Support: support@verxor.com`,
+    `WhatsApp: 08141620644 / 08062362896`,
+    `Custom website or app enquiries: admin@verxor.com`,
   ].join('\n');
 
   const html = `
@@ -189,6 +193,11 @@ export async function POST(req: Request) {
       <p style="margin:0 0 16px"><strong>Email:</strong> ${escapeHtml(userEmail || '—')}</p>
       <div style="padding:14px 16px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;white-space:pre-wrap;line-height:1.5">${escapeHtml(message)}</div>
       <p style="margin:16px 0 0;font-size:12px;color:#94a3b8">Reply to this email to respond to the user when Reply-To is present.</p>
+      <div style="margin-top:20px;padding-top:14px;border-top:1px solid #e2e8f0;font-size:12px;line-height:1.7;color:#64748b">
+        Verxor Support: <a href="mailto:support@verxor.com">support@verxor.com</a><br>
+        WhatsApp: <a href="https://wa.me/2348141620644">08141620644</a> · <a href="https://wa.me/2348062362896">08062362896</a><br>
+        Custom website or app enquiries: <a href="mailto:admin@verxor.com">admin@verxor.com</a>
+      </div>
     </div>
   `;
 

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { grizzly } from '@/lib/providers';
 import { sbInsert, supabaseConfigured } from '@/lib/supabase-admin';
 import { resolvePanelClient, panelAllowsVirtualNumbers } from '@/lib/panel-auth';
+import { sendVirtualNumberReceipt } from '@/lib/email/receipts';
 
 export const dynamic = 'force-dynamic';
 
@@ -355,6 +356,24 @@ export async function POST(req: NextRequest) {
         if (Array.isArray(rows) && rows[0]?.id) savedId = String(rows[0].id);
       } catch {
         /* order row optional */
+      }
+    }
+
+    if (userId) {
+      try {
+        const mail = await sendVirtualNumberReceipt(userId, {
+          status: 'successful',
+          amountNgn: priceNgn,
+          reference: savedId || debitRef,
+          details: [
+            { label: 'Service', value: service },
+            { label: 'Phone number', value: phone },
+            { label: 'Country', value: country },
+          ],
+        });
+        if (!mail.ok) console.warn('[email] Virtual number receipt not sent:', mail.error);
+      } catch (error) {
+        console.warn('[email] Virtual number receipt dispatch failed:', error);
       }
     }
 
