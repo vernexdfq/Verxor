@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Applies live Boost order wiring to src/boost-page.tsx at prebuild.
- * Idempotent: skips if placeBoostOrder already present.
+ * Idempotent: skips if placeBoostOrder already present AND status poll is wired.
  */
 const fs = require('fs');
 const path = require('path');
@@ -9,15 +9,23 @@ const path = require('path');
 const file = path.join(__dirname, '..', 'src', 'boost-page.tsx');
 let text = fs.readFileSync(file, 'utf8');
 
-if (text.includes('placeBoostOrder') && !text.includes('setTimeout(r, 850)')) {
-  console.log('[apply-live-boost] already live — skip');
+if (
+  text.includes('placeBoostOrder') &&
+  text.includes('completionMessage') &&
+  text.includes('setInterval') &&
+  !text.includes('setTimeout(r, 850)')
+) {
+  console.log('[apply-live-boost] already live with status poll — skip');
   process.exit(0);
 }
+
+// If partially wired from an older apply, reset from mock is not available;
+// still try to inject from mock patterns below.
 
 const replacements = [
   {
     from: "import type { AuthSession } from './auth/AuthFlow';\nimport type { BoostPlatform",
-    to: "import type { AuthSession } from './auth/AuthFlow';\nimport {\n  placeBoostOrder,\n  cancelBoostOrder,\n  fetchBoostStatus,\n  isJapOrderId,\n  mapJapStatus,\n} from './boost/live-orders';\nimport type { BoostPlatform",
+    to: "import type { AuthSession } from './auth/AuthFlow';\nimport {\n  placeBoostOrder,\n  cancelBoostOrder,\n  fetchBoostStatus,\n  isJapOrderId,\n  mapJapStatus,\n  completionMessage,\n} from './boost/live-orders';\nimport type { BoostPlatform",
   },
 ];
 
@@ -146,37 +154,65 @@ const livePlace = `  const handlePlaceOrder = async () => {
     }
   };
 
-  const refreshOrderStatuses = async () => {
-    const live = orders.filter(
+  const refreshOrderStatuses = useCallback(async () => {
+    let current = orders;
+    try {
+      const raw = localStorage.getItem(BOOST_ORDERS_STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length) current = parsed;
+      }
+    } catch {}
+    const live = current.filter(
       (o) => isJapOrderId(o.id) && o.status !== 'completed' && o.status !== 'canceled',
     );
     if (!live.length) return;
-    const updated = [...orders];
+    const updated = current.map((o) => ({ ...o }));
     let changed = false;
+    const newlyCompleted = [];
     await Promise.all(
       live.map(async (o) => {
         const data = await fetchBoostStatus(o.id);
         if (!data.ok) return;
         const idx = updated.findIndex((x) => x.id === o.id);
         if (idx < 0) return;
+        const nextStatus = mapJapStatus(data.status);
         const remains =
           data.remains != null && data.remains !== ''
             ? Number(data.remains)
             : updated[idx].remains;
+        const prev = updated[idx].status;
         updated[idx] = {
           ...updated[idx],
-          status: mapJapStatus(data.status),
+          status: nextStatus,
           charge: data.charge != null ? String(data.charge) : updated[idx].charge,
           remains: Number.isFinite(remains) ? remains : updated[idx].remains,
           startCount:
             data.startCount != null ? String(data.startCount) : updated[idx].startCount,
           currency: data.currency != null ? String(data.currency) : updated[idx].currency,
         };
-        changed = true;
+        if (prev !== 'completed' && nextStatus === 'completed') newlyCompleted.push(updated[idx]);
+        if (prev !== nextStatus || data.remains != null || data.charge != null) changed = true;
       }),
     );
-    if (changed) saveOrders(updated);
-  };`;
+    if (changed) {
+      setOrders(updated);
+      try {
+        localStorage.setItem(BOOST_ORDERS_STORAGE_KEY, JSON.stringify(updated));
+      } catch {}
+    }
+    for (const o of newlyCompleted) {
+      showToast(completionMessage(o.serviceTitle, o.platform));
+    }
+  }, [orders, showToast]);
+
+  useEffect(() => {
+    void refreshOrderStatuses();
+    const t = window.setInterval(() => {
+      void refreshOrderStatuses();
+    }, 20000);
+    return () => window.clearInterval(t);
+  }, [refreshOrderStatuses]);`;
 
 if (text.includes(mockPlace)) {
   text = text.replace(mockPlace, livePlace);
