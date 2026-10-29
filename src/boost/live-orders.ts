@@ -20,6 +20,18 @@ export function mapJapStatus(raw: string | undefined): LiveOrderStatus {
   return 'processing';
 }
 
+/** User-facing line when a boost finishes, e.g. "Your TikTok Followers order has been completed" */
+export function completionMessage(serviceTitle: string, platform?: string): string {
+  const title = String(serviceTitle || 'Boost').trim();
+  const short =
+    title.length > 48 ? title.slice(0, 45).replace(/\s+\S*$/, '') + '…' : title;
+  const plat = String(platform || '').trim();
+  if (plat && !short.toLowerCase().includes(plat.toLowerCase())) {
+    return `Your ${plat} — ${short} order has been completed`;
+  }
+  return `Your ${short} order has been completed`;
+}
+
 async function authHeaders(): Promise<{
   headers: Record<string, string>;
   userId: string;
