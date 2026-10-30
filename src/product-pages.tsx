@@ -730,20 +730,31 @@ export function AccountsPage({ onBack, session }: { onBack: () => void; session?
         )}
       </div>
 
-      {/* Single-line filter pills */}
+      {/* Single-line filter pills with full names */}
       <div className="accounts-chips" role="tablist" aria-label="Platforms">
-        {PLATFORMS.map((p) => (
-          <button
-            key={p}
-            type="button"
-            role="tab"
-            aria-selected={platform === p}
-            className={platform === p ? 'chip active' : 'chip'}
-            onClick={() => setPlatform(p)}
-          >
-            {p}
-          </button>
-        ))}
+        {PLATFORMS.map((p) => {
+          const count =
+            p === 'All'
+              ? CATALOG.length
+              : CATALOG.filter((prod: AccountProduct) => {
+                  if (p === 'X / Twitter') return prod.platform === 'X' || prod.platform === 'X / Twitter';
+                  return prod.platform === p;
+                }).length;
+
+          return (
+            <button
+              key={p}
+              type="button"
+              role="tab"
+              aria-selected={platform === p}
+              className={platform === p ? 'chip active' : 'chip'}
+              onClick={() => setPlatform(p)}
+            >
+              <span>{p}</span>
+              {count > 0 && <span className="chip-count">{count}</span>}
+            </button>
+          );
+        })}
       </div>
 
       <div className="accounts-meta-row">
@@ -931,14 +942,15 @@ function AccountDetail({
           </button>
         </div>
 
-        {/* Scrollable Specification Box (Primex-style, hardened for Verxor fintech) */}
-        <div className="detail-scroll-box" tabIndex={0} aria-label="Product specification and terms">
-          <div className="detail-scroll-section">
+        {/* AccsMarket-style bold flow description (no nested scrollbox) */}
+        <div className="detail-bold-flow">
+          <div className="detail-desc-block">
+            <strong className="detail-section-title">Description</strong>
             <p className="detail-lead">{product.description}</p>
           </div>
 
-          <div className="detail-scroll-section">
-            <strong>Key Features</strong>
+          <div className="detail-features-block">
+            <strong className="detail-section-title">Key Features</strong>
             <ul className="detail-bullets">
               {product.bullets.map((b) => (
                 <li key={b}>
@@ -955,15 +967,15 @@ function AccountDetail({
             {product.twoFa && <span>2FA Enabled</span>}
           </div>
 
-          <div className="detail-scroll-section">
-            <strong>Account Format</strong>
+          <div className="detail-format-block">
+            <strong className="detail-section-title">Account Format</strong>
             <div className="detail-format-pill">
               <code>{product.format}</code>
             </div>
           </div>
 
-          <div className="detail-scroll-section">
-            <strong>How to Use &amp; Login Rules</strong>
+          <div className="detail-rules-block">
+            <strong className="detail-section-title">How to Use &amp; Login Rules</strong>
             <ol className="detail-rules-list">
               <li>Purchase only what you need for a first test (e.g. 1–10 units).</li>
               <li>Open credentials only after delivery is confirmed in History.</li>
