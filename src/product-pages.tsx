@@ -92,7 +92,7 @@ const CATALOG: AccountProduct[] = [
     id: 'fb-usa-aged',
     platform: 'Facebook',
     subtype: 'USA Aged',
-    title: 'Facebook USA · Aged',
+    title: 'PVA Facebook With 2FA and Email Access - USA Aged (2-4 Years)',
     shortTitle: 'Facebook Aged USA',
     description:
       'Aged Facebook accounts registered from USA IP. Email verified where noted. Suitable for page management and advertising warm-up. Cookies included when marked.',
@@ -120,7 +120,7 @@ const CATALOG: AccountProduct[] = [
     id: 'fb-with-page',
     platform: 'Facebook',
     subtype: 'With Page',
-    title: 'Facebook · With Page',
+    title: 'Facebook With Page - 1-3 Yrs Mixed, Cookies & Email Access',
     shortTitle: 'Facebook With Page',
     description:
       'Facebook accounts that include an existing page. Useful when you need ready page structure without creating from a cold profile.',
@@ -147,7 +147,7 @@ const CATALOG: AccountProduct[] = [
     id: 'fb-softreg',
     platform: 'Facebook',
     subtype: 'Softreg',
-    title: 'Facebook · Softreg',
+    title: 'Facebook Softreg - New to 6 Months, Volume Testing Batch',
     shortTitle: 'Facebook Softreg',
     description:
       'Soft-registered Facebook accounts. Lower age / lighter history. Best for volume testing before upgrading to aged stock.',
@@ -169,7 +169,7 @@ const CATALOG: AccountProduct[] = [
     id: 'ig-aged-2019',
     platform: 'Instagram',
     subtype: 'Aged',
-    title: 'Instagram · Aged 2019+',
+    title: 'Instagram Aged 2019+ - Email Access & Cookies Included',
     shortTitle: 'Instagram Aged',
     description:
       'Aged Instagram accounts with email access on selected lots. Higher trust for organic and automation workflows when used with proper proxies.',
@@ -196,7 +196,7 @@ const CATALOG: AccountProduct[] = [
     id: 'ig-followers',
     platform: 'Instagram',
     subtype: 'With Followers',
-    title: 'Instagram · 1K–5K Followers',
+    title: 'Instagram With 1K-5K Followers - Organic Followers Lot',
     shortTitle: 'IG 1K–5K',
     description:
       'Instagram accounts in the 1K–5K follower band. Follower quality and engagement are lot-dependent. Review description before bulk orders.',
@@ -218,7 +218,7 @@ const CATALOG: AccountProduct[] = [
     id: 'ig-pva',
     platform: 'Instagram',
     subtype: 'PVA',
-    title: 'Instagram · PVA',
+    title: 'Instagram PVA - Fresh Phone Verified, Clean Residential IP',
     shortTitle: 'Instagram PVA',
     description:
       'Phone-verified Instagram accounts. Phone number is not retained after delivery unless stated. Ideal for recovery-ready sessions.',
@@ -240,7 +240,7 @@ const CATALOG: AccountProduct[] = [
     id: 'tt-aged',
     platform: 'TikTok',
     subtype: 'Aged',
-    title: 'TikTok · Aged',
+    title: 'TikTok Aged 2024+ - USA/Canada/Mixed IP, Clean History',
     shortTitle: 'TikTok Aged',
     description:
       'Verified older TikTok accounts with higher trust levels and lower verification risk for automation, ads warm-up, and organic growth when used carefully.',
@@ -268,7 +268,7 @@ const CATALOG: AccountProduct[] = [
     id: 'tt-softreg',
     platform: 'TikTok',
     subtype: 'Softreg',
-    title: 'TikTok · Softreg',
+    title: 'TikTok Softreg - Volume Testing Lot, Fresh Registration',
     shortTitle: 'TikTok Softreg',
     description: 'Soft-registered TikTok accounts for volume testing. Lower cost, lower trust than aged lines.',
     bullets: ['Softreg batch', 'Instant delivery', 'Test small quantities first'],
@@ -289,7 +289,7 @@ const CATALOG: AccountProduct[] = [
     id: 'tt-followers',
     platform: 'TikTok',
     subtype: 'With Followers',
-    title: 'TikTok · With Followers',
+    title: 'TikTok With Followers - 1K+ Followers, Live Enabled Lot',
     shortTitle: 'TikTok Followers',
     description: 'TikTok accounts sold with an existing follower base. Follower quality varies by supplier lot.',
     bullets: ['Follower package included', 'Email status per SKU', 'Proxy recommended'],
@@ -310,7 +310,7 @@ const CATALOG: AccountProduct[] = [
     id: 'x-pva',
     platform: 'X / Twitter',
     subtype: 'PVA',
-    title: 'X (Twitter) · PVA',
+    title: 'X (Twitter) PVA - Aged/Fresh Phone Verified with Email Access',
     shortTitle: 'X PVA',
     description: 'Phone-verified X accounts. Native registration IP mixed. Email in set on selected lots.',
     bullets: ['Phone verified', 'Email in set on marked products', 'Registered with MIX IP on some lots'],
@@ -331,7 +331,7 @@ const CATALOG: AccountProduct[] = [
     id: 'gmail-pva',
     platform: 'Gmail',
     subtype: 'PVA + Recovery',
-    title: 'Gmail · PVA + Recovery',
+    title: 'Gmail PVA + Recovery - Registered from Clean IP with 2FA Ready',
     shortTitle: 'Gmail PVA',
     description: 'Phone-verified Gmail with recovery options on selected inventory. High utility as recovery email for other platforms.',
     bullets: ['Phone verified', 'Recovery path on premium lots', 'Instant delivery'],
@@ -352,7 +352,7 @@ const CATALOG: AccountProduct[] = [
     id: 'tg-aged',
     platform: 'Telegram',
     subtype: 'Aged',
-    title: 'Telegram · Aged',
+    title: 'Telegram Aged Account - 1+ Years, Session + 2FA Included',
     shortTitle: 'Telegram Aged',
     description: 'Aged Telegram accounts. Session export format depends on supplier. Not all lots include 2FA.',
     bullets: ['Aged sessions', '2FA on selected lots', 'Use official clients carefully'],
@@ -373,7 +373,7 @@ const CATALOG: AccountProduct[] = [
     id: 'discord-aged',
     platform: 'Discord',
     subtype: 'Aged',
-    title: 'Discord · Aged',
+    title: 'Discord Aged Account - 1+ Years, Phone Verified Lot',
     shortTitle: 'Discord Aged',
     description: 'Aged Discord accounts for server growth and automation where allowed by Discord ToS.',
     bullets: ['Aged accounts', 'Email verified on many lots', 'Token format on delivery'],
@@ -394,7 +394,7 @@ const CATALOG: AccountProduct[] = [
     id: 'li-basic',
     platform: 'LinkedIn',
     subtype: 'Standard',
-    title: 'LinkedIn · Standard',
+    title: 'LinkedIn Standard Profile - Mixed/USA Region, Email Verified',
     shortTitle: 'LinkedIn',
     description: 'LinkedIn accounts for outreach and research workflows. Strict platform risk — use sparingly and with matching proxies.',
     bullets: ['Standard verification level', 'Email included on marked SKUs'],
@@ -415,7 +415,7 @@ const CATALOG: AccountProduct[] = [
     id: 'yt-aged',
     platform: 'YouTube',
     subtype: 'Aged',
-    title: 'YouTube · Aged Channel',
+    title: 'YouTube Aged Channel - 2+ Years, Verified Channel Lot',
     shortTitle: 'YouTube Aged Channel',
     description: 'Aged YouTube channels / accounts. Monetization status is never guaranteed unless explicitly stated on the SKU.',
     bullets: ['Aged channel', 'Email recovery path when included', 'No monetization promise unless listed'],
@@ -436,7 +436,7 @@ const CATALOG: AccountProduct[] = [
     id: 'threads-basic',
     platform: 'Threads',
     subtype: 'Standard',
-    title: 'Threads · Standard',
+    title: 'Threads Standard Profile - Linked Account Ready',
     shortTitle: 'Threads',
     description: 'Threads accounts linked to Instagram ecosystem where applicable. Stock and format follow provider delivery notes.',
     bullets: ['Standard Threads inventory', 'May require linked Instagram on some lots'],
@@ -457,7 +457,7 @@ const CATALOG: AccountProduct[] = [
     id: 'reddit-aged',
     platform: 'Reddit',
     subtype: 'Aged',
-    title: 'Reddit · Aged',
+    title: 'Reddit Aged Account - 1+ Years, Karma & History Included',
     shortTitle: 'Reddit Aged',
     description: 'Aged Reddit accounts for community participation. Karma and history vary by lot.',
     bullets: ['Aged accounts', 'Karma varies', 'Email on selected lots'],
@@ -478,7 +478,7 @@ const CATALOG: AccountProduct[] = [
     id: 'snap-basic',
     platform: 'Snapchat',
     subtype: 'Standard',
-    title: 'Snapchat · Standard',
+    title: 'Snapchat Standard Account - Clean Phone Verified',
     shortTitle: 'Snapchat',
     description: 'Snapchat accounts for testing and growth experiments. Device fingerprint discipline required.',
     bullets: ['Standard stock', 'Instant when available'],
@@ -783,29 +783,63 @@ export function AccountsPage({ onBack, session }: { onBack: () => void; session?
         </div>
       </div>
 
-      {/* Product grid */}
-      <div className="accounts-grid">
+      {/* Product list — Single-column (one-lane) layout */}
+      <div className="accounts-list">
         {filtered.map((p) => (
-          <article key={p.id} className="account-card-sq">
-            <div className="card-sq-top">
-              <span className="card-logo-wrap">
-                <BrandLogo platform={p.platform} size={36} />
-              </span>
-              <span className={badgeClass(p.badge || (p.instant ? 'INSTANT' : 'AGED'))}>
-                {p.badge || (p.instant ? 'INSTANT' : 'AGED')}
+          <article
+            key={p.id}
+            className="account-card-row"
+            onClick={() => setSelected(p)}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                setSelected(p);
+              }
+            }}
+          >
+            <div className="card-row-left">
+              <span className="card-row-logo-wrap">
+                <BrandLogo platform={p.platform} size={40} />
               </span>
             </div>
-            <strong className="card-sq-title">{p.shortTitle}</strong>
-            <span className="card-sq-sub">
-              {p.age} · {p.country}
-              {p.tags[0] ? ` · ${p.tags[0]}` : ''}
-            </span>
-            <div className="card-sq-stock">
-              <i className="stock-dot" /> {p.stock} in stock
+
+            <div className="card-row-main">
+              <div className="card-row-eyebrow">
+                <span className="card-platform-tag">{p.platform}</span>
+                <span className={badgeClass(p.badge || (p.instant ? 'INSTANT' : 'AGED'))}>
+                  {p.badge || (p.instant ? 'INSTANT' : 'AGED')}
+                </span>
+                {p.twoFa && <span className="card-mini-flag">2FA</span>}
+                {p.cookies && <span className="card-mini-flag">COOKIES</span>}
+              </div>
+
+              <h3 className="card-row-title">{p.title}</h3>
+
+              <div className="card-row-meta">
+                <span className="card-meta-spec">
+                  {p.age} · {p.country}
+                  {p.tags[0] ? ` · ${p.tags[0]}` : ''}
+                </span>
+                <span className="card-meta-stock">
+                  <i className="stock-dot" /> {p.stock.toLocaleString()} in stock
+                </span>
+              </div>
             </div>
-            <div className="card-sq-bottom">
-              <strong>{money(p.price)}</strong>
-              <button type="button" onClick={() => setSelected(p)}>
+
+            <div className="card-row-right">
+              <div className="card-row-price-wrap">
+                <strong className="card-row-price">{money(p.price)}</strong>
+              </div>
+              <button
+                type="button"
+                className="card-row-buy-btn"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelected(p);
+                }}
+              >
                 Buy →
               </button>
             </div>
@@ -853,6 +887,7 @@ function AccountDetail({
   const [qty, setQty] = useState(1);
   const total = product.price * qty;
   const maxQty = Math.min(product.stock, 50);
+  const isBalanceSufficient = wallet >= total;
 
   function tryCheckout() {
     if (qty > product.stock) {
@@ -860,7 +895,9 @@ function AccountDetail({
       return;
     }
     if (total > wallet) {
-      onCheckoutBlocked('Insufficient wallet balance. Fund your wallet first.');
+      onCheckoutBlocked(
+        `Insufficient wallet balance. You need ${money(total - wallet)} more. Fund your wallet first.`,
+      );
       return;
     }
     onCheckoutBlocked(
@@ -879,13 +916,13 @@ function AccountDetail({
       >
         <div className="detail-sheet-head">
           <div className="detail-head-main">
-            <BrandLogo platform={product.platform} size={40} />
+            <BrandLogo platform={product.platform} size={42} />
             <div>
               <span className="accounts-eyebrow">{product.platform}</span>
               <h2 id="detail-title">{product.title}</h2>
               <small>
                 {product.age} · {product.country}
-                {product.sold != null ? ` · ${product.sold} sold` : ''}
+                {product.sold != null ? ` · ${product.sold.toLocaleString()} sold` : ''}
               </small>
             </div>
           </div>
@@ -894,39 +931,77 @@ function AccountDetail({
           </button>
         </div>
 
-        {/* Full provider description — uncut */}
-        <p className="detail-lead">{product.description}</p>
+        {/* Scrollable Specification Box (Primex-style, hardened for Verxor fintech) */}
+        <div className="detail-scroll-box" tabIndex={0} aria-label="Product specification and terms">
+          <div className="detail-scroll-section">
+            <p className="detail-lead">{product.description}</p>
+          </div>
 
-        <ul className="detail-bullets">
-          {product.bullets.map((b) => (
-            <li key={b}>
-              <Check size={14} /> {b}
-            </li>
-          ))}
-        </ul>
+          <div className="detail-scroll-section">
+            <strong>Key Features</strong>
+            <ul className="detail-bullets">
+              {product.bullets.map((b) => (
+                <li key={b}>
+                  <Check size={14} /> {b}
+                </li>
+              ))}
+            </ul>
+          </div>
 
-        <div className="detail-flags">
-          {product.instant && <span>Instant</span>}
-          {product.cookies && <span>Cookies</span>}
-          {product.emailIncluded && <span>Email</span>}
-          {product.twoFa && <span>2FA</span>}
+          <div className="detail-flags">
+            {product.instant && <span>Instant Delivery</span>}
+            {product.cookies && <span>Cookies Included</span>}
+            {product.emailIncluded && <span>Email Access</span>}
+            {product.twoFa && <span>2FA Enabled</span>}
+          </div>
+
+          <div className="detail-scroll-section">
+            <strong>Account Format</strong>
+            <div className="detail-format-pill">
+              <code>{product.format}</code>
+            </div>
+          </div>
+
+          <div className="detail-scroll-section">
+            <strong>How to Use &amp; Login Rules</strong>
+            <ol className="detail-rules-list">
+              <li>Purchase only what you need for a first test (e.g. 1–10 units).</li>
+              <li>Open credentials only after delivery is confirmed in History.</li>
+              <li>Use a clean proxy matching the registration region when possible.</li>
+              <li>Change password and secure recovery after first successful login.</li>
+            </ol>
+          </div>
+
+          <div className="detail-guarantee-box">
+            <ShieldCheck size={16} />
+            <div>
+              <strong>24-Hour Guarantee Policy</strong>
+              <p>
+                We guarantee for 24 hours after account delivery for any invalid accounts or
+                accounts that cannot be logged in. No replacement or guarantee after accounts are
+                logged in successfully.
+              </p>
+            </div>
+          </div>
         </div>
 
-        <div className="detail-block">
-          <strong>Account format</strong>
-          <code>{product.format}</code>
+        {/* 3-Pill Metric Bar: In Stock, Min Qty, Per Account */}
+        <div className="detail-metrics-strip">
+          <div className="detail-metric-card">
+            <span>In Stock</span>
+            <strong>{product.stock.toLocaleString()}</strong>
+          </div>
+          <div className="detail-metric-card">
+            <span>Min Qty</span>
+            <strong>1</strong>
+          </div>
+          <div className="detail-metric-card">
+            <span>Per Account</span>
+            <strong>{money(product.price)}</strong>
+          </div>
         </div>
 
-        <div className="detail-block">
-          <strong>How to use</strong>
-          <ol>
-            <li>Purchase only what you need for a first test (e.g. 1–10 units).</li>
-            <li>Open credentials only after delivery is confirmed in History.</li>
-            <li>Use a proxy matching the registration region when possible.</li>
-            <li>Change password and secure recovery after first successful login.</li>
-          </ol>
-        </div>
-
+        {/* Quantity Stepper & Price Calculation */}
         <div className="detail-qty-row">
           <span>Quantity</span>
           <div className="qty-stepper">
@@ -952,21 +1027,27 @@ function AccountDetail({
 
         <div className="detail-price-row">
           <div>
-            <span>Total</span>
+            <span>Total Payable</span>
             <small>
-              {money(product.price)} × {qty} · {product.stock} available
+              {money(product.price)} × {qty}
             </small>
           </div>
           <strong>{money(total)}</strong>
         </div>
 
-        <PrimaryButton onClick={tryCheckout}>
-          <ShieldCheck size={17} /> Continue to checkout
+        <div className="detail-wallet-indicator">
+          <span>Wallet balance:</span>
+          <strong>{money(wallet)}</strong>
+        </div>
+
+        <PrimaryButton onClick={tryCheckout} className="detail-order-btn">
+          <ShieldCheck size={18} />{' '}
+          {isBalanceSufficient ? `Order Now · ${money(total)}` : `Fund Wallet (${money(total)})`}
         </PrimaryButton>
 
         <p className="detail-footnote">
-          Credentials are never shown in the catalog. Delivery happens only after a successful wallet
-          debit and provider confirmation. Descriptions above come from the supplier listing.
+          Credentials are never shown in public catalog. Immediate automated delivery to your
+          Transaction History upon confirmation.
         </p>
       </section>
     </div>
