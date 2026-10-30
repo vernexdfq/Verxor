@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { calculateSmmPriceNgn, SMM_MAX_USD_CUTOFF } from '@/lib/providers/smm';
 import { isSmmConfigured, smmAddOrder, smmFindService } from '@/lib/providers/smm-orders';
+import { sendBoostReceipt } from '@/lib/email/receipts';
 import { supabaseConfigured } from '@/lib/supabase-admin';
 
 export const dynamic = 'force-dynamic';
@@ -212,6 +213,24 @@ export async function POST(req: NextRequest) {
       link,
       quantity,
     });
+
+    if (userId) {
+      try {
+        const mail = await sendBoostReceipt(userId, {
+          platform: service.platformName || service.platform,
+          serviceTitle: service.title,
+          quantity,
+          link,
+          orderId: String(result.order),
+          amountNgn: amount,
+          status: 'Processing',
+          date: new Date(),
+        });
+        if (!mail.ok) console.warn('[email] Boost order receipt not sent:', mail.error);
+      } catch (err) {
+        console.warn('[email] Boost order receipt dispatch failed:', err);
+      }
+    }
 
     return NextResponse.json({
       ok: true,

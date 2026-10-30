@@ -35,3 +35,36 @@ export const sendVirtualNumberReceipt = (userId: string, receipt: Omit<ReceiptTe
 
 export const sendWalletFundingReceipt = (userId: string, receipt: Omit<ReceiptTemplateOptions, 'service'>) =>
   sendFintechReceipt(userId, { ...receipt, service: 'wallet-funding' });
+
+import {
+  buildBoostReceiptHtml,
+  boostReceiptSubject,
+  type BoostReceiptOptions,
+} from './receipt-template';
+
+export async function sendBoostReceipt(
+  userId: string,
+  receipt: BoostReceiptOptions,
+): Promise<SendEmailResult> {
+  try {
+    const rows = (await sbSelect(
+      'profiles',
+      `select=email,full_name&id=eq.${encodeURIComponent(userId)}&limit=1`,
+    )) as Array<{
+      email?: string | null;
+      full_name?: string | null;
+    }>;
+    const profile = rows?.[0];
+    if (!profile?.email) return { ok: false, error: 'Customer email not found' };
+    return await sendEmail({
+      to: profile.email,
+      subject: boostReceiptSubject(receipt),
+      html: buildBoostReceiptHtml({
+        ...receipt,
+        customerName: receipt.customerName || profile.full_name || undefined,
+      }),
+    });
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : 'Boost receipt dispatch failed' };
+  }
+}

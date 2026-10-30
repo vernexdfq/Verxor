@@ -104,18 +104,52 @@ export async function cancelBoostOrder(input: {
   return { ok: true, message: data?.message };
 }
 
-export async function fetchBoostStatus(orderId: string): Promise<{
+export type BoostStatusOrderMeta = {
+  platform?: string;
+  serviceTitle?: string;
+  quantity?: number;
+  link?: string;
+  amountNgn?: number;
+  createdAt?: string;
+  notifyCompleted?: boolean;
+};
+
+export async function fetchBoostStatus(
+  orderId: string,
+  meta?: BoostStatusOrderMeta,
+): Promise<{
   ok: boolean;
   status?: string;
   charge?: string;
   remains?: string | number;
   startCount?: string;
   currency?: string;
+  notified?: boolean;
 }> {
   try {
-    const res = await fetch(`/api/v1/boost/status?orderId=${encodeURIComponent(orderId)}`, {
-      cache: 'no-store',
-    });
+    let res: Response;
+    if (meta && meta.notifyCompleted) {
+      const { headers, userId } = await authHeaders();
+      res = await fetch('/api/v1/boost/status', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          orderId,
+          notifyCompleted: true,
+          platform: meta.platform,
+          serviceTitle: meta.serviceTitle,
+          quantity: meta.quantity,
+          link: meta.link,
+          amountNgn: meta.amountNgn,
+          createdAt: meta.createdAt,
+          userId: userId || undefined,
+        }),
+      });
+    } else {
+      res = await fetch(`/api/v1/boost/status?orderId=${encodeURIComponent(orderId)}`, {
+        cache: 'no-store',
+      });
+    }
     const data = await res.json().catch(() => ({} as any));
     if (!res.ok || !data.ok) return { ok: false };
     return {
@@ -125,6 +159,7 @@ export async function fetchBoostStatus(orderId: string): Promise<{
       remains: data.remains,
       startCount: data.startCount,
       currency: data.currency,
+      notified: Boolean(data.notified),
     };
   } catch {
     return { ok: false };

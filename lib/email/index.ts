@@ -6,11 +6,13 @@ export {
   type ReceiptService,
   type ReceiptStatus,
   type ReceiptTemplateOptions,
+  type BoostReceiptOptions,
 } from './receipt-template';
 export {
   sendAirtimeReceipt,
   sendDataReceipt,
   sendFintechReceipt,
   sendVirtualNumberReceipt,
+  sendBoostReceipt,
   sendWalletFundingReceipt,
 } from './receipts';

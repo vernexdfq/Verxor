@@ -83,7 +83,15 @@ const newRefresh = `  const refreshOrderStatuses = async () => {
     const doneTitles: string[] = [];
     await Promise.all(
       live.map(async (o) => {
-        const data = await fetchBoostStatus(String(o.id));
+        const data = await fetchBoostStatus(String(o.id), {
+          platform: o.platform,
+          serviceTitle: o.serviceTitle,
+          quantity: o.quantity,
+          link: o.targetUrl,
+          amountNgn: o.amount,
+          createdAt: o.createdAt,
+          notifyCompleted: true,
+        });
         if (!data.ok) return;
         const idx = updated.findIndex((x) => String(x.id) === String(o.id));
         if (idx < 0) return;
