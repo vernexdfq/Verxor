@@ -1,7 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
-  "buildCommand": "node scripts/restore-smm-phase-a.cjs && node scripts/restore-boost-route.cjs && node scripts/apply-live-boost.cjs && node scripts/inflate-boost-page.cjs && node scripts/wire-boost-orders.cjs && next build",
+  "buildCommand": "node scripts/restore-smm-phase-a.cjs && node scripts/restore-boost-route.cjs && node scripts/patch-boost-persist.cjs && node scripts/apply-live-boost.cjs && node scripts/inflate-boost-page.cjs && node scripts/wire-boost-orders.cjs && next build",
   "installCommand": "npm install",
   "regions": ["iad1"]
 }
