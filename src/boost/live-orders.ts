@@ -165,3 +165,38 @@ export async function fetchBoostStatus(
     return { ok: false };
   }
 }
+
+export async function fetchBoostOrders(): Promise<{
+  ok: boolean;
+  orders: Array<{
+    id: string;
+    serviceId: string;
+    serviceTitle: string;
+    platform: string;
+    targetUrl: string;
+    quantity: number;
+    amount: number;
+    status: string;
+    createdAt: string;
+    charge?: string;
+    remains?: number;
+    startCount?: string;
+    currency?: string;
+  }>;
+}> {
+  try {
+    const { headers } = await authHeaders();
+    const res = await fetch('/api/v1/boost/orders', {
+      headers,
+      cache: 'no-store',
+    });
+    const data = await res.json().catch(() => ({} as any));
+    if (!res.ok || !data.ok) {
+      return { ok: false, orders: [] };
+    }
+    const orders = Array.isArray(data.orders) ? data.orders : [];
+    return { ok: true, orders };
+  } catch {
+    return { ok: false, orders: [] };
+  }
+}
