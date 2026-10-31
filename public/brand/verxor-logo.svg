@@ -1,13 +1,20 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-labelledby="title">
   <title id="title">Verxor</title>
-  <defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#06133D"/><stop offset="1" stop-color="#001B57"/></linearGradient></defs>
-  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
-  <g fill="#fff">
-    <rect x="82" y="102" width="57" height="57" rx="13"/>
-    <rect x="48" y="183" width="57" height="57" rx="13"/>
-    <rect x="72" y="282" width="57" height="57" rx="13"/>
-    <rect x="145" y="347" width="57" height="57" rx="13"/>
-    <rect x="153" y="264" width="116" height="57" rx="13"/>
-    <path d="M273 102h66c88 0 139 58 139 154S427 410 339 410H222c-11 0-17-8-10-17l42-50h85c55 0 82-32 82-87s-27-87-82-87h-68l-31-36c-8-10-1-31 15-31Z"/>
+  <defs>
+    <linearGradient id="background" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0" stop-color="#020B3D"/>
+      <stop offset="0.56" stop-color="#062A91"/>
+      <stop offset="1" stop-color="#075BFF"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#background)"/>
+  <g fill="#FFFFFF">
+    <rect x="150" y="118" width="48" height="48" rx="10"/>
+    <rect x="93" y="171" width="48" height="48" rx="10"/>
+    <rect x="74" y="244" width="48" height="48" rx="10"/>
+    <rect x="114" y="329" width="48" height="48" rx="10"/>
+    <rect x="176" y="282" width="48" height="48" rx="10"/>
+    <rect x="164" y="213" width="104" height="48" rx="10"/>
+    <path d="M232 118h64c79 0 126 55 126 138S375 394 296 394H223c-10 0-15-7-9-15l35-42h47c48 0 73-29 73-81s-25-81-73-81h-49l-27-31c-7-8-2-26 12-26Z"/>
   </g>
 </svg>
