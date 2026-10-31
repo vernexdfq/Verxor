@@ -39,15 +39,11 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: '/favicon.ico', sizes: '48x48' },
-      { url: '/brand/favicon-32x32.png', sizes: '32x32', type: 'image/png' },
-      { url: '/brand/favicon-48x48.png', sizes: '48x48', type: 'image/png' },
-      { url: '/brand/verxor-logo-512.png', sizes: '512x512', type: 'image/png' },
-      { url: '/brand/verxor-logo.svg', type: 'image/svg+xml' },
+      { url: '/brand/verxor-logo.svg', type: 'image/svg+xml', sizes: 'any' },
     ],
-    shortcut: '/favicon.ico',
+    shortcut: '/brand/verxor-logo.svg',
     apple: [
-      { url: '/brand/apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
+      { url: '/brand/verxor-logo.svg', type: 'image/svg+xml' },
     ],
   },
   openGraph: {
@@ -108,7 +104,7 @@ const organizationJsonLd = {
   '@type': 'Organization',
   name: 'Verxor',
   url: 'https://verxor.com',
-  logo: 'https://verxor.com/brand/verxor-logo-512.png',
+  logo: 'https://verxor.com/brand/verxor-logo.svg',
   description:
     'Digital services platform offering virtual numbers, eSIMs, VTU (airtime, data, bills), proxies, gift cards, virtual cards, SMM and partner API access.',
   sameAs: [],
