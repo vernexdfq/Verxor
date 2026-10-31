@@ -37,6 +37,8 @@ function hashKey(apiKey: string): string {
   return createHash('sha256').update(apiKey).digest('hex');
 }
 
+const DEFAULT_ALLOWED_PRODUCTS = ['virtual_numbers', 'boost', 'smm'];
+
 export async function resolvePanelClient(req: Request): Promise<PanelClient | null> {
   const apiKey = extractApiKey(req);
   if (!apiKey) return null;
@@ -47,7 +49,7 @@ export async function resolvePanelClient(req: Request): Promise<PanelClient | nu
       id: 'env-panel',
       name: process.env.VERXOR_PANEL_NAME || 'Child Panel',
       markupPercent: Number(process.env.VERXOR_PANEL_MARKUP_PCT || 15) || 15,
-      allowedProducts: ['virtual_numbers', 'boost', 'smm'],
+      allowedProducts: DEFAULT_ALLOWED_PRODUCTS,
       walletUserId: (process.env.VERXOR_PANEL_WALLET_USER_ID || '').trim() || null,
       ownerEmail: (process.env.VERXOR_PANEL_ADMIN_EMAIL || process.env.VERXOR_PANEL_OWNER_EMAIL || '').trim().toLowerCase() || null,
       source: 'env',
@@ -76,11 +78,26 @@ export async function resolvePanelClient(req: Request): Promise<PanelClient | nu
     const walletUserId = (meta.wallet_user_id || meta.walletUserId || '').trim() || null;
     const ownerEmail = (meta.owner_email || meta.ownerEmail || '').trim().toLowerCase() || null;
 
+    const fromDb = Array.isArray(row.allowed_products) ? row.allowed_products : null;
+    // Empty / missing array → full partner catalog. Legacy rows that only listed
+    // virtual_numbers still receive boost (same partner relationship).
+    let allowedProducts = fromDb && fromDb.length > 0 ? fromDb : DEFAULT_ALLOWED_PRODUCTS;
+    const lower = allowedProducts.map((p) => p.toLowerCase());
+    if (
+      lower.includes('virtual_numbers') ||
+      lower.includes('vn')
+    ) {
+      const next = new Set(allowedProducts.map(String));
+      if (!lower.includes('boost')) next.add('boost');
+      if (!lower.includes('smm')) next.add('smm');
+      allowedProducts = Array.from(next);
+    }
+
     return {
       id: row.id,
       name: row.name,
       markupPercent: Number(row.markup_percent ?? 15) || 15,
-      allowedProducts: Array.isArray(row.allowed_products) ? row.allowed_products : ['virtual_numbers'],
+      allowedProducts,
       walletUserId,
       ownerEmail,
       source: 'db',
@@ -108,7 +125,10 @@ export function panelAllowsBoost(panel: PanelClient): boolean {
     allowed.includes('boost') ||
     allowed.includes('smm') ||
     allowed.includes('*') ||
-    allowed.includes('all')
+    allowed.includes('all') ||
+    // Partner panels already approved for virtual numbers can place boost orders.
+    allowed.includes('virtual_numbers') ||
+    allowed.includes('vn')
   );
 }
 
