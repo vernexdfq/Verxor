@@ -1,17 +1,37 @@
 import type { Metadata } from 'next';
-import { ArrowRight, ArrowUpRight, Check, Code2, Globe2, Layers3, Lock, ShieldCheck, Smartphone, Wallet, Zap } from 'lucide-react';
-import { MarketingHeader, MarketingFooter, SectionHeading, ButtonLink, IconTile } from '../src/marketing/components';
-import { HeroRotator } from '../src/marketing/HeroRotator';
+import {
+  ArrowRight,
+  ArrowUpRight,
+  CheckCircle2,
+  ChevronRight,
+  Code2,
+  Cpu,
+  CreditCard,
+  Globe,
+  Layers,
+  Lock,
+  MessageSquare,
+  Radio,
+  Server,
+  Shield,
+  ShieldCheck,
+  Smartphone,
+  Sparkles,
+  TrendingUp,
+  Wallet,
+  Zap,
+} from 'lucide-react';
+import { MarketingHeader, MarketingFooter } from '../src/marketing/components';
 
 export const metadata: Metadata = {
-  title: 'Verxor — Secure SMS Verification & Digital Services',
+  title: 'Verxor — Global Digital Infrastructure for Africa’s Digital Economy',
   description:
-    'Get instant virtual numbers, airtime, data, and secure digital services in one smooth Verxor wallet. Fast delivery, reliable access, and built for modern users.',
+    'Use one wallet to access virtual numbers, travel eSIMs, Nigerian VTU services, virtual USD cards, social growth services, and developer options.',
   alternates: { canonical: '/' },
   openGraph: {
-    title: 'Verxor — Secure SMS Verification & Digital Services',
+    title: 'Verxor — Global Digital Infrastructure for Africa’s Digital Economy',
     description:
-      'Get instant virtual numbers, airtime, data, and secure digital services in one smooth Verxor wallet.',
+      'Explore virtual numbers, eSIM, VTU services, USD cards, social growth, and developer options from one platform.',
     url: 'https://verxor.com/',
     siteName: 'Verxor',
     type: 'website',
@@ -19,29 +39,184 @@ export const metadata: Metadata = {
   },
 };
 
-const services = [
-  { title: 'Virtual numbers', description: 'Explore numbers for supported SMS verification services, with availability shown before you order.', href: '/services/virtual-numbers', icon: Smartphone, tag: 'VERIFY', tone: 'blue' },
-  { title: 'Number rentals', description: 'Keep a number for a selected period where rental inventory and renewal options are available.', href: '/services/number-rentals', icon: Globe2, tag: 'STAY CONNECTED', tone: 'violet' },
-  { title: 'Airtime & data', description: 'A wallet-based way to access supported Nigerian airtime and data bundles.', href: '/services/vtu-api', icon: Zap, tag: 'EVERYDAY UTILITY', tone: 'green' },
-  { title: 'SMM services', description: 'Browse social media service options and review delivery details before placing an order.', href: '/services/smm', icon: Layers3, tag: 'SOCIAL TOOLS', tone: 'amber' },
-  { title: 'eSIM', description: 'Learn about digital SIM profiles and check availability and device compatibility.', href: '/services/esim', icon: Smartphone, tag: 'TRAVEL CONNECTIVITY', tone: 'cyan' },
-  { title: 'Proxies', description: 'Understand proxy options and the differences between residential and datacenter IPs.', href: '/services/proxies', icon: Globe2, tag: 'NETWORK TOOLS', tone: 'slate' },
-  { title: 'Virtual cards', description: 'Explore virtual card services, eligibility, fees and supported use cases.', href: '/services/virtual-cards', icon: Wallet, tag: 'DIGITAL PAYMENTS', tone: 'pink' },
-  { title: 'Gift cards', description: 'Review supported gift-card trading options, rates and transaction terms.', href: '/services/gift-cards', icon: Wallet, tag: 'GIFT CARD TRADING', tone: 'indigo' },
+const servicePills = [
+  { label: '📱 Virtual Numbers & Rentals', href: '#numbers' },
+  { label: '💳 USD Virtual Cards', href: '#cards' },
+  { label: '⚡ Data & Airtime', href: '#vtu' },
+  { label: '🚀 Social Growth & SMM', href: '#smm' },
+  { label: '🌍 Global eSIMs', href: '#esim' },
+  { label: '🛡️ Residential Proxies', href: '#proxies' },
+  { label: '🔄 Gift Card Trading', href: '#giftcards' },
+  { label: '💻 White-Label Reseller API', href: '#api' },
 ];
 
-const audiences = [
-  { title: 'Individuals & consumers', description: 'Access supported digital services from one account and track your orders in one place.', href: '/workspace', label: 'Explore the platform', icon: Smartphone },
-  { title: 'Developers & API partners', description: 'Build on a service layer for supported digital products, with documented API access and partner onboarding.', href: '/api-partnership', label: 'Explore API access', icon: Code2 },
-  { title: 'Resellers & child-panel owners', description: 'Apply to operate a branded child panel with tenant-aware operations and server-enforced pricing rules.', href: '/child-panels', label: 'Explore reseller panels', icon: Layers3 },
+const numberStages = [
+  {
+    tier: 'STAGE 01',
+    name: 'Instant OTP Activation',
+    duration: '10–20 Minutes',
+    desc: 'A short-term number for a one-time verification. Availability, supported services, and refund eligibility are shown with the selected activation before you confirm.',
+    tag: 'One-Time Code',
+  },
+  {
+    tier: 'STAGE 02',
+    name: 'Single-Platform Rental',
+    duration: '7 to 90 Days',
+    desc: 'Keep one number assigned to a single selected platform for the rental period, so you can receive follow-up verification messages while the rental remains active.',
+    tag: 'Dedicated App',
+  },
+  {
+    tier: 'STAGE 03',
+    name: 'All-Platform OTP Rental',
+    duration: 'Retained Multi-Service',
+    desc: 'Use one retained number for supported verification messages from multiple services during the rental period. Service compatibility depends on the number and platform.',
+    tag: 'Multi-Service',
+  },
+  {
+    tier: 'STAGE 04',
+    name: 'Full Two-Way Mobile Line',
+    duration: 'Complete Telephony',
+    desc: 'A full two-way line with send-and-receive SMS and voice calling, where those features are available for the selected number.',
+    tag: '2-Way SMS & Calls',
+  },
 ];
 
-const faqs = [
-  ['What is Verxor?', 'Verxor is a digital-services platform designed to bring supported consumer services and partner infrastructure together in one ecosystem.'],
-  ['Which services can I use today?', 'Service availability depends on the product, current inventory, account eligibility and supported region. Check the relevant service page and the options shown in your account before ordering.'],
-  ['Does Verxor offer API access?', 'Eligible developers and businesses can review the API partnership information and apply for access. Approval, supported endpoints, pricing and limits are subject to the applicable plan and terms.'],
-  ['Can I run my own branded panel?', 'Businesses can apply for a child panel. Availability, onboarding requirements, fees, domain setup and pricing permissions are confirmed during review.'],
-  ['Are the prices and inventory fixed?', 'No. Prices and availability may change. The current quote and order details shown before confirmation govern a specific order.'],
+const vtuPillars = [
+  'MTN, Airtel, Glo & 9mobile SME / Corporate Data with 3-second automated delivery',
+  'Instant airtime top-up, airtime-to-cash conversion & recharge card printing e-pins',
+  'NEPA prepaid electricity meter tokens across all 11 Nigerian electricity DisCos',
+  'Cable TV subscriptions (DStv, GOtv, Startimes) with zero customer convenience fees',
+  'Instant educational scratch cards and e-pins for WAEC, NECO, and JAMB registration',
+  'Clean REST API with automated webhooks designed for VTU portals & child panels',
+];
+
+const faqsBySection = [
+  {
+    category: 'Virtual Numbers & SMS Rentals',
+    items: [
+      {
+        q: 'For services that verify by call instead of text, how does it work?',
+        a: 'For services that verify by voice call rather than SMS, our carrier telemetry captures the call audio and automatically extracts the spoken verification code from the audio transcript straight into your Verxor dashboard.',
+      },
+      {
+        q: 'Where are your numbers from?',
+        a: 'Number origin, supported services, and capabilities vary by listing. Check the details shown for a number before placing an order; third-party platforms may restrict or reject virtual numbers.',
+      },
+      {
+        q: 'When do you get new numbers?',
+        a: 'We restock our number pools continuously throughout each day. If a specific service happens to be temporarily out of stock, check back shortly as lines are continually replenished. We are constantly expanding our fleet to provide the highest availability.',
+      },
+      {
+        q: 'How long do your short-term / temporary numbers last?',
+        a: 'One-time activations are for a single verification session. For continued access, choose a rental and review its available duration and supported services before checkout.',
+      },
+      {
+        q: 'What can I use your numbers for?',
+        a: 'Supported services are listed in the number catalog. Availability depends on the selected number and the platform’s own verification rules; a platform may reject a virtual number.',
+      },
+      {
+        q: 'I live internationally, can I still use your numbers?',
+        a: 'You can use Verxor from supported locations with an internet connection. Number origins and delivery options depend on the listing you select.',
+      },
+      {
+        q: 'What happens if I do not receive an OTP code on an instant activation?',
+        a: 'Refund eligibility and timing depend on the activation status and the terms shown when you order. If a code does not arrive, follow the in-app order support steps.',
+      },
+    ],
+  },
+  {
+    category: 'VTU Data & Utility Bills',
+    items: [
+      {
+        q: 'How fast do airtime, data, and bill tokens deliver?',
+        a: 'Airtime, data, and bill-payment orders are processed automatically. Delivery time can vary by network, service, and provider response; check the order status in your account.',
+      },
+      {
+        q: 'What happens if a telco or DisCo network is down during my recharge?',
+        a: 'If an upstream carrier or utility disco experiences a temporary outage and fails to confirm delivery, the transaction fails gracefully and your wallet balance is reversed immediately.',
+      },
+      {
+        q: 'Can I connect my VTU website or mobile app to Verxor?',
+        a: 'API access is available for selected services. Check the developer documentation and your account dashboard for current endpoints, authentication, and event support.',
+      },
+      {
+        q: 'Do you offer discounted wholesale rates for volume data resellers?',
+        a: 'Yes, our platform provides dedicated wholesale reseller pricing tiers across all Nigerian telecom networks so you can vend data and airtime with healthy profit margins.',
+      },
+    ],
+  },
+  {
+    category: 'Virtual USD Cards',
+    items: [
+      {
+        q: 'Which merchants accept Verxor virtual USD cards?',
+        a: 'Acceptance depends on the merchant, card network, and card configuration. Review the card details and any usage restrictions before making a payment.',
+      },
+      {
+        q: 'How do I fund my virtual dollar card?',
+        a: 'Funding options, exchange rates, and fees are displayed in the card flow before confirmation. Review the applicable terms in your account.',
+      },
+      {
+        q: 'What happens if a card payment is refunded or fails?',
+        a: 'Merchant refunds, declined-payment fees, and 3D Secure support depend on the card terms and transaction. Check the card details in your account or contact support for help with a transaction.',
+      },
+    ],
+  },
+  {
+    category: 'Global Travel eSIM',
+    items: [
+      {
+        q: 'How do I activate my eSIM after purchase?',
+        a: 'After purchase, the setup instructions and activation details are provided for your plan. Your device must support eSIM, and installation time can vary.',
+      },
+      {
+        q: 'Can I keep my normal WhatsApp number while using the travel eSIM?',
+        a: 'Many eSIM-compatible phones support using a travel eSIM alongside a primary SIM. Check your device compatibility and plan coverage before purchase.',
+      },
+      {
+        q: 'How does the Developer & Reseller eSIM platform work?',
+        a: 'Developer and reseller eSIM options are available for eligible partners. Contact us for current coverage, integration requirements, and commercial terms.',
+      },
+    ],
+  },
+  {
+    category: 'Social Growth & SMM',
+    items: [
+      {
+        q: 'What social growth services are available?',
+        a: 'Verxor offers social growth services for individual users and businesses. Available services and their terms are shown in the catalog; use them in line with the relevant social platform’s rules.',
+      },
+      {
+        q: 'What discounts do Resellers and API users receive?',
+        a: 'Reseller and API access is available for selected services. Pricing, eligibility, and integration details are provided in the partnership information and account dashboard.',
+      },
+      {
+        q: 'How fast do SMM engagement orders start?',
+        a: 'Start times and service terms vary by catalog item. Review the estimated timing and any refill or cancellation terms shown before ordering.',
+      },
+      {
+        q: 'How does Verxor ensure safety when buying an established account or channel?',
+        a: 'Verxor does not offer account credentials or access transfers through this service. Social growth products are subject to the terms shown in the catalog and the relevant platform rules.',
+      },
+      {
+        q: 'Can I integrate Verxor’s SMM catalog into my own child panel?',
+        a: 'API availability and supported actions vary by service. Review the current documentation for catalog, balance, order, and status endpoints.',
+      },
+    ],
+  },
+  {
+    category: 'Residential Proxies & Gift Cards',
+    items: [
+      {
+        q: 'What is the difference between rotating and sticky proxies?',
+        a: 'Rotating sessions can change IP addresses between requests, while sticky sessions retain an address for a configured period. Available behavior and session limits depend on the selected proxy plan.',
+      },
+      {
+        q: 'How long does gift card verification take?',
+        a: 'Available gift card brands, rates, review steps, and expected settlement timing are shown in the gift card flow before you submit.',
+      },
+    ],
+  },
 ];
 
 const organizationSchema = {
@@ -50,342 +225,579 @@ const organizationSchema = {
   name: 'Verxor',
   url: 'https://verxor.com',
   logo: 'https://verxor.com/brand/verxor-logo.svg',
-  description: 'A digital-services platform for consumers, developers and reseller partners.',
+  description:
+    'Global digital infrastructure for Africa’s digital economy: virtual numbers, eSIM, VTU data, USD cards, SMM marketplace, and developer APIs.',
 };
-const websiteSchema = { '@context': 'https://schema.org', '@type': 'WebSite', name: 'Verxor', url: 'https://verxor.com', inLanguage: 'en' };
+
+const websiteSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'WebSite',
+  name: 'Verxor',
+  url: 'https://verxor.com',
+  inLanguage: 'en',
+};
 
 export default function HomePage() {
   return (
-    <>
+    <div className="vx-landing">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteSchema) }} />
+
       <MarketingHeader />
+
       <main>
-        <section className="mk-hero">
-          <div className="mk-hero-glow" aria-hidden="true" />
-          <div className="mk-container mk-hero-grid">
-            <div className="mk-hero-copy">
-              <HeroRotator />
-
-              <div className="mk-trusted-badge">
-                <ShieldCheck size={14} strokeWidth={2.4} />
-                Trusted Digital Verification Platform
-              </div>
-
-              <h1>
-                Secure SMS{' '}
-                <span>
-                  Verification & Digital
-                  <br />
-                  Services
-                </span>
-              </h1>
-
-              <p className="mk-hero-lead">
-                Get instant virtual numbers, airtime, data, and secure digital services in one smooth
-                Verxor wallet. Fast delivery, reliable access, and built for modern users.
-              </p>
-
-              <div className="mk-hero-actions">
-                <ButtonLink href="/workspace" variant="primary">
-                  Get started <ArrowRight size={17} />
-                </ButtonLink>
-                <ButtonLink href="#ecosystem" variant="secondary">
-                  Discover the ecosystem
-                </ButtonLink>
-              </div>
-
-              <div className="mk-feature-chips">
-                <span>
-                  <Zap size={14} strokeWidth={2.4} /> Instant Delivery
-                </span>
-                <span>
-                  <Globe2 size={14} strokeWidth={2.4} /> 200+ Countries
-                </span>
-                <span>
-                  <Lock size={14} strokeWidth={2.4} /> Secure Wallet
-                </span>
-                <span>
-                  <Smartphone size={14} strokeWidth={2.4} /> Mobile-first
-                </span>
-              </div>
+        {/* HERO SECTION */}
+        <section className="vx-hero">
+          <div className="vx-hero-bg-glow" aria-hidden="true" />
+          <div className="vx-container vx-hero-content">
+            <div className="vx-status-pill">
+              <span className="vx-status-dot" />
+              <span>GLOBAL DIGITAL SERVICES · ONE WALLET EXPERIENCE</span>
             </div>
 
-            <div className="mk-hero-art" aria-label="Illustrative preview of the Verxor digital services workspace">
-              <div className="mk-orbit mk-orbit-one" />
-              <div className="mk-orbit mk-orbit-two" />
-              <div className="mk-preview-window">
-                <div className="mk-preview-top">
-                  <div className="mk-preview-brand">
-                    <img src="/brand/verxor-logo.svg" alt="" />
-                    <span>Verxor workspace</span>
-                  </div>
-                  <span className="mk-preview-pill">PRODUCT PREVIEW</span>
-                </div>
-                <div className="mk-preview-welcome">
-                  <div>
-                    <span className="mk-mini-label">YOUR DIGITAL HUB</span>
-                    <h2>One place to get things moving.</h2>
-                  </div>
-                  <div className="mk-preview-avatar">V</div>
-                </div>
-                <div className="mk-balance-card">
-                  <div className="mk-balance-head">
-                    <span>Illustrative wallet</span>
-                    <span className="mk-balance-status">
-                      <span /> Overview
-                    </span>
-                  </div>
-                  <strong>
-                    ₦128,450<span>.00</span>
-                  </strong>
-                  <div className="mk-balance-foot">
-                    <span>Sample balance · not live account data</span>
-                    <span className="mk-balance-mark">
-                      <Wallet size={17} />
-                    </span>
-                  </div>
-                </div>
-                <div className="mk-preview-services">
-                  <div>
-                    <IconTile icon={Smartphone} tone="blue" />
-                    <span>
-                      <b>Virtual numbers</b>
-                      <small>SMS verification</small>
-                    </span>
-                    <ArrowUpRight size={16} />
-                  </div>
-                  <div>
-                    <IconTile icon={Zap} tone="green" />
-                    <span>
-                      <b>Airtime & data</b>
-                      <small>Everyday utilities</small>
-                    </span>
-                    <ArrowUpRight size={16} />
-                  </div>
-                  <div>
-                    <IconTile icon={Code2} tone="violet" />
-                    <span>
-                      <b>API platform</b>
-                      <small>For builders</small>
-                    </span>
-                    <ArrowUpRight size={16} />
-                  </div>
-                </div>
-              </div>
-              <div className="mk-float-card mk-float-left">
-                <span className="mk-float-icon">
-                  <Check size={16} />
-                </span>
-                <span>
-                  <b>Track each order</b>
-                  <small>Clear status updates</small>
-                </span>
-              </div>
-              <div className="mk-float-card mk-float-right">
-                <span className="mk-float-icon mk-float-blue">
-                  <Layers3 size={16} />
-                </span>
-                <span>
-                  <b>Built to connect</b>
-                  <small>Services & integrations</small>
-                </span>
-              </div>
-            </div>
-          </div>
-          <div className="mk-container mk-hero-bottom">
-            <span>ONE ECOSYSTEM</span>
-            <div />
-            <span>CONSUMERS</span>
-            <div />
-            <span>DEVELOPERS</span>
-            <div />
-            <span>RESELLERS</span>
-          </div>
-        </section>
+            <h1 className="vx-hero-title">
+              Global Digital Infrastructure for <span>Africa’s Digital Economy.</span>
+            </h1>
 
-        <section className="mk-section mk-audience-section" id="ecosystem">
-          <div className="mk-container">
-            <SectionHeading
-              eyebrow="MADE FOR DIFFERENT WAYS TO GROW"
-              title="One platform. Three paths forward."
-              description="Whether you need a digital service, want to integrate an API, or plan to run your own branded panel, start with the path that fits you."
-            />
-            <div className="mk-audience-grid">
-              {audiences.map(({ title, description, href, label, icon: Icon }, i) => (
-                <article className={'mk-audience-card mk-audience-' + i} key={title}>
-                  <div className="mk-audience-icon">
-                    <Icon size={21} />
-                  </div>
-                  <span className="mk-card-index">0{i + 1} / YOUR PATH</span>
-                  <h3>{title}</h3>
-                  <p>{description}</p>
-                  <a href={href}>
-                    {label}
-                    <ArrowRight size={16} />
-                  </a>
-                </article>
-              ))}
-            </div>
-          </div>
-        </section>
+            <p className="vx-hero-sub">
+              Use one wallet to access digital services and everyday utilities. Built with developer options for creators,
+              agencies, and businesses.
+            </p>
 
-        <section className="mk-section mk-services-section" id="services">
-          <div className="mk-container">
-            <SectionHeading
-              eyebrow="EXPLORE THE ECOSYSTEM"
-              title="Useful services, thoughtfully brought together."
-              description="Start with the service you need. Each overview explains the basics, important limitations and where to continue."
-            />
-            <div className="mk-service-grid">
-              {services.map(({ title, description, href, icon: Icon, tag, tone }, i) => (
-                <a className={'mk-service-card mk-service-' + tone} href={href} key={title}>
-                  <div className="mk-service-top">
-                    <IconTile icon={Icon} tone={tone} />
-                    <span>{tag}</span>
-                  </div>
-                  <h3>{title}</h3>
-                  <p>{description}</p>
-                  <span className="mk-service-link">
-                    Explore service <ArrowUpRight size={16} />
-                  </span>
-                  <span className="mk-service-number">0{i + 1}</span>
+            {/* INTERACTIVE SERVICE PILLS */}
+            <div className="vx-hero-pills" aria-label="Quick jump to digital services">
+              {servicePills.map((pill) => (
+                <a key={pill.label} href={pill.href} className="vx-hero-pill">
+                  {pill.label}
                 </a>
               ))}
             </div>
-            <p className="mk-disclaimer">
-              Service availability, supported countries, prices and fulfillment times vary by product and
-              current inventory. Confirm the details displayed before placing an order.
-            </p>
-          </div>
-        </section>
 
-        <section className="mk-platform-band">
-          <div className="mk-container mk-platform-grid">
-            <div className="mk-platform-visual">
-              <div className="mk-platform-card mk-platform-main">
-                <div className="mk-platform-card-top">
-                  <img src="/brand/verxor-logo.svg" alt="" />
-                  <span>VERXOR PLATFORM</span>
-                  <span className="mk-platform-live">● Connected</span>
-                </div>
-                <div className="mk-platform-bars">
-                  <span style={{ height: '38%' }} />
-                  <span style={{ height: '56%' }} />
-                  <span style={{ height: '46%' }} />
-                  <span style={{ height: '72%' }} />
-                  <span style={{ height: '62%' }} />
-                  <span style={{ height: '88%' }} />
-                  <span style={{ height: '68%' }} />
-                  <span style={{ height: '100%' }} />
-                  <span style={{ height: '78%' }} />
-                </div>
-                <div className="mk-platform-caption">
-                  <span>Designed for clear workflows</span>
-                  <span>Illustrative UI</span>
-                </div>
-              </div>
-              <div className="mk-platform-chip">
-                <ShieldCheck size={17} /> Tenant-aware architecture
-              </div>
-            </div>
-            <div className="mk-platform-copy">
-              <span className="mk-section-eyebrow">INFRASTRUCTURE THAT SCALES WITH YOU</span>
-              <h2>More than a storefront. A platform to build on.</h2>
-              <p>
-                Verxor brings service discovery, wallet-led workflows and partner access into one ecosystem.
-                The public site is your starting point; the details and permissions depend on your account and
-                plan.
-              </p>
-              <ul>
-                <li>
-                  <Check size={17} /> Clear separation between consumer and partner journeys
-                </li>
-                <li>
-                  <Check size={17} /> Server-enforced pricing and tenant boundaries
-                </li>
-                <li>
-                  <Check size={17} /> API access subject to approval and plan limits
-                </li>
-              </ul>
-              <ButtonLink href="/api-partnership" variant="light">
-                Explore API partnerships <ArrowRight size={17} />
-              </ButtonLink>
-            </div>
-          </div>
-        </section>
-
-        <section className="mk-section">
-          <div className="mk-container">
-            <SectionHeading
-              eyebrow="HOW IT WORKS"
-              title="A clearer way to get started."
-              description="The exact steps depend on the service, but the experience follows a simple pattern."
-              centered
-            />
-            <div className="mk-steps-grid">
-              <article>
-                <span>01</span>
-                <h3>Choose a service</h3>
-                <p>Review the service overview, current availability and any requirements that apply.</p>
-              </article>
-              <article>
-                <span>02</span>
-                <h3>Review your order</h3>
-                <p>Check the displayed price, fulfillment details and applicable terms before confirming.</p>
-              </article>
-              <article>
-                <span>03</span>
-                <h3>Track progress</h3>
-                <p>Use the order status and relevant account history to follow the outcome.</p>
-              </article>
-            </div>
-          </div>
-        </section>
-
-        <section className="mk-section mk-faq-section" id="faq">
-          <div className="mk-container mk-faq-layout">
-            <div>
-              <span className="mk-section-eyebrow">GOOD TO KNOW</span>
-              <h2>Questions, answered clearly.</h2>
-              <p>Learn how the Verxor ecosystem works before you get started.</p>
-              <a className="mk-inline-link" href="/workspace">
-                Explore the platform <ArrowRight size={16} />
+            {/* HERO CTAS */}
+            <div className="vx-hero-actions">
+              <a href="/workspace" className="vx-btn vx-btn-primary">
+                Launch Workspace <ArrowRight size={17} />
+              </a>
+              <a href="/api-partnership" className="vx-btn vx-btn-secondary">
+                Developer & Reseller API <ChevronRight size={17} />
               </a>
             </div>
-            <div className="mk-faq-list">
-              {faqs.map(([q, a]) => (
-                <details key={q}>
-                  <summary>
-                    {q}
-                    <span>+</span>
-                  </summary>
-                  <p>{a}</p>
-                </details>
+
+            {/* TRUST METRICS STRIP */}
+            <div className="vx-metrics-strip">
+              <div className="vx-metric-item"><strong>One</strong><span>Wallet experience</span></div>
+              <div className="vx-metric-item"><strong>Global</strong><span>Digital services</span></div>
+              <div className="vx-metric-item"><strong>API</strong><span>For builders</span></div>
+              <div className="vx-metric-item"><strong>Clear</strong><span>Before you confirm</span></div>
+            </div>
+
+            {/* HERO 3D FEATURE CARD */}
+            <div className="vx-hero-showcase">
+              <div className="vx-showcase-grid">
+                <div className="vx-showcase-copy">
+                  <div className="vx-badge">FINTECH & VIRTUAL CARD LAYER</div>
+                  <h2>Borderless Payments Direct From Your Wallet.</h2>
+                  <p>
+                    Explore virtual USD card options for online purchases and subscriptions. Card availability, features,
+                    fees, and terms are presented before you apply.
+                  </p>
+                  <ul className="vx-feature-checklist">
+                    <li>
+                      <CheckCircle2 size={16} /> Funding options shown in your account
+                    </li>
+                    <li>
+                      <CheckCircle2 size={16} /> For eligible online purchases and subscriptions
+                    </li>
+                    <li>
+                      <CheckCircle2 size={16} /> Card controls available in your account
+                    </li>
+                  </ul>
+                  <a href="/services/virtual-cards" className="vx-link-btn">
+                    Explore Virtual Cards <ArrowUpRight size={16} />
+                  </a>
+                </div>
+                <div className="vx-showcase-visual">
+                  <img
+                    src="/3d/verxor_hero_virtual_card.png"
+                    alt="Verxor 3D Virtual Dollar Card"
+                    className="vx-3d-img"
+                    loading="eager"
+                  />
+                  <div className="vx-visual-floating-tag">
+                    <Sparkles size={14} />
+                    <span>3DS OTP in Live Dashboard</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* SERVICE 1: VIRTUAL NUMBERS & RENTALS */}
+        <section id="numbers" className="vx-section vx-section-alt">
+          <div className="vx-container">
+            <div className="vx-section-header">
+              <span className="vx-eyebrow">TELECOM & VERIFICATION LAYER</span>
+              <h2>Virtual Numbers for One-Time Verification & Rentals</h2>
+              <p>
+                Choose from available virtual number activations and rentals. Review supported services, rental duration, and number capabilities before placing an order.
+              </p>
+            </div>
+
+            <div className="vx-showcase-grid">
+              <div className="vx-showcase-visual">
+                <img
+                  src="/3d/verxor_virtual_number_3d.png"
+                  alt="Verxor 3D Virtual SIM Card"
+                  className="vx-3d-img"
+                  loading="lazy"
+                />
+                <div className="vx-visual-floating-tag">
+                  <Radio size={14} />
+                  <span>Number options for different needs</span>
+                </div>
+              </div>
+
+              <div className="vx-showcase-copy">
+                <div className="vx-badge">FOUR TELEPHONY STAGES</div>
+                <h3>Choose the exact level of access your workflow requires:</h3>
+
+                <div className="vx-stages-grid">
+                  {numberStages.map((stage) => (
+                    <div key={stage.name} className="vx-stage-card">
+                      <div className="vx-stage-head">
+                        <span className="vx-stage-tier">{stage.tier}</span>
+                        <span className="vx-stage-tag">{stage.tag}</span>
+                      </div>
+                      <h4>{stage.name}</h4>
+                      <p>{stage.desc}</p>
+                      <small>Duration: {stage.duration}</small>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="vx-action-group">
+                  <a href="/services/virtual-numbers" className="vx-btn vx-btn-primary">
+                    Instant OTP Activations <ArrowRight size={16} />
+                  </a>
+                  <a href="/services/number-rentals" className="vx-btn vx-btn-secondary">
+                    Long-Term Number Rentals <ArrowUpRight size={16} />
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* SERVICE 2: AUTOMATED VTU & UTILITIES */}
+        <section id="vtu" className="vx-section">
+          <div className="vx-container">
+            <div className="vx-section-header">
+              <span className="vx-eyebrow">NIGERIA UTILITY INFRASTRUCTURE</span>
+              <h2>VTU Data & Everyday Utilities for Nigeria</h2>
+              <p>
+                Delivering stable, fast, and fully automated airtime, data, NEPA, TV subscriptions, bulk SMS, airtime to
+                cash, and exam PIN services. Everything you need, all in one place.
+              </p>
+            </div>
+
+            <div className="vx-showcase-grid is-reversed">
+              <div className="vx-showcase-copy">
+                <div className="vx-quote-box">
+                  <p>
+                    &ldquo;Verxor helps vendors, resellers, developers and businesses sell data, airtime, cable TV,
+                    electricity, exam pins and other digital services from one simple wallet-powered platform. Built for
+                    people searching for the best affordable API provider in Nigeria for VTU websites, data resale,
+                    airtime vending and automated bills payment.&rdquo;
+                  </p>
+                </div>
+
+                <ul className="vx-feature-checklist">
+                  {vtuPillars.map((pillar) => (
+                    <li key={pillar}>
+                      <Zap size={16} className="vx-icon-accent" /> {pillar}
+                    </li>
+                  ))}
+                </ul>
+
+                <div className="vx-action-group">
+                  <a href="/services/vtu-api" className="vx-btn vx-btn-primary">
+                    Connect VTU API <ArrowRight size={16} />
+                  </a>
+                  <a href="/services/data" className="vx-btn vx-btn-secondary">
+                    View Data Plans (OPay-Style) <ArrowUpRight size={16} />
+                  </a>
+                </div>
+              </div>
+
+              <div className="vx-showcase-visual">
+                <img
+                  src="/3d/verxor_vtu_utilities_3d.png"
+                  alt="Verxor 3D VTU Telecom Utilities"
+                  className="vx-3d-img"
+                  loading="lazy"
+                />
+                <div className="vx-visual-floating-tag">
+                  <Cpu size={14} />
+                  <span>Automated order processing</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* SERVICE 3: USD VIRTUAL CARDS */}
+        <section id="cards" className="vx-section vx-section-alt">
+          <div className="vx-container">
+            <div className="vx-section-header">
+              <span className="vx-eyebrow">GLOBAL PAYMENTS & FINTECH</span>
+              <h2>USD Virtual Cards for Online Payments</h2>
+              <p>
+                Explore virtual USD card options for online shopping, subscriptions, and international purchases. Availability, funding, and card terms are shown in your account before you proceed.
+              </p>
+            </div>
+
+            <div className="vx-showcase-grid">
+              <div className="vx-showcase-visual">
+                <img
+                  src="/3d/verxor_hero_virtual_card.png"
+                  alt="Verxor Virtual Dollar Card"
+                  className="vx-3d-img"
+                  loading="lazy"
+                />
+                <div className="vx-visual-floating-tag">
+                  <CreditCard size={14} />
+                  <span>Card network shown before application</span>
+                </div>
+              </div>
+
+              <div className="vx-showcase-copy">
+                <div className="vx-badge">VIRTUAL USD CARD</div>
+                <h3>Engineered for builders, digital nomads, and creators:</h3>
+
+                <ul className="vx-feature-checklist">
+                  <li>
+                    <CheckCircle2 size={16} /> Accepted on Apple, Google Play, Netflix, Spotify, Amazon, OpenAI, Meta Ads & AWS
+                  </li>
+                  <li>
+                    <CheckCircle2 size={16} /> Card security and verification features, where supported, are shown in the card flow
+                  </li>
+                  <li>
+                    <CheckCircle2 size={16} /> Available card controls are managed from your account dashboard
+                  </li>
+                  <li>
+                    <CheckCircle2 size={16} /> Review card fees and applicable currency conversion terms before funding
+                  </li>
+                </ul>
+
+                <a href="/services/virtual-cards" className="vx-btn vx-btn-primary">
+                  Issue Virtual Dollar Card <ArrowRight size={16} />
+                </a>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* SERVICE 4: GLOBAL TRAVEL ESIM */}
+        <section id="esim" className="vx-section">
+          <div className="vx-container">
+            <div className="vx-section-header">
+              <span className="vx-eyebrow">INTERNATIONAL CONNECTIVITY</span>
+              <h2>Global Travel eSIMs for Supported Destinations</h2>
+              <p>
+                Get mobile data for travel without swapping physical SIM cards. Check device compatibility, coverage, plan allowance, and activation instructions before purchase.
+              </p>
+            </div>
+
+            <div className="vx-showcase-grid is-reversed">
+              <div className="vx-showcase-copy">
+                <div className="vx-badge">CONSUMER ROAMING BUNDLES</div>
+                <h3>Travel Connected Anywhere on Earth</h3>
+                <ul className="vx-feature-checklist">
+                  <li>
+                    <CheckCircle2 size={16} /> Setup and activation instructions are provided for the selected plan
+                  </li>
+                  <li>
+                    <CheckCircle2 size={16} /> Review available data bundles and destination coverage in the plan catalog
+                  </li>
+                  <li>
+                    <CheckCircle2 size={16} /> Keep your original WhatsApp number active while using Verxor for local data
+                  </li>
+                </ul>
+
+                <div className="vx-reseller-box">
+                  <div className="vx-reseller-tag">JUST FOR DEVELOPERS & BRANDS</div>
+                  <h4>eSIM Reseller Platform — Sell Global eSIM Data Under Your Brand</h4>
+                  <p>
+                    Reseller options for travel brands, apps, and developers. Contact us for current destination coverage, integration requirements, and commercial terms.
+                  </p>
+                  <a href="/api-partnership" className="vx-link-btn">
+                    Explore B2B eSIM API <ArrowUpRight size={16} />
+                  </a>
+                </div>
+
+                <a href="/services/esim" className="vx-btn vx-btn-primary">
+                  Browse Travel eSIM Plans <ArrowRight size={16} />
+                </a>
+              </div>
+
+              <div className="vx-showcase-visual">
+                <img
+                  src="/3d/verxor_esim_globe_3d.png"
+                  alt="Verxor 3D Global eSIM Globe"
+                  className="vx-3d-img"
+                  loading="lazy"
+                />
+                <div className="vx-visual-floating-tag">
+                  <Globe size={14} />
+                  <span>Global eSIM coverage</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* SERVICE 5: SMM ENGINE & ASSET MARKETPLACE */}
+        <section id="smm" className="vx-section vx-section-alt">
+          <div className="vx-container">
+            <div className="vx-section-header">
+              <span className="vx-eyebrow">GROWTH ENGINE & ASSET MARKETPLACE</span>
+              <h2>Social Growth Services for Creators & Businesses</h2>
+              <p>
+                Explore social media marketing services for selected platforms, with options for creators, businesses, and eligible resellers. Review service specifications and platform rules before ordering.
+              </p>
+            </div>
+
+            <div className="vx-showcase-grid">
+              <div className="vx-showcase-visual">
+                <img
+                  src="/3d/verxor_smm_growth_3d.png"
+                  alt="Verxor 3D SMM Growth Engine"
+                  className="vx-3d-img"
+                  loading="lazy"
+                />
+                <div className="vx-visual-floating-tag">
+                  <TrendingUp size={14} />
+                  <span>Reseller & API options</span>
+                </div>
+              </div>
+
+              <div className="vx-showcase-copy">
+                <div className="vx-badge">SOCIAL MEDIA MARKETING</div>
+                <h3>Choose services that fit your goals</h3>
+
+                <div className="vx-market-chips">
+                  <span>Instagram growth</span>
+                  <span>YouTube promotion</span>
+                  <span>TikTok growth</span>
+                  <span>Facebook services</span>
+                  <span>Telegram services</span>
+                  <span>Platform-specific options</span>
+                </div>
+
+                <ul className="vx-feature-checklist">
+                  <li>
+                    <CheckCircle2 size={16} /> Service options across selected social platforms
+                  </li>
+                  <li>
+                    <CheckCircle2 size={16} /> Catalog details show service requirements, quantities, and terms
+                  </li>
+                  <li>
+                    <CheckCircle2 size={16} /> Automated REST endpoints compatible with standard SMM child panel protocols
+                  </li>
+                  <li>
+                    <CheckCircle2 size={16} /> Partner pricing for eligible reseller and API services
+                  </li>
+                </ul>
+
+                <div className="vx-action-group">
+                  <a href="/services/smm" className="vx-btn vx-btn-primary">
+                    Launch SMM Engine <ArrowRight size={16} />
+                  </a>
+                  <a href="/child-panels" className="vx-btn vx-btn-secondary">
+                    Run Branded Child Panel <ArrowUpRight size={16} />
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* SERVICE 6 & 7: PROXIES & GIFT CARDS (DUAL GRID) */}
+        <section id="proxies" className="vx-section">
+          <div className="vx-container">
+            <div className="vx-grid-dual">
+              {/* PROXIES */}
+              <div className="vx-dual-card">
+                <div className="vx-dual-visual">
+                  <img
+                    src="/3d/verxor_proxy_servers_3d.png"
+                    alt="Verxor 3D Residential Proxies"
+                    className="vx-dual-img"
+                    loading="lazy"
+                  />
+                </div>
+                <div className="vx-dual-body">
+                  <span className="vx-eyebrow">AUTOMATION & DATA INFRASTRUCTURE</span>
+                  <h3>Residential & Datacenter Proxies</h3>
+                  <p>
+                    Explore proxy options for legitimate research, connectivity, and testing workflows. Coverage, session behavior, and technical specifications vary by plan and are shown before purchase.
+                  </p>
+                  <ul className="vx-feature-checklist">
+                    <li>
+                      <CheckCircle2 size={16} /> Rotating and sticky sessions (up to 30 mins)
+                    </li>
+                    <li>
+                      <CheckCircle2 size={16} /> HTTP and SOCKS5 with user:pass authentication
+                    </li>
+                  </ul>
+                  <a href="/services/proxies" className="vx-btn vx-btn-secondary">
+                    Configure Proxies <ArrowRight size={16} />
+                  </a>
+                </div>
+              </div>
+
+              {/* GIFT CARDS */}
+              <div id="giftcards" className="vx-dual-card">
+                <div className="vx-dual-visual">
+                  <img
+                    src="/3d/verxor_giftcard_trading_3d.png"
+                    alt="Verxor 3D Gift Card Trading"
+                    className="vx-dual-img"
+                    loading="lazy"
+                  />
+                </div>
+                <div className="vx-dual-body">
+                  <span className="vx-eyebrow">LIQUIDITY & VALUE EXCHANGE</span>
+                  <h3>Gift Card Trading with Rates Shown Before You Submit</h3>
+                  <p>
+                    Exchange supported gift cards and review the quoted rate and verification steps before submitting. Settlement timing depends on card type and review results.
+                  </p>
+                  <ul className="vx-feature-checklist">
+                    <li>
+                      <CheckCircle2 size={16} /> Available brands and accepted card types are listed in the trading flow
+                    </li>
+                    <li>
+                      <CheckCircle2 size={16} /> Review current rates and settlement estimates before submitting
+                    </li>
+                  </ul>
+                  <a href="/services/gift-cards" className="vx-btn vx-btn-secondary">
+                    Trade Gift Cards <ArrowRight size={16} />
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* SERVICE 8: DEVELOPER API & RESELLER INFRASTRUCTURE */}
+        <section id="api" className="vx-section vx-section-alt">
+          <div className="vx-container">
+            <div className="vx-showcase-grid">
+              <div className="vx-showcase-copy">
+                <span className="vx-eyebrow">UNIFIED DEVELOPER GATEWAY</span>
+                <h2>Single-Wallet API Infrastructure for Builders & Resellers</h2>
+                <p>
+                  Integrate selected Verxor services into your application using the available developer tools. Check the documentation for current coverage, endpoints, and integration requirements.
+                </p>
+
+                <ul className="vx-feature-checklist">
+                  <li>
+                    <CheckCircle2 size={16} /> API documentation and supported integration features
+                  </li>
+                  <li>
+                    <CheckCircle2 size={16} /> Status updates and event callbacks for supported services
+                  </li>
+                  <li>
+                    <CheckCircle2 size={16} /> White-label and reseller options for eligible partners
+                  </li>
+                  <li>
+                    <CheckCircle2 size={16} /> Partnership pricing and support details shared during onboarding
+                  </li>
+                </ul>
+
+                <div className="vx-action-group">
+                  <a href="/api-partnership" className="vx-btn vx-btn-primary">
+                    Explore API Documentation <ArrowRight size={16} />
+                  </a>
+                  <a href="/child-panels" className="vx-btn vx-btn-secondary">
+                    Apply for Reseller Panel <ArrowUpRight size={16} />
+                  </a>
+                </div>
+              </div>
+
+              <div className="vx-showcase-visual">
+                <img
+                  src="/3d/verxor_reseller_api_3d.png"
+                  alt="Verxor 3D Developer Reseller API"
+                  className="vx-3d-img"
+                  loading="lazy"
+                />
+                <div className="vx-visual-floating-tag">
+                  <Code2 size={14} />
+                  <span>REST API & Webhooks</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* COMPREHENSIVE FAQS */}
+        <section id="faq" className="vx-section">
+          <div className="vx-container">
+            <div className="vx-section-header">
+              <span className="vx-eyebrow">TRANSPARENT ANSWERS</span>
+              <h2>Frequently Asked Questions</h2>
+              <p>
+                Everything you need to know about our virtual numbers, VTU infrastructure, USD cards, eSIM, SMM engine,
+                and developer APIs.
+              </p>
+            </div>
+
+            <div className="vx-faq-groups">
+              {faqsBySection.map((group) => (
+                <div key={group.category} className="vx-faq-group">
+                  <h3 className="vx-faq-group-title">{group.category}</h3>
+                  <div className="vx-faq-list">
+                    {group.items.map((item) => (
+                      <details key={item.q} className="vx-faq-item">
+                        <summary className="vx-faq-summary">
+                          <span>{item.q}</span>
+                          <span className="vx-faq-toggle" aria-hidden="true">
+                            +
+                          </span>
+                        </summary>
+                        <p className="vx-faq-answer">{item.a}</p>
+                      </details>
+                    ))}
+                  </div>
+                </div>
               ))}
             </div>
           </div>
         </section>
 
-        <section className="mk-bottom-cta">
-          <div className="mk-container mk-bottom-cta-inner">
-            <div>
-              <span className="mk-section-eyebrow">CONNECT. VERIFY. GROW.</span>
-              <h2>Find your place in the Verxor ecosystem.</h2>
-              <p>Explore the platform, review API access or learn about running a child panel.</p>
-            </div>
-            <div className="mk-bottom-actions">
-              <ButtonLink href="/workspace" variant="white">
-                Get started <ArrowRight size={17} />
-              </ButtonLink>
-              <ButtonLink href="/child-panels" variant="outline-light">
-                Become a reseller
-              </ButtonLink>
+        {/* BOTTOM ACTION BANNER */}
+        <section className="vx-bottom-banner">
+          <div className="vx-container vx-bottom-content">
+            <div className="vx-badge vx-badge-light">READY TO BUILD?</div>
+            <h2>Launch Your Digital Infrastructure on Verxor Today.</h2>
+            <p>
+              Bring your digital service workflows together with Verxor. Explore available products for individuals, businesses, developers, and resellers.
+            </p>
+            <div className="vx-hero-actions">
+              <a href="/workspace" className="vx-btn vx-btn-white">
+                Launch Free Workspace <ArrowRight size={17} />
+              </a>
+              <a href="/api-partnership" className="vx-btn vx-btn-outline-white">
+                Partner & Reseller API <ChevronRight size={17} />
+              </a>
             </div>
           </div>
         </section>
       </main>
+
       <MarketingFooter />
-    </>
+    </div>
   );
 }
