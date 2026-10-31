@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseConfigured } from '@/lib/supabase-admin';
+import { isSmmConfigured, smmGetStatus } from '@/lib/providers/smm-orders';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
 
 function supabaseBase() {
   return (process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '')
@@ -47,14 +49,19 @@ function mapStatus(raw: unknown): 'pending' | 'processing' | 'completed' | 'canc
   if (s.includes('cancel') || s.includes('refund')) return 'canceled';
   if (s.includes('pending')) return 'pending';
   if (s.includes('progress') || s.includes('processing') || s.includes('partial')) return 'processing';
+  if (!s.trim()) return 'pending';
   return 'processing';
+}
+
+function isJapId(id: string): boolean {
+  return /^\d+$/.test(String(id || '').trim());
 }
 
 /**
  * GET /api/v1/boost/orders
- * Returns all boost orders for the signed-in user from wallet_ledger (server truth).
- * Meta written on successful placement includes providerOrderId + service details.
- * Older debit-only rows still surface as history so orders never "disappear".
+ * Returns boost orders for the signed-in user from wallet_ledger.
+ * Live-syncs status from JustAnotherPanel when a numeric provider order id is present
+ * so Pending / Processing / Completed match the provider.
  */
 export async function GET(req: NextRequest) {
   const userId = await resolveUserId(req);
@@ -97,7 +104,25 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ ok: true, orders: [] });
     }
 
-    const orders: Array<Record<string, unknown>> = [];
+    type OrderOut = {
+      id: string;
+      serviceId: string;
+      serviceTitle: string;
+      platform: string;
+      targetUrl: string;
+      quantity: number;
+      amount: number;
+      status: string;
+      createdAt: string;
+      charge?: string;
+      remains?: number;
+      startCount?: string;
+      currency?: string;
+      source: string;
+      ledgerId?: string;
+    };
+
+    const orders: OrderOut[] = [];
     const seen = new Set<string>();
 
     for (const r of rows) {
@@ -105,8 +130,11 @@ export async function GET(req: NextRequest) {
       const ref = String(r.reference || '');
       const kind = String(r.kind || '').toLowerCase();
       const isBoostMeta = String(meta.type || meta.product || '').toLowerCase() === 'boost';
-      const isBoostRef = ref.startsWith('boost-') || ref.startsWith('refund-boost-');
-      const desc = String(meta.description || meta.title || meta.serviceTitle || '');
+      const isBoostRef =
+        ref.startsWith('boost-') ||
+        ref.startsWith('boost-order-') ||
+        ref.startsWith('refund-boost-');
+      const desc = String(meta.description || meta.title || meta.serviceTitle || r.description || '');
       const isBoostDesc = /boost/i.test(desc) || /boost/i.test(String(meta.service || ''));
       if (!isBoostMeta && !isBoostRef && !isBoostDesc) continue;
       if (kind === 'refund' || ref.startsWith('refund-')) continue;
@@ -114,7 +142,11 @@ export async function GET(req: NextRequest) {
       const providerOrderId = String(
         meta.providerOrderId || meta.provider_order_id || meta.orderId || meta.order_id || '',
       ).trim();
-      const id = providerOrderId || ref || String(r.id || '');
+      let id = providerOrderId;
+      if (!id && ref.startsWith('boost-order-')) {
+        id = ref.replace(/^boost-order-/, '');
+      }
+      if (!id) id = ref || String(r.id || '');
       if (!id || seen.has(id)) continue;
       seen.add(id);
 
@@ -122,7 +154,7 @@ export async function GET(req: NextRequest) {
       orders.push({
         id,
         serviceId: String(meta.serviceId || meta.service_id || ''),
-        serviceTitle: String(meta.serviceTitle || meta.title || meta.service || 'Boost'),
+        serviceTitle: String(meta.serviceTitle || meta.title || meta.service || desc || 'Boost'),
         platform: String(meta.platform || meta.platformName || ''),
         targetUrl: String(meta.link || meta.targetUrl || ''),
         quantity: Number(meta.quantity || 0) || 0,
@@ -134,8 +166,67 @@ export async function GET(req: NextRequest) {
         startCount: meta.startCount != null ? String(meta.startCount) : undefined,
         currency: 'NGN',
         source: 'server',
+        ledgerId: r.id ? String(r.id) : undefined,
       });
     }
+
+    if (isSmmConfigured()) {
+      const toSync = orders.filter((o) => isJapId(o.id) && o.status !== 'canceled').slice(0, 25);
+      await Promise.all(
+        toSync.map(async (o) => {
+          try {
+            const st = await smmGetStatus(o.id);
+            const next = mapStatus(st.status);
+            o.status = next;
+            if (st.charge != null) o.charge = String(st.charge);
+            if (st.remains != null && st.remains !== '') {
+              const n = Number(st.remains);
+              if (Number.isFinite(n)) o.remains = n;
+            }
+            if (st.start_count != null) o.startCount = String(st.start_count);
+            if (st.currency) o.currency = String(st.currency);
+
+            if (o.ledgerId && serviceKey) {
+              const metaPatch = {
+                status: next,
+                charge: o.charge,
+                remains: o.remains,
+                startCount: o.startCount,
+              };
+              void fetch(`${base}/rest/v1/wallet_ledger?id=eq.${encodeURIComponent(o.ledgerId)}`, {
+                method: 'PATCH',
+                headers: {
+                  apikey: serviceKey,
+                  Authorization: `Bearer ${serviceKey}`,
+                  'Content-Type': 'application/json',
+                  Prefer: 'return=minimal',
+                },
+                body: JSON.stringify({
+                  meta: {
+                    type: 'boost',
+                    product: 'boost',
+                    providerOrderId: o.id,
+                    orderId: o.id,
+                    serviceId: o.serviceId,
+                    serviceTitle: o.serviceTitle,
+                    title: o.serviceTitle,
+                    platform: o.platform,
+                    link: o.targetUrl,
+                    quantity: o.quantity,
+                    amountNgn: o.amount,
+                    ...metaPatch,
+                  },
+                }),
+              }).catch(() => {});
+            }
+          } catch (e) {
+            console.warn('[boost/orders] JAP status failed for', o.id, e);
+          }
+        }),
+      );
+    }
+
+    orders.sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
 
     return NextResponse.json({ ok: true, orders, count: orders.length });
   } catch (e) {
