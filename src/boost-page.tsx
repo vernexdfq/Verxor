@@ -30,6 +30,7 @@ import {
   placeBoostOrder,
   cancelBoostOrder,
   fetchBoostStatus,
+  fetchBoostOrders,
   isJapOrderId,
   mapJapStatus,
 } from './boost/live-orders';
@@ -311,6 +312,57 @@ export function BoostPage({
     try {
       localStorage.setItem(BOOST_ORDERS_STORAGE_KEY, JSON.stringify(newOrders));
     } catch {}
+  }, []);
+
+  // Load ALL orders for this account from the server (wallet_ledger truth)
+  // and merge with locally stored ones so no order ever disappears.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const res = await fetchBoostOrders();
+      if (cancelled || !res.ok || !Array.isArray(res.orders)) return;
+      const server: BoostOrder[] = res.orders
+        .filter((o) => o && String(o.id || ''))
+        .map((o) => ({
+          id: String(o.id),
+          serviceId: String(o.serviceId || ''),
+          serviceTitle: String(o.serviceTitle || 'Boost'),
+          platform: String(o.platform || ''),
+          targetUrl: String(o.targetUrl || ''),
+          quantity: Number(o.quantity || 0),
+          amount: Number(o.amount || 0),
+          status: mapJapStatus(String(o.status || '')) as OrderStatus,
+          createdAt: String(o.createdAt || new Date().toISOString()),
+          charge: o.charge,
+          remains: o.remains,
+          startCount: o.startCount,
+          currency: o.currency,
+        }));
+      if (!server.length) return;
+      let local: BoostOrder[] = [];
+      try {
+        const raw = localStorage.getItem(BOOST_ORDERS_STORAGE_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed)) local = parsed as BoostOrder[];
+        }
+      } catch {}
+      const byId = new Map<string, BoostOrder>();
+      for (const o of server) byId.set(o.id, o);
+      // Local rows win on status freshness (they are polled live); server fills any gaps.
+      for (const o of local) {
+        if (!o.id) continue;
+        byId.set(o.id, { ...(byId.get(o.id) || {}), ...o } as BoostOrder);
+      }
+      const merged = Array.from(byId.values()).sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+      );
+      saveOrders(merged);
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Currently selected platform meta
