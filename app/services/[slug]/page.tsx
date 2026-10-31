@@ -19,7 +19,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     title: service.title + ' | Verxor',
     description: service.description,
     alternates: { canonical },
-    openGraph: { title: service.title + ' | Verxor', description: service.description, url: 'https://verxor.com' + canonical, siteName: 'Verxor', type: 'website', images: [{ url: '/brand/verxor-logo.svg', alt: 'Verxor' }] },
+    openGraph: { title: service.title + ' | Verxor', description: service.description, url: 'https://verxor.com' + canonical, siteName: 'Verxor', type: 'website', images: [{ url: '/brand/verxor-logo-512.png', width: 512, height: 512, alt: 'Verxor' }] },
   };
 }
 

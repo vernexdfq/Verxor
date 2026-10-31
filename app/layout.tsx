@@ -38,9 +38,17 @@ export const metadata: Metadata = {
     canonical: 'https://verxor.com',
   },
   icons: {
-    icon: [{ url: '/brand/verxor-logo.svg', type: 'image/svg+xml' }],
-    shortcut: '/brand/verxor-logo.svg',
-    apple: '/brand/verxor-logo.svg',
+    icon: [
+      { url: '/favicon.ico', sizes: '48x48' },
+      { url: '/brand/favicon-32x32.png', sizes: '32x32', type: 'image/png' },
+      { url: '/brand/favicon-48x48.png', sizes: '48x48', type: 'image/png' },
+      { url: '/brand/verxor-logo-512.png', sizes: '512x512', type: 'image/png' },
+      { url: '/brand/verxor-logo.svg', type: 'image/svg+xml' },
+    ],
+    shortcut: '/favicon.ico',
+    apple: [
+      { url: '/brand/apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
+    ],
   },
   openGraph: {
     title: 'Verxor — Virtual Numbers, eSIM, VTU & Digital Services',
@@ -51,9 +59,9 @@ export const metadata: Metadata = {
     type: 'website',
     images: [
       {
-        url: '/brand/verxor-logo.svg',
-        width: 256,
-        height: 256,
+        url: '/brand/verxor-logo-512.png',
+        width: 512,
+        height: 512,
         alt: 'Verxor',
       },
     ],
@@ -63,7 +71,7 @@ export const metadata: Metadata = {
     title: 'Verxor — Virtual Numbers, eSIM, VTU & Digital Services',
     description:
       'Instant virtual numbers, eSIM, airtime, data, bill payments, proxies, gift cards and virtual dollar cards.',
-    images: ['/brand/verxor-logo.svg'],
+    images: ['/brand/verxor-logo-512.png'],
   },
   keywords: [
     'virtual numbers',
@@ -100,7 +108,7 @@ const organizationJsonLd = {
   '@type': 'Organization',
   name: 'Verxor',
   url: 'https://verxor.com',
-  logo: 'https://verxor.com/brand/verxor-logo.svg',
+  logo: 'https://verxor.com/brand/verxor-logo-512.png',
   description:
     'Digital services platform offering virtual numbers, eSIMs, VTU (airtime, data, bills), proxies, gift cards, virtual cards, SMM and partner API access.',
   sameAs: [],
