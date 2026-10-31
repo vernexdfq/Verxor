@@ -37,7 +37,7 @@ function hashKey(apiKey: string): string {
   return createHash('sha256').update(apiKey).digest('hex');
 }
 
-const DEFAULT_ALLOWED_PRODUCTS = ['virtual_numbers', 'boost', 'smm'];
+const DEFAULT_ALLOWED_PRODUCTS = ['virtual_numbers', 'boost', 'smm', 'airtime', 'data'];
 
 export async function resolvePanelClient(req: Request): Promise<PanelClient | null> {
   const apiKey = extractApiKey(req);
@@ -75,34 +75,30 @@ export async function resolvePanelClient(req: Request): Promise<PanelClient | nu
     if (!row) return null;
 
     const meta = row.meta || {};
-    const walletUserId = (meta.wallet_user_id || meta.walletUserId || '').trim() || null;
-    const ownerEmail = (meta.owner_email || meta.ownerEmail || '').trim().toLowerCase() || null;
-
-    const fromDb = Array.isArray(row.allowed_products) ? row.allowed_products : null;
-    // Empty / missing array → full partner catalog. Legacy rows that only listed
-    // virtual_numbers still receive boost (same partner relationship).
+    const fromDb = Array.isArray(row.allowed_products) ? row.allowed_products.map(String) : [];
     let allowedProducts = fromDb && fromDb.length > 0 ? fromDb : DEFAULT_ALLOWED_PRODUCTS;
     const lower = allowedProducts.map((p) => p.toLowerCase());
-    if (
-      lower.includes('virtual_numbers') ||
-      lower.includes('vn')
-    ) {
+    // Always ensure core products stay available for partner panels that already
+    // have virtual numbers, matching boost expansion behaviour.
+    if (lower.includes('virtual_numbers') || lower.includes('vn') || lower.includes('*') || lower.includes('all')) {
       const next = new Set(allowedProducts.map(String));
-      if (!lower.includes('boost')) next.add('boost');
-      if (!lower.includes('smm')) next.add('smm');
+      next.add('airtime');
+      next.add('data');
+      next.add('boost');
       allowedProducts = Array.from(next);
     }
 
     return {
       id: row.id,
-      name: row.name,
+      name: row.name || 'Child Panel',
       markupPercent: Number(row.markup_percent ?? 15) || 15,
       allowedProducts,
-      walletUserId,
-      ownerEmail,
+      walletUserId: (meta.wallet_user_id || meta.walletUserId || '').trim() || null,
+      ownerEmail: (meta.owner_email || meta.ownerEmail || '').trim().toLowerCase() || null,
       source: 'db',
     };
-  } catch {
+  } catch (e) {
+    console.warn('[panel-auth] resolve failed', e);
     return null;
   }
 }
@@ -126,7 +122,19 @@ export function panelAllowsBoost(panel: PanelClient): boolean {
     allowed.includes('smm') ||
     allowed.includes('*') ||
     allowed.includes('all') ||
-    // Partner panels already approved for virtual numbers can place boost orders.
+    allowed.includes('virtual_numbers') ||
+    allowed.includes('vn')
+  );
+}
+
+export function panelAllowsAirtime(panel: PanelClient): boolean {
+  const allowed = panel.allowedProducts.map((p) => p.toLowerCase());
+  return (
+    allowed.length === 0 ||
+    allowed.includes('airtime') ||
+    allowed.includes('vtu') ||
+    allowed.includes('*') ||
+    allowed.includes('all') ||
     allowed.includes('virtual_numbers') ||
     allowed.includes('vn')
   );
@@ -138,20 +146,20 @@ export function panelAllowsBoost(panel: PanelClient): boolean {
  */
 export async function getPanelAdminEmail(panel: PanelClient): Promise<string | null> {
   if (panel.ownerEmail) return panel.ownerEmail;
-
   if (panel.walletUserId && supabaseConfigured()) {
     try {
       const rows = (await sbSelect(
         'profiles',
         `id=eq.${encodeURIComponent(panel.walletUserId)}&select=email&limit=1`,
-      )) as Array<{ email?: string | null }>;
-      const email = rows?.[0]?.email?.trim().toLowerCase();
+      )) as Array<{ email?: string }>;
+      const email = (rows?.[0]?.email || '').trim().toLowerCase();
       if (email) return email;
     } catch {
-      /* optional lookup */
+      /* ignore */
     }
   }
-
-  const fallback = (process.env.ADMIN_EMAIL || process.env.VERXOR_PANEL_ADMIN_EMAIL || '').trim().toLowerCase();
-  return fallback || null;
+  const envEmail = (process.env.VERXOR_PANEL_ADMIN_EMAIL || process.env.VERXOR_PANEL_OWNER_EMAIL || '')
+    .trim()
+    .toLowerCase();
+  return envEmail || null;
 }
