@@ -60,8 +60,8 @@ function isJapId(id: string): boolean {
 /**
  * GET /api/v1/boost/orders
  * Returns boost orders for the signed-in user from wallet_ledger.
- * Live-syncs status from JustAnotherPanel when a numeric provider order id is present
- * so Pending / Processing / Completed match the provider.
+ * Prefers numeric JustAnotherPanel order ids (support ID).
+ * Live-syncs status from JAP so Completed / Pending / Processing match the provider.
  */
 export async function GET(req: NextRequest) {
   const userId = await resolveUserId(req);
@@ -187,12 +187,6 @@ export async function GET(req: NextRequest) {
             if (st.currency) o.currency = String(st.currency);
 
             if (o.ledgerId && serviceKey) {
-              const metaPatch = {
-                status: next,
-                charge: o.charge,
-                remains: o.remains,
-                startCount: o.startCount,
-              };
               void fetch(`${base}/rest/v1/wallet_ledger?id=eq.${encodeURIComponent(o.ledgerId)}`, {
                 method: 'PATCH',
                 headers: {
@@ -214,7 +208,10 @@ export async function GET(req: NextRequest) {
                     link: o.targetUrl,
                     quantity: o.quantity,
                     amountNgn: o.amount,
-                    ...metaPatch,
+                    status: next,
+                    charge: o.charge,
+                    remains: o.remains,
+                    startCount: o.startCount,
                   },
                 }),
               }).catch(() => {});
@@ -226,9 +223,24 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    orders.sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
+    // Prefer real JAP order ids for support (numeric). Drop bare debit-ref rows
+    // when a JAP-id row exists for the same amount within ±2 minutes.
+    const japRows = orders.filter((o) => isJapId(o.id));
+    const debitOnly = orders.filter((o) => !isJapId(o.id));
+    const keptDebit: typeof orders = [];
+    for (const d of debitOnly) {
+      const t = Date.parse(d.createdAt) || 0;
+      const covered = japRows.some((j) => {
+        const jt = Date.parse(j.createdAt) || 0;
+        return Math.abs(j.amount - d.amount) < 0.02 && Math.abs(jt - t) < 120_000;
+      });
+      if (!covered) keptDebit.push(d);
+    }
+    const finalOrders = [...japRows, ...keptDebit].sort((a, b) =>
+      String(b.createdAt).localeCompare(String(a.createdAt)),
+    );
 
-    return NextResponse.json({ ok: true, orders, count: orders.length });
+    return NextResponse.json({ ok: true, orders: finalOrders, count: finalOrders.length });
   } catch (e) {
     console.warn('[boost/orders]', e);
     return NextResponse.json({ ok: true, orders: [], error: 'Failed to load orders' });
