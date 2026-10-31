@@ -1,5 +1,5 @@
 /**
- * SMM order / status / cancel (JustAnotherPanel API v2 compatible).
+ * SMM order / status / cancel (JustAnotherPanel API v2).
  * Docs: https://justanotherpanel.com/api
  * Example: https://justanotherpanel.com/example.txt
  *
@@ -10,7 +10,8 @@
  * Cancel: orders (comma-separated) → [{ order, cancel: 1 | { error } }]
  * Balance: → { balance, currency }
  *
- * Credentials: SMM_PANEL_API_KEY (primary), then JUSTANOTHER_API_KEY / YOYOMEDIA_API_KEY.
+ * Credentials (same family as catalog fetch):
+ *   SMM_PANEL_API_KEY | JUSTANOTHER_API_KEY | JUSTANOTHERPANEL_API_KEY | YOYOMEDIA_API_KEY
  */
 import { fetchSmmCatalog, type BoostService } from '@/lib/providers/smm';
 
@@ -47,6 +48,7 @@ async function smmPost(body: Record<string, string>): Promise<unknown> {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
+        Accept: 'application/json',
         'User-Agent': 'Verxor/1.0 (SMM Gateway)',
       },
       body: form.toString(),
@@ -61,17 +63,28 @@ async function smmPost(body: Record<string, string>): Promise<unknown> {
     throw new Error(err?.message || 'SMM provider unreachable');
   }
 
+  if (res.status === 401 || res.status === 403) {
+    throw new Error(`SMM provider authentication failed (HTTP ${res.status}). Verify API key.`);
+  }
+  if (res.status === 429) {
+    throw new Error('SMM provider rate limit exceeded. Retry shortly.');
+  }
+  if (res.status >= 500) {
+    throw new Error(`SMM provider unavailable (HTTP ${res.status})`);
+  }
+
   const raw = await res.text();
   if (!raw?.trim()) throw new Error('SMM provider empty response');
-  if (raw.trim().startsWith('<')) {
+  const trimmed = raw.trim();
+  if (trimmed.startsWith('<') || trimmed.toLowerCase().startsWith('<!doctype')) {
     throw new Error('SMM provider returned HTML instead of JSON');
   }
 
   let data: unknown;
   try {
-    data = JSON.parse(raw);
+    data = JSON.parse(trimmed);
   } catch {
-    throw new Error(`SMM invalid JSON: ${raw.slice(0, 120)}`);
+    throw new Error(`SMM invalid JSON: ${trimmed.slice(0, 120)}`);
   }
 
   if (data && typeof data === 'object' && 'error' in data) {
@@ -94,22 +107,41 @@ export type SmmStatusResult = {
   currency?: string;
 };
 
-/** action=add — service, link, quantity → { order } */
+/** action=add — service (numeric id), link, quantity → { order } */
 export async function smmAddOrder(params: {
   service: number | string;
   link: string;
   quantity: number;
 }): Promise<SmmAddResult> {
+  const serviceId = Number(params.service);
+  if (!Number.isFinite(serviceId) || serviceId <= 0) {
+    throw new Error('Invalid SMM service id');
+  }
+  const link = String(params.link || '').trim();
+  if (!link || link.length < 5) {
+    throw new Error('Valid target link is required');
+  }
+  const quantity = Math.round(Number(params.quantity));
+  if (!Number.isFinite(quantity) || quantity < 1) {
+    throw new Error('Invalid quantity');
+  }
+
   const data = await smmPost({
     action: 'add',
-    service: String(params.service),
-    link: params.link,
-    quantity: String(params.quantity),
+    service: String(serviceId),
+    link,
+    quantity: String(quantity),
   });
   const obj = data as { order?: number | string; charge?: string; currency?: string };
-  if (obj.order == null) throw new Error('SMM add: missing order id');
+  if (obj.order == null || obj.order === '') {
+    throw new Error('SMM add: missing order id');
+  }
+  const orderNum = Number(obj.order);
+  if (!Number.isFinite(orderNum) || orderNum <= 0) {
+    throw new Error(`SMM add: invalid order id (${String(obj.order)})`);
+  }
   return {
-    order: Number(obj.order),
+    order: orderNum,
     charge: obj.charge,
     currency: obj.currency,
   };
@@ -117,9 +149,11 @@ export async function smmAddOrder(params: {
 
 /** action=status — order → status payload */
 export async function smmGetStatus(orderId: number | string): Promise<SmmStatusResult> {
+  const id = String(orderId || '').trim();
+  if (!id) throw new Error('orderId is required');
   const data = await smmPost({
     action: 'status',
-    order: String(orderId),
+    order: id,
   });
   return data as SmmStatusResult;
 }
@@ -146,7 +180,6 @@ export async function smmCancelOrder(orderId: number | string): Promise<{
     if (cancelVal && typeof cancelVal === 'object' && 'error' in cancelVal) {
       throw new Error(String((cancelVal as { error?: string }).error || 'Cancel rejected'));
     }
-    // JAP returns cancel: 1 on success (number or string "1")
     const ok = cancelVal === 1 || cancelVal === '1';
     return { ok, cancel: (ok ? cancelVal : 0) as number | string, raw: data };
   }
@@ -172,6 +205,11 @@ export async function smmGetBalance(): Promise<{ balance: string; currency: stri
 export async function smmFindService(providerId: number | string): Promise<BoostService | null> {
   const catalog = await fetchSmmCatalog();
   if (!catalog.ok) return null;
-  const id = String(providerId);
-  return catalog.services.find((s) => s.id === id || String(s.providerId) === id) || null;
+  const id = String(providerId).trim();
+  if (!id) return null;
+  return (
+    catalog.services.find(
+      (s) => s.id === id || String(s.providerId) === id || String(s.providerId) === String(Number(id)),
+    ) || null
+  );
 }
