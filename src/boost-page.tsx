@@ -26,6 +26,13 @@ import {
 } from 'lucide-react';
 import './boost-page.css';
 import type { AuthSession } from './auth/AuthFlow';
+import {
+  placeBoostOrder,
+  cancelBoostOrder,
+  fetchBoostStatus,
+  isJapOrderId,
+  mapJapStatus,
+} from './boost/live-orders';
 import type { BoostPlatform, BoostService, BoostCategory, BoostCatalog } from '@/lib/providers/smm';
 
 export type OrderStatus = 'pending' | 'processing' | 'completed' | 'canceled';
@@ -40,6 +47,10 @@ export interface BoostOrder {
   amount: number;
   status: OrderStatus;
   createdAt: string;
+  charge?: string;
+  remains?: number;
+  startCount?: string;
+  currency?: string;
 }
 
 function formatNaira(n: number): string {
@@ -443,30 +454,128 @@ export function BoostPage({
     if (!formReady || !selectedService || isInsufficient || submitting) return;
     setSubmitting(true);
     try {
-      await new Promise((r) => setTimeout(r, 850));
-      const newOrder: BoostOrder = {
-        id:
-          'BX-' +
-          Math.random().toString(36).substring(2, 7).toUpperCase() +
-          Date.now().toString(36).slice(-3).toUpperCase(),
+      const result = await placeBoostOrder({
         serviceId: selectedService.id,
-        serviceTitle: selectedService.title,
-        platform: selectedService.platform,
-        targetUrl: link.trim(),
+        link: link.trim(),
         quantity: qtyNum,
-        amount: totalAmount,
+      });
+      if (!result.ok) {
+        showToast(result.error);
+        return;
+      }
+      const ord = result.order;
+      const orderId = String(ord?.ref || ord?.providerOrderId || '');
+      const newOrder: BoostOrder = {
+        id: orderId || `BX-${Date.now()}`,
+        serviceId: String(ord?.serviceId || selectedService.id),
+        serviceTitle: String(ord?.serviceTitle || selectedService.title),
+        platform: String(ord?.platform || selectedService.platform),
+        targetUrl: String(ord?.link || link.trim()),
+        quantity: Number(ord?.quantity ?? qtyNum),
+        amount: Number(ord?.amount ?? totalAmount),
         status: 'processing',
         createdAt: new Date().toISOString(),
       };
       saveOrders([newOrder, ...orders]);
       setLink('');
-      showToast('Order placed successfully! Ref: ' + newOrder.id);
+      showToast(
+        ord?.message ||
+          ord?.title ||
+          `Boost order was successful — ${newOrder.serviceTitle} × ${formatQty(newOrder.quantity)} for ${formatNaira(newOrder.amount)}`,
+      );
     } catch {
-      showToast('Failed to place order. Please try again.');
+      showToast('Network error — try again');
     } finally {
       setSubmitting(false);
     }
   };
+
+  const handleCancelOrder = async (order: BoostOrder) => {
+    if (order.status === 'completed' || order.status === 'canceled') return;
+    if (!isJapOrderId(order.id)) {
+      showToast('This order is local-only and cannot be canceled on the provider');
+      return;
+    }
+    try {
+      const result = await cancelBoostOrder({ orderId: order.id, amount: order.amount });
+      if (!result.ok) {
+        showToast(result.error);
+        return;
+      }
+      saveOrders(
+        orders.map((o) => (o.id === order.id ? { ...o, status: 'canceled' as OrderStatus } : o)),
+      );
+      showToast(result.message || 'Order canceled');
+    } catch {
+      showToast('Network error — try again');
+    }
+  };
+
+  const refreshOrderStatuses = async () => {
+    let current: BoostOrder[] = orders;
+    try {
+      const raw = localStorage.getItem(BOOST_ORDERS_STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length) current = parsed as BoostOrder[];
+      }
+    } catch {}
+    const live = current.filter(
+      (o) => isJapOrderId(String(o.id)) && o.status !== 'completed' && o.status !== 'canceled',
+    );
+    if (!live.length) return;
+    const updated = current.map((o) => ({ ...o }));
+    let changed = false;
+    const doneTitles: string[] = [];
+    await Promise.all(
+      live.map(async (o) => {
+        const data = await fetchBoostStatus(String(o.id), {
+          platform: o.platform,
+          serviceTitle: o.serviceTitle,
+          quantity: o.quantity,
+          link: o.targetUrl,
+          amountNgn: o.amount,
+          createdAt: o.createdAt,
+          notifyCompleted: true,
+        });
+        if (!data.ok) return;
+        const idx = updated.findIndex((x) => String(x.id) === String(o.id));
+        if (idx < 0) return;
+        const prev = updated[idx].status;
+        const next = mapJapStatus(data.status);
+        const remains =
+          data.remains != null && data.remains !== ''
+            ? Number(data.remains)
+            : updated[idx].remains;
+        updated[idx] = {
+          ...updated[idx],
+          status: next,
+          charge: data.charge != null ? String(data.charge) : updated[idx].charge,
+          remains: Number.isFinite(remains as number) ? (remains as number) : updated[idx].remains,
+          startCount:
+            data.startCount != null ? String(data.startCount) : updated[idx].startCount,
+          currency: data.currency != null ? String(data.currency) : updated[idx].currency,
+        };
+        if (prev !== next || data.remains != null || data.charge != null) changed = true;
+        if (prev !== 'completed' && next === 'completed') {
+          doneTitles.push(String(updated[idx].serviceTitle || 'Boost'));
+        }
+      }),
+    );
+    if (changed) saveOrders(updated);
+    for (const title of doneTitles) {
+      const short = title.length > 40 ? title.slice(0, 37) + '…' : title;
+      showToast('Your ' + short + ' order has been completed');
+    }
+  };
+
+  useEffect(() => {
+    void refreshOrderStatuses();
+    const id = window.setInterval(() => {
+      void refreshOrderStatuses();
+    }, 15000);
+    return () => window.clearInterval(id);
+  }, []);
 
   const handleFundWallet = () => {
     if (onFund) onFund();
@@ -745,7 +854,7 @@ export function BoostPage({
       <section className="boost-orders-section" aria-labelledby="boost-orders-heading">
         <div className="boost-orders-head">
           <h2 id="boost-orders-heading" className="boost-orders-title">My Orders</h2>
-          <button type="button" className="boost-refresh-btn" onClick={() => loadCatalog(true)} disabled={refreshing}>
+          <button type="button" className="boost-refresh-btn" onClick={() => { loadCatalog(true); void refreshOrderStatuses(); }} disabled={refreshing}>
             <RefreshCw size={12} className={refreshing ? 'spin' : ''} />
             <span>Refresh</span>
           </button>
@@ -784,11 +893,35 @@ export function BoostPage({
                     <span className="boost-order-detail-label">Amount</span>
                     <span className="boost-order-detail-val">{formatNaira(o.amount)}</span>
                   </div>
+                  {o.remains != null && Number.isFinite(o.remains) && (
+                    <div className="boost-order-detail-item">
+                      <span className="boost-order-detail-label">Remains</span>
+                      <span className="boost-order-detail-val">{formatQty(o.remains)}</span>
+                    </div>
+                  )}
+                  {o.charge != null && o.charge !== '' && (
+                    <div className="boost-order-detail-item">
+                      <span className="boost-order-detail-label">Charge</span>
+                      <span className="boost-order-detail-val">
+                        {o.currency === 'USD' || !o.currency ? `${o.charge}` : o.charge}
+                      </span>
+                    </div>
+                  )}
                 </div>
                 <div className="boost-order-footer">
                   <button type="button" className="boost-order-ref" onClick={() => handleCopy(o.id)}>
                     <Copy size={11} /> {o.id}
                   </button>
+                  {(o.status === 'pending' || o.status === 'processing') && (
+                    <button
+                      type="button"
+                      className="boost-order-ref"
+                      style={{ marginLeft: 8, color: '#DC2626' }}
+                      onClick={() => handleCancelOrder(o)}
+                    >
+                      Cancel
+                    </button>
+                  )}
                   <span className="boost-order-date">
                     {new Date(o.createdAt).toLocaleString('en-NG', { dateStyle: 'medium', timeStyle: 'short' })}
                   </span>

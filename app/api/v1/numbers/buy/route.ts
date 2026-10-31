@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { grizzly } from '@/lib/providers';
 import { sbInsert, supabaseConfigured } from '@/lib/supabase-admin';
-import { resolvePanelClient, panelAllowsVirtualNumbers } from '@/lib/panel-auth';
-import { sendVirtualNumberReceipt } from '@/lib/email/receipts';
+import { resolvePanelClient, panelAllowsVirtualNumbers, getPanelAdminEmail } from '@/lib/panel-auth';
+import { sendVirtualNumberReceipt, sendPanelAdminOrderAlert } from '@/lib/email/receipts';
 
 export const dynamic = 'force-dynamic';
 
@@ -231,6 +231,10 @@ export async function POST(req: NextRequest) {
     poolId?: string;
     priceNgn?: number;
     userId?: string;
+    customerName?: string;
+    customerEmail?: string;
+    retailPriceNgn?: number;
+    customerPaidNgn?: number;
   };
   try {
     body = await req.json();
@@ -359,7 +363,41 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    if (userId) {
+    if (panel) {
+      // Panel wholesale order: Notify panel admin only, NEVER email the end customer
+      try {
+        const adminEmail = await getPanelAdminEmail(panel);
+        if (adminEmail) {
+          const retailNgn = Number(body.retailPriceNgn ?? body.customerPaidNgn);
+          const validRetail = Number.isFinite(retailNgn) && retailNgn > 0 ? retailNgn : undefined;
+          const customerLabel = (body.customerName || body.customerEmail || '').trim() || 'Child panel customer';
+
+          const mail = await sendPanelAdminOrderAlert(adminEmail, {
+            panelName: panel.name,
+            adminEmail,
+            customerName: customerLabel,
+            customerEmail: body.customerEmail ? body.customerEmail.trim() : undefined,
+            service: `Virtual number (${service.toUpperCase()})`,
+            orderId: savedId || result.id,
+            wholesaleAmountNgn: priceNgn,
+            customerPaidNgn: validRetail,
+            details: [
+              { label: 'Customer', value: customerLabel },
+              { label: 'Service', value: service.toUpperCase() },
+              { label: 'Phone number', value: phone },
+              { label: 'Country', value: country },
+            ],
+            date: new Date(),
+          });
+          if (!mail.ok) console.warn('[email] Panel admin alert not sent:', mail.error);
+        } else {
+          console.warn('[email] Panel admin alert skipped: no admin email resolved for panel', panel.name);
+        }
+      } catch (err) {
+        console.warn('[email] Panel admin alert dispatch failed:', err);
+      }
+    } else if (userId) {
+      // Retail consumer order directly on Verxor
       try {
         const mail = await sendVirtualNumberReceipt(userId, {
           status: 'successful',

@@ -17,6 +17,7 @@ export type PanelClient = {
   markupPercent: number;
   allowedProducts: string[];
   walletUserId: string | null;
+  ownerEmail: string | null;
   source: 'db' | 'env';
 };
 
@@ -48,6 +49,7 @@ export async function resolvePanelClient(req: Request): Promise<PanelClient | nu
       markupPercent: Number(process.env.VERXOR_PANEL_MARKUP_PCT || 15) || 15,
       allowedProducts: ['virtual_numbers', 'boost', 'smm'],
       walletUserId: (process.env.VERXOR_PANEL_WALLET_USER_ID || '').trim() || null,
+      ownerEmail: (process.env.VERXOR_PANEL_ADMIN_EMAIL || process.env.VERXOR_PANEL_OWNER_EMAIL || '').trim().toLowerCase() || null,
       source: 'env',
     };
   }
@@ -64,7 +66,7 @@ export async function resolvePanelClient(req: Request): Promise<PanelClient | nu
       name: string;
       markup_percent?: number;
       allowed_products?: string[];
-      meta?: { wallet_user_id?: string; walletUserId?: string };
+      meta?: { wallet_user_id?: string; walletUserId?: string; owner_email?: string; ownerEmail?: string };
     }>;
 
     const row = rows?.[0];
@@ -72,6 +74,7 @@ export async function resolvePanelClient(req: Request): Promise<PanelClient | nu
 
     const meta = row.meta || {};
     const walletUserId = (meta.wallet_user_id || meta.walletUserId || '').trim() || null;
+    const ownerEmail = (meta.owner_email || meta.ownerEmail || '').trim().toLowerCase() || null;
 
     return {
       id: row.id,
@@ -79,6 +82,7 @@ export async function resolvePanelClient(req: Request): Promise<PanelClient | nu
       markupPercent: Number(row.markup_percent ?? 15) || 15,
       allowedProducts: Array.isArray(row.allowed_products) ? row.allowed_products : ['virtual_numbers'],
       walletUserId,
+      ownerEmail,
       source: 'db',
     };
   } catch {
@@ -106,4 +110,28 @@ export function panelAllowsBoost(panel: PanelClient): boolean {
     allowed.includes('*') ||
     allowed.includes('all')
   );
+}
+
+/**
+ * Resolves the admin/owner email address for a child panel.
+ * Checks panel.ownerEmail, then profiles table via walletUserId, then server env.
+ */
+export async function getPanelAdminEmail(panel: PanelClient): Promise<string | null> {
+  if (panel.ownerEmail) return panel.ownerEmail;
+
+  if (panel.walletUserId && supabaseConfigured()) {
+    try {
+      const rows = (await sbSelect(
+        'profiles',
+        `id=eq.${encodeURIComponent(panel.walletUserId)}&select=email&limit=1`,
+      )) as Array<{ email?: string | null }>;
+      const email = rows?.[0]?.email?.trim().toLowerCase();
+      if (email) return email;
+    } catch {
+      /* optional lookup */
+    }
+  }
+
+  const fallback = (process.env.ADMIN_EMAIL || process.env.VERXOR_PANEL_ADMIN_EMAIL || '').trim().toLowerCase();
+  return fallback || null;
 }

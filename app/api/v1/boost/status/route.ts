@@ -11,10 +11,12 @@ function supabaseBase() {
 }
 
 async function resolveUserId(req: NextRequest, bodyUserId?: string): Promise<string | null> {
-  if (bodyUserId) return bodyUserId;
   const auth = req.headers.get('authorization') || '';
   const token = auth.startsWith('Bearer ') ? auth.slice(7).trim() : '';
-  if (!token || token.startsWith('vx_panel_')) return null;
+  // Panel requests must NEVER dispatch end-customer receipts
+  if (token.startsWith('vx_panel_') || req.headers.get('x-panel-key')) return null;
+  if (bodyUserId) return bodyUserId;
+  if (!token) return null;
   const base = supabaseBase();
   const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
   if (!base || !anon) return null;

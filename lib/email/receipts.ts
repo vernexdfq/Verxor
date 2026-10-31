@@ -1,5 +1,12 @@
 import { sbSelect } from '@/lib/supabase-admin';
-import { buildFintechReceiptHtml, receiptSubject, type ReceiptTemplateOptions } from './receipt-template';
+import {
+  buildFintechReceiptHtml,
+  receiptSubject,
+  type ReceiptTemplateOptions,
+  buildPanelAdminAlertHtml,
+  panelAdminAlertSubject,
+  type PanelAdminAlertOptions,
+} from './receipt-template';
 import { sendEmail, type SendEmailResult } from './resend';
 
 /** Best-effort receipt dispatch. Email delivery must never undo or fail a completed purchase. */
@@ -66,5 +73,24 @@ export async function sendBoostReceipt(
     });
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : 'Boost receipt dispatch failed' };
+  }
+}
+
+export async function sendPanelAdminOrderAlert(
+  adminEmail: string,
+  alert: PanelAdminAlertOptions,
+): Promise<SendEmailResult> {
+  try {
+    const to = (adminEmail || '').trim().toLowerCase();
+    if (!to || !to.includes('@')) {
+      return { ok: false, error: 'Valid panel admin email required' };
+    }
+    return await sendEmail({
+      to,
+      subject: panelAdminAlertSubject(alert),
+      html: buildPanelAdminAlertHtml(alert),
+    });
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : 'Panel admin alert dispatch failed' };
   }
 }

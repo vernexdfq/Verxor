@@ -275,3 +275,125 @@ export function boostReceiptSubject(options: BoostReceiptOptions): string {
   const statusText = options.status === 'Completed' ? 'is completed' : 'is in process';
   return `Your ${naming.dynamicName} order ${statusText} · #${options.orderId}`;
 }
+
+export type PanelAdminAlertOptions = {
+  panelName: string;
+  adminEmail: string;
+  customerName?: string;
+  customerEmail?: string;
+  service: string;
+  orderId: string | number;
+  wholesaleAmountNgn: number;
+  customerPaidNgn?: number;
+  details?: Array<{ label: string; value: string }>;
+  date?: Date | string;
+};
+
+export function panelAdminAlertSubject(options: PanelAdminAlertOptions): string {
+  const customerPart = options.customerName ? ` (${options.customerName})` : '';
+  return `[${options.panelName}] New order · ${options.service}${customerPart} · Wholesale: ${formatCurrency(options.wholesaleAmountNgn)}`;
+}
+
+export function buildPanelAdminAlertHtml(options: PanelAdminAlertOptions): string {
+  const date = options.date ? new Date(options.date) : new Date();
+  const dateLabel = Number.isNaN(date.getTime())
+    ? '—'
+    : date.toLocaleString('en-NG', {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+        timeZone: 'Africa/Lagos',
+      });
+
+  const customerDisplay = options.customerName || options.customerEmail || 'Child panel customer';
+
+  const rows: Array<{ label: string; value: string }> = [
+    { label: 'Child panel', value: options.panelName },
+    { label: 'Customer', value: customerDisplay },
+  ];
+  if (options.customerEmail && options.customerName && options.customerEmail !== options.customerName) {
+    rows.push({ label: 'Customer email', value: options.customerEmail });
+  }
+  rows.push({ label: 'Service', value: options.service });
+
+  if (options.details && options.details.length > 0) {
+    const cleanDetails = options.details.filter(
+      ({ label }) => !/^(provider|supplier|gateway|vendor|upstream)$/i.test(label.trim()),
+    );
+    for (const d of cleanDetails) {
+      if (!rows.some((r) => r.label.toLowerCase() === d.label.toLowerCase())) {
+        rows.push(d);
+      }
+    }
+  }
+
+  rows.push({ label: 'Order / Ref ID', value: String(options.orderId) });
+  rows.push({ label: 'Date & Time', value: dateLabel });
+
+  const detailsHtml = rows
+    .map(
+      ({ label, value }) =>
+        `<tr><td style="padding:12px 0;color:#667085;font-size:14px;border-bottom:1px solid #edf0f4">${escapeHtml(
+          label,
+        )}</td><td style="padding:12px 0;color:#172033;font-size:14px;text-align:right;border-bottom:1px solid #edf0f4;font-weight:600;word-break:break-all">${escapeHtml(
+          value,
+        )}</td></tr>`,
+    )
+    .join('');
+
+  const hasCustomerPaid =
+    typeof options.customerPaidNgn === 'number' &&
+    Number.isFinite(options.customerPaidNgn) &&
+    options.customerPaidNgn > 0;
+  const profitNgn = hasCustomerPaid
+    ? Math.max(0, (options.customerPaidNgn as number) - options.wholesaleAmountNgn)
+    : 0;
+
+  const pricingBox = `
+    <div style="padding:18px 20px;border-radius:12px;background:#f8f7fc;border:1px solid #ece8f7">
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+        <tr>
+          <td>
+            <div style="font-size:12px;color:#667085;font-weight:500">Wholesale cost (Paid to Verxor)</div>
+            <div style="margin-top:4px;font-size:24px;font-weight:800;color:#382080">${formatCurrency(
+              options.wholesaleAmountNgn,
+            )}</div>
+          </td>
+          ${
+            hasCustomerPaid
+              ? `<td style="text-align:right">
+                  <div style="font-size:12px;color:#667085;font-weight:500">Customer paid you (Retail)</div>
+                  <div style="margin-top:4px;font-size:20px;font-weight:700;color:#172033">${formatCurrency(
+                    options.customerPaidNgn as number,
+                  )}</div>
+                  <div style="margin-top:2px;font-size:12px;color:#087443;font-weight:700">Profit: +${formatCurrency(
+                    profitNgn,
+                  )}</div>
+                </td>`
+              : ''
+          }
+        </tr>
+      </table>
+    </div>
+  `;
+
+  const privacyGuarantee = `
+    <div style="margin-top:22px;padding:14px 16px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;color:#166534;font-size:12px;line-height:1.6">
+      <strong style="color:#14532d;display:block;margin-bottom:4px">✓ Reseller privacy protected</strong>
+      Verxor has <strong>not</strong> sent any receipt or email to your customer. Your wholesale pricing remains private between your panel and Verxor. You can dispatch your customer's branded receipt directly from your panel's mailer.
+    </div>
+  `;
+
+  const contactBlock = `<div style="margin-top:24px;padding:16px 18px;background:#f8fafc;border:1px solid #e8ebef;border-radius:12px"><div style="font-size:13px;font-weight:700;color:#172033;margin-bottom:8px">Verxor Partner Support</div><div style="font-size:12px;line-height:1.7;color:#475467">Email: <a href="mailto:support@verxor.com" style="color:#382080;font-weight:600">support@verxor.com</a><br>WhatsApp: <a href="https://wa.me/2348141620644" style="color:#087443">08141620644</a> · <a href="https://wa.me/2348062362896" style="color:#087443">08062362896</a></div></div>`;
+
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Child Panel Order · ${escapeHtml(
+    options.panelName,
+  )}</title></head><body style="margin:0;background:#f4f6f8;font-family:Arial,Helvetica,sans-serif;color:#172033"><div style="display:none;max-height:0;overflow:hidden;opacity:0">Child panel order for ${escapeHtml(
+    options.panelName,
+  )} · Wholesale: ${formatCurrency(options.wholesaleAmountNgn)}</div><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f4f6f8;padding:32px 12px"><tr><td align="center"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:560px;background:#fff;border:1px solid #e8ebef;border-radius:16px;overflow:hidden"><tr><td style="padding:24px 28px;border-bottom:1px solid #edf0f4"><div style="font-size:20px;letter-spacing:.04em;font-weight:800;color:#382080">VERXOR <span style="font-size:11px;font-weight:700;color:#4338ca;background:#eef2ff;padding:3px 8px;border-radius:6px;vertical-align:middle;letter-spacing:0">PARTNER ALERT</span></div><div style="margin-top:4px;font-size:12px;color:#667085">Wholesale order notice for ${escapeHtml(
+    options.panelName,
+  )}</div></td></tr><tr><td style="padding:28px"><p style="margin:0 0 10px;font-size:15px">Hello <strong>${escapeHtml(
+    options.panelName,
+  )} Admin</strong>,</p><h1 style="margin:0 0 8px;font-size:20px;line-height:1.3;color:#172033">New wholesale order processed</h1><p style="margin:0 0 20px;font-size:14px;line-height:1.6;color:#667085">An order from <strong>${escapeHtml(
+    customerDisplay,
+  )}</strong> was fulfilled successfully via your child panel.</p>${pricingBox}<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-top:18px">${detailsHtml}</table>${privacyGuarantee}${contactBlock}</td></tr><tr><td style="padding:18px 28px;background:#fafbfc;border-top:1px solid #edf0f4;color:#667085;font-size:12px;line-height:1.6">This is an automated partner notification for child panel administrators. Please do not reply with sensitive account secrets.</td></tr></table><div style="padding:16px;color:#98a2b3;font-size:11px">© ${new Date().getFullYear()} Verxor Partner Network</div></td></tr></table></body></html>`;
+}
