@@ -1,22 +1,229 @@
 import type { Metadata } from 'next';
-import { ArrowRight, Check, Globe2, Layers3, ShieldCheck, Wallet } from 'lucide-react';
+import { ArrowRight, Check, Globe2, Layers, ShieldCheck, Wallet, Sparkles } from 'lucide-react';
 import { MarketingHeader, MarketingFooter, SectionHeading, ButtonLink, IconTile } from '../../src/marketing/components';
 
 export const metadata: Metadata = {
   title: 'White-label Child Panels & Reseller Program | Verxor',
-  description: 'Learn how Verxor child panels work, including branding, custom domains, retail pricing rules, wallet synchronization and onboarding.',
+  description:
+    'Run your own branded digital-services child panel powered by Verxor infrastructure, with custom domain mapping, retail pricing rules, and 50% to 70% wholesale discounts.',
   alternates: { canonical: '/child-panels' },
-  openGraph: { title: 'Child Panels & Resellers | Verxor', description: 'Explore a branded digital-services panel powered by Verxor.', url: 'https://www.verxor.com/child-panels', siteName: 'Verxor', type: 'website', images: [{ url: '/brand/verxor-logo-512.png', width: 512, height: 512, alt: 'Verxor' }] },
+  openGraph: {
+    title: 'Child Panels & Resellers | Verxor',
+    description: 'Explore a white-label digital-services panel powered by Verxor with 50% to 70% wholesale margins.',
+    url: 'https://www.verxor.com/child-panels',
+    siteName: 'Verxor',
+    type: 'website',
+    images: [{ url: '/brand/verxor-logo-512.png', width: 512, height: 512, alt: 'Verxor' }],
+  },
 };
 
-const schema = { '@context': 'https://schema.org', '@type': 'Service', name: 'Verxor Child Panel Program', provider: { '@type': 'Organization', name: 'Verxor', url: 'https://www.verxor.com' }, description: 'White-label digital-services child panels for approved reseller businesses.', url: 'https://www.verxor.com/child-panels' };
+const schema = {
+  '@context': 'https://schema.org',
+  '@type': 'Service',
+  name: 'Verxor Child Panel Program',
+  provider: { '@type': 'Organization', name: 'Verxor', url: 'https://www.verxor.com' },
+  description: 'White-label digital-services child panels for approved reseller businesses.',
+  url: 'https://www.verxor.com/child-panels',
+};
 
 export default function ChildPanelsPage() {
-  return <><script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }} /><MarketingHeader /><main className="mk-partner-page">
-    <section className="mk-partner-hero mk-reseller-hero"><div className="mk-container mk-partner-grid"><div><span className="mk-section-eyebrow">FOR RESELLERS & BUSINESS OWNERS</span><h1>Your brand on the front. Verxor powering the service layer.</h1><p>Apply to run a branded child panel for supported digital services, with platform operations and provider integrations managed through Verxor’s core system.</p><div className="mk-hero-actions"><ButtonLink href="#apply" variant="primary">Explore panel applications <ArrowRight size={17} /></ButtonLink><ButtonLink href="#how-it-works" variant="secondary">How child panels work</ButtonLink></div><div className="mk-proof-row"><span><Layers3 size={16} /> White-label experience</span><span><ShieldCheck size={16} /> Tenant boundaries</span></div></div><div className="mk-reseller-visual"><div className="mk-reseller-window"><div className="mk-reseller-window-head"><img src="/brand/verxor-logo.svg" alt="" /><span>Your brand panel</span><span className="mk-preview-pill">CONCEPT</span></div><div className="mk-reseller-welcome"><span className="mk-mini-label">RESELLER WORKSPACE</span><h2>Run your digital services business.</h2><p>Illustrative child-panel dashboard preview.</p></div><div className="mk-reseller-metrics"><div><span>Wallet status</span><b>Synced through platform</b></div><div><span>Retail pricing</span><b>Within approved rules</b></div><div><span>Services</span><b>Based on enabled catalog</b></div></div></div></div></div></section>
-    <section className="mk-section"><div className="mk-container"><SectionHeading eyebrow="YOUR BUSINESS, CONNECTED" title="A clearer operating model for resellers." description="Child panels are separate tenant experiences. The exact features, fees and controls depend on the approved commercial plan." /><div className="mk-benefit-grid"><article><IconTile icon={Layers3} tone="blue" /><h3>Branded customer experience</h3><p>Present enabled services under your approved panel branding. Brand assets and domain requirements are confirmed during onboarding.</p></article><article><IconTile icon={Globe2} tone="violet" /><h3>Custom domain mapping</h3><p>Use a supported custom domain after DNS ownership, configuration, SSL and platform validation requirements are met.</p></article><article><IconTile icon={Wallet} tone="green" /><h3>Wallet synchronization</h3><p>Child balances and transactions are handled through the platform’s defined ledger and synchronization rules. Reconciliation and corrections remain auditable.</p></article></div></div></section>
-    <section className="mk-partner-dark" id="how-it-works"><div className="mk-container mk-partner-dark-grid"><div><span className="mk-section-eyebrow">HOW IT WORKS</span><h2>Clear boundaries. Shared infrastructure.</h2><p>Verxor operates the core service layer. The child-panel owner manages their customer-facing business within the permissions and pricing rules of the agreement.</p></div><div className="mk-integration-steps"><article><span>01</span><div><b>Apply and qualify</b><p>Provide your business details, use case and expected service volume.</p></div></article><article><span>02</span><div><b>Configure the panel</b><p>Agree branding, domain, enabled catalog, fees and wallet arrangements.</p></div></article><article><span>03</span><div><b>Operate within the rules</b><p>Retail pricing must meet applicable Verxor floor prices; access and features are enforced server-side.</p></div></article></div></div></section>
-    <section className="mk-section"><div className="mk-container mk-pricing-rules"><div><span className="mk-section-eyebrow">PRICING & COMMERCIALS</span><h2>50% to 70% wholesale discounts for your child panel.</h2><p>Certified child panels automatically receive 50% to 70% wholesale discounts off retail catalog rates. You set your own custom retail prices above Verxor wholesale floors, keeping 100% of the markup margin while the core infrastructure automates order routing and fulfillment.</p></div><div className="mk-rule-card"><div><span>Wholesale discount tier</span><b style={{ color: '#16a34a' }}>50% to 70% Off Retail</b></div><div className="mk-rule-line" /><div><span>Your custom retail price</span><b>100% of markup is yours</b></div><div className="mk-rule-check"><Check size={17} /> Automated order fulfillment & wallet sync</div></div></div></section>
-    <section className="mk-section mk-application-section" id="apply"><div className="mk-container mk-application-grid"><div><span className="mk-section-eyebrow">BECOME A RESELLER</span><h2>Tell us about your panel.</h2><p>Applications are reviewed to confirm fit, operating model and required configuration before a child tenant is created.</p><ul><li><Check size={16} /> Business and customer segment</li><li><Check size={16} /> Requested services and expected volume</li><li><Check size={16} /> Branding and domain plans</li></ul></div><div className="mk-application-card"><IconTile icon={Layers3} tone="violet" /><h3>Child-panel applications</h3><p>Application intake must be connected to Verxor’s approved submission endpoint before this page can collect or transmit your details.</p><div className="mk-form-readiness"><span /> Application intake: awaiting backend connection</div><ButtonLink href="/workspace" variant="primary">Continue to Verxor <ArrowRight size={17} /></ButtonLink><p className="mk-small-note">Approval, fees, onboarding time, available services and domain setup are confirmed individually. A child panel does not receive master provider credentials.</p></div></div></section>
-  </main><MarketingFooter /></>;
+  return (
+    <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }} />
+      <MarketingHeader />
+      <main className="mk-partner-page">
+        {/* HERO */}
+        <section className="mk-partner-hero mk-reseller-hero">
+          <div className="mk-container mk-partner-grid">
+            <div>
+              <div className="mk-subpage-badge">
+                <Layers size={14} className="mk-subpage-badge-icon" />
+                <span>WHITE-LABEL RESELLER ECOSYSTEM</span>
+              </div>
+              <h1 className="mk-subpage-title">Your brand on the front. Verxor powering the service layer.</h1>
+              <p className="mk-subpage-intro">
+                Launch your own branded child panel for virtual numbers, VTU utilities, eSIMs, and SMM growth.
+                Enjoy turnkey custom domain mapping, custom retail markups, and automated backend fulfillment.
+              </p>
+              <div className="mk-hero-actions">
+                <ButtonLink href="#how-it-works" variant="primary">
+                  Explore Panel Program <ArrowRight size={16} />
+                </ButtonLink>
+                <ButtonLink href="#pricing" variant="secondary">
+                  50%–70% Wholesale Margins
+                </ButtonLink>
+              </div>
+              <div className="mk-proof-row">
+                <span>
+                  <Layers size={15} /> 100% White-Label Branding
+                </span>
+                <span>
+                  <ShieldCheck size={15} /> Automated Order Routing
+                </span>
+              </div>
+            </div>
+
+            {/* Visual Panel Card */}
+            <div className="mk-reseller-visual">
+              <div className="mk-reseller-window">
+                <div className="mk-reseller-window-head">
+                  <img src="/brand/verxor-logo.svg" alt="" width={24} height={24} />
+                  <span>Your Brand Panel</span>
+                  <span className="mk-preview-pill">WHITE-LABEL</span>
+                </div>
+                <div className="mk-reseller-welcome">
+                  <span className="mk-mini-label">RESELLER WORKSPACE</span>
+                  <h2>Run your digital agency under your domain.</h2>
+                  <p>Customer orders route automatically to Verxor carrier pipelines.</p>
+                </div>
+                <div className="mk-reseller-metrics">
+                  <div>
+                    <span>Wholesale Margin</span>
+                    <b style={{ color: '#16a34a' }}>50% to 70% Off</b>
+                  </div>
+                  <div>
+                    <span>Custom Domain</span>
+                    <b>yourbrand.com</b>
+                  </div>
+                  <div>
+                    <span>Order Routing</span>
+                    <b>100% Automated</b>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* THREE BENEFIT PILLARS */}
+        <section className="mk-section">
+          <div className="mk-container">
+            <SectionHeading
+              eyebrow="YOUR BUSINESS, CONNECTED"
+              title="A clearer operating model for resellers."
+              description="Child panels run as separate branded tenant experiences with synchronized wallet balances and custom catalog controls."
+            />
+            <div className="mk-benefit-grid">
+              <article className="mk-benefit-card">
+                <IconTile icon={Layers} tone="blue" />
+                <h3>Branded Customer Experience</h3>
+                <p>Present enabled services under your own logo, theme colors, and custom terms. Your customers never see upstream provider names.</p>
+              </article>
+              <article className="mk-benefit-card">
+                <IconTile icon={Globe2} tone="violet" />
+                <h3>Custom Domain Mapping</h3>
+                <p>Point your custom domain (e.g. portal.yourbrand.com) with automated SSL provisioning and high-speed edge CDN delivery.</p>
+              </article>
+              <article className="mk-benefit-card">
+                <IconTile icon={Wallet} tone="green" />
+                <h3>Wallet Synchronization</h3>
+                <p>Customers pay into your payment gateway, while orders deduct at wholesale discount rates from your Verxor wallet automatically.</p>
+              </article>
+            </div>
+          </div>
+        </section>
+
+        {/* HOW IT WORKS */}
+        <section className="mk-partner-dark" id="how-it-works">
+          <div className="mk-container mk-partner-dark-grid">
+            <div>
+              <span className="mk-section-eyebrow">HOW IT WORKS</span>
+              <h2>Clear boundaries. Shared infrastructure.</h2>
+              <p>Verxor operates the core service layer. You manage customer marketing, relationships, and custom retail markup.</p>
+            </div>
+            <div className="mk-integration-steps">
+              <article>
+                <span>01</span>
+                <div>
+                  <b>Connect Your Brand &amp; Domain</b>
+                  <p>Configure your business name, logo, theme, and DNS records.</p>
+                </div>
+              </article>
+              <article>
+                <span>02</span>
+                <div>
+                  <b>Set Custom Retail Prices</b>
+                  <p>Set custom retail margins above Verxor wholesale floor rates. You keep 100% of the profit.</p>
+                </div>
+              </article>
+              <article>
+                <span>03</span>
+                <div>
+                  <b>Automate Order Routing</b>
+                  <p>Every customer purchase triggers instant API fulfillment with live status updates.</p>
+                </div>
+              </article>
+            </div>
+          </div>
+        </section>
+
+        {/* PRICING & COMMERCIALS */}
+        <section className="mk-section" id="pricing">
+          <div className="mk-container mk-pricing-rules">
+            <div>
+              <span className="mk-section-eyebrow">PRICING &amp; COMMERCIALS</span>
+              <h2>50% to 70% wholesale discounts for your child panel.</h2>
+              <p>
+                Certified child panels automatically receive 50% to 70% wholesale discounts off retail catalog rates.
+                You set your own custom retail prices above Verxor wholesale floors, keeping 100% of the markup margin
+                while our infrastructure automates fulfillment.
+              </p>
+            </div>
+            <div className="mk-rule-card">
+              <div>
+                <span>Wholesale discount tier</span>
+                <b style={{ color: '#16a34a' }}>50% to 70% Off Retail</b>
+              </div>
+              <div className="mk-rule-line" />
+              <div>
+                <span>Your custom retail price</span>
+                <b>100% of markup margin is yours</b>
+              </div>
+              <div className="mk-rule-check">
+                <Check size={16} /> Automated order fulfillment &amp; wallet sync
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* CTA */}
+        <section className="mk-section mk-application-section" id="apply">
+          <div className="mk-container mk-application-grid">
+            <div>
+              <span className="mk-section-eyebrow">BECOME A RESELLER</span>
+              <h2>Launch your child panel today.</h2>
+              <p>
+                Explore reseller options, API access, and custom configurations inside your Verxor workspace.
+              </p>
+              <ul className="mk-check-list">
+                <li>
+                  <Check size={16} /> Custom branding and domain options
+                </li>
+                <li>
+                  <Check size={16} /> Enabled catalog of numbers, VTU, cards, and SMM
+                </li>
+                <li>
+                  <Check size={16} /> 50% to 70% wholesale profit margins
+                </li>
+              </ul>
+            </div>
+            <div className="mk-application-card">
+              <IconTile icon={Layers} tone="violet" />
+              <h3>Reseller Workspace</h3>
+              <p>
+                Launch your Verxor workspace to manage your reseller settings, view wholesale rates, and connect custom domains.
+              </p>
+              <ButtonLink href="/workspace" variant="primary">
+                Open Reseller Workspace <ArrowRight size={16} />
+              </ButtonLink>
+              <p className="mk-small-note">
+                Instant access. Priority queues are provisioned automatically as your monthly volume grows.
+              </p>
+            </div>
+          </div>
+        </section>
+      </main>
+      <MarketingFooter />
+    </>
+  );
 }
