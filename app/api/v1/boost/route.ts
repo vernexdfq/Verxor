@@ -44,6 +44,99 @@ function formatNaira(n: number): string {
   return `₦${n.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
+
+async function persistBoostOrderMeta(
+  userId: string,
+  debitRef: string,
+  payload: {
+    providerOrderId: string | number;
+    serviceId: string;
+    serviceTitle: string;
+    platform: string;
+    link: string;
+    quantity: number;
+    amountNgn: number;
+    status: string;
+    mode?: string;
+    panelId?: string;
+    panelName?: string;
+  },
+) {
+  const base = supabaseBase();
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!base || !serviceKey || !userId) return;
+  const japId = String(payload.providerOrderId || '').trim();
+  if (!japId) {
+    console.warn('[boost] persist skipped — empty providerOrderId');
+    return;
+  }
+  const meta = {
+    type: 'boost',
+    product: 'boost',
+    providerOrderId: japId,
+    orderId: japId,
+    japOrderId: japId,
+    serviceId: payload.serviceId,
+    serviceTitle: payload.serviceTitle,
+    title: payload.serviceTitle,
+    platform: payload.platform,
+    link: payload.link,
+    quantity: payload.quantity,
+    amountNgn: payload.amountNgn,
+    status: payload.status || 'processing',
+    debitRef: debitRef || undefined,
+    mode: payload.mode || 'retail',
+    panelId: payload.panelId,
+    panelName: payload.panelName,
+    updated_at: new Date().toISOString(),
+  };
+  const headers = {
+    apikey: serviceKey,
+    Authorization: `Bearer ${serviceKey}`,
+    'Content-Type': 'application/json',
+    Prefer: 'return=minimal',
+  };
+  try {
+    // 1) Update original debit row by reference if debitRef exists
+    if (debitRef) {
+      await fetch(
+        `${base}/rest/v1/wallet_ledger?reference=eq.${encodeURIComponent(debitRef)}`,
+        { method: 'PATCH', headers, body: JSON.stringify({ meta }) },
+      ).catch(() => null);
+    }
+
+    // 2) Always ensure a row exists keyed by the JAP order id (support ID)
+    const orderRef = `boost-order-${japId}`;
+    const existing = await fetch(
+      `${base}/rest/v1/wallet_ledger?reference=eq.${encodeURIComponent(orderRef)}&select=id&limit=1`,
+      { headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}`, Accept: 'application/json' }, cache: 'no-store' },
+    );
+    const existingRows = existing.ok ? ((await existing.json().catch(() => [])) as Array<{ id?: string }>) : [];
+    if (Array.isArray(existingRows) && existingRows[0]?.id) {
+      await fetch(`${base}/rest/v1/wallet_ledger?id=eq.${encodeURIComponent(String(existingRows[0].id))}`, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify({ meta }),
+      }).catch(() => null);
+    } else {
+      await fetch(`${base}/rest/v1/wallet_ledger`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          user_id: userId,
+          kind: payload.mode === 'reseller_wallet' ? 'panel_boost_debit' : 'boost',
+          amount_ngn: -Math.abs(payload.amountNgn),
+          currency: 'NGN',
+          reference: orderRef,
+          meta,
+        }),
+      }).catch(() => null);
+    }
+  } catch (err) {
+    console.warn('[boost] persist order meta failed', err);
+  }
+}
+
 async function debitRetailWallet(
   userId: string,
   amount: number,
@@ -382,6 +475,22 @@ export async function POST(req: NextRequest) {
       quantity,
     });
 
+    if (userId && result?.order) {
+      await persistBoostOrderMeta(userId, debitRef, {
+        providerOrderId: String(result.order),
+        serviceId: String(service.id),
+        serviceTitle: service.title,
+        platform: service.platformName || service.platform,
+        link,
+        quantity,
+        amountNgn: amount,
+        status: 'processing',
+        mode: useReseller ? 'reseller_wallet' : 'retail',
+        panelId: panel?.id,
+        panelName: panel?.name,
+      });
+    }
+
     // Receipt only for retail end-users (panel sends its own)
     if (!useReseller && userId) {
       try {
@@ -437,7 +546,9 @@ export async function POST(req: NextRequest) {
       ok: true,
       order: {
         ref: String(result.order),
-        providerOrderId: result.order,
+        orderId: String(result.order),
+        providerOrderId: Number(result.order),
+        japOrderId: Number(result.order),
         status: 'processing',
         serviceId: service.id,
         serviceTitle: service.title,

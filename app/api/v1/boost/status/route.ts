@@ -36,7 +36,7 @@ async function resolveUserId(req: NextRequest, bodyUserId?: string): Promise<str
 /**
  * GET /api/v1/boost/status?orderId=123
  * POST { orderId, notifyCompleted?, platform?, serviceTitle?, quantity?, link?, amountNgn?, createdAt?, userId? }
- * JAP action=status
+ * JAP action=status. Supports numeric JAP IDs and child reference strings (e.g. boost-panel-...).
  */
 async function handle(
   req: NextRequest,
@@ -58,13 +58,92 @@ async function handle(
       { status: 503 },
     );
   }
-  if (!orderId) {
+  const cleanId = String(orderId || '').trim();
+  if (!cleanId) {
     return NextResponse.json({ ok: false, error: 'orderId is required' }, { status: 400 });
   }
+
+  let effectiveJapId = cleanId;
+  let ledgerRowId: string | null = null;
+  let ledgerMeta: Record<string, unknown> | null = null;
+
+  const base = supabaseBase();
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  // If orderId is not purely numeric (e.g. child reference boost-xxx), look up wallet_ledger
+  if (!/^\d+$/.test(cleanId) && base && serviceKey) {
+    try {
+      const q = `${base}/rest/v1/wallet_ledger?reference=eq.${encodeURIComponent(cleanId)}&select=id,meta&limit=1`;
+      const res = await fetch(q, {
+        headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}`, Accept: 'application/json' },
+        cache: 'no-store',
+      });
+      if (res.ok) {
+        const rows = (await res.json().catch(() => [])) as Array<{ id?: string; meta?: Record<string, unknown> }>;
+        if (rows?.[0]) {
+          ledgerRowId = rows[0].id ? String(rows[0].id) : null;
+          ledgerMeta = rows[0].meta || null;
+          const candidate = String(
+            ledgerMeta?.providerOrderId || ledgerMeta?.orderId || ledgerMeta?.japOrderId || '',
+          ).trim();
+          if (/^\d+$/.test(candidate)) {
+            effectiveJapId = candidate;
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('[boost/status] reference resolution error:', e);
+    }
+  }
+
+  if (!/^\d+$/.test(effectiveJapId)) {
+    return NextResponse.json(
+      { ok: false, error: `Invalid order ID or unresolved reference: ${cleanId}` },
+      { status: 400 },
+    );
+  }
+
   try {
-    const st = await smmGetStatus(orderId);
+    const st = await smmGetStatus(effectiveJapId);
     const normalizedStatus = String(st.status || '').toLowerCase();
     const isCompleted = normalizedStatus.includes('complete');
+
+    // Update wallet_ledger with latest status
+    if (base && serviceKey) {
+      try {
+        const patchMeta = {
+          ...(ledgerMeta || {}),
+          status: isCompleted
+            ? 'completed'
+            : normalizedStatus.includes('cancel')
+              ? 'canceled'
+              : normalizedStatus.includes('progress') || normalizedStatus.includes('processing')
+                ? 'processing'
+                : normalizedStatus || 'pending',
+          japStatus: st.status,
+          charge: st.charge,
+          remains: st.remains,
+          startCount: st.start_count,
+          currency: st.currency,
+          reconciledAt: new Date().toISOString(),
+        };
+
+        if (ledgerRowId) {
+          await fetch(`${base}/rest/v1/wallet_ledger?id=eq.${encodeURIComponent(ledgerRowId)}`, {
+            method: 'PATCH',
+            headers: {
+              apikey: serviceKey,
+              Authorization: `Bearer ${serviceKey}`,
+              'Content-Type': 'application/json',
+              Prefer: 'return=minimal',
+            },
+            body: JSON.stringify({ meta: patchMeta }),
+          });
+        }
+      } catch {
+        /* best effort */
+      }
+    }
 
     let notified = false;
     if (isCompleted && extra?.notifyCompleted) {
@@ -76,7 +155,7 @@ async function handle(
             serviceTitle: extra.serviceTitle || 'Boost Order',
             quantity: Number(extra.quantity || 1),
             link: extra.link || '',
-            orderId,
+            orderId: effectiveJapId,
             amountNgn: Number(extra.amountNgn || 0),
             status: 'Completed',
             date: new Date(),
@@ -93,7 +172,9 @@ async function handle(
 
     return NextResponse.json({
       ok: true,
-      orderId,
+      orderId: effectiveJapId,
+      providerOrderId: Number(effectiveJapId) || effectiveJapId,
+      ref: cleanId,
       status: st.status,
       charge: st.charge,
       startCount: st.start_count,

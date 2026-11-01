@@ -3,5 +3,13 @@
   "framework": "nextjs",
   "buildCommand": "node scripts/verxor-prebuild.cjs && next build",
   "installCommand": "npm install",
-  "regions": ["iad1"]
+  "regions": [
+    "iad1"
+  ],
+  "crons": [
+    {
+      "path": "/api/v1/boost/reconcile",
+      "schedule": "*/5 * * * *"
+    }
+  ]
 }
