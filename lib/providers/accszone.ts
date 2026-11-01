@@ -200,7 +200,7 @@ function enrichFromTitle(title: string): {
 
   if (/\busa\b|\bus\b|united states/.test(t)) country = 'USA';
   else if (/\buk\b|united kingdom|europe|france|germany|italy|spain/.test(t)) country = 'Europe';
-  else if (/canada|oceania|new zealand|australia/.test(t)) country = 'North America / Oceania';
+  else if (/canada|oceania|new zealand|australia/.test(t)) country = 'North America \/ Oceania';
   else if (/latin|colombia|brazil|mexico|argentina/.test(t)) country = 'Latin America';
   else if (/africa|algeria|nigeria|middle east/.test(t)) country = 'Middle East & Africa';
   else if (/asia|bangladesh|india|pacific/.test(t)) country = 'Asia & Pacific';
@@ -253,12 +253,12 @@ function htmlToPlainText(input: string): string {
   s = s.replace(/<[^>]+>/g, '');
   s = s
     .replace(/&nbsp;/gi, ' ')
-    .replace(/&/gi, '&')
-    .replace(/</gi, '<')
-    .replace(/>/gi, '>')
-    .replace(/"/gi, '"')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
     .replace(/&#39;/g, "'")
-    .replace(/'/gi, "'");
+    .replace(/&apos;/gi, "'");
   s = s.replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
   return s;
 }
@@ -448,5 +448,120 @@ export async function fetchAccsZoneBalance(): Promise<{
     return { ok: true, balance: Number(res.data?.balance) || 0 };
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : 'balance failed' };
+  }
+}
+
+/** Result of a successful AccsZone purchase. */
+export type PurchaseResult = {
+  ok: true;
+  orderId?: string | number;
+  accounts: string[];
+  raw?: unknown;
+};
+
+export type PurchaseError = {
+  ok: false;
+  error: string;
+  code?: string;
+};
+
+/**
+ * Purchase one or more units of an AccsZone listing.
+ * Server-side only. Body matches AccsZone /purchase.
+ */
+export async function purchaseListing(params: {
+  adId: number;
+  quantity: number;
+  clientReference?: string;
+}): Promise<PurchaseResult | PurchaseError> {
+  const adId = Number(params.adId);
+  const quantity = Math.max(1, Math.min(50, Math.floor(Number(params.quantity) || 1)));
+  if (!Number.isFinite(adId) || adId <= 0) {
+    return { ok: false, error: 'Invalid listing id', code: 'invalid_ad' };
+  }
+  if (!apiKey()) {
+    return { ok: false, error: 'ACCSZONE_API_KEY is not configured', code: 'config' };
+  }
+
+  const body: Record<string, unknown> = {
+    ad_id: adId,
+    quantity,
+  };
+  if (params.clientReference) {
+    body.client_reference = String(params.clientReference).slice(0, 64);
+  }
+
+  try {
+    const res = await accsFetch<{
+      success?: boolean;
+      message?: string;
+      data?: {
+        order_id?: string | number;
+        id?: string | number;
+        accounts?: string[] | Array<Record<string, unknown>>;
+        items?: string[] | Array<Record<string, unknown>>;
+        credentials?: string[] | Array<Record<string, unknown>>;
+        [key: string]: unknown;
+      };
+      accounts?: string[];
+      [key: string]: unknown;
+    }>('/purchase', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+
+    const data = res.data ?? res;
+    const rawList =
+      (data as { accounts?: unknown }).accounts ??
+      (data as { items?: unknown }).items ??
+      (data as { credentials?: unknown }).credentials ??
+      (res as { accounts?: unknown }).accounts ??
+      [];
+
+    const accounts: string[] = [];
+    if (Array.isArray(rawList)) {
+      for (const item of rawList) {
+        if (typeof item === 'string' && item.trim()) {
+          accounts.push(item.trim());
+        } else if (item && typeof item === 'object') {
+          const obj = item as Record<string, unknown>;
+          const line =
+            (typeof obj.account === 'string' && obj.account) ||
+            (typeof obj.login === 'string' && obj.login) ||
+            (typeof obj.credential === 'string' && obj.credential) ||
+            (typeof obj.value === 'string' && obj.value) ||
+            [
+              obj.email ?? obj.login ?? obj.username,
+              obj.password,
+              obj.token ?? obj.cookie ?? obj['2fa'] ?? obj.twofa,
+            ]
+              .filter((x) => x != null && String(x).length > 0)
+              .join(':');
+          if (line) accounts.push(String(line));
+        }
+      }
+    }
+
+    const orderId =
+      (data as { order_id?: string | number }).order_id ??
+      (data as { id?: string | number }).id ??
+      undefined;
+
+    if (accounts.length === 0) {
+      return {
+        ok: false,
+        error: 'Purchase succeeded but no credentials were returned',
+        code: 'empty_credentials',
+      };
+    }
+
+    return { ok: true, orderId, accounts, raw: res };
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : 'Purchase failed',
+      code: 'provider_error',
+    };
   }
 }
