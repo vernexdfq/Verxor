@@ -20,6 +20,7 @@ import './product-pages.css';
 import type { AuthSession } from './auth/AuthFlow';
 import type { AccountProduct } from './accounts-types';
 import { STATIC_CATALOG as CATALOG } from './accounts-static-catalog';
+import { DescriptionBody } from './accounts-description';
 
 /**
  * Buy Accounts & Logs — Verxor marketplace
@@ -554,90 +555,51 @@ export function AccountsPage({ onBack, session }: { onBack: () => void; session?
 
       {subtypeDrawerOpen && showSubtypeBar && (
         <div className="sheet-backdrop subtype-drawer-backdrop" onClick={() => setSubtypeDrawerOpen(false)}>
-          <section
-            className="subtype-drawer"
-            onClick={(e) => e.stopPropagation()}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="subtype-drawer-title"
-          >
-            <div className="subtype-drawer-handle" aria-hidden />
-            <header className="subtype-drawer-head">
+          <div className="subtype-drawer" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+            <div className="subtype-drawer-handle" />
+            <div className="subtype-drawer-head">
               <div>
-                <h2 id="subtype-drawer-title">{platform} Categories</h2>
-                <p>{platformSubtypes.length} types available</p>
+                <strong>{platform} Categories ({platformSubtypes.length})</strong>
+                <p>Filter listings by type</p>
               </div>
-              <button
-                type="button"
-                className="subtype-drawer-close"
-                onClick={() => setSubtypeDrawerOpen(false)}
-                aria-label="Close"
-              >
+              <button type="button" onClick={() => setSubtypeDrawerOpen(false)} aria-label="Close">
                 <X size={18} />
               </button>
-            </header>
-            <div className="subtype-drawer-list" role="listbox" aria-label={`${platform} sub-categories`}>
+            </div>
+            <div className="subtype-option-list">
               <button
                 type="button"
-                role="option"
-                aria-selected={subtype === null}
-                className={`subtype-option${subtype === null ? ' is-active' : ''}`}
+                className={`subtype-option${!subtype ? ' active' : ''}`}
                 onClick={() => selectSubtype(null)}
               >
-                <span className="subtype-option-main">
+                <div className="subtype-option-main">
                   <strong>All {platform}</strong>
-                  <small>Show every in-stock listing</small>
-                </span>
-                <span className="subtype-option-meta">
-                  <span className="subtype-option-count">
-                    {catalog.filter((p) => {
-                      if (p.stock <= 0) return false;
-                      if (platform === 'X / Twitter') return p.platform === 'X' || p.platform === 'X / Twitter';
-                      return p.platform === platform;
-                    }).length}
-                  </span>
-                  {subtype === null && (
-                    <span className="subtype-option-check" aria-hidden>
-                      <Check size={14} />
-                    </span>
-                  )}
-                </span>
+                  <small>{filtered.length} listings</small>
+                </div>
+                {!subtype && <Check size={16} />}
               </button>
               {platformSubtypes.map((s) => (
                 <button
                   key={s.name}
                   type="button"
-                  role="option"
-                  aria-selected={subtype === s.name}
-                  className={`subtype-option${subtype === s.name ? ' is-active' : ''}`}
+                  className={`subtype-option${subtype === s.name ? ' active' : ''}`}
                   onClick={() => selectSubtype(s.name)}
                 >
-                  <span className="subtype-option-main">
+                  <div className="subtype-option-main">
                     <strong>{s.name}</strong>
                     <small>
-                      {s.stock.toLocaleString()} units · {s.count} listing{s.count === 1 ? '' : 's'}
+                      {s.count} · {s.stock.toLocaleString()} in stock
                     </small>
-                  </span>
-                  <span className="subtype-option-meta">
-                    <span className="subtype-option-count">{s.count}</span>
-                    {subtype === s.name && (
-                      <span className="subtype-option-check" aria-hidden>
-                        <Check size={14} />
-                      </span>
-                    )}
-                  </span>
+                  </div>
+                  {subtype === s.name && <Check size={16} />}
                 </button>
               ))}
             </div>
-          </section>
+          </div>
         </div>
       )}
 
-      {toast && (
-        <div className="accounts-toast" role="status">
-          {toast}
-        </div>
-      )}
+      {toast && <div className="accounts-toast">{toast}</div>}
     </div>
   );
 }
@@ -679,7 +641,7 @@ function AccountDetail({
         <div className="detail-bold-flow">
           <div className="detail-desc-block">
             <span className="detail-section-title">Description</span>
-            <p className="detail-lead">{product.description}</p>
+            <DescriptionBody text={product.description} />
           </div>
           {product.bullets.length > 0 && (
             <div className="detail-features-block">
@@ -708,54 +670,56 @@ function AccountDetail({
           </div>
         </div>
 
-        <div className="detail-qty-row">
-          <span>Quantity</span>
-          <div className="qty-stepper">
-            <button type="button" disabled={qty <= 1} onClick={() => setQty((q) => Math.max(1, q - 1))} aria-label="Decrease">
-              <Minus size={14} />
-            </button>
-            <strong>{qty}</strong>
-            <button
-              type="button"
-              disabled={qty >= Math.min(10, product.stock)}
-              onClick={() => setQty((q) => Math.min(10, product.stock, q + 1))}
-              aria-label="Increase"
-            >
-              <Plus size={14} />
-            </button>
+        <div className="detail-checkout-dock">
+          <div className="detail-qty-row">
+            <span>Quantity</span>
+            <div className="qty-stepper">
+              <button type="button" disabled={qty <= 1} onClick={() => setQty((q) => Math.max(1, q - 1))} aria-label="Decrease">
+                <Minus size={14} />
+              </button>
+              <strong>{qty}</strong>
+              <button
+                type="button"
+                disabled={qty >= Math.min(10, product.stock)}
+                onClick={() => setQty((q) => Math.min(10, product.stock, q + 1))}
+                aria-label="Increase"
+              >
+                <Plus size={14} />
+              </button>
+            </div>
           </div>
-        </div>
 
-        <div className="detail-price-row">
-          <div>
-            <span>Total payable</span>
-            <small>{money(product.price)} each</small>
+          <div className="detail-price-row">
+            <div>
+              <span>Total payable</span>
+              <small>{money(product.price)} each</small>
+            </div>
+            <strong>{money(total)}</strong>
           </div>
-          <strong>{money(total)}</strong>
+
+          <div className="detail-wallet-indicator">
+            <span>Wallet</span>
+            <strong>{money(wallet)}</strong>
+          </div>
+
+          <PrimaryButton
+            className="detail-order-btn"
+            onClick={() => {
+              if (!canPay) {
+                onCheckoutBlocked('Insufficient wallet balance. Fund wallet to continue.');
+                return;
+              }
+              onCheckoutBlocked('Checkout connects on the next release — catalog is live.');
+            }}
+          >
+            {canPay ? `Pay ${money(total)}` : 'Fund Wallet'}
+            <ArrowRight size={16} />
+          </PrimaryButton>
+
+          <p className="detail-footnote">
+            Credentials appear in your logs after a successful order.
+          </p>
         </div>
-
-        <div className="detail-wallet-indicator">
-          <span>Wallet</span>
-          <strong>{money(wallet)}</strong>
-        </div>
-
-        <PrimaryButton
-          className="detail-order-btn"
-          onClick={() => {
-            if (!canPay) {
-              onCheckoutBlocked('Insufficient wallet balance. Fund wallet to continue.');
-              return;
-            }
-            onCheckoutBlocked('Checkout connects on the next release — catalog is live.');
-          }}
-        >
-          {canPay ? `Pay ${money(total)}` : 'Fund Wallet'}
-          <ArrowRight size={16} />
-        </PrimaryButton>
-
-        <p className="detail-footnote">
-          Credentials appear in your logs after a successful order.
-        </p>
       </div>
     </div>
   );
