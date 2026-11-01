@@ -137,7 +137,6 @@ export async function GET(req: NextRequest) {
               service: existingOrder?.service || 'Virtual Number',
               country: existingOrder?.country || undefined,
               amountNgn: Number(existingOrder?.price_ngn || 0),
-              otpCode: otp,
             });
             if (mail.ok) {
               emailDispatched = true;

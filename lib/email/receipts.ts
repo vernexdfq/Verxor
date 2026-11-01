@@ -103,7 +103,6 @@ export interface VirtualNumberDeliveryReceiptOptions {
   service: string;
   country?: string;
   amountNgn: number;
-  otpCode: string;
   customerName?: string;
 }
 
@@ -119,7 +118,7 @@ export async function sendVirtualNumberDeliveredReceipt(
     details: [
       { label: 'Service', value: (options.service || 'Virtual Number').toUpperCase() },
       { label: 'Phone number', value: options.phone },
-      { label: 'Verification Code', value: options.otpCode },
+      { label: 'Verification status', value: 'Code delivered; view it securely in your Verxor account' },
       ...(options.country ? [{ label: 'Country', value: options.country }] : []),
     ],
   });
