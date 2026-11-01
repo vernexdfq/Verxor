@@ -32,7 +32,7 @@ export const metadata: Metadata = {
     title: 'Verxor — Global Digital Infrastructure for Africa’s Digital Economy',
     description:
       'Explore virtual numbers, eSIM, VTU services, USD cards, social growth, and developer options from one platform.',
-    url: 'https://verxor.com/',
+    url: 'https://www.verxor.com/',
     siteName: 'Verxor',
     type: 'website',
     images: [{ url: '/brand/verxor-logo.svg', width: 256, height: 256, alt: 'Verxor emblem' }],
@@ -82,10 +82,10 @@ const numberStages = [
 ];
 
 const vtuPillars = [
-  'MTN, Airtel, Glo & 9mobile SME / Corporate Data with 3-second automated delivery',
+  'MTN, Airtel, Glo & 9mobile SME / Corporate Data with fast automated delivery',
   'Instant airtime top-up, airtime-to-cash conversion & recharge card printing e-pins',
   'NEPA prepaid electricity meter tokens across all 11 Nigerian electricity DisCos',
-  'Cable TV subscriptions (DStv, GOtv, Startimes) with zero customer convenience fees',
+  'Direct Cable TV subscriptions (DStv, GOtv, Startimes) with transparent, competitive pricing',
   'Instant educational scratch cards and e-pins for WAEC, NECO, and JAMB registration',
   'Clean REST API with automated webhooks designed for VTU portals & child panels',
 ];
@@ -95,8 +95,8 @@ const faqsBySection = [
     category: 'Virtual Numbers & SMS Rentals',
     items: [
       {
-        q: 'For services that verify by call instead of text, how does it work?',
-        a: 'For services that verify by voice call rather than SMS, our carrier telemetry captures the call audio and automatically extracts the spoken verification code from the audio transcript straight into your Verxor dashboard.',
+        q: 'How do voice-call or missed-call verification codes work?',
+        a: 'For supported numbers and services that verify by voice or missed-call, incoming call details or audio recordings/transcripts (where supported by the upstream carrier) are delivered to your verification dashboard so you can view the security code.',
       },
       {
         q: 'Where are your numbers from?',
@@ -223,8 +223,8 @@ const organizationSchema = {
   '@context': 'https://schema.org',
   '@type': 'Organization',
   name: 'Verxor',
-  url: 'https://verxor.com',
-  logo: 'https://verxor.com/brand/verxor-logo.svg',
+  url: 'https://www.verxor.com',
+  logo: 'https://www.verxor.com/brand/verxor-logo.svg',
   description:
     'Global digital infrastructure for Africa’s digital economy: virtual numbers, eSIM, VTU data, USD cards, SMM marketplace, and developer APIs.',
 };
@@ -233,7 +233,7 @@ const websiteSchema = {
   '@context': 'https://schema.org',
   '@type': 'WebSite',
   name: 'Verxor',
-  url: 'https://verxor.com',
+  url: 'https://www.verxor.com',
   inLanguage: 'en',
 };
 
@@ -291,45 +291,6 @@ export default function HomePage() {
               <div className="vx-metric-item"><strong>Clear</strong><span>Before you confirm</span></div>
             </div>
 
-            {/* HERO 3D FEATURE CARD */}
-            <div className="vx-hero-showcase">
-              <div className="vx-showcase-grid">
-                <div className="vx-showcase-copy">
-                  <div className="vx-badge">FINTECH & VIRTUAL CARD LAYER</div>
-                  <h2>Borderless Payments Direct From Your Wallet.</h2>
-                  <p>
-                    Explore virtual USD card options for online purchases and subscriptions. Card availability, features,
-                    fees, and terms are presented before you apply.
-                  </p>
-                  <ul className="vx-feature-checklist">
-                    <li>
-                      <CheckCircle2 size={16} /> Funding options shown in your account
-                    </li>
-                    <li>
-                      <CheckCircle2 size={16} /> For eligible online purchases and subscriptions
-                    </li>
-                    <li>
-                      <CheckCircle2 size={16} /> Card controls available in your account
-                    </li>
-                  </ul>
-                  <a href="/services/virtual-cards" className="vx-link-btn">
-                    Explore Virtual Cards <ArrowUpRight size={16} />
-                  </a>
-                </div>
-                <div className="vx-showcase-visual">
-                  <img
-                    src="/3d/verxor_hero_virtual_card.png"
-                    alt="Verxor 3D Virtual Dollar Card"
-                    className="vx-3d-img"
-                    loading="eager"
-                  />
-                  <div className="vx-visual-floating-tag">
-                    <Sparkles size={14} />
-                    <span>3DS OTP in Live Dashboard</span>
-                  </div>
-                </div>
-              </div>
-            </div>
           </div>
         </section>
 
@@ -425,7 +386,7 @@ export default function HomePage() {
                     Connect VTU API <ArrowRight size={16} />
                   </a>
                   <a href="/services/data" className="vx-btn vx-btn-secondary">
-                    View Data Plans (OPay-Style) <ArrowUpRight size={16} />
+                    View Data Plans <ArrowUpRight size={16} />
                   </a>
                 </div>
               </div>

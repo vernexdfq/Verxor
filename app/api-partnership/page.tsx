@@ -6,10 +6,10 @@ export const metadata: Metadata = {
   title: 'API Partnerships & Developer Access | Verxor',
   description: 'Learn about Verxor API partner access, authentication, wallet requirements, integration practices and the application process.',
   alternates: { canonical: '/api-partnership' },
-  openGraph: { title: 'API Partnerships | Verxor', description: 'Build with Verxor’s supported digital-services API infrastructure.', url: 'https://verxor.com/api-partnership', siteName: 'Verxor', type: 'website', images: [{ url: '/brand/verxor-logo-512.png', width: 512, height: 512, alt: 'Verxor' }] },
+  openGraph: { title: 'API Partnerships | Verxor', description: 'Build with Verxor’s supported digital-services API infrastructure.', url: 'https://www.verxor.com/api-partnership', siteName: 'Verxor', type: 'website', images: [{ url: '/brand/verxor-logo-512.png', width: 512, height: 512, alt: 'Verxor' }] },
 };
 
-const schema = { '@context': 'https://schema.org', '@type': 'Service', name: 'Verxor API Partnership', provider: { '@type': 'Organization', name: 'Verxor', url: 'https://verxor.com' }, description: 'API access for eligible developers and businesses, subject to review and plan terms.', url: 'https://verxor.com/api-partnership' };
+const schema = { '@context': 'https://schema.org', '@type': 'Service', name: 'Verxor API Partnership', provider: { '@type': 'Organization', name: 'Verxor', url: 'https://www.verxor.com' }, description: 'API access for eligible developers and businesses, subject to review and plan terms.', url: 'https://www.verxor.com/api-partnership' };
 
 export default function ApiPartnershipPage() {
   return <><script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }} /><MarketingHeader /><main className="mk-partner-page">

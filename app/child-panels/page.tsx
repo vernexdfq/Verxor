@@ -6,10 +6,10 @@ export const metadata: Metadata = {
   title: 'White-label Child Panels & Reseller Program | Verxor',
   description: 'Learn how Verxor child panels work, including branding, custom domains, retail pricing rules, wallet synchronization and onboarding.',
   alternates: { canonical: '/child-panels' },
-  openGraph: { title: 'Child Panels & Resellers | Verxor', description: 'Explore a branded digital-services panel powered by Verxor.', url: 'https://verxor.com/child-panels', siteName: 'Verxor', type: 'website', images: [{ url: '/brand/verxor-logo-512.png', width: 512, height: 512, alt: 'Verxor' }] },
+  openGraph: { title: 'Child Panels & Resellers | Verxor', description: 'Explore a branded digital-services panel powered by Verxor.', url: 'https://www.verxor.com/child-panels', siteName: 'Verxor', type: 'website', images: [{ url: '/brand/verxor-logo-512.png', width: 512, height: 512, alt: 'Verxor' }] },
 };
 
-const schema = { '@context': 'https://schema.org', '@type': 'Service', name: 'Verxor Child Panel Program', provider: { '@type': 'Organization', name: 'Verxor', url: 'https://verxor.com' }, description: 'White-label digital-services child panels for approved reseller businesses.', url: 'https://verxor.com/child-panels' };
+const schema = { '@context': 'https://schema.org', '@type': 'Service', name: 'Verxor Child Panel Program', provider: { '@type': 'Organization', name: 'Verxor', url: 'https://www.verxor.com' }, description: 'White-label digital-services child panels for approved reseller businesses.', url: 'https://www.verxor.com/child-panels' };
 
 export default function ChildPanelsPage() {
   return <><script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }} /><MarketingHeader /><main className="mk-partner-page">

@@ -382,7 +382,7 @@ export const servicePages: ServiceInfo[] = [
     shortTitle: 'VTU API',
     eyebrow: 'DEVELOPER ACCESS',
     description:
-      'Automated 3-second delivery for SME & corporate data, airtime, NEPA electricity tokens, cable TV, exam PINs, and airtime-to-cash with wholesale reseller pricing.',
+      'Fast automated delivery for SME & corporate data, airtime, NEPA electricity tokens, cable TV, exam PINs, and airtime-to-cash with wholesale reseller pricing.',
     intro:
       'Built for fintechs, developers, and VTU child panels. Access stable 99.9% uptime infrastructure with 50% to 70% wholesale margin potential across all Nigerian telecom networks and billers.',
     benefits: [

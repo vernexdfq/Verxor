@@ -19,7 +19,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     title: service.title + ' | Verxor',
     description: service.description,
     alternates: { canonical },
-    openGraph: { title: service.title + ' | Verxor', description: service.description, url: 'https://verxor.com' + canonical, siteName: 'Verxor', type: 'website', images: [{ url: '/brand/verxor-logo-512.png', width: 512, height: 512, alt: 'Verxor' }] },
+    openGraph: { title: service.title + ' | Verxor', description: service.description, url: 'https://www.verxor.com' + canonical, siteName: 'Verxor', type: 'website', images: [{ url: '/brand/verxor-logo-512.png', width: 512, height: 512, alt: 'Verxor' }] },
   };
 }
 
@@ -28,7 +28,7 @@ export default async function ServiceLandingPage({ params }: Props) {
   const service = servicePages.find(item => item.slug === slug);
   if (!service) notFound();
 
-  const serviceSchema = { '@context': 'https://schema.org', '@type': 'Service', name: service.title, description: service.description, provider: { '@type': 'Organization', name: 'Verxor', url: 'https://verxor.com' }, url: 'https://verxor.com/services/' + service.slug };
+  const serviceSchema = { '@context': 'https://schema.org', '@type': 'Service', name: service.title, description: service.description, provider: { '@type': 'Organization', name: 'Verxor', url: 'https://www.verxor.com' }, url: 'https://www.verxor.com/services/' + service.slug };
   const faqSchema = { '@context': 'https://schema.org', '@type': 'FAQPage', mainEntity: service.faqs.map(([question, answer]) => ({ '@type': 'Question', name: question, acceptedAnswer: { '@type': 'Answer', text: answer } })) };
 
   return <><script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(serviceSchema) }} /><script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }} /><MarketingHeader />

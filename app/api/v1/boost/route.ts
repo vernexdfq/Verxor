@@ -44,75 +44,6 @@ function formatNaira(n: number): string {
   return `₦${n.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-async function persistBoostOrderMeta(
-  userId: string,
-  debitRef: string,
-  payload: {
-    providerOrderId: string;
-    serviceId: string;
-    serviceTitle: string;
-    platform: string;
-    link: string;
-    quantity: number;
-    amountNgn: number;
-    status: string;
-  },
-) {
-  const base = supabaseBase();
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!base || !serviceKey || !userId || !debitRef) return;
-  const meta = {
-    type: 'boost',
-    product: 'boost',
-    providerOrderId: payload.providerOrderId,
-    orderId: payload.providerOrderId,
-    serviceId: payload.serviceId,
-    serviceTitle: payload.serviceTitle,
-    title: payload.serviceTitle,
-    platform: payload.platform,
-    link: payload.link,
-    quantity: payload.quantity,
-    amountNgn: payload.amountNgn,
-    status: payload.status,
-  };
-  try {
-    const patchRes = await fetch(
-      `${base}/rest/v1/wallet_ledger?user_id=eq.${encodeURIComponent(userId)}&reference=eq.${encodeURIComponent(debitRef)}`,
-      {
-        method: 'PATCH',
-        headers: {
-          apikey: serviceKey,
-          Authorization: `Bearer ${serviceKey}`,
-          'Content-Type': 'application/json',
-          Prefer: 'return=minimal',
-        },
-        body: JSON.stringify({ meta }),
-      },
-    );
-    if (!patchRes.ok) {
-      await fetch(`${base}/rest/v1/wallet_ledger`, {
-        method: 'POST',
-        headers: {
-          apikey: serviceKey,
-          Authorization: `Bearer ${serviceKey}`,
-          'Content-Type': 'application/json',
-          Prefer: 'return=minimal',
-        },
-        body: JSON.stringify({
-          user_id: userId,
-          kind: 'purchase',
-          amount_ngn: -Math.abs(payload.amountNgn),
-          currency: 'NGN',
-          reference: `boost-order-${payload.providerOrderId}`,
-          meta,
-        }),
-      });
-    }
-  } catch (err) {
-    console.warn('[boost] persist order meta failed', err);
-  }
-}
-
 async function debitRetailWallet(
   userId: string,
   amount: number,
@@ -171,60 +102,75 @@ async function creditRetailWallet(
   });
 }
 
+/** Partner / child-panel wholesale balance (reseller_wallet). */
 async function debitResellerWallet(userId: string, amount: number, reference: string) {
   const base = supabaseBase();
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!base || !serviceKey) throw new Error('Wallet backend not configured');
 
-  const sel = await fetch(
-    `${base}/rest/v1/reseller_wallet?user_id=eq.${encodeURIComponent(userId)}&select=balance&limit=1`,
-    {
-      headers: {
-        apikey: serviceKey,
-        Authorization: `Bearer ${serviceKey}`,
-      },
-      cache: 'no-store',
+  const hdr = {
+    apikey: serviceKey,
+    Authorization: `Bearer ${serviceKey}`,
+  };
+
+  await fetch(`${base}/rest/v1/reseller_wallet`, {
+    method: 'POST',
+    headers: {
+      ...hdr,
+      'Content-Type': 'application/json',
+      Prefer: 'resolution=ignore-duplicates,return=minimal',
     },
+    body: JSON.stringify({ user_id: userId, balance: 0 }),
+  }).catch(() => null);
+
+  const balRes = await fetch(
+    `${base}/rest/v1/reseller_wallet?user_id=eq.${encodeURIComponent(userId)}&select=balance&limit=1`,
+    { headers: hdr, cache: 'no-store' },
   );
-  const rows = (await sel.json().catch(() => [])) as Array<{ balance?: number }>;
-  const balance = Number(rows?.[0]?.balance ?? 0);
-  if (!Number.isFinite(balance) || balance < amount) throw new Error('INSUFFICIENT_BALANCE');
+  if (!balRes.ok) {
+    throw new Error(`Reseller balance read failed: ${balRes.status}`);
+  }
+  const rows = (await balRes.json()) as Array<{ balance: number }>;
+  const prev = Number(rows?.[0]?.balance) || 0;
+  if (prev < amount) {
+    throw new Error('INSUFFICIENT_BALANCE');
+  }
+  const next = Math.round((prev - amount) * 100) / 100;
 
   const up = await fetch(`${base}/rest/v1/reseller_wallet?user_id=eq.${encodeURIComponent(userId)}`, {
     method: 'PATCH',
     headers: {
-      apikey: serviceKey,
-      Authorization: `Bearer ${serviceKey}`,
+      ...hdr,
       'Content-Type': 'application/json',
       Prefer: 'return=minimal',
     },
-    body: JSON.stringify({
-      balance: balance - amount,
-      updated_at: new Date().toISOString(),
-    }),
+    body: JSON.stringify({ balance: next }),
   });
   if (!up.ok) {
     const t = await up.text().catch(() => '');
     throw new Error(`Reseller debit failed: ${t.slice(0, 200)}`);
   }
 
-  await fetch(`${base}/rest/v1/wallet_ledger`, {
-    method: 'POST',
-    headers: {
-      apikey: serviceKey,
-      Authorization: `Bearer ${serviceKey}`,
-      'Content-Type': 'application/json',
-      Prefer: 'return=minimal',
-    },
-    body: JSON.stringify({
-      user_id: userId,
-      kind: 'wholesale_debit',
-      amount_ngn: -Math.abs(amount),
-      currency: 'NGN',
-      reference,
-      meta: { reference, mode: 'reseller_wallet' },
-    }),
-  });
+  // Optional ledger row (best-effort)
+  try {
+    await fetch(`${base}/rest/v1/wallet_ledger`, {
+      method: 'POST',
+      headers: {
+        ...hdr,
+        'Content-Type': 'application/json',
+        Prefer: 'return=minimal',
+      },
+      body: JSON.stringify({
+        user_id: userId,
+        amount: -amount,
+        kind: 'panel_boost_debit',
+        reference,
+        meta: { reference, mode: 'reseller_wallet' },
+      }),
+    });
+  } catch {
+    /* ignore */
+  }
 }
 
 async function creditResellerWallet(userId: string, amount: number, reference: string) {
@@ -232,56 +178,59 @@ async function creditResellerWallet(userId: string, amount: number, reference: s
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!base || !serviceKey || amount <= 0) return;
 
-  const sel = await fetch(
+  const hdr = {
+    apikey: serviceKey,
+    Authorization: `Bearer ${serviceKey}`,
+  };
+
+  const balRes = await fetch(
     `${base}/rest/v1/reseller_wallet?user_id=eq.${encodeURIComponent(userId)}&select=balance&limit=1`,
-    {
-      headers: {
-        apikey: serviceKey,
-        Authorization: `Bearer ${serviceKey}`,
-      },
-      cache: 'no-store',
-    },
+    { headers: hdr, cache: 'no-store' },
   );
-  const rows = (await sel.json().catch(() => [])) as Array<{ balance?: number }>;
-  const balance = Number(rows?.[0]?.balance ?? 0);
+  if (!balRes.ok) return;
+  const rows = (await balRes.json()) as Array<{ balance: number }>;
+  const prev = Number(rows?.[0]?.balance) || 0;
+  const next = Math.round((prev + amount) * 100) / 100;
 
   await fetch(`${base}/rest/v1/reseller_wallet?user_id=eq.${encodeURIComponent(userId)}`, {
     method: 'PATCH',
     headers: {
-      apikey: serviceKey,
-      Authorization: `Bearer ${serviceKey}`,
+      ...hdr,
       'Content-Type': 'application/json',
       Prefer: 'return=minimal',
     },
-    body: JSON.stringify({
-      balance: balance + amount,
-      updated_at: new Date().toISOString(),
-    }),
+    body: JSON.stringify({ balance: next }),
   });
 
-  await fetch(`${base}/rest/v1/wallet_ledger`, {
-    method: 'POST',
-    headers: {
-      apikey: serviceKey,
-      Authorization: `Bearer ${serviceKey}`,
-      'Content-Type': 'application/json',
-      Prefer: 'return=minimal',
-    },
-    body: JSON.stringify({
-      user_id: userId,
-      kind: 'refund',
-      amount_ngn: Math.abs(amount),
-      currency: 'NGN',
-      reference,
-      meta: { reference, mode: 'reseller_wallet' },
-    }),
-  });
+  try {
+    await fetch(`${base}/rest/v1/wallet_ledger`, {
+      method: 'POST',
+      headers: {
+        ...hdr,
+        'Content-Type': 'application/json',
+        Prefer: 'return=minimal',
+      },
+      body: JSON.stringify({
+        user_id: userId,
+        amount,
+        kind: 'panel_boost_refund',
+        reference,
+        meta: { reference, mode: 'reseller_wallet' },
+      }),
+    });
+  } catch {
+    /* ignore */
+  }
 }
 
+/**
+ * POST /api/v1/boost
+ * Auth: retail JWT or child-panel API key (vx_panel_*) with linked wallet.
+ * Retail → wallets via debit_wallet + retail mult (4/3/2/1.5)
+ * Panel  → reseller_wallet + partner mult (2.0/1.7/1.35/1.15)
+ * Body: { serviceId, link, quantity, userId? }
+ */
 export async function POST(req: NextRequest) {
-  if (!supabaseConfigured()) {
-    return NextResponse.json({ ok: false, error: 'Service unavailable' }, { status: 503 });
-  }
   if (!isSmmConfigured()) {
     return NextResponse.json(
       { ok: false, error: 'Boost provider not configured' },
@@ -289,86 +238,115 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  let body: Record<string, unknown> = {};
+  let body: {
+    serviceId?: string | number;
+    link?: string;
+    quantity?: number;
+    userId?: string;
+    ref?: string;
+  };
   try {
-    body = (await req.json()) as Record<string, unknown>;
+    body = await req.json();
   } catch {
-    return NextResponse.json({ ok: false, error: 'Invalid JSON body' }, { status: 400 });
+    return NextResponse.json({ ok: false, error: 'Invalid JSON' }, { status: 400 });
   }
 
-  const authHeader = req.headers.get('authorization') || '';
-  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
-  const isPanel = token.startsWith('vx_panel_');
-
-  let panel: Awaited<ReturnType<typeof resolvePanelClient>> = null;
-  let userId: string | null = null;
-  let useReseller = false;
-
-  if (isPanel) {
-    panel = await resolvePanelClient(token);
-    if (!panel) {
-      return NextResponse.json({ ok: false, error: 'Invalid panel key' }, { status: 401 });
-    }
-    if (!panelAllowsBoost(panel.panelType || panel.type || '')) {
-      return NextResponse.json(
-        { ok: false, error: 'This panel key is not allowed to place boost orders' },
-        { status: 403 },
-      );
-    }
-    useReseller = true;
-    userId =
-      (panel.meta && (panel.meta as any).wallet_user_id) ||
-      process.env.VERXOR_PANEL_WALLET_USER_ID ||
-      null;
-    if (!userId) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error:
-            'Panel wallet not linked. Set meta.wallet_user_id on the API client or VERXOR_PANEL_WALLET_USER_ID.',
-        },
-        { status: 400 },
-      );
-    }
-  } else {
-    userId = await resolveUserId(req, body.userId ? String(body.userId) : undefined);
-    if (!userId) {
-      return NextResponse.json({ ok: false, error: 'Sign in required' }, { status: 401 });
-    }
-  }
-
-  const serviceId = String(body.serviceId || body.service_id || '').trim();
-  const link = String(body.link || body.target || '').trim();
-  const quantity = Number(body.quantity || body.qty || 0);
-  if (!serviceId || !link || !Number.isFinite(quantity) || quantity <= 0) {
+  const link = String(body.link || '').trim();
+  if (!link || link.length < 5) {
     return NextResponse.json(
-      { ok: false, error: 'serviceId, link, and quantity are required' },
+      { ok: false, error: 'Valid target link is required' },
       { status: 400 },
+    );
+  }
+
+  const quantity = Math.round(Number(body.quantity));
+  if (!Number.isFinite(quantity) || quantity < 1) {
+    return NextResponse.json({ ok: false, error: 'Invalid quantity' }, { status: 400 });
+  }
+
+  const serviceId = String(body.serviceId || '').trim();
+  if (!serviceId) {
+    return NextResponse.json({ ok: false, error: 'Service is required' }, { status: 400 });
+  }
+
+  const panel = await resolvePanelClient(req);
+  if (panel && !panelAllowsBoost(panel)) {
+    return NextResponse.json(
+      { ok: false, error: 'This panel key is not allowed to place boost orders' },
+      { status: 403 },
+    );
+  }
+
+  let userId = await resolveUserId(req, body.userId);
+  if (!userId && panel?.walletUserId) {
+    userId = panel.walletUserId;
+  }
+
+  if (!userId && !panel) {
+    return NextResponse.json(
+      { ok: false, error: 'Unauthorized. Sign in or pass a child-panel API key.' },
+      { status: 401 },
+    );
+  }
+  if (panel && !userId) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error:
+          'Panel wallet not linked. Set meta.wallet_user_id on the API client or VERXOR_PANEL_WALLET_USER_ID.',
+      },
+      { status: 401 },
+    );
+  }
+
+  if (!supabaseConfigured()) {
+    return NextResponse.json(
+      { ok: false, error: 'Wallet backend not configured' },
+      { status: 503 },
     );
   }
 
   const service = await smmFindService(serviceId);
   if (!service) {
-    return NextResponse.json({ ok: false, error: 'Service not found in live catalog' }, { status: 404 });
+    return NextResponse.json(
+      { ok: false, error: 'Service not available or no longer offered' },
+      { status: 404 },
+    );
   }
 
-  const priceMult = useReseller ? getSmmPartnerMultiplier(quantity) : getSmmMultiplier(quantity);
-  const amount = useReseller
-    ? calculateSmmPartnerPriceNgn(service.wholesaleUsd, quantity)
-    : calculateSmmPriceNgn(service.wholesaleUsd, quantity);
-  const rateNgn = quantity > 0 ? (amount / quantity) * 1000 : 0;
-
-  if (!Number.isFinite(amount) || amount <= 0) {
-    return NextResponse.json({ ok: false, error: 'Invalid order amount' }, { status: 400 });
-  }
   if (service.wholesaleUsd > SMM_MAX_USD_CUTOFF) {
-    return NextResponse.json({ ok: false, error: 'Service price exceeds safety cutoff' }, { status: 400 });
+    return NextResponse.json(
+      { ok: false, error: 'Service not available for retail' },
+      { status: 400 },
+    );
+  }
+
+  if (quantity < service.min || quantity > service.max) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: `Quantity must be between ${service.min.toLocaleString('en-NG')} and ${service.max.toLocaleString('en-NG')}`,
+      },
+      { status: 400 },
+    );
+  }
+
+  const useReseller = Boolean(panel);
+  const rateNgn = useReseller
+    ? calculateSmmPartnerPriceNgn(service.wholesaleUsd)
+    : calculateSmmPriceNgn(service.wholesaleUsd);
+  const priceMult = useReseller
+    ? getSmmPartnerMultiplier(service.wholesaleUsd)
+    : getSmmMultiplier(service.wholesaleUsd);
+  const amount = Math.round((quantity / 1000) * rateNgn * 100) / 100;
+  if (amount <= 0) {
+    return NextResponse.json({ ok: false, error: 'Invalid order amount' }, { status: 400 });
   }
 
   const shortTitle =
     service.title.length > 80 ? service.title.slice(0, 77) + '…' : service.title;
   const debitRef =
-    String(body.ref || '') ||
+    body.ref ||
     `boost-${useReseller ? `panel-${panel!.id}` : userId!.slice(0, 8)}-${Date.now()}`;
   const debitDesc = `Boost — ${shortTitle} × ${quantity.toLocaleString('en-NG')} · ${formatNaira(amount)}${useReseller ? ' (partner)' : ''}`;
   const successTitle = `Boost order was successful — ${shortTitle} × ${quantity.toLocaleString('en-NG')} for ${formatNaira(amount)}`;
@@ -398,29 +376,13 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const japServiceId = Number(service.providerId);
-    if (!Number.isFinite(japServiceId) || japServiceId <= 0) {
-      throw new Error('Service is missing a valid provider id for SMM placement');
-    }
     const result = await smmAddOrder({
-      service: japServiceId,
+      service: service.providerId,
       link,
       quantity,
     });
 
-    if (userId) {
-      await persistBoostOrderMeta(userId, debitRef, {
-        providerOrderId: String(result.order),
-        serviceId: String(service.id),
-        serviceTitle: service.title,
-        platform: service.platformName || service.platform,
-        link,
-        quantity,
-        amountNgn: amount,
-        status: 'processing',
-      });
-    }
-
+    // Receipt only for retail end-users (panel sends its own)
     if (!useReseller && userId) {
       try {
         const mail = await sendBoostReceipt(userId, {
@@ -438,17 +400,19 @@ export async function POST(req: NextRequest) {
         console.warn('[email] Boost order receipt dispatch failed:', err);
       }
     } else if (panel) {
+      // Panel wholesale order: Notify panel admin only, NEVER email the end customer
       try {
         const adminEmail = await getPanelAdminEmail(panel);
         if (adminEmail) {
-          const retailNgn = Number(body.retailPriceNgn ?? body.customerPaidNgn);
+          const retailNgn = Number((body as any).retailPriceNgn ?? (body as any).customerPaidNgn);
           const validRetail = Number.isFinite(retailNgn) && retailNgn > 0 ? retailNgn : undefined;
-          const customerLabel =
-            (String(body.customerName || body.customer || '').trim() || 'Child panel customer');
-          const mail = await sendPanelAdminOrderAlert({
+          const customerLabel = ((body as any).customerName || (body as any).customerEmail || '').trim() || 'Child panel customer';
+
+          const mail = await sendPanelAdminOrderAlert(adminEmail, {
+            panelName: panel.name,
             adminEmail,
             customerName: customerLabel,
-            customerEmail: body.customerEmail ? String(body.customerEmail).trim() : undefined,
+            customerEmail: (body as any).customerEmail ? String((body as any).customerEmail).trim() : undefined,
             service: `Boost: ${service.platformName || service.platform} ${service.title}`,
             orderId: String(result.order),
             wholesaleAmountNgn: amount,
@@ -499,10 +463,18 @@ export async function POST(req: NextRequest) {
       if (useReseller) {
         await creditResellerWallet(userId, amount, `refund-${debitRef}`);
       } else {
-        await creditRetailWallet(userId, amount, `refund-${debitRef}`, `Refund — ${debitDesc}`);
+        await creditRetailWallet(
+          userId,
+          amount,
+          `refund-${debitRef}`,
+          `Refund — ${debitDesc}`,
+        );
       }
     }
     const message = err instanceof Error ? err.message : 'Provider order failed';
-    return NextResponse.json({ ok: false, error: message, refunded: debited }, { status: 502 });
+    return NextResponse.json(
+      { ok: false, error: message, refunded: debited },
+      { status: 502 },
+    );
   }
 }

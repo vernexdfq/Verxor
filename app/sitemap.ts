@@ -6,7 +6,7 @@ import { servicePages } from '../src/marketing/data';
  * Prefer apex host to match canonical + Search Console property.
  */
 export default function sitemap(): MetadataRoute.Sitemap {
-  const base = 'https://verxor.com';
+  const base = 'https://www.verxor.com';
   const now = new Date();
 
   const fixed: MetadataRoute.Sitemap = [

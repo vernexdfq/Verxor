@@ -64,7 +64,7 @@ export default function robots(): MetadataRoute.Robots {
         disallow: disallowPrivate,
       },
     ],
-    sitemap: 'https://verxor.com/sitemap.xml',
-    host: 'https://verxor.com',
+    sitemap: 'https://www.verxor.com/sitemap.xml',
+    host: 'https://www.verxor.com',
   };
 }

@@ -14,7 +14,7 @@ import '../src/marketing/marketing.css';
 import '../src/marketing/hero-polish.css';
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://verxor.com'),
+  metadataBase: new URL('https://www.verxor.com'),
   title: {
     default: 'Verxor — Virtual Numbers, eSIM, VTU, Proxies & Digital Services',
     template: '%s | Verxor',
@@ -35,7 +35,7 @@ export const metadata: Metadata = {
     },
   },
   alternates: {
-    canonical: 'https://verxor.com',
+    canonical: 'https://www.verxor.com',
   },
   icons: {
     icon: [
@@ -50,7 +50,7 @@ export const metadata: Metadata = {
     title: 'Verxor — Virtual Numbers, eSIM, VTU & Digital Services',
     description:
       'Instant virtual numbers, eSIM, airtime, data, bill payments, proxies, gift cards and virtual dollar cards in one wallet.',
-    url: 'https://verxor.com',
+    url: 'https://www.verxor.com',
     siteName: 'Verxor',
     type: 'website',
     images: [
@@ -93,8 +93,6 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
   viewportFit: 'cover',
   themeColor: '#2563EB',
 };
@@ -103,27 +101,27 @@ const organizationJsonLd = {
   '@context': 'https://schema.org',
   '@type': 'Organization',
   name: 'Verxor',
-  url: 'https://verxor.com',
-  logo: 'https://verxor.com/brand/verxor-logo.svg',
+  url: 'https://www.verxor.com',
+  logo: 'https://www.verxor.com/brand/verxor-logo.svg',
   description:
     'Digital services platform offering virtual numbers, eSIMs, VTU (airtime, data, bills), proxies, gift cards, virtual cards, SMM and partner API access.',
   sameAs: [],
   makesOffer: [
-    { '@type': 'Offer', itemOffered: { '@type': 'Service', name: 'Virtual Numbers for SMS Verification', url: 'https://verxor.com/services/virtual-numbers' } },
-    { '@type': 'Offer', itemOffered: { '@type': 'Service', name: 'Number Rentals', url: 'https://verxor.com/services/number-rentals' } },
-    { '@type': 'Offer', itemOffered: { '@type': 'Service', name: 'Boost Account (SMM)', url: 'https://verxor.com/services/smm' } },
-    { '@type': 'Offer', itemOffered: { '@type': 'Service', name: 'Accounts & Logs', url: 'https://verxor.com/services/accounts-logs' } },
-    { '@type': 'Offer', itemOffered: { '@type': 'Service', name: 'Proxies', url: 'https://verxor.com/services/proxies' } },
-    { '@type': 'Offer', itemOffered: { '@type': 'Service', name: 'eSIM Data Profiles', url: 'https://verxor.com/services/esim' } },
-    { '@type': 'Offer', itemOffered: { '@type': 'Service', name: 'Gift Card Trading', url: 'https://verxor.com/services/gift-cards' } },
-    { '@type': 'Offer', itemOffered: { '@type': 'Service', name: 'Virtual Dollar Cards', url: 'https://verxor.com/services/virtual-cards' } },
-    { '@type': 'Offer', itemOffered: { '@type': 'Service', name: 'Airtime Top-up', url: 'https://verxor.com/services/airtime' } },
-    { '@type': 'Offer', itemOffered: { '@type': 'Service', name: 'Mobile Data Bundles', url: 'https://verxor.com/services/data' } },
-    { '@type': 'Offer', itemOffered: { '@type': 'Service', name: 'Exam Pins', url: 'https://verxor.com/services/exam-pin' } },
-    { '@type': 'Offer', itemOffered: { '@type': 'Service', name: 'Electricity Bill & Token', url: 'https://verxor.com/services/electricity' } },
-    { '@type': 'Offer', itemOffered: { '@type': 'Service', name: 'Bet Wallet Funding', url: 'https://verxor.com/services/bet-funding' } },
-    { '@type': 'Offer', itemOffered: { '@type': 'Service', name: 'Cable TV Subscription', url: 'https://verxor.com/services/cable-tv' } },
-    { '@type': 'Offer', itemOffered: { '@type': 'Service', name: 'VTU API', url: 'https://verxor.com/services/vtu-api' } },
+    { '@type': 'Offer', itemOffered: { '@type': 'Service', name: 'Virtual Numbers for SMS Verification', url: 'https://www.verxor.com/services/virtual-numbers' } },
+    { '@type': 'Offer', itemOffered: { '@type': 'Service', name: 'Number Rentals', url: 'https://www.verxor.com/services/number-rentals' } },
+    { '@type': 'Offer', itemOffered: { '@type': 'Service', name: 'Boost Account (SMM)', url: 'https://www.verxor.com/services/smm' } },
+    { '@type': 'Offer', itemOffered: { '@type': 'Service', name: 'Accounts & Logs', url: 'https://www.verxor.com/services/accounts-logs' } },
+    { '@type': 'Offer', itemOffered: { '@type': 'Service', name: 'Proxies', url: 'https://www.verxor.com/services/proxies' } },
+    { '@type': 'Offer', itemOffered: { '@type': 'Service', name: 'eSIM Data Profiles', url: 'https://www.verxor.com/services/esim' } },
+    { '@type': 'Offer', itemOffered: { '@type': 'Service', name: 'Gift Card Trading', url: 'https://www.verxor.com/services/gift-cards' } },
+    { '@type': 'Offer', itemOffered: { '@type': 'Service', name: 'Virtual Dollar Cards', url: 'https://www.verxor.com/services/virtual-cards' } },
+    { '@type': 'Offer', itemOffered: { '@type': 'Service', name: 'Airtime Top-up', url: 'https://www.verxor.com/services/airtime' } },
+    { '@type': 'Offer', itemOffered: { '@type': 'Service', name: 'Mobile Data Bundles', url: 'https://www.verxor.com/services/data' } },
+    { '@type': 'Offer', itemOffered: { '@type': 'Service', name: 'Exam Pins', url: 'https://www.verxor.com/services/exam-pin' } },
+    { '@type': 'Offer', itemOffered: { '@type': 'Service', name: 'Electricity Bill & Token', url: 'https://www.verxor.com/services/electricity' } },
+    { '@type': 'Offer', itemOffered: { '@type': 'Service', name: 'Bet Wallet Funding', url: 'https://www.verxor.com/services/bet-funding' } },
+    { '@type': 'Offer', itemOffered: { '@type': 'Service', name: 'Cable TV Subscription', url: 'https://www.verxor.com/services/cable-tv' } },
+    { '@type': 'Offer', itemOffered: { '@type': 'Service', name: 'VTU API', url: 'https://www.verxor.com/services/vtu-api' } },
   ],
 };
 
@@ -131,10 +129,10 @@ const websiteJsonLd = {
   '@context': 'https://schema.org',
   '@type': 'WebSite',
   name: 'Verxor',
-  url: 'https://verxor.com',
+  url: 'https://www.verxor.com',
   description:
     'Verxor digital services: virtual numbers, eSIM, VTU, proxies, gift cards and more.',
-  publisher: { '@type': 'Organization', name: 'Verxor', url: 'https://verxor.com' },
+  publisher: { '@type': 'Organization', name: 'Verxor', url: 'https://www.verxor.com' },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
