@@ -1,15 +1,7 @@
 {
-  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "version": 2,
   "framework": "nextjs",
   "buildCommand": "node scripts/verxor-prebuild.cjs && next build",
   "installCommand": "npm install",
-  "regions": [
-    "iad1"
-  ],
-  "crons": [
-    {
-      "path": "/api/v1/boost/reconcile",
-      "schedule": "*/5 * * * *"
-    }
-  ]
+  "regions": ["iad1"]
 }
