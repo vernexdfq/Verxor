@@ -1,6 +1,6 @@
 /**
  * AccsZone reseller API — accounts / logs catalogue + purchase.
- * Server-side only. Never expose API key or raw provider cost to the client.
+ * Server-side only. Never expose API key, raw provider cost, or supplier identity to the client.
  *
  * Auth: X-API-Key
  * Base: ACCSZONE_API_BASE (default https://accszone.com/api/v1)
@@ -118,9 +118,7 @@ function exchangeRate(): number {
 
 async function accsFetch<T = unknown>(path: string, init?: RequestInit): Promise<T> {
   const key = apiKey();
-  if (!key) {
-    throw new Error('ACCSZONE_API_KEY is not configured');
-  }
+  if (!key) throw new Error('ACCSZONE_API_KEY is not configured');
   const url = `${baseUrl()}${path.startsWith('/') ? path : `/${path}`}`;
   const res = await fetch(url, {
     ...init,
@@ -157,7 +155,7 @@ async function paginateListings(categoryId: number): Promise<AccsZoneListing[]> 
   let last = 1;
   while (page <= last) {
     const res = await accsFetch<ListResponse<AccsZoneListing[]>>(
-      `/listings?page=${page}&category_id=${categoryId}`,
+      `/listings?page=${page}&category_id=${categoryId}&include=description`,
     );
     const batch = Array.isArray(res.data) ? res.data : [];
     out.push(...batch);
@@ -169,9 +167,9 @@ async function paginateListings(categoryId: number): Promise<AccsZoneListing[]> 
 }
 
 async function fetchSubcategories(categoryId: number): Promise<AccsZoneSubcategory[]> {
-  const res = await accsFetch<ListResponse<{ category: AccsZoneCategory; subcategories: AccsZoneSubcategory[] }>>(
-    `/categories/${categoryId}/subcategories?page=1`,
-  );
+  const res = await accsFetch<
+    ListResponse<{ category: AccsZoneCategory; subcategories: AccsZoneSubcategory[] }>
+  >(`/categories/${categoryId}/subcategories?page=1`);
   const data = res.data;
   if (data && Array.isArray((data as { subcategories?: AccsZoneSubcategory[] }).subcategories)) {
     return (data as { subcategories: AccsZoneSubcategory[] }).subcategories;
@@ -184,7 +182,6 @@ function sleep(ms: number) {
   return new Promise((r) => setTimeout(r, ms));
 }
 
-/** Infer tags / badge / country from title text (AccsZone has no structured geo field). */
 function enrichFromTitle(title: string): {
   age: string;
   country: string;
@@ -226,7 +223,8 @@ function enrichFromTitle(title: string): {
 
   const cookies = /cookie/.test(t);
   const twoFa = /2fa|two.?factor/.test(t);
-  const emailIncluded = /email (access|included|in set)|@outlook|@hotmail|@gmail|email verified & included/.test(t);
+  const emailIncluded =
+    /email (access|included|in set)|@outlook|@hotmail|@gmail|email verified & included/.test(t);
   if (cookies) tags.push('Cookies');
   if (twoFa) tags.push('2FA');
   if (emailIncluded) tags.push('Email');
@@ -235,16 +233,7 @@ function enrichFromTitle(title: string): {
   if (/friend/.test(t)) tags.push('Friends');
   if (/ads|business manager|\bbm\b/.test(t)) tags.push('Ads');
 
-  return {
-    age,
-    country,
-    tags,
-    instant: true,
-    cookies,
-    emailIncluded,
-    twoFa,
-    badge,
-  };
+  return { age, country, tags, instant: true, cookies, emailIncluded, twoFa, badge };
 }
 
 function shortTitle(title: string, max = 42): string {
@@ -253,10 +242,57 @@ function shortTitle(title: string, max = 42): string {
   return `${clean.slice(0, max - 1).trim()}…`;
 }
 
+function htmlToPlainText(input: string): string {
+  if (!input) return '';
+  let s = input;
+  s = s.replace(/<\s*br\s*\/?\s*>/gi, '\n');
+  s = s.replace(/<\/\s*p\s*>/gi, '\n');
+  s = s.replace(/<\/\s*li\s*>/gi, '\n');
+  s = s.replace(/<\/\s*h[1-6]\s*>/gi, '\n');
+  s = s.replace(/<\s*li[^>]*>/gi, '• ');
+  s = s.replace(/<[^>]+>/g, '');
+  s = s
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&/gi, '&')
+    .replace(/</gi, '<')
+    .replace(/>/gi, '>')
+    .replace(/"/gi, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/'/gi, "'");
+  s = s.replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+  return s;
+}
+
+function scrubProviderTraces(text: string): string {
+  if (!text) return '';
+  let s = text;
+  const patterns = [
+    /accs\s*zone/gi,
+    /accszone/gi,
+    /accs\s*market/gi,
+    /accsmarket/gi,
+    /https?:\/\/(?:www\.)?accszone\.com[^\s]*/gi,
+    /https?:\/\/(?:www\.)?accsmarket\.com[^\s]*/gi,
+  ];
+  for (const p of patterns) s = s.replace(p, '');
+  s = s.replace(/[ \t]{2,}/g, ' ').replace(/\n{3,}/g, '\n\n').trim();
+  return s;
+}
+
 function mapListing(item: AccsZoneListing, platform: string, rate: number): AccountOffer {
   const cost = Number(item.price) || 0;
   const meta = enrichFromTitle(item.title || '');
   const subtype = item.subcategory?.title || 'General';
+  const rawDesc = item.description
+    ? scrubProviderTraces(htmlToPlainText(item.description))
+    : '';
+  const description =
+    rawDesc.length > 40
+      ? rawDesc
+      : scrubProviderTraces(
+          `${item.title}. Instant delivery when in stock. Use matching proxy and follow platform rules.`,
+        );
+
   return {
     id: `acz-${item.id}`,
     providerListingId: item.id,
@@ -264,11 +300,9 @@ function mapListing(item: AccsZoneListing, platform: string, rate: number): Acco
     platform,
     subtype,
     subtypeId: item.subcategory?.id ?? null,
-    title: item.title,
-    shortTitle: shortTitle(item.title),
-    description:
-      item.description ||
-      `${item.title}. Instant delivery when in stock. Use matching proxy and follow platform rules.`,
+    title: scrubProviderTraces(item.title || ''),
+    shortTitle: shortTitle(item.title || ''),
+    description,
     format: item.format || 'login:password (see delivery note)',
     age: meta.age,
     country: meta.country,
@@ -284,7 +318,6 @@ function mapListing(item: AccsZoneListing, platform: string, rate: number): Acco
   };
 }
 
-/** Facebook category id on AccsZone. */
 export const ACCSZONE_FACEBOOK_CATEGORY_ID = 22;
 
 type CacheEntry = { at: number; catalog: AccountsCatalog };
@@ -329,7 +362,10 @@ export async function fetchFacebookCatalog(options?: {
       .filter((o) => o.stock > 0)
       .sort((a, b) => b.stock - a.stock || a.priceNgn - b.priceNgn);
 
-    const stockBySub = new Map<string, { id: number | null; slug: string; count: number; stock: number }>();
+    const stockBySub = new Map<
+      string,
+      { id: number | null; slug: string; count: number; stock: number }
+    >();
     for (const o of offers) {
       const key = o.subtype || 'General';
       const prev = stockBySub.get(key) || {
@@ -386,9 +422,7 @@ export async function fetchFacebookCatalog(options?: {
   } catch (err) {
     const message = err instanceof Error ? err.message : 'AccsZone catalog failed';
     const hit = cache.get(cacheKey);
-    if (hit) {
-      return { ...hit.catalog, source: 'fallback', warning: message };
-    }
+    if (hit) return { ...hit.catalog, source: 'fallback', warning: message };
     return {
       ok: false,
       source: 'error',
@@ -404,7 +438,11 @@ export async function fetchFacebookCatalog(options?: {
   }
 }
 
-export async function fetchAccsZoneBalance(): Promise<{ ok: boolean; balance?: number; error?: string }> {
+export async function fetchAccsZoneBalance(): Promise<{
+  ok: boolean;
+  balance?: number;
+  error?: string;
+}> {
   try {
     const res = await accsFetch<{ success: boolean; data: { balance: string } }>('/user/balance');
     return { ok: true, balance: Number(res.data?.balance) || 0 };
