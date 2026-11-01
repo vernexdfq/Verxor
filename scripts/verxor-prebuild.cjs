@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 /**
  * Single entry for Vercel build (vercel.json buildCommand max 256 chars).
- * Runs restore + patch + wire steps in order, then exits so `next build` can run.
  */
 const { spawnSync } = require('child_process');
 const path = require('path');
@@ -14,6 +13,7 @@ const steps = [
   'inflate-boost-page.cjs',
   'wire-boost-orders.cjs',
   'wire-vn-orders.cjs',
+  'patch-airtime-margin.cjs',
 ];
 
 for (const name of steps) {
