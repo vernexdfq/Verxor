@@ -5,6 +5,8 @@ import {
   ArrowLeft,
   ArrowRight,
   Check,
+  ChevronRight,
+  FolderOpen,
   Package,
   Search,
   ShieldCheck,
@@ -16,34 +18,15 @@ import {
 import { Card, PrimaryButton } from './components/ui';
 import './product-pages.css';
 import type { AuthSession } from './auth/AuthFlow';
+import type { AccountProduct } from './accounts-types';
+import { STATIC_CATALOG as CATALOG } from './accounts-static-catalog';
 
 /**
  * Buy Accounts & Logs — Verxor marketplace
- * Catalog is structured for multi-provider APIs (AccsZone / AccsMarket / etc.).
- * Grid = short tags. Modal = 100% raw provider description + format + how-to.
+ * Facebook = live AccsZone. Other platforms = static fallback until enabled.
  */
 
-export type AccountProduct = {
-  id: string;
-  platform: string;
-  subtype: string;
-  title: string;
-  shortTitle: string;
-  description: string;
-  bullets: string[];
-  format: string;
-  age: string;
-  country: string;
-  price: number;
-  stock: number;
-  sold?: number;
-  instant: boolean;
-  cookies: boolean;
-  emailIncluded: boolean;
-  twoFa: boolean;
-  tags: string[];
-  badge?: 'INSTANT' | 'SOFTREG' | 'AGED' | 'PVA';
-};
+export type { AccountProduct } from './accounts-types';
 
 const PLATFORMS = [
   'All',
@@ -85,422 +68,8 @@ const PROMO_SLIDES = [
   },
 ];
 
-// Realistic catalog shaped like provider product lines.
-// Production: replace with live AccsZone / AccsMarket (or other) catalog API.
-const CATALOG: AccountProduct[] = [
-  {
-    id: 'fb-usa-aged',
-    platform: 'Facebook',
-    subtype: 'USA Aged',
-    title: 'PVA Facebook With 2FA and Email Access - USA Aged (2-4 Years)',
-    shortTitle: 'Facebook Aged USA',
-    description:
-      'Aged Facebook accounts registered from USA IP. Email verified where noted. Suitable for page management and advertising warm-up. Cookies included when marked.',
-    bullets: [
-      'Registered from USA IP',
-      'Email verified (email may or may not be included — see listing)',
-      'Partially filled profiles',
-      '2FA available on selected lots',
-      'Cookies included on Instant lots',
-    ],
-    format: 'login:password | email:password | 2FA key (when set)',
-    age: '2-4 yrs',
-    country: 'USA',
-    price: 6800,
-    stock: 174,
-    sold: 890,
-    instant: true,
-    cookies: true,
-    emailIncluded: false,
-    twoFa: true,
-    tags: ['USA', 'Aged', 'Cookies'],
-    badge: 'INSTANT',
-  },
-  {
-    id: 'fb-with-page',
-    platform: 'Facebook',
-    subtype: 'With Page',
-    title: 'Facebook With Page - 1-3 Yrs Mixed, Cookies & Email Access',
-    shortTitle: 'Facebook With Page',
-    description:
-      'Facebook accounts that include an existing page. Useful when you need ready page structure without creating from a cold profile.',
-    bullets: [
-      'Account includes at least one page',
-      'Email status varies by lot',
-      'Cookies on Instant delivery',
-      'Recommended: use proxy matching registration region',
-    ],
-    format: 'login:password:email:email_pass (when provided)',
-    age: '1-3 yrs',
-    country: 'Mixed',
-    price: 9200,
-    stock: 48,
-    sold: 210,
-    instant: true,
-    cookies: true,
-    emailIncluded: true,
-    twoFa: false,
-    tags: ['With Page', 'Cookies'],
-    badge: 'INSTANT',
-  },
-  {
-    id: 'fb-softreg',
-    platform: 'Facebook',
-    subtype: 'Softreg',
-    title: 'Facebook Softreg - New to 6 Months, Volume Testing Batch',
-    shortTitle: 'Facebook Softreg',
-    description:
-      'Soft-registered Facebook accounts. Lower age / lighter history. Best for volume testing before upgrading to aged stock.',
-    bullets: ['Soft registration batch', 'Lower trust than aged lots', 'Instant delivery when in stock'],
-    format: 'login:password',
-    age: 'New–6 mo',
-    country: 'Mixed',
-    price: 3200,
-    stock: 320,
-    sold: 1200,
-    instant: true,
-    cookies: false,
-    emailIncluded: false,
-    twoFa: false,
-    tags: ['Softreg'],
-    badge: 'SOFTREG',
-  },
-  {
-    id: 'ig-aged-2019',
-    platform: 'Instagram',
-    subtype: 'Aged',
-    title: 'Instagram Aged 2019+ - Email Access & Cookies Included',
-    shortTitle: 'Instagram Aged',
-    description:
-      'Aged Instagram accounts with email access on selected lots. Higher trust for organic and automation workflows when used with proper proxies.',
-    bullets: [
-      'Registration year 2019 or earlier on premium lots',
-      'Email access included on marked products',
-      'Profile fill level varies',
-      'Instant delivery',
-    ],
-    format: 'username:password:email:email_pass',
-    age: '2019+',
-    country: 'Mixed',
-    price: 4500,
-    stock: 86,
-    sold: 540,
-    instant: true,
-    cookies: true,
-    emailIncluded: true,
-    twoFa: false,
-    tags: ['Aged', 'Email'],
-    badge: 'INSTANT',
-  },
-  {
-    id: 'ig-followers',
-    platform: 'Instagram',
-    subtype: 'With Followers',
-    title: 'Instagram With 1K-5K Followers - Organic Followers Lot',
-    shortTitle: 'IG 1K–5K',
-    description:
-      'Instagram accounts in the 1K–5K follower band. Follower quality and engagement are lot-dependent. Review description before bulk orders.',
-    bullets: ['Follower range 1,000–5,000', 'Email access on selected SKUs', 'Use residential proxy matching region'],
-    format: 'username:password:email',
-    age: '1-2 yrs',
-    country: 'US',
-    price: 8900,
-    stock: 22,
-    sold: 180,
-    instant: true,
-    cookies: false,
-    emailIncluded: true,
-    twoFa: false,
-    tags: ['Followers', 'US'],
-    badge: 'INSTANT',
-  },
-  {
-    id: 'ig-pva',
-    platform: 'Instagram',
-    subtype: 'PVA',
-    title: 'Instagram PVA - Fresh Phone Verified, Clean Residential IP',
-    shortTitle: 'Instagram PVA',
-    description:
-      'Phone-verified Instagram accounts. Phone number is not retained after delivery unless stated. Ideal for recovery-ready sessions.',
-    bullets: ['Phone verified at creation', 'Email status per lot', 'Instant when stock > 0'],
-    format: 'username:password',
-    age: 'New',
-    country: 'Mixed',
-    price: 3800,
-    stock: 140,
-    sold: 980,
-    instant: true,
-    cookies: false,
-    emailIncluded: false,
-    twoFa: false,
-    tags: ['PVA'],
-    badge: 'PVA',
-  },
-  {
-    id: 'tt-aged',
-    platform: 'TikTok',
-    subtype: 'Aged',
-    title: 'TikTok Aged 2024+ - USA/Canada/Mixed IP, Clean History',
-    shortTitle: 'TikTok Aged',
-    description:
-      'Verified older TikTok accounts with higher trust levels and lower verification risk for automation, ads warm-up, and organic growth when used carefully.',
-    bullets: [
-      'Registration date 2024 or earlier on standard aged lots',
-      'Additional email included on many SKUs',
-      'Email in set, native where marked',
-      'Gender mix; profile often not fully filled',
-      'Registered with regional IP (see product line)',
-    ],
-    format: 'ID:PASS:EMAIL:EMAIL_PASSWORD',
-    age: '2024+',
-    country: 'Canada / Mixed',
-    price: 5200,
-    stock: 500,
-    sold: 2100,
-    instant: true,
-    cookies: false,
-    emailIncluded: true,
-    twoFa: false,
-    tags: ['Aged', 'Email'],
-    badge: 'AGED',
-  },
-  {
-    id: 'tt-softreg',
-    platform: 'TikTok',
-    subtype: 'Softreg',
-    title: 'TikTok Softreg - Volume Testing Lot, Fresh Registration',
-    shortTitle: 'TikTok Softreg',
-    description: 'Soft-registered TikTok accounts for volume testing. Lower cost, lower trust than aged lines.',
-    bullets: ['Softreg batch', 'Instant delivery', 'Test small quantities first'],
-    format: 'ID:PASS',
-    age: 'New',
-    country: 'Mixed',
-    price: 2100,
-    stock: 600,
-    sold: 3400,
-    instant: true,
-    cookies: false,
-    emailIncluded: false,
-    twoFa: false,
-    tags: ['Softreg'],
-    badge: 'SOFTREG',
-  },
-  {
-    id: 'tt-followers',
-    platform: 'TikTok',
-    subtype: 'With Followers',
-    title: 'TikTok With Followers - 1K+ Followers, Live Enabled Lot',
-    shortTitle: 'TikTok Followers',
-    description: 'TikTok accounts sold with an existing follower base. Follower quality varies by supplier lot.',
-    bullets: ['Follower package included', 'Email status per SKU', 'Proxy recommended'],
-    format: 'ID:PASS:EMAIL',
-    age: 'Mixed',
-    country: 'Mixed',
-    price: 7500,
-    stock: 35,
-    sold: 120,
-    instant: true,
-    cookies: false,
-    emailIncluded: true,
-    twoFa: false,
-    tags: ['Followers'],
-    badge: 'INSTANT',
-  },
-  {
-    id: 'x-pva',
-    platform: 'X / Twitter',
-    subtype: 'PVA',
-    title: 'X (Twitter) PVA - Aged/Fresh Phone Verified with Email Access',
-    shortTitle: 'X PVA',
-    description: 'Phone-verified X accounts. Native registration IP mixed. Email in set on selected lots.',
-    bullets: ['Phone verified', 'Email in set on marked products', 'Registered with MIX IP on some lots'],
-    format: 'login:password:email',
-    age: '2013–New',
-    country: 'Mixed',
-    price: 3800,
-    stock: 95,
-    sold: 640,
-    instant: true,
-    cookies: false,
-    emailIncluded: true,
-    twoFa: false,
-    tags: ['PVA'],
-    badge: 'PVA',
-  },
-  {
-    id: 'gmail-pva',
-    platform: 'Gmail',
-    subtype: 'PVA + Recovery',
-    title: 'Gmail PVA + Recovery - Registered from Clean IP with 2FA Ready',
-    shortTitle: 'Gmail PVA',
-    description: 'Phone-verified Gmail with recovery options on selected inventory. High utility as recovery email for other platforms.',
-    bullets: ['Phone verified', 'Recovery path on premium lots', 'Instant delivery'],
-    format: 'email:password',
-    age: 'New',
-    country: 'US',
-    price: 1500,
-    stock: 210,
-    sold: 4500,
-    instant: true,
-    cookies: false,
-    emailIncluded: true,
-    twoFa: false,
-    tags: ['PVA', 'Recovery'],
-    badge: 'PVA',
-  },
-  {
-    id: 'tg-aged',
-    platform: 'Telegram',
-    subtype: 'Aged',
-    title: 'Telegram Aged Account - 1+ Years, Session + 2FA Included',
-    shortTitle: 'Telegram Aged',
-    description: 'Aged Telegram accounts. Session export format depends on supplier. Not all lots include 2FA.',
-    bullets: ['Aged sessions', '2FA on selected lots', 'Use official clients carefully'],
-    format: 'session / phone:code (per delivery note)',
-    age: '1+ yrs',
-    country: 'Mixed',
-    price: 4100,
-    stock: 60,
-    sold: 300,
-    instant: true,
-    cookies: false,
-    emailIncluded: false,
-    twoFa: true,
-    tags: ['Aged'],
-    badge: 'AGED',
-  },
-  {
-    id: 'discord-aged',
-    platform: 'Discord',
-    subtype: 'Aged',
-    title: 'Discord Aged Account - 1+ Years, Phone Verified Lot',
-    shortTitle: 'Discord Aged',
-    description: 'Aged Discord accounts for server growth and automation where allowed by Discord ToS.',
-    bullets: ['Aged accounts', 'Email verified on many lots', 'Token format on delivery'],
-    format: 'email:password:token (when provided)',
-    age: '1+ yrs',
-    country: 'Mixed',
-    price: 2900,
-    stock: 110,
-    sold: 800,
-    instant: true,
-    cookies: false,
-    emailIncluded: true,
-    twoFa: false,
-    tags: ['Aged'],
-    badge: 'AGED',
-  },
-  {
-    id: 'li-basic',
-    platform: 'LinkedIn',
-    subtype: 'Standard',
-    title: 'LinkedIn Standard Profile - Mixed/USA Region, Email Verified',
-    shortTitle: 'LinkedIn',
-    description: 'LinkedIn accounts for outreach and research workflows. Strict platform risk — use sparingly and with matching proxies.',
-    bullets: ['Standard verification level', 'Email included on marked SKUs'],
-    format: 'email:password',
-    age: 'Mixed',
-    country: 'US',
-    price: 12000,
-    stock: 18,
-    sold: 90,
-    instant: true,
-    cookies: false,
-    emailIncluded: true,
-    twoFa: false,
-    tags: ['US'],
-    badge: 'INSTANT',
-  },
-  {
-    id: 'yt-aged',
-    platform: 'YouTube',
-    subtype: 'Aged',
-    title: 'YouTube Aged Channel - 2+ Years, Verified Channel Lot',
-    shortTitle: 'YouTube Aged Channel',
-    description: 'Aged YouTube channels / accounts. Monetization status is never guaranteed unless explicitly stated on the SKU.',
-    bullets: ['Aged channel', 'Email recovery path when included', 'No monetization promise unless listed'],
-    format: 'email:password',
-    age: '2+ yrs',
-    country: 'Mixed',
-    price: 15000,
-    stock: 12,
-    sold: 40,
-    instant: false,
-    cookies: false,
-    emailIncluded: true,
-    twoFa: false,
-    tags: ['Aged', 'Channel'],
-    badge: 'AGED',
-  },
-  {
-    id: 'threads-basic',
-    platform: 'Threads',
-    subtype: 'Standard',
-    title: 'Threads Standard Profile - Linked Account Ready',
-    shortTitle: 'Threads',
-    description: 'Threads accounts linked to Instagram ecosystem where applicable. Stock and format follow provider delivery notes.',
-    bullets: ['Standard Threads inventory', 'May require linked Instagram on some lots'],
-    format: 'username:password',
-    age: 'New',
-    country: 'Mixed',
-    price: 3500,
-    stock: 44,
-    sold: 150,
-    instant: true,
-    cookies: false,
-    emailIncluded: false,
-    twoFa: false,
-    tags: ['Standard'],
-    badge: 'INSTANT',
-  },
-  {
-    id: 'reddit-aged',
-    platform: 'Reddit',
-    subtype: 'Aged',
-    title: 'Reddit Aged Account - 1+ Years, Karma & History Included',
-    shortTitle: 'Reddit Aged',
-    description: 'Aged Reddit accounts for community participation. Karma and history vary by lot.',
-    bullets: ['Aged accounts', 'Karma varies', 'Email on selected lots'],
-    format: 'username:password',
-    age: '1+ yrs',
-    country: 'US',
-    price: 2800,
-    stock: 70,
-    sold: 400,
-    instant: true,
-    cookies: false,
-    emailIncluded: true,
-    twoFa: false,
-    tags: ['Aged'],
-    badge: 'AGED',
-  },
-  {
-    id: 'snap-basic',
-    platform: 'Snapchat',
-    subtype: 'Standard',
-    title: 'Snapchat Standard Account - Clean Phone Verified',
-    shortTitle: 'Snapchat',
-    description: 'Snapchat accounts for testing and growth experiments. Device fingerprint discipline required.',
-    bullets: ['Standard stock', 'Instant when available'],
-    format: 'username:password',
-    age: 'Mixed',
-    country: 'Mixed',
-    price: 4200,
-    stock: 28,
-    sold: 95,
-    instant: true,
-    cookies: false,
-    emailIncluded: false,
-    twoFa: false,
-    tags: ['Standard'],
-    badge: 'INSTANT',
-  },
-];
-
 const money = (value: number) => `₦${value.toLocaleString('en-NG')}`;
 
-
-/** Official-style brand mark (inline SVG, brand colors) */
 function BrandLogo({ platform, size = 36 }: { platform: string; size?: number }) {
   const s = size;
   const common = { width: s, height: s, viewBox: '0 0 40 40', fill: 'none' as const };
@@ -509,10 +78,7 @@ function BrandLogo({ platform, size = 36 }: { platform: string; size?: number })
       return (
         <svg {...common} aria-hidden>
           <rect width="40" height="40" rx="10" fill="#1877F2" />
-          <path
-            d="M26.5 21.2h-3.4v12.3h-5.1V21.2h-2.4v-4.3h2.4v-2.6c0-2.4 1.1-6.1 6.1-6.1h4.5v4.4h-3.3c-.5 0-1.3.3-1.3 1.4v2.9h4.7l-.6 4.3z"
-            fill="#fff"
-          />
+          <path d="M26.5 21.2h-3.4v12.3h-5.1V21.2h-2.4v-4.3h2.4v-2.6c0-2.4 1.1-6.1 6.1-6.1h4.5v4.4h-3.3c-.5 0-1.3.3-1.3 1.4v2.9h4.7l-.6 4.3z" fill="#fff" />
         </svg>
       );
     case 'Instagram':
@@ -535,10 +101,7 @@ function BrandLogo({ platform, size = 36 }: { platform: string; size?: number })
       return (
         <svg {...common} aria-hidden>
           <rect width="40" height="40" rx="10" fill="#010101" />
-          <path
-            d="M27.2 14.2c-1.4-.9-2.4-2.3-2.7-4h-3.3v14.2c0 1.8-1.5 3.3-3.3 3.3s-3.3-1.5-3.3-3.3 1.5-3.3 3.3-3.3c.3 0 .7.1 1 .2v-3.4c-.3 0-.7-.1-1-.1-3.7 0-6.7 3-6.7 6.7s3 6.7 6.7 6.7 6.7-3 6.7-6.7V18c1.5 1.1 3.3 1.7 5.2 1.7v-3.4c-1.1 0-2.1-.4-3-.9z"
-            fill="#fff"
-          />
+          <path d="M27.2 14.2c-1.4-.9-2.4-2.3-2.7-4h-3.3v14.2c0 1.8-1.5 3.3-3.3 3.3s-3.3-1.5-3.3-3.3 1.5-3.3 3.3-3.3c.3 0 .7.1 1 .2v-3.4c-.3 0-.7-.1-1-.1-3.7 0-6.7 3-6.7 6.7s3 6.7 6.7 6.7 6.7-3 6.7-6.7V18c1.5 1.1 3.3 1.7 5.2 1.7v-3.4c-1.1 0-2.1-.4-3-.9z" fill="#fff" />
         </svg>
       );
     case 'X / Twitter':
@@ -546,10 +109,7 @@ function BrandLogo({ platform, size = 36 }: { platform: string; size?: number })
       return (
         <svg {...common} aria-hidden>
           <rect width="40" height="40" rx="10" fill="#0F1419" />
-          <path
-            d="M11.5 11.5h4.2l4.4 6.1 5-6.1h4.4l-7 8.3 7.4 8.7h-4.2l-4.8-6.6-5.4 6.6h-4.4l7.3-8.7-6.9-8.3z"
-            fill="#fff"
-          />
+          <path d="M11.5 11.5h4.2l4.4 6.1 5-6.1h4.4l-7 8.3 7.4 8.7h-4.2l-4.8-6.6-5.4 6.6h-4.4l7.3-8.7-6.9-8.3z" fill="#fff" />
         </svg>
       );
     case 'YouTube':
@@ -563,10 +123,7 @@ function BrandLogo({ platform, size = 36 }: { platform: string; size?: number })
       return (
         <svg {...common} aria-hidden>
           <rect width="40" height="40" rx="10" fill="#2AABEE" />
-          <path
-            d="M29.5 12.2L9.8 19.5c-1.3.5-1.3 1.2-.2 1.5l5 1.6 2 6c.2.6.4.8 1 .8.6 0 .9-.3 1.2-.6l3-2.9 5.5 4.1c1 .6 1.7.3 2-.9l3.6-17c.4-1.5-.5-2.2-1.6-1.7z"
-            fill="#fff"
-          />
+          <path d="M29.5 12.2L9.8 19.5c-1.3.5-1.3 1.2-.2 1.5l5 1.6 2 6c.2.6.4.8 1 .8.6 0 .9-.3 1.2-.6l3-2.9 5.5 4.1c1 .6 1.7.3 2-.9l3.6-17c.4-1.5-.5-2.2-1.6-1.7z" fill="#fff" />
         </svg>
       );
     case 'Gmail':
@@ -584,69 +141,25 @@ function BrandLogo({ platform, size = 36 }: { platform: string; size?: number })
       return (
         <svg {...common} aria-hidden>
           <rect width="40" height="40" rx="10" fill="#5865F2" />
-          <path
-            d="M14.5 15c1.8-.8 3.4-1.2 5.5-1.2s3.7.4 5.5 1.2c.3 1.1.5 2.6.5 4.2 0 1.6-.2 3.1-.5 4.2-1.8.8-3.4 1.2-5.5 1.2s-3.7-.4-5.5-1.2c-.3-1.1-.5-2.6-.5-4.2 0-1.6.2-3.1.5-4.2zm2.3 5.8c.7 0 1.2-.6 1.2-1.3s-.5-1.3-1.2-1.3-1.2.6-1.2 1.3.5 1.3 1.2 1.3zm6.4 0c.7 0 1.2-.6 1.2-1.3s-.5-1.3-1.2-1.3-1.2.6-1.2 1.3.5 1.3 1.2 1.3z"
-            fill="#fff"
-          />
-        </svg>
-      );
-    case 'LinkedIn':
-      return (
-        <svg {...common} aria-hidden>
-          <rect width="40" height="40" rx="10" fill="#0A66C2" />
-          <path
-            d="M12 17h4v11h-4V17zm2-6.5c1.3 0 2.3 1 2.3 2.3S15.3 15 14 15s-2.3-1-2.3-2.2S12.7 10.5 14 10.5zM18.5 17h3.8v1.5h.1c.5-1 1.8-2 3.7-2 4 0 4.7 2.6 4.7 6V28h-4v-5.3c0-1.3 0-2.9-1.8-2.9s-2 1.4-2 2.8V28h-4V17z"
-            fill="#fff"
-          />
-        </svg>
-      );
-    case 'Reddit':
-      return (
-        <svg {...common} aria-hidden>
-          <rect width="40" height="40" rx="10" fill="#FF4500" />
-          <circle cx="20" cy="22" r="8" fill="#fff" />
-          <circle cx="16.5" cy="21" r="1.4" fill="#FF4500" />
-          <circle cx="23.5" cy="21" r="1.4" fill="#FF4500" />
-          <path d="M16.5 25c1.2 1 5.8 1 7 0" stroke="#FF4500" strokeWidth="1.5" strokeLinecap="round" />
-        </svg>
-      );
-    case 'Threads':
-      return (
-        <svg {...common} aria-hidden>
-          <rect width="40" height="40" rx="10" fill="#000" />
-          <path
-            d="M24.5 18.2c-.3-1.8-1.6-3-3.8-3.2-2.6-.2-4.5 1.4-4.7 4.1-.1 1.7.6 3 1.9 3.7 1 .5 2.1.6 3.2.4v-2.1c-.6.2-1.3.2-1.9 0-.8-.3-1.2-1-1.1-1.9.1-1.3 1.1-2.1 2.4-2 1 .1 1.6.6 1.8 1.5.1.5.1 1.1.1 1.7 0 2.6-.6 4.8-2.8 5.9-1.8.9-4.1.7-5.7-.5-1.4-1.1-2.1-2.9-2-5 .1-2.4 1.1-4.3 2.9-5.5 1.9-1.3 4.2-1.8 6.6-1.5 2.6.3 4.5 1.5 5.5 3.6.5 1.1.7 2.3.7 3.6h-2.9c0-.9-.1-1.7-.2-2.3z"
-            fill="#fff"
-          />
-        </svg>
-      );
-    case 'Snapchat':
-      return (
-        <svg {...common} aria-hidden>
-          <rect width="40" height="40" rx="10" fill="#FFFC00" />
-          <path
-            d="M20 10c-3.5 0-6 2.2-6 5.6 0 1.4.3 2.5.3 2.5s-.9.4-1.5.9c-.8.6-1.3 1.4-.4 2.1.7.5 1.7-.1 2.4.4.5.3.6 1.2 1.4 1.6.7.3 1.5-.2 2.3.1.6.2 1 1 1.5 1 0 0 .5-.8 1.5-1 .8-.3 1.6.2 2.3-.1.8-.4.9-1.3 1.4-1.6.7-.5 1.7.1 2.4-.4.9-.7.4-1.5-.4-2.1-.6-.5-1.5-.9-1.5-.9s.3-1.1.3-2.5C26 12.2 23.5 10 20 10z"
-            fill="#000"
-          />
+          <path d="M14.5 15c1.8-.8 3.4-1.2 5.5-1.2s3.7.4 5.5 1.2c.3 1.1.5 2.6.5 4.2 0 1.6-.2 3.1-.5 4.2-1.8.8-3.4 1.2-5.5 1.2s-3.7-.4-5.5-1.2c-.3-1.1-.5-2.6-.5-4.2 0-1.6.2-3.1.5-4.2zm2.3 5.8c.7 0 1.2-.6 1.2-1.3s-.5-1.3-1.2-1.3-1.2.6-1.2 1.3.5 1.3 1.2 1.3zm6.4 0c.7 0 1.2-.6 1.2-1.3s-.5-1.3-1.2-1.3-1.2.6-1.2 1.3.5 1.3 1.2 1.3z" fill="#fff" />
         </svg>
       );
     default:
       return (
         <svg {...common} aria-hidden>
-          <rect width="40" height="40" rx="10" fill="#64748B" />
-          <text x="20" y="25" textAnchor="middle" fill="#fff" fontSize="14" fontWeight="700">
-            •
+          <rect width="40" height="40" rx="10" fill="#0f172a" />
+          <text x="20" y="24" textAnchor="middle" fill="#fff" fontSize="14" fontWeight="700">
+            {(platform || '?')[0]}
           </text>
         </svg>
       );
   }
 }
 
-function badgeClass(badge?: string) {
-  if (badge === 'INSTANT') return 'badge-instant';
-  if (badge === 'SOFTREG') return 'badge-softreg';
-  if (badge === 'AGED') return 'badge-aged';
-  if (badge === 'PVA') return 'badge-pva';
+function badgeClass(b?: AccountProduct['badge']) {
+  if (b === 'SOFTREG') return 'badge-softreg';
+  if (b === 'AGED') return 'badge-aged';
+  if (b === 'PVA') return 'badge-pva';
   return 'badge-instant';
 }
 
@@ -655,13 +168,100 @@ function platformKey(p: string) {
   return p;
 }
 
+function offerToProduct(o: {
+  id: string;
+  platform: string;
+  subtype: string;
+  title: string;
+  shortTitle: string;
+  description: string;
+  format: string;
+  age: string;
+  country: string;
+  priceNgn: number;
+  stock: number;
+  sold?: number;
+  instant: boolean;
+  cookies: boolean;
+  emailIncluded: boolean;
+  twoFa: boolean;
+  tags: string[];
+  badge?: AccountProduct['badge'];
+}): AccountProduct {
+  return {
+    id: o.id,
+    platform: o.platform,
+    subtype: o.subtype,
+    title: o.title,
+    shortTitle: o.shortTitle,
+    description: o.description,
+    bullets: o.tags.slice(0, 5),
+    format: o.format,
+    age: o.age,
+    country: o.country,
+    price: o.priceNgn,
+    stock: o.stock,
+    sold: o.sold,
+    instant: o.instant,
+    cookies: o.cookies,
+    emailIncluded: o.emailIncluded,
+    twoFa: o.twoFa,
+    tags: o.tags,
+    badge: o.badge,
+  };
+}
+
 export function AccountsPage({ onBack, session }: { onBack: () => void; session?: AuthSession | null }) {
   const walletBalance = session?.balanceNgn ?? 0;
   const [query, setQuery] = useState('');
   const [platform, setPlatform] = useState<string>('All');
+  const [subtype, setSubtype] = useState<string | null>(null);
+  const [subtypeDrawerOpen, setSubtypeDrawerOpen] = useState(false);
   const [selected, setSelected] = useState<AccountProduct | null>(null);
   const [slide, setSlide] = useState(0);
   const [toast, setToast] = useState<string | null>(null);
+  const [liveFacebook, setLiveFacebook] = useState<AccountProduct[]>([]);
+  const [liveFbSubtypes, setLiveFbSubtypes] = useState<{ name: string; count: number; stock: number }[]>([]);
+  const [catalogLoading, setCatalogLoading] = useState(true);
+  const [catalogError, setCatalogError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setCatalogLoading(true);
+      setCatalogError(null);
+      try {
+        const res = await fetch('/api/v1/accounts/catalog?platform=Facebook', { cache: 'no-store' });
+        const data = await res.json();
+        if (cancelled) return;
+        if (!data?.ok || !Array.isArray(data.offers)) {
+          setCatalogError(data?.error || 'Could not load live Facebook stock');
+          setLiveFacebook([]);
+          setLiveFbSubtypes([]);
+          return;
+        }
+        setLiveFacebook(data.offers.map(offerToProduct));
+        setLiveFbSubtypes(
+          (data.subtypes || []).map((s: { name: string; count: number; stock: number }) => ({
+            name: s.name,
+            count: s.count,
+            stock: s.stock,
+          })),
+        );
+      } catch (e) {
+        if (!cancelled) {
+          setCatalogError(e instanceof Error ? e.message : 'Network error');
+          setLiveFacebook([]);
+          setLiveFbSubtypes([]);
+        }
+      } finally {
+        if (!cancelled) setCatalogLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     const t = setInterval(() => setSlide((s) => (s + 1) % PROMO_SLIDES.length), 4500);
@@ -674,15 +274,49 @@ export function AccountsPage({ onBack, session }: { onBack: () => void; session?
     return () => clearTimeout(t);
   }, [toast]);
 
+  useEffect(() => {
+    setSubtype(null);
+    setSubtypeDrawerOpen(false);
+  }, [platform]);
+
+  const catalog = useMemo(() => {
+    const nonFb = CATALOG.filter((p) => p.platform !== 'Facebook');
+    if (liveFacebook.length > 0) return [...liveFacebook, ...nonFb];
+    return CATALOG;
+  }, [liveFacebook]);
+
+  const platformSubtypes = useMemo(() => {
+    if (platform === 'All') return [] as { name: string; count: number; stock: number }[];
+    if (platform === 'Facebook' && liveFbSubtypes.length > 0) return liveFbSubtypes;
+    const map = new Map<string, { count: number; stock: number }>();
+    for (const p of catalog) {
+      if (p.stock <= 0) continue;
+      const plat = platformKey(p.platform);
+      const matches =
+        platform === 'X / Twitter'
+          ? plat === 'X / Twitter' || p.platform === 'X'
+          : p.platform === platform;
+      if (!matches) continue;
+      const prev = map.get(p.subtype) || { count: 0, stock: 0 };
+      map.set(p.subtype, { count: prev.count + 1, stock: prev.stock + p.stock });
+    }
+    return Array.from(map.entries())
+      .map(([name, v]) => ({ name, count: v.count, stock: v.stock }))
+      .sort((a, b) => b.stock - a.stock);
+  }, [platform, catalog, liveFbSubtypes]);
+
+  const showSubtypeBar = platform !== 'All' && platformSubtypes.length >= 2;
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return CATALOG.filter((p) => {
+    return catalog.filter((p) => {
       if (p.stock <= 0) return false;
       const plat = platformKey(p.platform);
       if (platform !== 'All') {
         if (platform === 'X / Twitter' && plat !== 'X / Twitter' && p.platform !== 'X') return false;
         if (platform !== 'X / Twitter' && p.platform !== platform) return false;
       }
+      if (subtype && p.subtype !== subtype) return false;
       if (!q) return true;
       return (
         p.title.toLowerCase().includes(q) ||
@@ -692,21 +326,29 @@ export function AccountsPage({ onBack, session }: { onBack: () => void; session?
         p.tags.some((t) => t.toLowerCase().includes(q))
       );
     });
-  }, [query, platform]);
+  }, [query, platform, subtype, catalog]);
 
   const activePromo = PROMO_SLIDES[slide];
 
+  function selectPlatform(p: string) {
+    setPlatform(p);
+  }
+
+  function selectSubtype(name: string | null) {
+    setSubtype(name);
+    setSubtypeDrawerOpen(false);
+  }
+
   return (
     <div className="accounts-page">
-      {/* Header */}
       <header className="accounts-header">
         <button type="button" className="accounts-back-link" onClick={onBack} aria-label="Back to Services">
           <ArrowLeft size={18} />
           <span>Services</span>
         </button>
         <div className="accounts-header-center">
-          <h1>Buy Accounts &amp; Logs</h1>
-          <p>Instant delivery &amp; aged logs</p>
+          <h1>Buy Accounts & Logs</h1>
+          <p>Instant delivery & aged logs</p>
         </div>
         <div className="accounts-wallet-badge" aria-label="Wallet balance">
           <Wallet size={14} />
@@ -714,7 +356,6 @@ export function AccountsPage({ onBack, session }: { onBack: () => void; session?
         </div>
       </header>
 
-      {/* Search */}
       <div className="accounts-search">
         <Search size={16} />
         <input
@@ -730,17 +371,16 @@ export function AccountsPage({ onBack, session }: { onBack: () => void; session?
         )}
       </div>
 
-      {/* Single-line filter pills with full names */}
       <div className="accounts-chips" role="tablist" aria-label="Platforms">
         {PLATFORMS.map((p) => {
           const count =
             p === 'All'
-              ? CATALOG.length
-              : CATALOG.filter((prod: AccountProduct) => {
+              ? catalog.filter((prod) => prod.stock > 0).length
+              : catalog.filter((prod) => {
+                  if (prod.stock <= 0) return false;
                   if (p === 'X / Twitter') return prod.platform === 'X' || prod.platform === 'X / Twitter';
                   return prod.platform === p;
                 }).length;
-
           return (
             <button
               key={p}
@@ -748,7 +388,7 @@ export function AccountsPage({ onBack, session }: { onBack: () => void; session?
               role="tab"
               aria-selected={platform === p}
               className={platform === p ? 'chip active' : 'chip'}
-              onClick={() => setPlatform(p)}
+              onClick={() => selectPlatform(p)}
             >
               <span>{p}</span>
               {count > 0 && <span className="chip-count">{count}</span>}
@@ -759,14 +399,58 @@ export function AccountsPage({ onBack, session }: { onBack: () => void; session?
 
       <div className="accounts-meta-row">
         <strong>
-          {filtered.length} listing{filtered.length === 1 ? '' : 's'}
+          {catalogLoading
+            ? 'Loading live stock…'
+            : `${filtered.length} listing${filtered.length === 1 ? '' : 's'}`}
         </strong>
         <span className="live-dot">
-          <i /> In stock only
+          <i /> {liveFacebook.length > 0 ? 'Live · In stock only' : 'In stock only'}
         </span>
       </div>
+      {catalogError && liveFacebook.length === 0 && (
+        <p className="accounts-catalog-hint" role="status">
+          Live Facebook feed unavailable — showing demo stock. {catalogError}
+        </p>
+      )}
 
-      {/* Promo carousel */}
+      {showSubtypeBar && (
+        <button
+          type="button"
+          className={`accounts-subtype-bar${subtype ? ' is-filtered' : ''}`}
+          onClick={() => setSubtypeDrawerOpen(true)}
+          aria-expanded={subtypeDrawerOpen}
+          aria-haspopup="dialog"
+        >
+          <span className="subtype-bar-icon" aria-hidden>
+            <FolderOpen size={16} />
+          </span>
+          <span className="subtype-bar-copy">
+            {subtype ? (
+              <>
+                <strong>
+                  {platform} › {subtype}
+                </strong>
+                <small>
+                  {platformSubtypes.find((s) => s.name === subtype)?.count ?? 0} listing
+                  {(platformSubtypes.find((s) => s.name === subtype)?.count ?? 0) === 1 ? '' : 's'}
+                </small>
+              </>
+            ) : (
+              <>
+                <strong>
+                  All {platform} Accounts ({filtered.length})
+                </strong>
+                <small>Tap to filter by type (Marketplace, Aged, Softreg…)</small>
+              </>
+            )}
+          </span>
+          <span className="subtype-bar-action">
+            {subtype ? 'Change' : ''}
+            <ChevronRight size={16} />
+          </span>
+        </button>
+      )}
+
       <div className="accounts-promo">
         <div className="promo-slide">
           <img className="accounts-promo-logo" src="/brand/verxor-logo.svg" alt="Verxor" width="28" height="28" />
@@ -794,7 +478,6 @@ export function AccountsPage({ onBack, session }: { onBack: () => void; session?
         </div>
       </div>
 
-      {/* Product list — Single-column (one-lane) layout */}
       <div className="accounts-list">
         {filtered.map((p) => (
           <article
@@ -811,23 +494,18 @@ export function AccountsPage({ onBack, session }: { onBack: () => void; session?
             }}
           >
             <div className="card-row-left">
-              <span className="card-row-logo-wrap">
-                <BrandLogo platform={p.platform} size={40} />
-              </span>
+              <div className="card-row-logo-wrap">
+                <BrandLogo platform={p.platform} size={36} />
+              </div>
             </div>
-
             <div className="card-row-main">
               <div className="card-row-eyebrow">
                 <span className="card-platform-tag">{p.platform}</span>
-                <span className={badgeClass(p.badge || (p.instant ? 'INSTANT' : 'AGED'))}>
-                  {p.badge || (p.instant ? 'INSTANT' : 'AGED')}
-                </span>
+                {p.badge && <span className={badgeClass(p.badge)}>{p.badge}</span>}
                 {p.twoFa && <span className="card-mini-flag">2FA</span>}
                 {p.cookies && <span className="card-mini-flag">COOKIES</span>}
               </div>
-
               <h3 className="card-row-title">{p.title}</h3>
-
               <div className="card-row-meta">
                 <span className="card-meta-spec">
                   {p.age} · {p.country}
@@ -838,7 +516,6 @@ export function AccountsPage({ onBack, session }: { onBack: () => void; session?
                 </span>
               </div>
             </div>
-
             <div className="card-row-right">
               <div className="card-row-price-wrap">
                 <strong className="card-row-price">{money(p.price)}</strong>
@@ -858,7 +535,7 @@ export function AccountsPage({ onBack, session }: { onBack: () => void; session?
         ))}
       </div>
 
-      {!filtered.length && (
+      {!filtered.length && !catalogLoading && (
         <Card className="accounts-empty">
           <Package size={22} />
           <strong>No accounts match</strong>
@@ -873,6 +550,87 @@ export function AccountsPage({ onBack, session }: { onBack: () => void; session?
           onClose={() => setSelected(null)}
           onCheckoutBlocked={(msg) => setToast(msg)}
         />
+      )}
+
+      {subtypeDrawerOpen && showSubtypeBar && (
+        <div className="sheet-backdrop subtype-drawer-backdrop" onClick={() => setSubtypeDrawerOpen(false)}>
+          <section
+            className="subtype-drawer"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="subtype-drawer-title"
+          >
+            <div className="subtype-drawer-handle" aria-hidden />
+            <header className="subtype-drawer-head">
+              <div>
+                <h2 id="subtype-drawer-title">{platform} Categories</h2>
+                <p>{platformSubtypes.length} types available</p>
+              </div>
+              <button
+                type="button"
+                className="subtype-drawer-close"
+                onClick={() => setSubtypeDrawerOpen(false)}
+                aria-label="Close"
+              >
+                <X size={18} />
+              </button>
+            </header>
+            <div className="subtype-drawer-list" role="listbox" aria-label={`${platform} sub-categories`}>
+              <button
+                type="button"
+                role="option"
+                aria-selected={subtype === null}
+                className={`subtype-option${subtype === null ? ' is-active' : ''}`}
+                onClick={() => selectSubtype(null)}
+              >
+                <span className="subtype-option-main">
+                  <strong>All {platform}</strong>
+                  <small>Show every in-stock listing</small>
+                </span>
+                <span className="subtype-option-meta">
+                  <span className="subtype-option-count">
+                    {catalog.filter((p) => {
+                      if (p.stock <= 0) return false;
+                      if (platform === 'X / Twitter') return p.platform === 'X' || p.platform === 'X / Twitter';
+                      return p.platform === platform;
+                    }).length}
+                  </span>
+                  {subtype === null && (
+                    <span className="subtype-option-check" aria-hidden>
+                      <Check size={14} />
+                    </span>
+                  )}
+                </span>
+              </button>
+              {platformSubtypes.map((s) => (
+                <button
+                  key={s.name}
+                  type="button"
+                  role="option"
+                  aria-selected={subtype === s.name}
+                  className={`subtype-option${subtype === s.name ? ' is-active' : ''}`}
+                  onClick={() => selectSubtype(s.name)}
+                >
+                  <span className="subtype-option-main">
+                    <strong>{s.name}</strong>
+                    <small>
+                      {s.stock.toLocaleString()} units · {s.count} listing{s.count === 1 ? '' : 's'}
+                    </small>
+                  </span>
+                  <span className="subtype-option-meta">
+                    <span className="subtype-option-count">{s.count}</span>
+                    {subtype === s.name && (
+                      <span className="subtype-option-check" aria-hidden>
+                        <Check size={14} />
+                      </span>
+                    )}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </section>
+        </div>
       )}
 
       {toast && (
@@ -897,43 +655,19 @@ function AccountDetail({
 }) {
   const [qty, setQty] = useState(1);
   const total = product.price * qty;
-  const maxQty = Math.min(product.stock, 50);
-  const isBalanceSufficient = wallet >= total;
-
-  function tryCheckout() {
-    if (qty > product.stock) {
-      onCheckoutBlocked('Not enough stock for this quantity.');
-      return;
-    }
-    if (total > wallet) {
-      onCheckoutBlocked(
-        `Insufficient wallet balance. You need ${money(total - wallet)} more. Fund your wallet first.`,
-      );
-      return;
-    }
-    onCheckoutBlocked(
-      'Checkout stays disabled until wallet + provider (AccsZone / AccsMarket) layer are connected.',
-    );
-  }
+  const canPay = wallet >= total;
 
   return (
     <div className="sheet-backdrop" onClick={onClose}>
-      <section
-        className="account-detail-sheet"
-        onClick={(e) => e.stopPropagation()}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="detail-title"
-      >
+      <div className="account-detail-sheet" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
         <div className="detail-sheet-head">
           <div className="detail-head-main">
-            <BrandLogo platform={product.platform} size={42} />
+            <BrandLogo platform={product.platform} size={40} />
             <div>
               <span className="accounts-eyebrow">{product.platform}</span>
-              <h2 id="detail-title">{product.title}</h2>
+              <h2>{product.shortTitle}</h2>
               <small>
-                {product.age} · {product.country}
-                {product.sold != null ? ` · ${product.sold.toLocaleString()} sold` : ''}
+                {product.age} · {product.country} · {product.stock.toLocaleString()} in stock
               </small>
             </div>
           </div>
@@ -942,95 +676,50 @@ function AccountDetail({
           </button>
         </div>
 
-        {/* AccsMarket-style bold flow description (no nested scrollbox) */}
         <div className="detail-bold-flow">
           <div className="detail-desc-block">
-            <strong className="detail-section-title">Description</strong>
+            <span className="detail-section-title">Description</span>
             <p className="detail-lead">{product.description}</p>
           </div>
-
-          <div className="detail-features-block">
-            <strong className="detail-section-title">Key Features</strong>
-            <ul className="detail-bullets">
-              {product.bullets.map((b) => (
-                <li key={b}>
-                  <Check size={14} /> {b}
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          <div className="detail-flags">
-            {product.instant && <span>Instant Delivery</span>}
-            {product.cookies && <span>Cookies Included</span>}
-            {product.emailIncluded && <span>Email Access</span>}
-            {product.twoFa && <span>2FA Enabled</span>}
-          </div>
-
+          {product.bullets.length > 0 && (
+            <div className="detail-features-block">
+              <span className="detail-section-title">Key features</span>
+              <ul className="detail-bullets">
+                {product.bullets.map((b) => (
+                  <li key={b}>
+                    <Check size={14} /> {b}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
           <div className="detail-format-block">
-            <strong className="detail-section-title">Account Format</strong>
+            <span className="detail-section-title">Account format</span>
             <div className="detail-format-pill">
               <code>{product.format}</code>
             </div>
           </div>
-
-          <div className="detail-rules-block">
-            <strong className="detail-section-title">How to Use &amp; Login Rules</strong>
-            <ol className="detail-rules-list">
-              <li>Purchase only what you need for a first test (e.g. 1–10 units).</li>
-              <li>Open credentials only after delivery is confirmed in History.</li>
-              <li>Use a clean proxy matching the registration region when possible.</li>
-              <li>Change password and secure recovery after first successful login.</li>
-            </ol>
-          </div>
-
           <div className="detail-guarantee-box">
             <ShieldCheck size={16} />
             <div>
-              <strong>24-Hour Guarantee Policy</strong>
-              <p>
-                We guarantee for 24 hours after account delivery for any invalid accounts or
-                accounts that cannot be logged in. No replacement or guarantee after accounts are
-                logged in successfully.
-              </p>
+              <strong>24-hour replacement window</strong>
+              <p>Invalid on delivery is replaced when reported within policy.</p>
             </div>
           </div>
         </div>
 
-        {/* 3-Pill Metric Bar: In Stock, Min Qty, Per Account */}
-        <div className="detail-metrics-strip">
-          <div className="detail-metric-card">
-            <span>In Stock</span>
-            <strong>{product.stock.toLocaleString()}</strong>
-          </div>
-          <div className="detail-metric-card">
-            <span>Min Qty</span>
-            <strong>1</strong>
-          </div>
-          <div className="detail-metric-card">
-            <span>Per Account</span>
-            <strong>{money(product.price)}</strong>
-          </div>
-        </div>
-
-        {/* Quantity Stepper & Price Calculation */}
         <div className="detail-qty-row">
           <span>Quantity</span>
           <div className="qty-stepper">
-            <button
-              type="button"
-              aria-label="Decrease"
-              disabled={qty <= 1}
-              onClick={() => setQty((q) => Math.max(1, q - 1))}
-            >
+            <button type="button" disabled={qty <= 1} onClick={() => setQty((q) => Math.max(1, q - 1))} aria-label="Decrease">
               <Minus size={14} />
             </button>
             <strong>{qty}</strong>
             <button
               type="button"
+              disabled={qty >= Math.min(10, product.stock)}
+              onClick={() => setQty((q) => Math.min(10, product.stock, q + 1))}
               aria-label="Increase"
-              disabled={qty >= maxQty}
-              onClick={() => setQty((q) => Math.min(maxQty, q + 1))}
             >
               <Plus size={14} />
             </button>
@@ -1039,44 +728,35 @@ function AccountDetail({
 
         <div className="detail-price-row">
           <div>
-            <span>Total Payable</span>
-            <small>
-              {money(product.price)} × {qty}
-            </small>
+            <span>Total payable</span>
+            <small>{money(product.price)} each</small>
           </div>
           <strong>{money(total)}</strong>
         </div>
 
         <div className="detail-wallet-indicator">
-          <span>Wallet balance:</span>
+          <span>Wallet</span>
           <strong>{money(wallet)}</strong>
         </div>
 
-        <PrimaryButton onClick={tryCheckout} className="detail-order-btn">
-          <ShieldCheck size={18} />{' '}
-          {isBalanceSufficient ? `Order Now · ${money(total)}` : `Fund Wallet (${money(total)})`}
+        <PrimaryButton
+          className="detail-order-btn"
+          onClick={() => {
+            if (!canPay) {
+              onCheckoutBlocked('Insufficient wallet balance. Fund wallet to continue.');
+              return;
+            }
+            onCheckoutBlocked('Checkout connects on the next release — catalog is live.');
+          }}
+        >
+          {canPay ? `Pay ${money(total)}` : 'Fund Wallet'}
+          <ArrowRight size={16} />
         </PrimaryButton>
 
         <p className="detail-footnote">
-          Credentials are never shown in public catalog. Immediate automated delivery to your
-          Transaction History upon confirmation.
+          Credentials appear in your logs after a successful order.
         </p>
-      </section>
-    </div>
-  );
-}
-
-export function EmptyOrderState({ kind }: { kind: 'accounts' | 'rentals' }) {
-  return (
-    <Card className="product-empty order-empty">
-      <div>
-        <Package size={20} />
       </div>
-      <strong>No {kind} yet</strong>
-      <p>
-        Your {kind === 'accounts' ? 'account purchases' : 'active rentals'} will appear here after you
-        place an order.
-      </p>
-    </Card>
+    </div>
   );
 }
