@@ -397,22 +397,8 @@ export async function POST(req: NextRequest) {
         console.warn('[email] Panel admin alert dispatch failed:', err);
       }
     } else if (userId) {
-      // Retail consumer order directly on Verxor
-      try {
-        const mail = await sendVirtualNumberReceipt(userId, {
-          status: 'successful',
-          amountNgn: priceNgn,
-          reference: savedId || debitRef,
-          details: [
-            { label: 'Service', value: service },
-            { label: 'Phone number', value: phone },
-            { label: 'Country', value: country },
-          ],
-        });
-        if (!mail.ok) console.warn('[email] Virtual number receipt not sent:', mail.error);
-      } catch (error) {
-        console.warn('[email] Virtual number receipt dispatch failed:', error);
-      }
+      // Retail consumer order directly on Verxor:
+      // Receipt email is dispatched once the verification code (OTP) arrives, not on initial purchase.
     }
 
     return NextResponse.json({

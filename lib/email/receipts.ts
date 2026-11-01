@@ -94,3 +94,33 @@ export async function sendPanelAdminOrderAlert(
     return { ok: false, error: error instanceof Error ? error.message : 'Panel admin alert dispatch failed' };
   }
 }
+
+
+export interface VirtualNumberDeliveryReceiptOptions {
+  userId: string;
+  orderId: string;
+  phone: string;
+  service: string;
+  country?: string;
+  amountNgn: number;
+  otpCode: string;
+  customerName?: string;
+}
+
+/** Dispatched only when the verification code (OTP) is successfully delivered. */
+export async function sendVirtualNumberDeliveredReceipt(
+  options: VirtualNumberDeliveryReceiptOptions,
+): Promise<SendEmailResult> {
+  return await sendVirtualNumberReceipt(options.userId, {
+    status: 'successful',
+    amountNgn: options.amountNgn,
+    reference: options.orderId,
+    customerName: options.customerName,
+    details: [
+      { label: 'Service', value: (options.service || 'Virtual Number').toUpperCase() },
+      { label: 'Phone number', value: options.phone },
+      { label: 'Verification Code', value: options.otpCode },
+      ...(options.country ? [{ label: 'Country', value: options.country }] : []),
+    ],
+  });
+}

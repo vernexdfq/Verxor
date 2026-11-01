@@ -13,6 +13,7 @@ export {
   sendDataReceipt,
   sendFintechReceipt,
   sendVirtualNumberReceipt,
+  sendVirtualNumberDeliveredReceipt,
   sendBoostReceipt,
   sendWalletFundingReceipt,
 } from './receipts';

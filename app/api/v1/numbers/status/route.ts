@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { fivesim, grizzly, pvapins, smsbower } from '@/lib/providers';
-import { sbUpdate, supabaseConfigured } from '@/lib/supabase-admin';
+import { sbSelect, sbUpdate, supabaseConfigured } from '@/lib/supabase-admin';
+import { sendVirtualNumberDeliveredReceipt } from '@/lib/email/receipts';
+
+export const dynamic = 'force-dynamic';
 
 /**
  * Poll OTP status.
- * Query: ?provider=pvapins|fivesim|grizzly|smsbower&providerOrderId=...
+ * Query: ?provider=pvapins|fivesim|grizzly|smsbower&providerOrderId=...&orderId=...
  */
 export async function GET(req: NextRequest) {
   const provider = (req.nextUrl.searchParams.get('provider') || '').toLowerCase();
@@ -31,12 +34,10 @@ export async function GET(req: NextRequest) {
       otp = data?.otpCode ? String(data.otpCode) : null;
     } else if (provider === 'grizzly') {
       const text = await grizzly.getStatus(providerOrderId);
-      // STATUS_OK:123456
       const m = text.match(/STATUS_OK:([0-9A-Za-z-]+)/);
       if (m) {
         otp = m[1];
         status = 'received';
-        // Mark activation complete on provider (status 6)
         try {
           await grizzly.setStatus(providerOrderId, '6');
         } catch {
@@ -61,23 +62,113 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ ok: false, error: 'Unknown provider' }, { status: 400 });
     }
 
-    if (otp && supabaseConfigured() && orderId) {
+    // When OTP is delivered, update order and dispatch customer receipt email
+    if (otp && supabaseConfigured()) {
       try {
-        await sbUpdate(
-          'vn_orders',
-          { id: orderId },
-          { otp_code: otp, status: 'received', updated_at: new Date().toISOString() },
-        );
-      } catch {
-        try {
-          await sbUpdate(
-            'number_orders',
-            { id: orderId },
-            { otp_code: otp, status: 'received', updated_at: new Date().toISOString() },
-          );
-        } catch {
-          /* ignore */
+        let existingOrder: {
+          id: string;
+          user_id?: string | null;
+          phone?: string | null;
+          service?: string | null;
+          country?: string | null;
+          price_ngn?: number | null;
+          raw?: any;
+        } | null = null;
+        let matchedTable = 'vn_orders';
+
+        if (orderId) {
+          try {
+            const rows = (await sbSelect(
+              'vn_orders',
+              `id=eq.${encodeURIComponent(orderId)}&select=id,user_id,phone,service,country,price_ngn,raw&limit=1`,
+            )) as Array<any>;
+            if (Array.isArray(rows) && rows[0]) existingOrder = rows[0];
+          } catch {
+            /* ignore */
+          }
         }
+
+        if (!existingOrder && providerOrderId) {
+          try {
+            const rows = (await sbSelect(
+              'vn_orders',
+              `provider_order_id=eq.${encodeURIComponent(providerOrderId)}&select=id,user_id,phone,service,country,price_ngn,raw&limit=1`,
+            )) as Array<any>;
+            if (Array.isArray(rows) && rows[0]) existingOrder = rows[0];
+          } catch {
+            /* ignore */
+          }
+        }
+
+        if (!existingOrder && orderId) {
+          try {
+            const rows = (await sbSelect(
+              'number_orders',
+              `id=eq.${encodeURIComponent(orderId)}&select=id,user_id,phone,service,country,amount,raw&limit=1`,
+            )) as Array<any>;
+            if (Array.isArray(rows) && rows[0]) {
+              existingOrder = {
+                id: rows[0].id,
+                user_id: rows[0].user_id,
+                phone: rows[0].phone,
+                service: rows[0].service,
+                country: rows[0].country,
+                price_ngn: rows[0].amount,
+                raw: rows[0].raw,
+              };
+              matchedTable = 'number_orders';
+            }
+          } catch {
+            /* ignore */
+          }
+        }
+
+        const raw = (existingOrder?.raw && typeof existingOrder.raw === 'object' ? existingOrder.raw : {}) as Record<string, unknown>;
+        const emailSent = Boolean(raw.email_sent);
+        let emailDispatched = false;
+
+        const targetUserId = existingOrder?.user_id;
+        if (targetUserId && !emailSent) {
+          try {
+            const mail = await sendVirtualNumberDeliveredReceipt({
+              userId: targetUserId,
+              orderId: existingOrder?.id || orderId || providerOrderId,
+              phone: existingOrder?.phone || '',
+              service: existingOrder?.service || 'Virtual Number',
+              country: existingOrder?.country || undefined,
+              amountNgn: Number(existingOrder?.price_ngn || 0),
+              otpCode: otp,
+            });
+            if (mail.ok) {
+              emailDispatched = true;
+            } else {
+              console.warn('[email] Virtual number delivered receipt not sent:', mail.error);
+            }
+          } catch (mailError) {
+            console.warn('[email] Virtual number delivery email failed:', mailError);
+          }
+        }
+
+        const patch: Record<string, unknown> = {
+          otp_code: otp,
+          status: 'received',
+          updated_at: new Date().toISOString(),
+        };
+
+        if (emailDispatched) {
+          patch.raw = {
+            ...raw,
+            email_sent: true,
+            email_sent_at: new Date().toISOString(),
+          };
+        }
+
+        const targetId = existingOrder?.id || orderId;
+        if (targetId) {
+          await sbUpdate(matchedTable, { id: targetId }, patch);
+        }
+      } catch (dbErr) {
+        console.warn('[status] failed to update order or dispatch email:', dbErr);
       }
     }
 
