@@ -331,6 +331,18 @@ export function AccountsPage({ onBack, session }: { onBack: () => void; session?
 
   const activePromo = PROMO_SLIDES[slide];
 
+  // Full-page product detail (AccsMarket-style) — replaces list, not a popup sheet
+  if (selected) {
+    return (
+      <AccountDetail
+        product={selected}
+        wallet={walletBalance}
+        onClose={() => setSelected(null)}
+        onCheckoutBlocked={(msg) => setToast(msg)}
+      />
+    );
+  }
+
   function selectPlatform(p: string) {
     setPlatform(p);
   }
@@ -544,15 +556,6 @@ export function AccountsPage({ onBack, session }: { onBack: () => void; session?
         </Card>
       )}
 
-      {selected && (
-        <AccountDetail
-          product={selected}
-          wallet={walletBalance}
-          onClose={() => setSelected(null)}
-          onCheckoutBlocked={(msg) => setToast(msg)}
-        />
-      )}
-
       {subtypeDrawerOpen && showSubtypeBar && (
         <div className="sheet-backdrop subtype-drawer-backdrop" onClick={() => setSubtypeDrawerOpen(false)}>
           <div className="subtype-drawer" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
@@ -620,106 +623,123 @@ function AccountDetail({
   const canPay = wallet >= total;
 
   return (
-    <div className="sheet-backdrop" onClick={onClose}>
-      <div className="account-detail-sheet" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
-        <div className="detail-sheet-head">
-          <div className="detail-head-main">
-            <BrandLogo platform={product.platform} size={40} />
-            <div>
-              <span className="accounts-eyebrow">{product.platform}</span>
-              <h2>{product.shortTitle}</h2>
-              <small>
-                {product.age} · {product.country} · {product.stock.toLocaleString()} in stock
-              </small>
-            </div>
-          </div>
-          <button type="button" onClick={onClose} aria-label="Close">
-            <X size={18} />
-          </button>
+    <div className="account-detail-page">
+      <header className="detail-page-header">
+        <button type="button" className="accounts-back-link" onClick={onClose} aria-label="Back to listings">
+          <ArrowLeft size={18} />
+          <span>Back</span>
+        </button>
+        <div className="detail-page-header-center">
+          <span className="accounts-eyebrow">{product.platform}</span>
+          <strong>Account details</strong>
         </div>
-
-        <div className="detail-bold-flow">
-          <div className="detail-desc-block">
-            <span className="detail-section-title">Description</span>
-            <DescriptionBody text={product.description} />
-          </div>
-          {product.bullets.length > 0 && (
-            <div className="detail-features-block">
-              <span className="detail-section-title">Key features</span>
-              <ul className="detail-bullets">
-                {product.bullets.map((b) => (
-                  <li key={b}>
-                    <Check size={14} /> {b}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-          <div className="detail-format-block">
-            <span className="detail-section-title">Account format</span>
-            <div className="detail-format-pill">
-              <code>{product.format}</code>
-            </div>
-          </div>
-          <div className="detail-guarantee-box">
-            <ShieldCheck size={16} />
-            <div>
-              <strong>24-hour replacement window</strong>
-              <p>Invalid on delivery is replaced when reported within policy.</p>
-            </div>
-          </div>
+        <div className="accounts-wallet-badge" aria-label="Wallet balance">
+          <Wallet size={14} />
+          <span>{money(wallet)}</span>
         </div>
+      </header>
 
-        <div className="detail-checkout-dock">
-          <div className="detail-qty-row">
-            <span>Quantity</span>
-            <div className="qty-stepper">
-              <button type="button" disabled={qty <= 1} onClick={() => setQty((q) => Math.max(1, q - 1))} aria-label="Decrease">
-                <Minus size={14} />
-              </button>
-              <strong>{qty}</strong>
-              <button
-                type="button"
-                disabled={qty >= Math.min(10, product.stock)}
-                onClick={() => setQty((q) => Math.min(10, product.stock, q + 1))}
-                aria-label="Increase"
-              >
-                <Plus size={14} />
-              </button>
-            </div>
-          </div>
-
-          <div className="detail-price-row">
-            <div>
-              <span>Total payable</span>
-              <small>{money(product.price)} each</small>
-            </div>
-            <strong>{money(total)}</strong>
-          </div>
-
-          <div className="detail-wallet-indicator">
-            <span>Wallet</span>
-            <strong>{money(wallet)}</strong>
-          </div>
-
-          <PrimaryButton
-            className="detail-order-btn"
-            onClick={() => {
-              if (!canPay) {
-                onCheckoutBlocked('Insufficient wallet balance. Fund wallet to continue.');
-                return;
-              }
-              onCheckoutBlocked('Checkout connects on the next release — catalog is live.');
-            }}
-          >
-            {canPay ? `Pay ${money(total)}` : 'Fund Wallet'}
-            <ArrowRight size={16} />
-          </PrimaryButton>
-
-          <p className="detail-footnote">
-            Credentials appear in your logs after a successful order.
+      <div className="detail-page-hero">
+        <div className="detail-page-hero-logo">
+          <BrandLogo platform={product.platform} size={48} />
+        </div>
+        <div className="detail-page-hero-copy">
+          <h1>{product.title}</h1>
+          <p className="detail-page-meta">
+            {product.age} · {product.country} ·{' '}
+            <span className="detail-page-stock">{product.stock.toLocaleString()} in stock</span>
           </p>
+          <div className="detail-page-flags">
+            {product.badge && <span className={badgeClass(product.badge)}>{product.badge}</span>}
+            {product.twoFa && <span className="card-mini-flag">2FA</span>}
+            {product.cookies && <span className="card-mini-flag">COOKIES</span>}
+            {product.instant && <span className="badge-instant">INSTANT</span>}
+          </div>
         </div>
+      </div>
+
+      <div className="detail-page-body">
+        <section className="detail-page-section">
+          <h2 className="detail-section-title">Description</h2>
+          <DescriptionBody text={product.description} />
+        </section>
+
+        {product.bullets.length > 0 && (
+          <section className="detail-page-section">
+            <h2 className="detail-section-title">Key features</h2>
+            <ul className="detail-bullets">
+              {product.bullets.map((b) => (
+                <li key={b}>
+                  <Check size={14} /> {b}
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
+        <section className="detail-page-section">
+          <h2 className="detail-section-title">Account format</h2>
+          <div className="detail-format-pill">
+            <code>{product.format}</code>
+          </div>
+        </section>
+
+        <section className="detail-guarantee-box">
+          <ShieldCheck size={16} />
+          <div>
+            <strong>24-hour replacement window</strong>
+            <p>Invalid on delivery is replaced when reported within policy.</p>
+          </div>
+        </section>
+      </div>
+
+      <div className="detail-page-checkout">
+        <div className="detail-qty-row">
+          <span>Quantity</span>
+          <div className="qty-stepper">
+            <button type="button" disabled={qty <= 1} onClick={() => setQty((q) => Math.max(1, q - 1))} aria-label="Decrease">
+              <Minus size={14} />
+            </button>
+            <strong>{qty}</strong>
+            <button
+              type="button"
+              disabled={qty >= Math.min(10, product.stock)}
+              onClick={() => setQty((q) => Math.min(10, product.stock, q + 1))}
+              aria-label="Increase"
+            >
+              <Plus size={14} />
+            </button>
+          </div>
+        </div>
+
+        <div className="detail-price-row">
+          <div>
+            <span>Total payable</span>
+            <small>{money(product.price)} each</small>
+          </div>
+          <strong>{money(total)}</strong>
+        </div>
+
+        <div className="detail-wallet-indicator">
+          <span>Wallet</span>
+          <strong>{money(wallet)}</strong>
+        </div>
+
+        <PrimaryButton
+          className="detail-order-btn"
+          onClick={() => {
+            if (!canPay) {
+              onCheckoutBlocked('Insufficient wallet balance. Fund wallet to continue.');
+              return;
+            }
+            onCheckoutBlocked('Checkout connects on the next release — catalog is live.');
+          }}
+        >
+          {canPay ? `Pay ${money(total)}` : 'Fund Wallet'}
+          <ArrowRight size={16} />
+        </PrimaryButton>
+
+        <p className="detail-footnote">Credentials appear in your logs after a successful order.</p>
       </div>
     </div>
   );
