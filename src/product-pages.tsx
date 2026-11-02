@@ -236,36 +236,83 @@ export function AccountsPage({ onBack, session }: { onBack: () => void; session?
 
   useEffect(() => {
     let cancelled = false;
-    (async () => {
-      setCatalogLoading(true);
-      setCatalogError(null);
-      try {
-        const res = await fetch('/api/v1/accounts/catalog?platform=Facebook', { cache: 'no-store' });
-        const data = await res.json();
-        if (cancelled) return;
-        if (!data?.ok || !Array.isArray(data.offers)) {
-          setCatalogError(data?.error || 'Could not load live Facebook stock');
-          setLiveFacebook([]);
-          setLiveFbSubtypes([]);
-          return;
+    const CACHE_KEY = 'verxor:fb-catalog:v1';
+    type Cat = { offers: unknown[]; subtypes: { name: string; count: number; stock: number }[] };
+
+    const apply = (data: Cat) => {
+      setLiveFacebook((data.offers as Parameters<typeof offerToProduct>[0][]).map(offerToProduct));
+      setLiveFbSubtypes(
+        (data.subtypes || []).map((s) => ({ name: s.name, count: s.count, stock: s.stock })),
+      );
+    };
+
+    // 1) Paint instantly from the last good catalog on this device.
+    let hadCache = false;
+    try {
+      const raw = localStorage.getItem(CACHE_KEY);
+      if (raw) {
+        const saved = JSON.parse(raw) as { at: number; data: Cat };
+        if (saved?.data && Array.isArray(saved.data.offers) && saved.data.offers.length > 0) {
+          apply(saved.data);
+          hadCache = true;
+          setCatalogLoading(false);
         }
-        setLiveFacebook(data.offers.map(offerToProduct));
-        setLiveFbSubtypes(
-          (data.subtypes || []).map((s: { name: string; count: number; stock: number }) => ({
-            name: s.name,
-            count: s.count,
-            stock: s.stock,
-          })),
-        );
-      } catch (e) {
-        if (!cancelled) {
-          setCatalogError(e instanceof Error ? e.message : 'Network error');
-          setLiveFacebook([]);
-          setLiveFbSubtypes([]);
-        }
-      } finally {
-        if (!cancelled) setCatalogLoading(false);
       }
+    } catch {
+      /* ignore corrupt cache */
+    }
+
+    // 2) Revalidate quietly in the background (with retries, JSON-safe).
+    async function fetchOnce(): Promise<Cat> {
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 25000);
+      try {
+        const res = await fetch('/api/v1/accounts/catalog?platform=Facebook', { signal: ctrl.signal });
+        const text = await res.text();
+        let data: (Cat & { ok?: boolean; error?: string }) | null = null;
+        try {
+          data = JSON.parse(text);
+        } catch {
+          throw new Error('Stock is refreshing. Retrying…');
+        }
+        if (!data?.ok || !Array.isArray(data.offers)) {
+          throw new Error(data?.error || 'Could not load live Facebook stock');
+        }
+        return data;
+      } finally {
+        clearTimeout(timer);
+      }
+    }
+
+    (async () => {
+      if (!hadCache) setCatalogLoading(true);
+      setCatalogError(null);
+      let lastErr = 'Could not load live Facebook stock';
+      for (let attempt = 0; attempt < 3 && !cancelled; attempt += 1) {
+        try {
+          const data = await fetchOnce();
+          if (cancelled) return;
+          apply(data);
+          setCatalogError(null);
+          try {
+            localStorage.setItem(CACHE_KEY, JSON.stringify({ at: Date.now(), data }));
+          } catch {
+            /* storage full */
+          }
+          setCatalogLoading(false);
+          return;
+        } catch (e) {
+          lastErr = e instanceof Error ? e.message : 'Network error';
+          await new Promise((r) => setTimeout(r, 1500 * (attempt + 1)));
+        }
+      }
+      if (cancelled) return;
+      if (!hadCache) {
+        setCatalogError(lastErr);
+        setLiveFacebook([]);
+        setLiveFbSubtypes([]);
+      }
+      setCatalogLoading(false);
     })();
     return () => {
       cancelled = true;
