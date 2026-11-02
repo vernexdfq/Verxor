@@ -83,7 +83,8 @@ export type AccountsCatalog = {
 
 const DEFAULT_BASE = 'https://accszone.com/api/v1';
 const DEFAULT_RATE = 1380;
-const CACHE_TTL_MS = 5 * 60 * 1000;
+const CACHE_TTL_MS = 2 * 60 * 1000;
+const STALE_MAX_MS = 60 * 60 * 1000;
 
 /** Retail multipliers (end-user). */
 export function retailMultiplier(costUsd: number): number {
@@ -129,6 +130,7 @@ async function accsFetch<T = unknown>(path: string, init?: RequestInit): Promise
       ...(init?.headers || {}),
     },
     cache: 'no-store',
+    signal: init?.signal ?? AbortSignal.timeout(20_000),
   });
   if (res.status === 429) {
     const retry = Number(res.headers.get('Retry-After') || 5);
@@ -150,18 +152,20 @@ type ListResponse<T> = {
 };
 
 async function paginateListings(categoryId: number): Promise<AccsZoneListing[]> {
-  const out: AccsZoneListing[] = [];
-  let page = 1;
-  let last = 1;
-  while (page <= last) {
-    const res = await accsFetch<ListResponse<AccsZoneListing[]>>(
+  const fetchPage = (page: number) =>
+    accsFetch<ListResponse<AccsZoneListing[]>>(
       `/listings?page=${page}&category_id=${categoryId}&include=description`,
     );
-    const batch = Array.isArray(res.data) ? res.data : [];
-    out.push(...batch);
-    last = res.meta?.last_page || 1;
-    page += 1;
-    if (page <= last) await sleep(200);
+  const first = await fetchPage(1);
+  const out: AccsZoneListing[] = Array.isArray(first.data) ? [...first.data] : [];
+  const last = first.meta?.last_page || 1;
+  const rest: number[] = [];
+  for (let p = 2; p <= last; p += 1) rest.push(p);
+  // Small parallel batches: fast, but stays well inside the 30 req/min provider limit.
+  const BATCH = 4;
+  for (let i = 0; i < rest.length; i += BATCH) {
+    const results = await Promise.all(rest.slice(i, i + BATCH).map(fetchPage));
+    for (const r of results) if (Array.isArray(r.data)) out.push(...r.data);
   }
   return out;
 }
@@ -323,19 +327,37 @@ export const ACCSZONE_FACEBOOK_CATEGORY_ID = 22;
 type CacheEntry = { at: number; catalog: AccountsCatalog };
 const cache = new Map<string, CacheEntry>();
 
+const inflight = new Map<string, Promise<AccountsCatalog>>();
+
 export async function fetchFacebookCatalog(options?: {
   forceRefresh?: boolean;
 }): Promise<AccountsCatalog> {
   const rate = exchangeRate();
   const cacheKey = `facebook:${rate}`;
   const now = Date.now();
-  if (!options?.forceRefresh) {
-    const hit = cache.get(cacheKey);
-    if (hit && now - hit.at < CACHE_TTL_MS) {
+  const hit = cache.get(cacheKey);
+  if (hit && !options?.forceRefresh) {
+    const age = now - hit.at;
+    if (age < CACHE_TTL_MS) return { ...hit.catalog, source: 'cached' };
+    if (age < STALE_MAX_MS) {
+      // Serve instantly, refresh in the background.
+      void loadFacebookCatalog(cacheKey, rate).catch(() => undefined);
       return { ...hit.catalog, source: 'cached' };
     }
   }
+  return loadFacebookCatalog(cacheKey, rate);
+}
 
+function loadFacebookCatalog(cacheKey: string, rate: number): Promise<AccountsCatalog> {
+  const existing = inflight.get(cacheKey);
+  if (existing) return existing;
+  const p = buildFacebookCatalog(cacheKey, rate).finally(() => inflight.delete(cacheKey));
+  inflight.set(cacheKey, p);
+  return p;
+}
+
+async function buildFacebookCatalog(cacheKey: string, rate: number): Promise<AccountsCatalog> {
+  const now = Date.now();
   if (!apiKey()) {
     return {
       ok: false,
