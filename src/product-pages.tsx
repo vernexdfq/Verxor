@@ -5,7 +5,10 @@ import {
   ArrowLeft,
   ArrowRight,
   Check,
+  CheckCircle2,
   ChevronRight,
+  Copy,
+  BookOpen,
   FolderOpen,
   Package,
   Search,
@@ -21,6 +24,8 @@ import type { AuthSession } from './auth/AuthFlow';
 import type { AccountProduct } from './accounts-types';
 import { STATIC_CATALOG as CATALOG } from './accounts-static-catalog';
 import { DescriptionBody } from './accounts-description';
+import { MyLogsPage } from './MyLogsPage';
+import { loadSessionTokens } from './auth/session-unlock';
 
 /**
  * Buy Accounts & Logs — Verxor marketplace
@@ -188,9 +193,11 @@ function offerToProduct(o: {
   twoFa: boolean;
   tags: string[];
   badge?: AccountProduct['badge'];
+  providerListingId?: number;
 }): AccountProduct {
   return {
     id: o.id,
+    providerListingId: o.providerListingId,
     platform: o.platform,
     subtype: o.subtype,
     title: o.title,
@@ -219,6 +226,7 @@ export function AccountsPage({ onBack, session }: { onBack: () => void; session?
   const [subtype, setSubtype] = useState<string | null>(null);
   const [subtypeDrawerOpen, setSubtypeDrawerOpen] = useState(false);
   const [selected, setSelected] = useState<AccountProduct | null>(null);
+  const [showMyLogs, setShowMyLogs] = useState(false);
   const [slide, setSlide] = useState(0);
   const [toast, setToast] = useState<string | null>(null);
   const [liveFacebook, setLiveFacebook] = useState<AccountProduct[]>([]);
@@ -331,6 +339,10 @@ export function AccountsPage({ onBack, session }: { onBack: () => void; session?
 
   const activePromo = PROMO_SLIDES[slide];
 
+  if (showMyLogs) {
+    return <MyLogsPage onBack={() => setShowMyLogs(false)} session={session} />;
+  }
+
   // Full-page product detail (AccsMarket-style) — replaces list, not a popup sheet
   if (selected) {
     return (
@@ -339,6 +351,7 @@ export function AccountsPage({ onBack, session }: { onBack: () => void; session?
         wallet={walletBalance}
         onClose={() => setSelected(null)}
         onCheckoutBlocked={(msg) => setToast(msg)}
+        onOpenLogs={() => setShowMyLogs(true)}
       />
     );
   }
@@ -363,9 +376,14 @@ export function AccountsPage({ onBack, session }: { onBack: () => void; session?
           <h1>Buy Accounts & Logs</h1>
           <p>Instant delivery & aged logs</p>
         </div>
-        <div className="accounts-wallet-badge" aria-label="Wallet balance">
-          <Wallet size={14} />
-          <span>{money(walletBalance)}</span>
+        <div className="accounts-header-actions">
+          <button type="button" className="accounts-logs-button" onClick={() => setShowMyLogs(true)} aria-label="Open My Logs">
+            <BookOpen size={15} /> <span>My Logs</span>
+          </button>
+          <div className="accounts-wallet-badge" aria-label="Wallet balance">
+            <Wallet size={14} />
+            <span>{money(walletBalance)}</span>
+          </div>
         </div>
       </header>
 
@@ -612,15 +630,80 @@ function AccountDetail({
   wallet,
   onClose,
   onCheckoutBlocked,
+  onOpenLogs,
 }: {
   product: AccountProduct;
   wallet: number;
   onClose: () => void;
   onCheckoutBlocked: (msg: string) => void;
+  onOpenLogs: () => void;
 }) {
   const [qty, setQty] = useState(1);
+  const [buying, setBuying] = useState(false);
+  const [buyError, setBuyError] = useState<string | null>(null);
+  const [purchase, setPurchase] = useState<{ orderId: string | null; credentials: string[]; totalNgn: number; warning?: string } | null>(null);
+  const [copied, setCopied] = useState(false);
   const total = product.price * qty;
+  const liveFacebookListing = product.platform === 'Facebook' && Number(product.providerListingId) > 0;
   const canPay = wallet >= total;
+
+  async function submitPurchase() {
+    if (buying) return;
+    if (!liveFacebookListing) {
+      setBuyError('Live checkout is currently available for Facebook listings only.');
+      return;
+    }
+    const token = loadSessionTokens()?.access_token;
+    if (!token) {
+      setBuyError('Your secure session has expired. Sign in again before purchasing.');
+      return;
+    }
+    setBuying(true);
+    setBuyError(null);
+    try {
+      const res = await fetch('/api/v1/accounts/buy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ providerListingId: product.providerListingId, quantity: qty }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data?.ok) throw new Error(data?.error || 'Purchase could not be completed.');
+      const credentials = Array.isArray(data.credentials) ? data.credentials.map(String) : [];
+      if (!credentials.length) throw new Error('The provider confirmed the purchase, but no account details were returned. Contact support before retrying.');
+      setPurchase({ orderId: data.orderId ? String(data.orderId) : null, credentials, totalNgn: Number(data.totalNgn) || total, warning: data.warning || undefined });
+      if (typeof window !== 'undefined') window.dispatchEvent(new Event('verxor:balance-refresh'));
+    } catch (error) {
+      setBuyError(error instanceof Error ? error.message : 'Purchase failed. Please try again.');
+    } finally {
+      setBuying(false);
+    }
+  }
+
+  if (purchase) {
+    return (
+      <div className="account-detail-page account-purchase-result">
+        <header className="detail-page-header">
+          <button type="button" className="accounts-back-link" onClick={onClose}><ArrowLeft size={18} /><span>Back to listings</span></button>
+          <strong className="account-result-header">Order delivered</strong>
+          <span />
+        </header>
+        <main className="account-result-body">
+          <div className="account-result-icon"><CheckCircle2 size={30} /></div>
+          <p className="account-result-kicker">PAYMENT CONFIRMED</p>
+          <h1>Your account{purchase.credentials.length === 1 ? ' is' : 's are'} ready</h1>
+          <p className="account-result-summary">{product.title} · {purchase.credentials.length} delivered · {money(purchase.totalNgn)}</p>
+          {purchase.orderId && <p className="account-result-reference">Order reference <code>{purchase.orderId}</code></p>}
+          {purchase.warning && <p className="account-result-warning" role="status">Delivery succeeded, but My Logs could not be updated. Copy and save these credentials, then contact support with your order reference.</p>}
+          <section className="account-delivery-credentials" aria-label="Delivered account credentials">
+            <div className="account-credentials-heading"><div><strong>Delivered credentials</strong><span>Keep these details private and secure.</span></div><button type="button" onClick={async () => { try { await navigator.clipboard.writeText(purchase.credentials.join('\n')); setCopied(true); setTimeout(() => setCopied(false), 1600); } catch { setBuyError('Clipboard access is unavailable. Select and copy the credentials manually.'); } }}>{copied ? <Check size={15} /> : <Copy size={15} />} {copied ? 'Copied' : 'Copy all'}</button></div>
+            <div className="account-credential-list">{purchase.credentials.map((line, index) => <code key={`${index}-${line}`}>{line}</code>)}</div>
+          </section>
+          {buyError && <p className="account-checkout-error" role="alert">{buyError}</p>}
+          <div className="account-result-actions"><PrimaryButton className="detail-order-btn" onClick={onOpenLogs}>View My Logs <ArrowRight size={16} /></PrimaryButton><button type="button" className="account-secondary-action" onClick={onClose}>Continue browsing</button></div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="account-detail-page">
@@ -725,21 +808,23 @@ function AccountDetail({
           <strong>{money(wallet)}</strong>
         </div>
 
+        {buyError && <p className="account-checkout-error" role="alert">{buyError}</p>}
         <PrimaryButton
           className="detail-order-btn"
+          disabled={buying || !liveFacebookListing}
           onClick={() => {
             if (!canPay) {
               onCheckoutBlocked('Insufficient wallet balance. Fund wallet to continue.');
               return;
             }
-            onCheckoutBlocked('Checkout connects on the next release — catalog is live.');
+            void submitPurchase();
           }}
         >
-          {canPay ? `Pay ${money(total)}` : 'Fund Wallet'}
-          <ArrowRight size={16} />
+          {buying ? 'Processing secure payment…' : liveFacebookListing ? (canPay ? `Pay ${money(total)}` : 'Fund Wallet') : 'Facebook checkout only'}
+          {!buying && <ArrowRight size={16} />}
         </PrimaryButton>
 
-        <p className="detail-footnote">Credentials appear in your logs after a successful order.</p>
+        <p className="detail-footnote">Secure wallet payment · Credentials are delivered here and saved to My Logs.</p>
       </div>
     </div>
   );
