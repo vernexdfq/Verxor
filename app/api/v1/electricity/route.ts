@@ -9,7 +9,13 @@ import {
   CK_DISCO_LABEL,
 } from '@/lib/providers/clubkonnect';
 import { supabaseConfigured } from '@/lib/supabase-admin';
-import { resolvePanelClient } from '@/lib/panel-auth';
+import {
+  resolvePanelClient,
+  panelAllowsElectricity,
+  panelElectricityDebitAmount,
+  PANEL_ELECTRICITY_DISCOUNT_PCT,
+  CK_ELECTRICITY_DISCOUNT_PCT,
+} from '@/lib/panel-auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -27,6 +33,10 @@ const DISCOS = new Set([
   'yola',
   'aba',
 ]);
+
+/** Align with ClubKonnect web min (₦1,000). */
+const MIN_AMOUNT = 1000;
+const MAX_AMOUNT = 200000;
 
 function supabaseBase() {
   return (process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '')
@@ -166,7 +176,12 @@ async function debitResellerWallet(userId: string, amount: number, reference: st
         amount_ngn: -Math.abs(amount),
         currency: 'NGN',
         reference,
-        meta: { type: 'electricity', product: 'electricity', wallet: 'reseller' },
+        meta: {
+          type: 'electricity',
+          product: 'electricity',
+          wallet: 'reseller',
+          panelDiscountPct: PANEL_ELECTRICITY_DISCOUNT_PCT,
+        },
       }),
     });
   } catch {
@@ -237,12 +252,23 @@ export async function GET() {
     providers: { clubkonnect: ckReady },
     clubkonnect: ckBalance,
     discos: Object.entries(CK_DISCO_LABEL).map(([id, label]) => ({ id, label })),
+    pricing: {
+      minAmount: MIN_AMOUNT,
+      maxAmount: MAX_AMOUNT,
+      clubkonnectDiscountPct: CK_ELECTRICITY_DISCOUNT_PCT,
+      panelDiscountPct: PANEL_ELECTRICITY_DISCOUNT_PCT,
+      verxorMarginPct: Math.round((CK_ELECTRICITY_DISCOUNT_PCT - PANEL_ELECTRICITY_DISCOUNT_PCT) * 100) / 100,
+    },
   });
 }
 
 /**
  * POST /api/v1/electricity
  * body.action = 'verify' | 'pay' (default pay)
+ *
+ * Retail: full face amount debited from user wallet.
+ * Child panel (vx_panel_*): 0.3% discount on debit; Verxor keeps ~0.2%
+ * of ClubKonnect's ~0.5% API discount.
  */
 export async function POST(req: NextRequest) {
   if (!isClubKonnectConfigured()) {
@@ -293,15 +319,15 @@ export async function POST(req: NextRequest) {
   }
 
   const amount = Math.round(Number(body.amount));
-  if (!Number.isFinite(amount) || amount < 500) {
+  if (!Number.isFinite(amount) || amount < MIN_AMOUNT) {
     return NextResponse.json(
-      { ok: false, error: 'Minimum electricity payment is ₦500' },
+      { ok: false, error: `Minimum electricity payment is ₦${MIN_AMOUNT.toLocaleString('en-NG')}` },
       { status: 400 },
     );
   }
-  if (amount > 100000) {
+  if (amount > MAX_AMOUNT) {
     return NextResponse.json(
-      { ok: false, error: 'Maximum electricity payment is ₦100,000' },
+      { ok: false, error: `Maximum electricity payment is ₦${MAX_AMOUNT.toLocaleString('en-NG')}` },
       { status: 400 },
     );
   }
@@ -315,6 +341,13 @@ export async function POST(req: NextRequest) {
   }
 
   const panel = await resolvePanelClient(req);
+  if (panel && !panelAllowsElectricity(panel)) {
+    return NextResponse.json(
+      { ok: false, error: 'This panel key is not allowed to purchase electricity.' },
+      { status: 403 },
+    );
+  }
+
   let userId = await resolveUserId(req, body.userId);
   if (panel) {
     userId = panel.walletUserId || userId;
@@ -337,17 +370,24 @@ export async function POST(req: NextRequest) {
   }
 
   const useReseller = Boolean(panel);
+  /** Face amount sent to ClubKonnect; panel is debited at 0.3% discount. */
+  const faceAmount = amount;
+  const debitAmount = useReseller ? panelElectricityDebitAmount(faceAmount) : faceAmount;
+  const panelDiscountNgn = useReseller
+    ? Math.round((faceAmount - debitAmount) * 100) / 100
+    : 0;
+
   const discoLabel = CK_DISCO_LABEL[disco] || disco;
   const typeLabel = meterType === 'prepaid' ? 'Prepaid' : 'Postpaid';
-  const debitDesc = `${discoLabel} ${typeLabel} · ${meterNo} · ₦${amount.toLocaleString('en-NG')}`;
+  const debitDesc = `${discoLabel} ${typeLabel} · ${meterNo} · ₦${faceAmount.toLocaleString('en-NG')}`;
   const debitRef = body.ref || `el-${(userId || 'panel').slice(0, 8)}-${Date.now()}`;
   let debited = false;
 
   try {
     if (useReseller) {
-      await debitResellerWallet(userId, amount, debitRef);
+      await debitResellerWallet(userId, debitAmount, debitRef);
     } else {
-      await debitRetailWallet(userId, amount, debitRef, debitDesc);
+      await debitRetailWallet(userId, debitAmount, debitRef, debitDesc);
     }
     debited = true;
   } catch (e) {
@@ -371,7 +411,7 @@ export async function POST(req: NextRequest) {
       disco,
       meterType,
       meterNo,
-      amount,
+      amount: faceAmount,
       phone,
       ref: debitRef,
     });
@@ -379,9 +419,9 @@ export async function POST(req: NextRequest) {
     const successTitle =
       meterType === 'prepaid'
         ? result.token
-          ? `Token ready · ₦${amount.toLocaleString('en-NG')} · ${discoLabel}`
-          : `Prepaid order received · ₦${amount.toLocaleString('en-NG')} · ${discoLabel}`
-        : `Bill paid · ₦${amount.toLocaleString('en-NG')} · ${discoLabel}`;
+          ? `Token ready · ₦${faceAmount.toLocaleString('en-NG')} · ${discoLabel}`
+          : `Prepaid order received · ₦${faceAmount.toLocaleString('en-NG')} · ${discoLabel}`
+        : `Bill paid · ₦${faceAmount.toLocaleString('en-NG')} · ${discoLabel}`;
 
     return NextResponse.json({
       ok: true,
@@ -390,7 +430,7 @@ export async function POST(req: NextRequest) {
         orderId: result.orderId,
         status: result.status,
         meterNo: result.meterNo,
-        amount: result.amount,
+        amount: faceAmount,
         disco: result.disco,
         meterType: result.meterType,
         token: result.token,
@@ -398,7 +438,10 @@ export async function POST(req: NextRequest) {
         message: successTitle,
         title: successTitle,
       },
-      balanceDebited: amount,
+      balanceDebited: debitAmount,
+      faceAmount,
+      panelDiscountPct: useReseller ? PANEL_ELECTRICITY_DISCOUNT_PCT : 0,
+      panelDiscountNgn,
       walletMode: useReseller ? 'reseller_wallet' : 'retail',
       panel: panel ? { id: panel.id, name: panel.name } : null,
     });
@@ -406,9 +449,9 @@ export async function POST(req: NextRequest) {
     const message = err instanceof Error ? err.message : 'ClubKonnect electricity failed';
     if (debited) {
       if (useReseller) {
-        await creditResellerWallet(userId, amount, `refund-${debitRef}`);
+        await creditResellerWallet(userId, debitAmount, `refund-${debitRef}`);
       } else {
-        await creditRetailWallet(userId, amount, `refund-${debitRef}`, `Refund — ${debitDesc}`);
+        await creditRetailWallet(userId, debitAmount, `refund-${debitRef}`, `Refund — ${debitDesc}`);
       }
     }
     return NextResponse.json(

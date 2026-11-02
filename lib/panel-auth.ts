@@ -37,7 +37,14 @@ function hashKey(apiKey: string): string {
   return createHash('sha256').update(apiKey).digest('hex');
 }
 
-const DEFAULT_ALLOWED_PRODUCTS = ['virtual_numbers', 'boost', 'smm', 'airtime', 'data'];
+const DEFAULT_ALLOWED_PRODUCTS = [
+  'virtual_numbers',
+  'boost',
+  'smm',
+  'airtime',
+  'data',
+  'electricity',
+];
 
 export async function resolvePanelClient(req: Request): Promise<PanelClient | null> {
   const apiKey = extractApiKey(req);
@@ -51,7 +58,10 @@ export async function resolvePanelClient(req: Request): Promise<PanelClient | nu
       markupPercent: Number(process.env.VERXOR_PANEL_MARKUP_PCT || 15) || 15,
       allowedProducts: DEFAULT_ALLOWED_PRODUCTS,
       walletUserId: (process.env.VERXOR_PANEL_WALLET_USER_ID || '').trim() || null,
-      ownerEmail: (process.env.VERXOR_PANEL_ADMIN_EMAIL || process.env.VERXOR_PANEL_OWNER_EMAIL || '').trim().toLowerCase() || null,
+      ownerEmail:
+        (process.env.VERXOR_PANEL_ADMIN_EMAIL || process.env.VERXOR_PANEL_OWNER_EMAIL || '')
+          .trim()
+          .toLowerCase() || null,
       source: 'env',
     };
   }
@@ -68,7 +78,12 @@ export async function resolvePanelClient(req: Request): Promise<PanelClient | nu
       name: string;
       markup_percent?: number;
       allowed_products?: string[];
-      meta?: { wallet_user_id?: string; walletUserId?: string; owner_email?: string; ownerEmail?: string };
+      meta?: {
+        wallet_user_id?: string;
+        walletUserId?: string;
+        owner_email?: string;
+        ownerEmail?: string;
+      };
     }>;
 
     const row = rows?.[0];
@@ -78,13 +93,19 @@ export async function resolvePanelClient(req: Request): Promise<PanelClient | nu
     const fromDb = Array.isArray(row.allowed_products) ? row.allowed_products.map(String) : [];
     let allowedProducts = fromDb && fromDb.length > 0 ? fromDb : DEFAULT_ALLOWED_PRODUCTS;
     const lower = allowedProducts.map((p) => p.toLowerCase());
-    // Always ensure core products stay available for partner panels that already
-    // have virtual numbers, matching boost expansion behaviour.
-    if (lower.includes('virtual_numbers') || lower.includes('vn') || lower.includes('*') || lower.includes('all')) {
+    // Core VTU expansion for partner panels that already have virtual numbers / all.
+    if (
+      lower.includes('virtual_numbers') ||
+      lower.includes('vn') ||
+      lower.includes('*') ||
+      lower.includes('all') ||
+      lower.includes('vtu')
+    ) {
       const next = new Set(allowedProducts.map(String));
       next.add('airtime');
       next.add('data');
       next.add('boost');
+      next.add('electricity');
       allowedProducts = Array.from(next);
     }
 
@@ -138,6 +159,37 @@ export function panelAllowsAirtime(panel: PanelClient): boolean {
     allowed.includes('virtual_numbers') ||
     allowed.includes('vn')
   );
+}
+
+/** Electricity bill payment (ClubKonnect) for child panels. */
+export function panelAllowsElectricity(panel: PanelClient): boolean {
+  const allowed = panel.allowedProducts.map((p) => p.toLowerCase());
+  return (
+    allowed.length === 0 ||
+    allowed.includes('electricity') ||
+    allowed.includes('power') ||
+    allowed.includes('disco') ||
+    allowed.includes('vtu') ||
+    allowed.includes('*') ||
+    allowed.includes('all') ||
+    allowed.includes('virtual_numbers') ||
+    allowed.includes('vn')
+  );
+}
+
+/**
+ * ClubKonnect API electricity discount is ~0.5%.
+ * Child panels get 0.3%; Verxor keeps ~0.2% as parent margin.
+ */
+export const PANEL_ELECTRICITY_DISCOUNT_PCT = 0.3;
+export const CK_ELECTRICITY_DISCOUNT_PCT = 0.5;
+
+/** Amount to debit the panel wallet for a face-value electricity purchase. */
+export function panelElectricityDebitAmount(faceAmount: number): number {
+  const face = Math.round(Number(faceAmount));
+  if (!Number.isFinite(face) || face <= 0) return 0;
+  const debit = face * (1 - PANEL_ELECTRICITY_DISCOUNT_PCT / 100);
+  return Math.round(debit * 100) / 100;
 }
 
 /**
