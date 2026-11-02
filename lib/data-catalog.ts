@@ -5,21 +5,21 @@
  *
  * UI rules:
  *  - Show a provider bundle family only where it is verified by plan ID
- *  - Tabs by validity: daily / weekly / monthly / 3 months+ / yearly
+ *  - Tabs by validity: daily / weekly / monthly / 3 months+ / yearly / router
  *  - Hot deals chosen later after full catalog
  *
  * MTN: Daily + Weekly + Monthly + 3 months+ + Yearly locked.
- * Airtel: Daily + Weekly + Monthly locked (43 plans).
+ * Airtel: Daily + Weekly + Monthly + 3 months+ + Router + Yearly locked (55 plans).
  */
 
 export type DataNetwork = 'mtn' | 'glo' | 'airtel' | '9mobile';
-export type DataTab = 'daily' | 'weekly' | 'monthly' | 'threemonths' | 'yearly';
+export type DataTab = 'daily' | 'weekly' | 'monthly' | 'threemonths' | 'yearly' | 'router';
 
 export interface CatalogPlan {
   /** 247API plan_id — used for purchase */
   id: number;
   network: DataNetwork;
-  /** Clean volume label e.g. "1GB", "75MB" */
+  /** Clean volume label e.g. "1GB", "75MB", "20 Mbps" */
   size: string;
   /** Validity in days (string for UI helpers) */
   days: string;
@@ -157,6 +157,30 @@ export const AIRTEL_MONTHLY: CatalogPlan[] = [
   { id: 373, network: 'airtel', size: '210GB', days: '30', tab: 'monthly', retail: 40200, apiPrice: 38720, cost: 38680, planType: 'Gifting' },
 ];
 
+/** Airtel 3 months+ — locked from live 247API + user retail */
+export const AIRTEL_THREEMONTHS: CatalogPlan[] = [
+  { id: 374, network: 'airtel', size: '300GB', days: '90', tab: 'threemonths', retail: 50300, apiPrice: 48400, cost: 48350, planType: 'Gifting' },
+  { id: 375, network: 'airtel', size: '350GB', days: '120', tab: 'threemonths', retail: 60300, apiPrice: 58050, cost: 58020, planType: 'Gifting' },
+];
+
+/** Airtel Router (Mbps) — locked from live 247API + user retail */
+export const AIRTEL_ROUTER: CatalogPlan[] = [
+  { id: 385, network: 'airtel', size: '50 Mbps', days: '30', tab: 'router', retail: 25000, apiPrice: 24050, cost: 24000, planType: 'Router' },
+  { id: 392, network: 'airtel', size: '50 Mbps', days: '30', tab: 'router', retail: 25000, apiPrice: 24050, cost: 24000, planType: 'Router' },
+  { id: 384, network: 'airtel', size: '20 Mbps', days: '30', tab: 'router', retail: 30000, apiPrice: 28850, cost: 28800, planType: 'Router' },
+  { id: 386, network: 'airtel', size: '100 Mbps', days: '30', tab: 'router', retail: 45000, apiPrice: 43250, cost: 43200, planType: 'Router' },
+  { id: 393, network: 'airtel', size: '100 Mbps', days: '30', tab: 'router', retail: 45000, apiPrice: 43250, cost: 43200, planType: 'Router' },
+  { id: 387, network: 'airtel', size: '60 Mbps', days: '30', tab: 'router', retail: 50000, apiPrice: 48050, cost: 48000, planType: 'Router' },
+  { id: 390, network: 'airtel', size: '20 Mbps', days: '90', tab: 'router', retail: 81000, apiPrice: 80100, cost: 80000, planType: 'Router' },
+  { id: 388, network: 'airtel', size: '60 Mbps', days: '90', tab: 'router', retail: 136000, apiPrice: 135100, cost: 135000, planType: 'Router' },
+  { id: 391, network: 'airtel', size: '20 Mbps', days: '180', tab: 'router', retail: 151000, apiPrice: 150100, cost: 150000, planType: 'Router' },
+];
+
+/** Airtel Yearly — locked from live 247API + user retail */
+export const AIRTEL_YEARLY: CatalogPlan[] = [
+  { id: 376, network: 'airtel', size: '650GB', days: '365', tab: 'yearly', retail: 100500, apiPrice: 96800, cost: 96700, planType: 'Gifting' },
+];
+
 /** All curated plans (grows as we add tabs/networks) */
 export const DATA_CATALOG: CatalogPlan[] = [
   ...MTN_DAILY,
@@ -167,6 +191,9 @@ export const DATA_CATALOG: CatalogPlan[] = [
   ...AIRTEL_DAILY,
   ...AIRTEL_WEEKLY,
   ...AIRTEL_MONTHLY,
+  ...AIRTEL_THREEMONTHS,
+  ...AIRTEL_ROUTER,
+  ...AIRTEL_YEARLY,
 ];
 
 export function catalogForNetwork(network: string): CatalogPlan[] {
@@ -180,12 +207,18 @@ export function findCatalogPlan(planId: number): CatalogPlan | undefined {
 
 /** UI-facing shape used by data-page */
 export function toLivePlan(p: CatalogPlan) {
+  const validity =
+    p.tab === 'threemonths'
+      ? '3 months+'
+      : p.tab === 'router'
+        ? 'Router'
+        : p.tab.charAt(0).toUpperCase() + p.tab.slice(1);
   return {
     id: p.id,
     name: p.size,
     price: p.retail,
     days: p.days,
     planType: p.planType || 'Data Bundle',
-    validityCategory: p.tab === 'threemonths' ? '3 months+' : p.tab.charAt(0).toUpperCase() + p.tab.slice(1),
+    validityCategory: validity,
   };
 }
