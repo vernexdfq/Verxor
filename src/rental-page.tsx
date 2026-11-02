@@ -198,7 +198,7 @@ export function RentalPage({ onBack, onOpenEsim }: { onBack: () => void; onOpenE
 
   const headerBack = () => {
     if (view === 'home' || view === 'main') onBack();
-    else if (view === 'buy-country') setView('main');
+    else if (view === 'buy-country') setView('home');
     else if (view === 'buy-region') setView('buy-country');
     else if (view === 'buy-numbers') setView('buy-region');
     else if (view === 'buy-period') setView('buy-numbers');
@@ -231,7 +231,17 @@ export function RentalPage({ onBack, onOpenEsim }: { onBack: () => void; onOpenE
         <button type="button" className="rl-icon" onClick={headerBack} aria-label="Back"><ArrowLeft size={20} /></button>
         <h1>{title}</h1>
         <div className="rl-header-right">
-          {view === 'home' && (
+          {view === 'main' && (tab === 'calls' || tab === 'numbers') && (
+            <button type="button" className="rl-icon primary" onClick={openBuy} aria-label="Rent number"><Plus size={22} strokeWidth={2.2} /></button>
+          )}
+          {(view === 'line-dnd' || view === 'line-voicemail') && (
+            <button type="button" className="rl-text-btn" onClick={() => setView('line-settings')}>Save</button>
+          )}
+          {view !== 'home' && view !== 'main' && view !== 'line-dnd' && view !== 'line-voicemail' && <span className="rl-spacer" />}
+        </div>
+      </header>
+
+      {view === 'home' && (
         <main className="rl-home">
           <div className="rl-home-intro">
             <span className="rl-home-eyebrow">VERXOR RENTALS</span>
@@ -265,16 +275,6 @@ export function RentalPage({ onBack, onOpenEsim }: { onBack: () => void; onOpenE
           <p className="rl-home-footnote"><Shield size={14} /> Clear pricing. Secure access. Built around your needs.</p>
         </main>
       )}
-
-      {view === 'main' && (tab === 'calls' || tab === 'numbers') && (
-            <button type="button" className="rl-icon primary" onClick={openBuy} aria-label="Rent number"><Plus size={22} strokeWidth={2.2} /></button>
-          )}
-          {(view === 'line-dnd' || view === 'line-voicemail') && (
-            <button type="button" className="rl-text-btn" onClick={() => setView('line-settings')}>Save</button>
-          )}
-          {view !== 'main' && view !== 'line-dnd' && view !== 'line-voicemail' && <span className="rl-spacer" />}
-        </div>
-      </header>
 
       {view === 'main' && (
         <>
@@ -390,231 +390,6 @@ export function RentalPage({ onBack, onOpenEsim }: { onBack: () => void; onOpenE
             <button type="button" className={tab === 'settings' ? 'active' : ''} onClick={() => setTab('settings')}><SettingsIcon size={20} /><span>Settings</span></button>
           </nav>
         </>
-      )}
-
-      {view === 'buy-country' && (
-        <section className="rl-body">
-          <div className="rl-search"><Search size={16} /><input value={countryQ} onChange={(e) => setCountryQ(e.target.value)} placeholder="Search country" autoFocus /></div>
-          <div className="rl-country-list">
-            {filteredCountries.map((c) => (
-              <button key={c.code} type="button" className="rl-country-row" onClick={() => { setBuyCountry(c); setRegionQ(''); setView('buy-region'); }}>
-                <span className="rl-flag">{c.flag}</span>
-                <div><strong>{c.name}</strong><small>{c.dial} · {c.type} · from {money(c.fromPrice)}</small></div>
-                <ChevronRight size={18} />
-              </button>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {view === 'buy-region' && buyCountry && (
-        <section className="rl-body">
-          <div className="rl-pick-card">
-            <span className="rl-flag">{buyCountry.flag}</span>
-            <div><strong>{buyCountry.name}</strong><small>{buyCountry.type}</small></div>
-            <button type="button" className="rl-change" onClick={() => setView('buy-country')}>Change</button>
-          </div>
-          <p className="rl-label-caps">SELECT AREA CODE</p>
-          <div className="rl-search"><Search size={16} /><input value={regionQ} onChange={(e) => setRegionQ(e.target.value)} placeholder="Area code, city, state…" /></div>
-          <div className="rl-region-list">
-            {regionsForBuy.map((r) => (
-              <button key={r.id} type="button" className="rl-region-row" onClick={() => { setBuyRegion(r); setView('buy-numbers'); }}>
-                <div><strong>{r.name}</strong><small>{r.city} ({r.area})</small></div>
-                <span className="rl-area">{r.area} <ChevronRight size={16} /></span>
-              </button>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {view === 'buy-numbers' && buyCountry && buyRegion && (
-        <section className="rl-body">
-          <div className="rl-pick-card">
-            <span className="rl-flag">{buyCountry.flag}</span>
-            <div><strong>{buyCountry.name}</strong><small>{buyCountry.type}</small></div>
-            <button type="button" className="rl-change" onClick={() => setView('buy-country')}>Change</button>
-          </div>
-          <div className="rl-pick-card">
-            <span className="rl-pin">📍</span>
-            <div><strong>{buyRegion.name} – {buyRegion.area}</strong><small>{buyRegion.city}</small></div>
-            <button type="button" className="rl-change" onClick={() => setView('buy-region')}>Change</button>
-          </div>
-          <p className="rl-label-caps">AVAILABLE NUMBERS</p>
-          {availNumbers.map((n) => (
-            <button key={n.id} type="button" className="rl-num-pick" onClick={() => { setBuyNumber(n); setBuyPeriod(PERIODS[0]); setHoldSecs(300); setView('buy-period'); }}>
-              <strong>{n.display}</strong>
-              <Check size={18} className="rl-check-faint" />
-            </button>
-          ))}
-        </section>
-      )}
-
-      {view === 'buy-period' && buyCountry && buyNumber && (
-        <section className="rl-body rl-get-number">
-          <div className={'rl-number-hold' + (holdSecs <= 0 ? ' expired' : '')}>
-            <span className="rl-flag lg">{buyCountry.flag}</span>
-            <div className="rl-hold-meta">
-              <strong className="rl-hold-num">{buyNumber.display}</strong>
-              <span className="rl-hold-hint">{holdSecs > 0 ? 'Number held while you decide' : 'Hold expired — pick another number'}</span>
-            </div>
-            <span className="rl-hold-timer">{holdLabel}</span>
-          </div>
-
-          <div className="rl-feature-card">
-            <div className="rl-feat-row">
-              <span className="rl-feat-icon">∞</span>
-              <div><strong>Unlimited · 5.0¢/SMS · Included</strong><small>Inbound SMS · National SMS · Voicemail</small></div>
-            </div>
-            <div className="rl-feat-row">
-              <span className="rl-feat-icon">📞</span>
-              <div><strong>Inbound & outbound calls</strong><small>Where supported by the number type</small></div>
-            </div>
-            <button type="button" className="rl-link" onClick={() => setShowFeatures(true)}>See all features</button>
-          </div>
-
-          <div className="rl-plan-pills">
-            {PERIODS.map((p) => (
-              <button key={p.id} type="button" className={'rl-plan-pill' + (buyPeriod?.id === p.id ? ' active' : '')} onClick={() => setBuyPeriod(p)}>
-                <span>{p.label}</span>
-                {p.saveLabel && <span className="rl-save-badge">{p.saveLabel}</span>}
-              </button>
-            ))}
-          </div>
-
-          {buyPeriod && (
-            <div className="rl-price-block">
-              <span className="rl-month-price">{money(priceOf(buyCountry, buyPeriod))}</span>
-              <p className="rl-year-price">for {buyPeriod.label.toLowerCase()} · debited from wallet</p>
-            </div>
-          )}
-
-          <button type="button" className="rl-pill full" disabled={!buyPeriod || holdSecs <= 0} onClick={confirmBuy}>
-            {holdSecs <= 0 ? 'Hold expired' : buyPeriod ? `Confirm · ${money(priceOf(buyCountry, buyPeriod))}` : 'Select a plan'}
-          </button>
-          <p className="rl-foot">Debits your Verxor wallet. Number held for 5 minutes while you decide.</p>
-        </section>
-      )}
-
-      {view === 'line-settings' && active && (
-        <section className="rl-body">
-          <div className="rl-detail-head">
-            <strong>{active.number}</strong>
-            <p>{active.label} · Expires {formatExp(active.expiresAt)}</p>
-            <button type="button" className="rl-copy" onClick={copyNum}><Copy size={14} />{copied ? 'Copied' : 'Copy'}</button>
-          </div>
-          <div className="rl-settings">
-            <button type="button" className="rl-set-row" onClick={() => setView('line-renew')}><Clock size={18} /><div><strong>Renew</strong><small>Extend this number</small></div><ChevronRight size={18} /></button>
-            <button type="button" className="rl-set-row" onClick={() => { setRenameVal(active.label); setView('line-rename'); }}><Hash size={18} /><div><strong>Rename</strong><small>{active.label}</small></div><ChevronRight size={18} /></button>
-            <button type="button" className="rl-set-row" onClick={() => setView('line-dnd')}><Bell size={18} /><div><strong>Do not disturb</strong><small>{active.dnd ? 'On' : 'Off'}</small></div><ChevronRight size={18} /></button>
-            <button type="button" className="rl-set-row" onClick={() => setView('line-voicemail')}><MessageSquare size={18} /><div><strong>Voicemail</strong><small>{active.voicemail ? 'On' : 'Off'}</small></div><ChevronRight size={18} /></button>
-            <button type="button" className="rl-set-row" onClick={() => setView('line-forwarding')}><PhoneForwarded size={18} /><div><strong>Forwarding</strong><small>{active.forwardTarget || 'Off'}</small></div><ChevronRight size={18} /></button>
-            <button type="button" className="rl-set-row danger" onClick={release}><Trash2 size={18} /><div><strong>Release number</strong><small>Cannot be undone</small></div><ChevronRight size={18} /></button>
-          </div>
-        </section>
-      )}
-
-      {view === 'line-renew' && active && (
-        <section className="rl-body">
-          <p className="rl-muted">Current expiry: {formatExp(active.expiresAt)}</p>
-          {PERIODS.map((p) => (
-            <button key={p.id} type="button" className="rl-country-row" onClick={() => renew(p)}>
-              <div><strong>{p.label}</strong><small>{p.saveLabel || 'Standard rate'}</small></div>
-              <span className="rl-price">{money(priceOf(COUNTRIES.find((c) => c.code === active.countryCode) || COUNTRIES[0], p))}</span>
-            </button>
-          ))}
-        </section>
-      )}
-
-      {view === 'line-rename' && active && (
-        <section className="rl-body">
-          <input className="rl-rename-input" value={renameVal} onChange={(e) => setRenameVal(e.target.value)} placeholder="e.g. Work line" />
-          <button type="button" className="rl-pill full" onClick={() => { patchLine({ label: renameVal.trim() || active.label }); setView('line-settings'); }}>Save</button>
-        </section>
-      )}
-
-      {view === 'line-dnd' && active && (
-        <section className="rl-body">
-          <button type="button" className="rl-switch-row" onClick={() => patchLine({ dnd: !active.dnd })}>
-            <div><strong>Do not disturb</strong><small>Silence calls and SMS alerts</small></div>
-            <span className={'rl-switch' + (active.dnd ? ' on' : '')} />
-          </button>
-        </section>
-      )}
-
-      {view === 'line-voicemail' && active && (
-        <section className="rl-body">
-          <button type="button" className="rl-switch-row" onClick={() => patchLine({ voicemail: !active.voicemail })}>
-            <div><strong>Voicemail</strong><small>Send unanswered calls to voicemail</small></div>
-            <span className={'rl-switch' + (active.voicemail ? ' on' : '')} />
-          </button>
-          <button type="button" className="rl-switch-row" onClick={() => patchLine({ leaveMessage: !active.leaveMessage })}>
-            <div><strong>Leave a message</strong><small>Allow callers to leave a recording</small></div>
-            <span className={'rl-switch' + (active.leaveMessage ? ' on' : '')} />
-          </button>
-        </section>
-      )}
-
-      {view === 'line-forwarding' && active && (
-        <section className="rl-body">
-          <button type="button" className="rl-switch-row" onClick={() => patchLine({ callToPhone: !active.callToPhone })}>
-            <div><strong>Forward calls</strong><small>Route to another number or email</small></div>
-            <span className={'rl-switch' + (active.callToPhone ? ' on' : '')} />
-          </button>
-          <input className="rl-rename-input" value={active.forwardTarget} onChange={(e) => patchLine({ forwardTarget: e.target.value })} placeholder="Email or +phone" />
-        </section>
-      )}
-
-      {showFeatures && (
-        <div className="rl-sheet-layer">
-          <button type="button" className="rl-sheet-bg" onClick={() => setShowFeatures(false)} aria-label="Close" />
-          <div className="rl-sheet rl-features-sheet">
-            <div className="rl-sheet-head"><strong>Features</strong><button type="button" onClick={() => setShowFeatures(false)}><X size={20} /></button></div>
-            <div className="rl-body rl-features-body">
-              <h4>Included</h4>
-              <p>Inbound SMS, national SMS, voicemail, number hold while you choose a plan.</p>
-              <h4>Calls</h4>
-              <p>Make and receive calls where the number type supports it. Rates debit your wallet.</p>
-              <h4>Controls</h4>
-              <p>DND, forwarding, rename, renew, and release from number settings.</p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showFromSheet && (
-        <div className="rl-sheet-layer">
-          <button type="button" className="rl-sheet-bg" onClick={() => setShowFromSheet(false)} aria-label="Close" />
-          <div className="rl-sheet">
-            <div className="rl-sheet-head"><strong>Select line</strong><button type="button" onClick={() => setShowFromSheet(false)}><X size={20} /></button></div>
-            <div className="rl-body">
-              {lines.length === 0 ? <p className="rl-muted">Rent a number first to place calls.</p> : lines.map((l) => (
-                <button key={l.id} type="button" className="rl-country-row" onClick={() => { setFromLine(l); setShowFromSheet(false); }}>
-                  <span className="rl-flag">{l.flag}</span>
-                  <div><strong>{l.number}</strong><small>{l.label}</small></div>
-                  {fromLine?.id === l.id && <Check size={18} />}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showDialCountry && (
-        <div className="rl-sheet-layer">
-          <button type="button" className="rl-sheet-bg" onClick={() => setShowDialCountry(false)} aria-label="Close" />
-          <div className="rl-sheet">
-            <div className="rl-sheet-head"><strong>Country code</strong><button type="button" onClick={() => setShowDialCountry(false)}><X size={20} /></button></div>
-            <div className="rl-body">
-              {COUNTRIES.map((c) => (
-                <button key={c.code} type="button" className={'rl-country-row' + (dialCountry.code === c.code ? ' selected' : '')} onClick={() => { setDialCountry(c); setShowDialCountry(false); }}>
-                  <span className="rl-flag">{c.flag}</span>
-                  <div><strong>{c.name}</strong><small>{c.dial}</small></div>
-                  {dialCountry.code === c.code && <Check size={18} />}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
       )}
     </div>
   );
