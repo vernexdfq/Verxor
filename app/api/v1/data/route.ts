@@ -21,8 +21,7 @@ function supabaseBase() {
     .replace(/\/$/, '');
 }
 
-async function resolveUserId(req: NextRequest, bodyUserId?: string): Promise<string | null> {
-  if (bodyUserId) return bodyUserId;
+async function resolveUserId(req: NextRequest): Promise<string | null> {
   const auth = req.headers.get('authorization') || '';
   const token = auth.startsWith('Bearer ') ? auth.slice(7).trim() : '';
   if (!token || token.startsWith('vx_panel_')) return null;
@@ -125,7 +124,6 @@ export async function POST(req: NextRequest) {
     planName?: string;
     ported?: boolean;
     ref?: string;
-    userId?: string;
   };
   try {
     body = await req.json();
@@ -164,7 +162,7 @@ export async function POST(req: NextRequest) {
   }
 
   const phone = String(body.phone || '');
-  const userId = await resolveUserId(req, body.userId);
+  const userId = await resolveUserId(req);
 
   if (!userId) {
     return NextResponse.json(

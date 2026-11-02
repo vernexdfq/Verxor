@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import './data-page.css';
 import type { AuthSession } from './auth/AuthFlow';
-import { loadSessionProfile } from './auth/session-unlock';
+import { loadSessionProfile, loadSessionTokens } from './auth/session-unlock';
 
 export type NetworkId = 'mtn' | 'airtel' | 'glo' | '9mobile';
 
@@ -596,11 +596,38 @@ export function DataPage({ onBack, session, onFund }: DataPageProps) {
       return;
     }
 
+    if (!session?.authenticated) {
+      showToast('Sign in required to buy data');
+      return;
+    }
+
     setSubmitting(true);
     try {
+      let accessToken = loadSessionTokens()?.access_token || '';
+      // Prefer the current Supabase session so a refreshed token is used at checkout.
+      try {
+        const { getSupabaseBrowser } = await import('../lib/supabase/client');
+        const sb = getSupabaseBrowser();
+        if (sb) {
+          const { data: sessionData } = await sb.auth.getSession();
+          if (sessionData.session?.access_token) {
+            accessToken = sessionData.session.access_token;
+          }
+        }
+      } catch {
+        // The API will reject checkout if there is no verifiable auth session.
+      }
+
+      if (!accessToken) {
+        throw new Error('Your sign-in session could not be verified. Please sign in again.');
+      }
+
       const res = await fetch('/api/v1/data', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`,
+        },
         body: JSON.stringify({
           network: networkId,
           phone: phoneDigits,
@@ -615,6 +642,7 @@ export function DataPage({ onBack, session, onFund }: DataPageProps) {
 
       saveRecentRecipient(phoneDigits, networkId);
       setConfirmOpen(false);
+      window.dispatchEvent(new Event('verxor:balance-refresh'));
       showToast(`Data recharge of ${parseVolume(selectedPlan.name)} to ${formatPhoneDisplay(phoneDigits)} successful!`);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Purchase failed. Please try again';
