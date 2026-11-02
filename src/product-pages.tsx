@@ -368,23 +368,27 @@ export function AccountsPage({ onBack, session }: { onBack: () => void; session?
   return (
     <div className="accounts-page">
       <header className="accounts-header">
-        <button type="button" className="accounts-back-link" onClick={onBack} aria-label="Back to Services">
-          <ArrowLeft size={18} />
-          <span>Services</span>
+        <button
+          type="button"
+          className="accounts-back-btn"
+          onClick={onBack}
+          aria-label="Back to Services"
+        >
+          <ArrowLeft size={18} strokeWidth={2.4} />
         </button>
-        <div className="accounts-header-center">
+        <div className="accounts-header-titles">
           <h1>Buy Accounts & Logs</h1>
           <p>Instant delivery & aged logs</p>
         </div>
-        <div className="accounts-header-actions">
-          <button type="button" className="accounts-logs-button" onClick={() => setShowMyLogs(true)} aria-label="Open My Logs">
-            <BookOpen size={15} /> <span>My Logs</span>
-          </button>
-          <div className="accounts-wallet-badge" aria-label="Wallet balance">
-            <Wallet size={14} />
-            <span>{money(walletBalance)}</span>
-          </div>
-        </div>
+        <button
+          type="button"
+          className="accounts-orders-btn"
+          onClick={() => setShowMyLogs(true)}
+          aria-label="My Orders"
+        >
+          <Package size={15} strokeWidth={2.2} />
+          <span>My Orders</span>
+        </button>
       </header>
 
       <div className="accounts-search">
@@ -683,9 +687,16 @@ function AccountDetail({
     return (
       <div className="account-detail-page account-purchase-result">
         <header className="detail-page-header">
-          <button type="button" className="accounts-back-link" onClick={onClose}><ArrowLeft size={18} /><span>Back to listings</span></button>
+          <button
+            type="button"
+            className="accounts-back-btn"
+            onClick={onClose}
+            aria-label="Back to listings"
+          >
+            <ArrowLeft size={18} strokeWidth={2.4} />
+          </button>
           <strong className="account-result-header">Order delivered</strong>
-          <span />
+          <span style={{ width: 40 }} />
         </header>
         <main className="account-result-body">
           <div className="account-result-icon"><CheckCircle2 size={30} /></div>
@@ -708,18 +719,27 @@ function AccountDetail({
   return (
     <div className="account-detail-page">
       <header className="detail-page-header">
-        <button type="button" className="accounts-back-link" onClick={onClose} aria-label="Back to listings">
-          <ArrowLeft size={18} />
-          <span>Back</span>
+        <button
+          type="button"
+          className="accounts-back-btn"
+          onClick={onClose}
+          aria-label="Back to listings"
+        >
+          <ArrowLeft size={18} strokeWidth={2.4} />
         </button>
         <div className="detail-page-header-center">
           <span className="accounts-eyebrow">{product.platform}</span>
           <strong>Account details</strong>
         </div>
-        <div className="accounts-wallet-badge" aria-label="Wallet balance">
-          <Wallet size={14} />
-          <span>{money(wallet)}</span>
-        </div>
+        <button
+          type="button"
+          className="accounts-orders-btn"
+          onClick={onOpenLogs}
+          aria-label="My Orders"
+        >
+          <Package size={15} strokeWidth={2.2} />
+          <span>My Orders</span>
+        </button>
       </header>
 
       <div className="detail-page-hero">
