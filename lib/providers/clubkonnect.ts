@@ -300,6 +300,8 @@ export const CK_METER_TYPE: Record<CkMeterType, string> = {
 
 /**
  * Verify electricity meter via APIVerifyElectricityV1.asp
+ * ClubKonnect often returns { customer_name: "N/A" } for unknown meters
+ * instead of INVALID_METERNO — treat those as failed verification.
  */
 export async function verifyElectricityMeter(opts: {
   disco: CkDiscoSlug;
@@ -320,12 +322,37 @@ export async function verifyElectricityMeter(opts: {
     MeterNo: meterNo,
   });
 
-  const name = String(data?.customer_name ?? data?.customerName ?? data?.CustomerName ?? '').trim();
-  if (!name || name.toUpperCase() === 'INVALID_METERNO' || name.toUpperCase().includes('INVALID')) {
+  const name = String(
+    data?.customer_name ?? data?.customerName ?? data?.CustomerName ?? data?.name ?? '',
+  ).trim();
+  const upper = name.toUpperCase();
+  const invalidNames = new Set([
+    '',
+    'N/A',
+    'NA',
+    'N.A',
+    'N.A.',
+    'NULL',
+    'UNDEFINED',
+    'NONE',
+    'UNKNOWN',
+    'NOT FOUND',
+    'NOT_FOUND',
+    'INVALID',
+    'INVALID_METERNO',
+    'INVALID METERNO',
+    'INVALID METER',
+    'CUSTOMER NOT FOUND',
+  ]);
+  if (!name || invalidNames.has(upper) || upper.includes('INVALID') || upper.includes('NOT FOUND')) {
     return { ok: false, error: 'Meter not found. Check the number and try again.' };
   }
-  if (/^(MISSING_|INVALID_|ERROR)/i.test(name)) {
+  if (/^(MISSING_|INVALID_|ERROR|FAIL)/i.test(name)) {
     return { ok: false, error: errorFromStatus(name, 'Meter verification failed') };
+  }
+  // Real customer names should contain letters
+  if (!/[A-Za-z]{2,}/.test(name)) {
+    return { ok: false, error: 'Meter not found. Check the number and try again.' };
   }
   return { ok: true, customerName: name };
 }
