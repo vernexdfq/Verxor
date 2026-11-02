@@ -5,8 +5,8 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
-  ArrowLeft, Bell, Check, ChevronDown, ChevronRight, Clock, Copy, Delete,
-  Hash, HelpCircle, LogOut, MessageSquare, Phone, PhoneForwarded, Plus,
+  ArrowLeft, Bell, Check, ChevronDown, ChevronRight, Clock, Copy, Delete, Globe,
+  Hash, HelpCircle, LogOut, MessageSquare, Phone, PhoneForwarded, Plus, Smartphone,
   Search, Settings as SettingsIcon, Shield, Trash2, Users, Wallet, X,
 } from 'lucide-react';
 import './rental-page.css';
@@ -15,7 +15,7 @@ type MainTab = 'calls' | 'messages' | 'numbers' | 'wallet' | 'settings';
 type CallSub = 'history' | 'contacts' | 'keypad';
 type NumbersSub = 'phone' | 'esim';
 type View =
-  | 'main' | 'buy-country' | 'buy-region' | 'buy-numbers' | 'buy-period'
+  | 'home' | 'main' | 'buy-country' | 'buy-region' | 'buy-numbers' | 'buy-period'
   | 'line-settings' | 'line-renew' | 'line-rename' | 'line-dnd'
   | 'line-voicemail' | 'line-forwarding' | 'line-transfer';
 
@@ -92,7 +92,7 @@ export function RentalPage({ onBack, onOpenEsim }: { onBack: () => void; onOpenE
   const [tab, setTab] = useState<MainTab>('numbers');
   const [callSub, setCallSub] = useState<CallSub>('history');
   const [numSub, setNumSub] = useState<NumbersSub>('phone');
-  const [view, setView] = useState<View>('main');
+  const [view, setView] = useState<View>('home');
   const [lines, setLines] = useState<Line[]>([]);
   const [active, setActive] = useState<Line | null>(null);
   const [fromLine, setFromLine] = useState<Line | null>(null);
@@ -197,7 +197,7 @@ export function RentalPage({ onBack, onOpenEsim }: { onBack: () => void; onOpenE
   };
 
   const headerBack = () => {
-    if (view === 'main') onBack();
+    if (view === 'home' || view === 'main') onBack();
     else if (view === 'buy-country') setView('main');
     else if (view === 'buy-region') setView('buy-country');
     else if (view === 'buy-numbers') setView('buy-region');
@@ -211,7 +211,8 @@ export function RentalPage({ onBack, onOpenEsim }: { onBack: () => void; onOpenE
     : 'Expired';
 
   const title =
-    view === 'main'
+    view === 'home' ? 'Number Rental'
+      : view === 'main'
       ? tab === 'calls' ? 'Calls' : tab === 'messages' ? 'Messages' : tab === 'numbers' ? 'Phone numbers' : tab === 'wallet' ? 'Wallet' : 'Settings'
       : view === 'buy-country' ? 'Select country'
       : view === 'buy-region' || view === 'buy-numbers' ? 'Choose a number'
@@ -230,7 +231,42 @@ export function RentalPage({ onBack, onOpenEsim }: { onBack: () => void; onOpenE
         <button type="button" className="rl-icon" onClick={headerBack} aria-label="Back"><ArrowLeft size={20} /></button>
         <h1>{title}</h1>
         <div className="rl-header-right">
-          {view === 'main' && (tab === 'calls' || tab === 'numbers') && (
+          {view === 'home' && (
+        <main className="rl-home">
+          <div className="rl-home-intro">
+            <span className="rl-home-eyebrow">VERXOR RENTALS</span>
+            <h2>Choose your number</h2>
+            <p>Simple, secure number access for the way you connect.</p>
+          </div>
+
+          <button type="button" className="rl-my-numbers-cta" onClick={() => { setTab('numbers'); setView('main'); }}>
+            <span className="rl-my-numbers-icon"><Hash size={18} /></span>
+            <span><strong>My Numbers</strong><small>View your active rentals and messages</small></span>
+            <ChevronRight size={19} />
+          </button>
+
+          <div className="rl-rental-options">
+            <button type="button" className="rl-rental-option" onClick={openBuy}>
+              <span className="rl-rental-option-icon"><Smartphone size={21} /></span>
+              <span className="rl-rental-option-copy"><strong>Single-Platform Rental</strong><small>Rent a number for one selected platform</small></span>
+              <span className="rl-rental-option-action">Get started <ChevronRight size={15} /></span>
+            </button>
+            <button type="button" className="rl-rental-option" onClick={openBuy}>
+              <span className="rl-rental-option-icon"><Globe size={21} /></span>
+              <span className="rl-rental-option-copy"><strong>All-Platform OTP Rental</strong><small>One number for multiple supported services</small></span>
+              <span className="rl-rental-option-action">Get started <ChevronRight size={15} /></span>
+            </button>
+            <button type="button" className="rl-rental-option" onClick={() => { setTab('numbers'); setView('main'); }}>
+              <span className="rl-rental-option-icon"><Phone size={21} /></span>
+              <span className="rl-rental-option-copy"><strong>Full Two-Way Mobile Line</strong><small>SMS and calling in a dedicated workspace</small></span>
+              <span className="rl-rental-option-action">Get started <ChevronRight size={15} /></span>
+            </button>
+          </div>
+          <p className="rl-home-footnote"><Shield size={14} /> Clear pricing. Secure access. Built around your needs.</p>
+        </main>
+      )}
+
+      {view === 'main' && (tab === 'calls' || tab === 'numbers') && (
             <button type="button" className="rl-icon primary" onClick={openBuy} aria-label="Rent number"><Plus size={22} strokeWidth={2.2} /></button>
           )}
           {(view === 'line-dnd' || view === 'line-voicemail') && (
