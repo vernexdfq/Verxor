@@ -1137,3 +1137,31 @@
   width: 100%;
   min-height: 48px;
 }
+
+
+/* Facebook checkout and delivery receipt */
+.accounts-header-actions { display:flex; align-items:center; gap:8px; }
+.accounts-logs-button { display:inline-flex; align-items:center; justify-content:center; gap:6px; min-height:36px; padding:0 11px; border:1px solid #dbe3ef; border-radius:11px; background:#fff; color:#334155; font-size:12px; font-weight:700; cursor:pointer; }
+.accounts-logs-button:hover { background:#f8fafc; border-color:#94a3b8; }
+.account-checkout-error { margin:0; padding:10px 12px; border-radius:10px; border:1px solid #fecaca; background:#fff7f7; color:#b91c1c; font-size:12px; line-height:1.5; }
+.account-result-header { justify-self:center; color:#0f172a; font-size:14px; }
+.account-result-body { width:min(100%,680px); margin:0 auto; padding:28px 16px 40px; display:grid; justify-items:center; gap:10px; text-align:center; }
+.account-result-icon { width:60px; height:60px; display:grid; place-items:center; border-radius:50%; color:#047857; background:#d1fae5; }
+.account-result-kicker { margin:4px 0 0; font-size:10px; font-weight:800; letter-spacing:.14em; color:#047857; }
+.account-result-body h1 { margin:0; color:#0f172a; font-size:24px; line-height:1.25; letter-spacing:-.04em; }
+.account-result-summary { margin:0; color:#64748b; font-size:13px; }
+.account-result-reference { margin:2px 0 8px; color:#475569; font-size:12px; }
+.account-result-reference code { margin-left:4px; padding:3px 7px; border-radius:6px; background:#e2e8f0; color:#0f172a; }
+.account-result-warning { margin:0; padding:10px 12px; border:1px solid #fde68a; border-radius:10px; background:#fffbeb; color:#92400e; font-size:12px; line-height:1.5; text-align:left; }
+.account-delivery-credentials { width:100%; margin-top:10px; padding:15px; border:1px solid #dbe3ef; border-radius:14px; background:#fff; text-align:left; box-shadow:0 4px 18px rgba(15,23,42,.04); }
+.account-credentials-heading { display:flex; justify-content:space-between; align-items:center; gap:12px; padding-bottom:12px; border-bottom:1px solid #edf1f6; }
+.account-credentials-heading > div { display:grid; gap:3px; }
+.account-credentials-heading strong { color:#0f172a; font-size:13px; }
+.account-credentials-heading span { color:#64748b; font-size:11px; }
+.account-credentials-heading button { display:inline-flex; align-items:center; gap:5px; padding:7px 9px; border:1px solid #dbe3ef; border-radius:8px; background:#fff; color:#334155; font-size:11px; font-weight:700; cursor:pointer; }
+.account-credential-list { display:grid; gap:8px; padding-top:12px; }
+.account-credential-list code { display:block; overflow-wrap:anywhere; padding:10px 11px; border-radius:8px; background:#f1f5f9; color:#0f172a; font-size:12px; line-height:1.5; user-select:all; }
+.account-result-actions { width:100%; display:grid; gap:8px; margin-top:6px; }
+.account-result-actions .detail-order-btn { width:100%; min-height:48px; }
+.account-secondary-action { min-height:42px; border:0; background:transparent; color:#475569; font-size:12px; font-weight:700; cursor:pointer; }
+@media(max-width:420px) { .accounts-logs-button { width:36px; padding:0; } .accounts-logs-button span { display:none; } .account-result-body h1 { font-size:21px; } .account-delivery-credentials { padding:12px; } }
