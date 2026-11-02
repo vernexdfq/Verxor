@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { ArrowLeft, Copy, Check, Package, RefreshCw } from 'lucide-react';
+import { useEffect, useState, useCallback } from 'react';
+import { ArrowLeft, Copy, Check, Package, RefreshCw, ShoppingBag } from 'lucide-react';
 import type { AuthSession } from './auth/AuthFlow';
-import { loadSessionTokens } from './auth/session-unlock';
+import { loadSessionTokens, isSessionUnlocked } from './auth/session-unlock';
 import type { AccountOrder } from './accounts-types';
 import './product-pages.css';
 
@@ -21,9 +21,11 @@ export function MyLogsPage({
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
 
-  async function load() {
-    if (!session) {
-      setError('Sign in to view your logs.');
+  const load = useCallback(async () => {
+    const tokens = loadSessionTokens();
+    const token = tokens?.access_token;
+    if (!token && !session && !isSessionUnlocked()) {
+      setError('Your session has expired. Sign in again to view your logs.');
       setLoading(false);
       return;
     }
@@ -31,8 +33,7 @@ export function MyLogsPage({
     setError(null);
     try {
       const headers: Record<string, string> = {};
-      const tok = loadSessionTokens()?.access_token;
-      if (tok) headers.Authorization = `Bearer ${tok}`;
+      if (token) headers.Authorization = `Bearer ${token}`;
       const res = await fetch('/api/v1/accounts/orders', {
         cache: 'no-store',
         headers,
@@ -45,17 +46,16 @@ export function MyLogsPage({
       }
       setOrders(Array.isArray(data.orders) ? data.orders : []);
     } catch {
-      setError('Network error');
+      setError('Network connection error. Tap refresh to retry.');
       setOrders([]);
     } finally {
       setLoading(false);
     }
-  }
+  }, [session]);
 
   useEffect(() => {
     void load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session?.contact]);
+  }, [load]);
 
   async function copyText(text: string, key: string) {
     try {
@@ -68,43 +68,56 @@ export function MyLogsPage({
   }
 
   return (
-    <div className="detail-page" role="main">
-      <header className="detail-page-top">
-        <button type="button" className="detail-back" onClick={onBack} aria-label="Back">
-          <ArrowLeft size={18} />
-          <span>My Logs</span>
-        </button>
+    <div className="accounts-page accounts-logs-page" role="main">
+      <header className="accounts-header">
         <button
           type="button"
-          className="detail-page-wallet"
-          onClick={() => void load()}
-          aria-label="Refresh"
+          className="accounts-back-btn"
+          onClick={onBack}
+          aria-label="Back to listings"
         >
-          <RefreshCw size={14} />
+          <ArrowLeft size={18} strokeWidth={2.4} />
+        </button>
+        <div className="accounts-header-titles">
+          <h1>My Orders</h1>
+          <p>Delivered accounts & logs history</p>
+        </div>
+        <button
+          type="button"
+          className="accounts-refresh-btn"
+          onClick={() => void load()}
+          disabled={loading}
+          aria-label="Refresh orders"
+        >
+          <RefreshCw size={14} className={loading ? 'spin' : ''} strokeWidth={2.2} />
           <span>Refresh</span>
         </button>
       </header>
 
-      <div className="detail-page-body">
+      <div className="accounts-logs-body">
         {loading && (
           <div className="accounts-empty">
-            <Package size={22} />
-            <strong>Loading purchases…</strong>
+            <Package size={26} />
+            <strong>Loading your orders…</strong>
+            <p>Fetching delivered credentials from secure storage.</p>
           </div>
         )}
 
         {!loading && error && (
-          <div className="accounts-empty">
-            <Package size={22} />
+          <div className="accounts-empty accounts-empty-error">
+            <Package size={26} />
             <strong>{error}</strong>
+            <button type="button" className="detail-order-btn" style={{ minHeight: 38, width: 'auto', padding: '0 16px', marginTop: 8 }} onClick={() => void load()}>
+              Try again
+            </button>
           </div>
         )}
 
         {!loading && !error && orders.length === 0 && (
           <div className="accounts-empty">
-            <Package size={22} />
-            <strong>No purchases yet</strong>
-            <p>Bought accounts will appear here after delivery.</p>
+            <ShoppingBag size={28} />
+            <strong>No orders yet</strong>
+            <p>Purchased accounts and aged logs will appear here instantly after delivery.</p>
           </div>
         )}
 
@@ -113,7 +126,7 @@ export function MyLogsPage({
             <article key={o.id} className="delivery-card" style={{ margin: '0 0 14px' }}>
               <div className="delivery-success-badge">
                 <Check size={14} />
-                <span>{o.status}</span>
+                <span>{o.status || 'Delivered'}</span>
               </div>
               <h2 className="delivery-title" style={{ fontSize: 16 }}>
                 {o.title}
