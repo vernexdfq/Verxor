@@ -4,7 +4,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { purchaseListing } from '@/lib/providers/accszone';
+import { fetchFacebookCatalog, purchaseListing } from '@/lib/providers/accszone';
 import { sbInsert, supabaseConfigured } from '@/lib/supabase-admin';
 
 export const dynamic = 'force-dynamic';
@@ -15,8 +15,7 @@ function supabaseBase() {
     .replace(/\/$/, '');
 }
 
-async function resolveUserId(req: NextRequest, bodyUserId?: string): Promise<string | null> {
-  if (bodyUserId) return bodyUserId;
+async function resolveUserId(req: NextRequest): Promise<string | null> {
   const auth = req.headers.get('authorization') || '';
   const token = auth.startsWith('Bearer ') ? auth.slice(7).trim() : '';
   if (!token || token.startsWith('vx_panel_')) return null;
@@ -77,8 +76,8 @@ async function creditRetailWallet(
 ) {
   const base = supabaseBase();
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!base || !serviceKey || amount <= 0) return;
-  await fetch(`${base}/rest/v1/rpc/credit_wallet`, {
+  if (!base || !serviceKey || amount <= 0) return false;
+  const res = await fetch(`${base}/rest/v1/rpc/credit_wallet`, {
     method: 'POST',
     headers: {
       apikey: serviceKey,
@@ -92,6 +91,7 @@ async function creditRetailWallet(
       p_description: description,
     }),
   });
+  return res.ok;
 }
 
 type BuyBody = {
@@ -101,7 +101,6 @@ type BuyBody = {
   platform?: string;
   title?: string;
   unitPriceNgn?: number;
-  userId?: string;
 };
 
 function bad(message: string, status = 400) {
@@ -111,18 +110,33 @@ function bad(message: string, status = 400) {
 export async function POST(req: NextRequest) {
   try {
     const body = (await req.json().catch(() => ({}))) as BuyBody;
-    const userId = await resolveUserId(req, body.userId);
+    const userId = await resolveUserId(req);
     if (!userId) return bad('Unauthorized', 401);
 
     const adId = Number(body.providerListingId ?? body.listingId);
-    const quantity = Math.max(1, Math.min(20, Math.floor(Number(body.quantity) || 1)));
-    const unitPrice = Math.max(0, Math.floor(Number(body.unitPriceNgn) || 0));
-    const platform = String(body.platform || 'Facebook').slice(0, 40);
-    const title = String(body.title || 'Account purchase').slice(0, 200);
-    const totalNgn = unitPrice * quantity;
+    const requestedQty = Number(body.quantity);
+    if (!Number.isSafeInteger(adId) || adId <= 0) return bad('Invalid listing', 400);
+    if (!Number.isSafeInteger(requestedQty) || requestedQty < 1 || requestedQty > 10) {
+      return bad('Quantity must be between 1 and 10', 400);
+    }
 
-    if (!Number.isFinite(adId) || adId <= 0) return bad('Invalid listing');
-    if (unitPrice <= 0 || totalNgn <= 0) return bad('Invalid price');
+    // Never trust client-supplied price/title/platform. Confirm this listing and
+    // current retail price from the server-side provider catalogue before debit.
+    const catalog = await fetchFacebookCatalog({ forceRefresh: true });
+    if (!catalog.ok || catalog.source === 'fallback' || catalog.source === 'error') {
+      return bad('Live Facebook catalogue is temporarily unavailable. No payment was taken.', 503);
+    }
+    const listing = catalog.offers.find((offer) => offer.providerListingId === adId);
+    if (!listing || listing.stock < requestedQty || listing.priceNgn <= 0) {
+      return bad('This listing is no longer available in the requested quantity. Refresh the catalogue.', 409);
+    }
+
+    const quantity = requestedQty;
+    const unitPrice = listing.priceNgn;
+    const platform = listing.platform;
+    const title = listing.title.slice(0, 200);
+    const totalNgn = unitPrice * quantity;
+    if (!Number.isSafeInteger(totalNgn) || totalNgn <= 0) return bad('Invalid order total', 400);
 
     const clientRef = `vx-acc-${userId.slice(0, 8)}-${Date.now()}`;
     const debitRef = `acc-buy-${clientRef}`;
@@ -135,14 +149,28 @@ export async function POST(req: NextRequest) {
       return bad(msg, 500);
     }
 
-    const purchase = await purchaseListing({
-      adId,
-      quantity,
-      clientReference: clientRef,
-    });
+    let purchase: Awaited<ReturnType<typeof purchaseListing>>;
+    try {
+      purchase = await purchaseListing({
+        adId,
+        quantity,
+        clientReference: clientRef,
+      });
+    } catch {
+      const refunded = await creditRetailWallet(
+        userId,
+        totalNgn,
+        `refund-${debitRef}`,
+        `Refund accounts purchase failed: ${title}`,
+      );
+      return NextResponse.json(
+        { ok: false, error: refunded ? 'Provider request failed. The wallet debit was refunded.' : 'Provider request failed and the refund could not be confirmed. Contact support before retrying.', refunded },
+        { status: 502 },
+      );
+    }
 
     if (!purchase.ok) {
-      await creditRetailWallet(
+      const refunded = await creditRetailWallet(
         userId,
         totalNgn,
         `refund-${debitRef}`,
@@ -151,15 +179,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           ok: false,
-          error: purchase.error || 'Purchase failed at provider',
+          error: refunded ? (purchase.error || 'Purchase failed at provider') : 'Purchase failed and the refund could not be confirmed. Contact support before retrying.',
           code: purchase.code || 'provider_error',
-          refunded: true,
+          refunded,
         },
         { status: 502 },
       );
     }
 
     let orderId: string | null = null;
+    let persistenceWarning: string | undefined;
     if (supabaseConfigured()) {
       try {
         const inserted = await sbInsert('account_orders', {
@@ -177,9 +206,12 @@ export async function POST(req: NextRequest) {
         });
         const row = Array.isArray(inserted) ? inserted[0] : inserted;
         orderId = row && typeof row === 'object' && 'id' in row ? String((row as { id: string }).id) : null;
+        if (!orderId) persistenceWarning = 'Delivery succeeded, but the order could not be confirmed in My Logs. Save these credentials and contact support.';
       } catch {
-        /* persistence must not hide credentials */
+        persistenceWarning = 'Delivery succeeded, but the order could not be saved to My Logs. Save these credentials and contact support.';
       }
+    } else {
+      persistenceWarning = 'Order storage is not configured. Save these credentials securely.';
     }
 
     return NextResponse.json({
@@ -190,6 +222,7 @@ export async function POST(req: NextRequest) {
       totalNgn,
       platform,
       title,
+      warning: persistenceWarning,
       message: 'Purchase successful. Credentials are ready.',
     });
   } catch (err) {
