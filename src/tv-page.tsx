@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, useCallback } from 'react';
+import { useMemo, useState, useCallback, useEffect } from 'react';
 import {
   ArrowLeft,
   Check,
@@ -11,6 +11,8 @@ import {
   Tv,
   X,
 } from 'lucide-react';
+import type { AuthSession } from './auth/AuthFlow';
+import { loadSessionProfile, loadSessionTokens } from './auth/session-unlock';
 import './tv-page.css';
 
 type ProviderId = 'gotv' | 'dstv' | 'startimes';
@@ -20,6 +22,7 @@ type TvPackage = {
   name: string;
   price: number;
   validityDays: number;
+  ckPackageId?: string;
 };
 
 type Provider = {
@@ -28,43 +31,61 @@ type Provider = {
   packages: TvPackage[];
 };
 
-const PROVIDERS: Provider[] = [
+/** ClubKonnect face prices — same as lib/cable-catalog */
+const FALLBACK: Provider[] = [
   {
     id: 'gotv',
     label: 'GOtv',
     packages: [
-      { id: 'gotv-supa-plus', name: 'Supa Plus', price: 20160, validityDays: 30 },
-      { id: 'gotv-supa', name: 'Supa', price: 13680, validityDays: 30 },
-      { id: 'gotv-max', name: 'Max', price: 10200, validityDays: 30 },
-      { id: 'gotv-jolli', name: 'Jolli', price: 6960, validityDays: 30 },
+      { id: 'gotv-supa-plus', name: 'Supa Plus', price: 16800, validityDays: 30 },
+      { id: 'gotv-supa', name: 'Supa', price: 11400, validityDays: 30 },
+      { id: 'gotv-max', name: 'Max', price: 8500, validityDays: 30 },
+      { id: 'gotv-jolli', name: 'Jolli', price: 5800, validityDays: 30 },
       { id: 'gotv-jinja', name: 'Jinja', price: 3900, validityDays: 30 },
-      { id: 'gotv-smallie', name: 'Smallie', price: 2900, validityDays: 30 },
+      { id: 'gotv-smallie', name: 'Smallie', price: 1900, validityDays: 30 },
+      { id: 'gotv-smallie-3months', name: 'Smallie (3 months)', price: 5100, validityDays: 90 },
+      { id: 'gotv-smallie-1year', name: 'Smallie (1 year)', price: 15000, validityDays: 365 },
     ],
   },
   {
     id: 'dstv',
     label: 'DStv',
     packages: [
-      { id: 'dstv-premium', name: 'Premium', price: 37000, validityDays: 30 },
-      { id: 'dstv-compact-plus', name: 'Compact Plus', price: 25000, validityDays: 30 },
-      { id: 'dstv-compact', name: 'Compact', price: 15700, validityDays: 30 },
-      { id: 'dstv-confam', name: 'Confam', price: 9300, validityDays: 30 },
-      { id: 'dstv-yanga', name: 'Yanga', price: 5100, validityDays: 30 },
-      { id: 'dstv-padi', name: 'Padi', price: 2950, validityDays: 30 },
+      { id: 'dstv-padi', name: 'Padi', price: 4400, validityDays: 30 },
+      { id: 'dstv-yanga', name: 'Yanga', price: 6000, validityDays: 30 },
+      { id: 'dstv-confam', name: 'Confam', price: 11000, validityDays: 30 },
+      { id: 'dstv79', name: 'Compact', price: 19000, validityDays: 30 },
+      { id: 'dstv7', name: 'Compact Plus', price: 30000, validityDays: 30 },
+      { id: 'dstv3', name: 'Premium', price: 44500, validityDays: 30 },
+      { id: 'dstv-padi-showmax', name: 'Padi + Showmax', price: 8900, validityDays: 30 },
+      { id: 'dstv-yanga-showmax', name: 'Yanga + Showmax', price: 8250, validityDays: 30 },
+      { id: 'dstv-confam-showmax', name: 'Confam + Showmax', price: 13250, validityDays: 30 },
+      { id: 'dstv-compact-showmax', name: 'Compact + Showmax', price: 21250, validityDays: 30 },
+      { id: 'padi-extra', name: 'Padi + ExtraView', price: 10400, validityDays: 30 },
+      { id: 'yanga-extra', name: 'Yanga + ExtraView', price: 12000, validityDays: 30 },
+      { id: 'confam-extra', name: 'Confam + ExtraView', price: 17000, validityDays: 30 },
+      { id: 'dstv30', name: 'Compact + Extra View', price: 25000, validityDays: 30 },
+      { id: 'dstv45', name: 'Compact Plus + Extra View', price: 36000, validityDays: 30 },
+      { id: 'dstv3', name: 'Premium', price: 44500, validityDays: 30 },
     ],
   },
   {
     id: 'startimes',
     label: 'StarTimes',
     packages: [
-      { id: 'st-nova-ant', name: 'Nova (Antenna)', price: 2520, validityDays: 30 },
-      { id: 'st-classic-dish', name: 'Classic (Dish)', price: 8880, validityDays: 30 },
-      { id: 'st-super-ant', name: 'Super (Antenna)', price: 11400, validityDays: 30 },
-      { id: 'st-super-dish', name: 'Super (Dish)', price: 11760, validityDays: 30 },
-      { id: 'st-basic-ant', name: 'Basic (Antenna)', price: 4800, validityDays: 30 },
-      { id: 'st-classic-ant', name: 'Classic (Antenna)', price: 7200, validityDays: 30 },
-      { id: 'st-basic-dish', name: 'Basic (Dish)', price: 6120, validityDays: 30 },
-      { id: 'st-nova-dish', name: 'Nova (Dish)', price: 2520, validityDays: 30 },
+      { id: 'nova', name: 'Nova (Dish)', price: 2100, validityDays: 30 },
+      { id: 'uni-2', name: 'Nova (Antenna)', price: 2100, validityDays: 30 },
+      { id: 'basic', name: 'Basic (Antenna)', price: 4000, validityDays: 30 },
+      { id: 'smart', name: 'Basic (Dish)', price: 5100, validityDays: 30 },
+      { id: 'classic', name: 'Classic (Antenna)', price: 6000, validityDays: 30 },
+      { id: 'special-monthly', name: 'Classic (Dish)', price: 7400, validityDays: 30 },
+      { id: 'super', name: 'Super (Dish)', price: 9800, validityDays: 30 },
+      { id: 'super-antenna-monthly', name: 'Super (Antenna)', price: 9500, validityDays: 30 },
+      { id: 'nova-weekly', name: 'Nova (Antenna) 1 Week', price: 700, validityDays: 7 },
+      { id: 'basic-weekly', name: 'Basic (Antenna) 1 Week', price: 1400, validityDays: 7 },
+      { id: 'smart-weekly', name: 'Basic (Dish) 1 Week', price: 1700, validityDays: 7 },
+      { id: 'classic-weekly', name: 'Classic (Antenna) 1 Week', price: 2000, validityDays: 7 },
+      { id: 'super-weekly', name: 'Super (Dish) 1 Week', price: 3300, validityDays: 7 },
     ],
   },
 ];
@@ -73,14 +94,7 @@ function money(n: number) {
   return '\u20a6' + n.toLocaleString('en-NG');
 }
 
-/** Brand logo marks — styled to read as official marks, not generic icons */
-function BrandLogo({
-  provider,
-  size = 22,
-}: {
-  provider: ProviderId;
-  size?: number;
-}) {
+function BrandLogo({ provider, size = 22 }: { provider: ProviderId; size?: number }) {
   if (provider === 'gotv') {
     return (
       <span className="tv-logo tv-logo-gotv" style={{ fontSize: size * 0.55 }} aria-hidden>
@@ -133,7 +147,20 @@ function ProviderIcon({ provider }: { provider: ProviderId }) {
   );
 }
 
-export function TvPage({ onBack }: { onBack: () => void }) {
+function normalizePhone(raw: string): string {
+  const digits = raw.replace(/\D/g, '');
+  if (digits.startsWith('234') && digits.length === 13) return '0' + digits.slice(3);
+  return digits;
+}
+
+export function TvPage({
+  onBack,
+  session,
+}: {
+  onBack: () => void;
+  session?: AuthSession | null;
+}) {
+  const [providers, setProviders] = useState<Provider[]>(FALLBACK);
   const [selectedProvider, setSelectedProvider] = useState<ProviderId>('gotv');
   const [providerOpen, setProviderOpen] = useState(false);
   const [smartcard, setSmartcard] = useState('');
@@ -147,11 +174,46 @@ export function TvPage({ onBack }: { onBack: () => void }) {
   const [pin, setPin] = useState('');
   const [toast, setToast] = useState<string | null>(null);
 
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/v1/tv');
+        const data = await res.json().catch(() => null);
+        if (cancelled || !data?.ok || !data.packages) return;
+        const next: Provider[] = (['gotv', 'dstv', 'startimes'] as ProviderId[]).map((id) => {
+          const list = (data.packages[id] || []) as TvPackage[];
+          const label = id === 'gotv' ? 'GOtv' : id === 'dstv' ? 'DStv' : 'StarTimes';
+          return {
+            id,
+            label,
+            packages:
+              list.length > 0
+                ? list.map((p) => ({
+                    id: p.id,
+                    name: p.name,
+                    price: Number(p.price) || 0,
+                    validityDays: Number(p.validityDays) || 30,
+                    ckPackageId: p.ckPackageId || p.id,
+                  }))
+                : FALLBACK.find((f) => f.id === id)?.packages || [],
+          };
+        });
+        setProviders(next);
+      } catch {
+        /* keep FALLBACK */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const provider = useMemo(
-    () => PROVIDERS.find((p) => p.id === selectedProvider) ?? PROVIDERS[0],
-    [selectedProvider],
+    () => providers.find((p) => p.id === selectedProvider) ?? providers[0],
+    [providers, selectedProvider],
   );
-  const packages = provider.packages;
+  const packages = provider?.packages || [];
   const selectedPkg = packages.find((p) => p.id === selectedPkgId) ?? packages[0];
 
   const digits = smartcard.replace(/\D/g, '');
@@ -159,7 +221,7 @@ export function TvPage({ onBack }: { onBack: () => void }) {
 
   const toastMsg = useCallback((m: string) => {
     setToast(m);
-    window.setTimeout(() => setToast(null), 2600);
+    window.setTimeout(() => setToast(null), 2800);
   }, []);
 
   const pickProvider = (id: ProviderId) => {
@@ -168,27 +230,63 @@ export function TvPage({ onBack }: { onBack: () => void }) {
     setVerified(false);
     setCustomerName('');
     setVerifyError(null);
-    const first = PROVIDERS.find((p) => p.id === id)?.packages[0];
+    const first = providers.find((p) => p.id === id)?.packages[0];
     setSelectedPkgId(first?.id ?? '');
   };
+
+  async function getAuthHeaders(): Promise<{ headers: Record<string, string>; userId: string }> {
+    let accessToken = loadSessionTokens()?.access_token || '';
+    let userId = loadSessionProfile()?.userId || '';
+    try {
+      const { getSupabaseBrowser } = await import('../lib/supabase/client');
+      const sb = getSupabaseBrowser();
+      if (sb) {
+        const { data: sess } = await sb.auth.getSession();
+        if (sess.session?.access_token) accessToken = sess.session.access_token;
+        if (sess.session?.user?.id) userId = sess.session.user.id;
+      }
+    } catch {
+      /* optional */
+    }
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
+    return { headers, userId };
+  }
 
   const onVerify = async () => {
     if (!cardOk || verifying) return;
     setVerifying(true);
     setVerifyError(null);
-    await new Promise((r) => setTimeout(r, 900));
-    setVerifying(false);
-    // Mock: numbers ending in 0 fail (demo), otherwise succeed
-    if (digits.endsWith('0')) {
+    try {
+      const { headers } = await getAuthHeaders();
+      const res = await fetch('/api/v1/tv', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          action: 'verify',
+          provider: selectedProvider,
+          smartCardNo: digits,
+        }),
+      });
+      const data = await res.json().catch(() => ({} as { ok?: boolean; error?: string; customerName?: string }));
+      if (!res.ok || !data.ok) {
+        setVerified(false);
+        setCustomerName('');
+        setVerifyError(data.error || 'Smartcard not found. Check the number and try again.');
+        toastMsg('Verification failed');
+        return;
+      }
+      setVerified(true);
+      setCustomerName(String(data.customerName || 'Verified customer'));
+      toastMsg('Smartcard verified');
+    } catch {
       setVerified(false);
       setCustomerName('');
-      setVerifyError('Verification failed');
-      toastMsg('Verification failed');
-      return;
+      setVerifyError('Network error — try again');
+      toastMsg('Network error');
+    } finally {
+      setVerifying(false);
     }
-    setVerified(true);
-    setCustomerName('Adebayo Okafor');
-    toastMsg('Smartcard verified');
   };
 
   const openPay = () => {
@@ -207,15 +305,57 @@ export function TvPage({ onBack }: { onBack: () => void }) {
   };
 
   const completePay = async (_enteredPin: string) => {
+    if (!selectedPkg) return;
     setPaying(true);
-    await new Promise((r) => setTimeout(r, 1100));
-    setPaying(false);
-    setPinOpen(false);
-    setPin('');
-    toastMsg(`${provider.label} ${selectedPkg.name} activated`);
-    setSmartcard('');
-    setVerified(false);
-    setCustomerName('');
+    try {
+      const { headers, userId } = await getAuthHeaders();
+      let phone = session?.contact || loadSessionProfile()?.contact || '';
+      phone = normalizePhone(phone);
+      if (phone.length !== 11) {
+        toastMsg('Add a phone number to your profile to complete payment');
+        setPaying(false);
+        setPinOpen(false);
+        setPin('');
+        return;
+      }
+
+      const res = await fetch('/api/v1/tv', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          action: 'pay',
+          provider: selectedProvider,
+          packageId: selectedPkg.id,
+          smartCardNo: digits,
+          phone,
+          userId: userId || undefined,
+        }),
+      });
+      const data = await res.json().catch(() => ({} as { ok?: boolean; error?: string; order?: { message?: string } }));
+
+      if (!res.ok || !data.ok) {
+        if (res.status === 401) toastMsg('Sign in required to pay TV subscription');
+        else if (res.status === 402) toastMsg(data.error || 'Insufficient balance — fund your wallet');
+        else toastMsg(data.error || 'TV subscription failed');
+        return;
+      }
+
+      toastMsg(data.order?.message || `${provider.label} ${selectedPkg.name} activated`);
+      try {
+        window.dispatchEvent(new Event('verxor:balance-refresh'));
+      } catch {
+        /* ignore */
+      }
+      setSmartcard('');
+      setVerified(false);
+      setCustomerName('');
+    } catch {
+      toastMsg('Network error — try again');
+    } finally {
+      setPaying(false);
+      setPinOpen(false);
+      setPin('');
+    }
   };
 
   const canPay = verified && !!selectedPkg && !paying;
@@ -295,7 +435,7 @@ export function TvPage({ onBack }: { onBack: () => void }) {
           </button>
           {providerOpen && (
             <ul className="tv-select-menu" role="listbox">
-              {PROVIDERS.map((p) => (
+              {providers.map((p) => (
                 <li key={p.id}>
                   <button
                     type="button"
@@ -422,7 +562,7 @@ export function TvPage({ onBack }: { onBack: () => void }) {
           disabled={!canPay}
           onClick={openPay}
         >
-          {canPay ? (
+          {canPay && selectedPkg ? (
             <>
               <CreditCard size={17} strokeWidth={2.2} />
               Pay {money(selectedPkg.price)} · {selectedPkg.name}
@@ -436,7 +576,7 @@ export function TvPage({ onBack }: { onBack: () => void }) {
         </button>
       </div>
 
-      {pinOpen && (
+      {pinOpen && selectedPkg && (
         <div className="tv-pin-root" role="dialog" aria-modal="true">
           <button
             type="button"
