@@ -33,7 +33,10 @@ export interface LivePlan {
   name: string;
   price: number;
   days: string;
+  /** Provider bundle family, separate from validity grouping. */
   planType?: string;
+  /** Existing validity tab label from the catalog. */
+  validityCategory?: string;
 }
 
 interface NetworkOption {
@@ -84,54 +87,54 @@ const MY_NUMBER = '08141620644';
 
 const FALLBACK_PLANS: Record<NetworkId, LivePlan[]> = {
   mtn: [
-    { id: 101, name: '100MB Daily', price: 100, days: '1', planType: 'Daily' },
-    { id: 102, name: '1GB Daily', price: 350, days: '1', planType: 'Daily' },
-    { id: 103, name: '2GB (2 Days)', price: 600, days: '2', planType: 'Daily' },
-    { id: 104, name: '1GB Weekly', price: 600, days: '7', planType: 'Weekly' },
-    { id: 105, name: '1.5GB Weekly', price: 1000, days: '7', planType: 'Weekly' },
-    { id: 106, name: '3.5GB Weekly', price: 1500, days: '7', planType: 'Weekly' },
-    { id: 107, name: '5GB Weekly', price: 2000, days: '7', planType: 'Weekly' },
-    { id: 108, name: '1.5GB Monthly', price: 1200, days: '30', planType: 'Monthly' },
-    { id: 109, name: '2GB Monthly', price: 1500, days: '30', planType: 'Monthly' },
-    { id: 110, name: '3GB Monthly', price: 2000, days: '30', planType: 'Monthly' },
-    { id: 111, name: '5GB Monthly', price: 3000, days: '30', planType: 'Monthly' },
-    { id: 112, name: '10GB Monthly', price: 5000, days: '30', planType: 'Monthly' },
-    { id: 113, name: '15GB Monthly', price: 6000, days: '30', planType: 'Monthly' },
-    { id: 114, name: '120GB Yearly', price: 50000, days: '365', planType: 'Yearly' },
+    { id: 101, name: '100MB Daily', price: 100, days: '1', validityCategory: 'Daily' },
+    { id: 102, name: '1GB Daily', price: 350, days: '1', validityCategory: 'Daily' },
+    { id: 103, name: '2GB (2 Days)', price: 600, days: '2', validityCategory: 'Daily' },
+    { id: 104, name: '1GB Weekly', price: 600, days: '7', validityCategory: 'Weekly' },
+    { id: 105, name: '1.5GB Weekly', price: 1000, days: '7', validityCategory: 'Weekly' },
+    { id: 106, name: '3.5GB Weekly', price: 1500, days: '7', validityCategory: 'Weekly' },
+    { id: 107, name: '5GB Weekly', price: 2000, days: '7', validityCategory: 'Weekly' },
+    { id: 108, name: '1.5GB Monthly', price: 1200, days: '30', validityCategory: 'Monthly' },
+    { id: 109, name: '2GB Monthly', price: 1500, days: '30', validityCategory: 'Monthly' },
+    { id: 110, name: '3GB Monthly', price: 2000, days: '30', validityCategory: 'Monthly' },
+    { id: 111, name: '5GB Monthly', price: 3000, days: '30', validityCategory: 'Monthly' },
+    { id: 112, name: '10GB Monthly', price: 5000, days: '30', validityCategory: 'Monthly' },
+    { id: 113, name: '15GB Monthly', price: 6000, days: '30', validityCategory: 'Monthly' },
+    { id: 114, name: '120GB Yearly', price: 50000, days: '365', validityCategory: 'Yearly' },
   ],
   airtel: [
-    { id: 201, name: '100MB Daily', price: 100, days: '1', planType: 'Daily' },
-    { id: 202, name: '1GB Daily', price: 350, days: '1', planType: 'Daily' },
-    { id: 203, name: '2GB (2 Days)', price: 600, days: '2', planType: 'Daily' },
-    { id: 204, name: '1.5GB Weekly', price: 1000, days: '7', planType: 'Weekly' },
-    { id: 205, name: '3.5GB Weekly', price: 1500, days: '7', planType: 'Weekly' },
-    { id: 206, name: '1.5GB Monthly', price: 1200, days: '30', planType: 'Monthly' },
-    { id: 207, name: '2GB Monthly', price: 1500, days: '30', planType: 'Monthly' },
-    { id: 208, name: '3GB Monthly', price: 2000, days: '30', planType: 'Monthly' },
-    { id: 209, name: '5GB Monthly', price: 3000, days: '30', planType: 'Monthly' },
-    { id: 210, name: '10GB Monthly', price: 5000, days: '30', planType: 'Monthly' },
-    { id: 211, name: '120GB Yearly', price: 50000, days: '365', planType: 'Yearly' },
+    { id: 201, name: '100MB Daily', price: 100, days: '1', validityCategory: 'Daily' },
+    { id: 202, name: '1GB Daily', price: 350, days: '1', validityCategory: 'Daily' },
+    { id: 203, name: '2GB (2 Days)', price: 600, days: '2', validityCategory: 'Daily' },
+    { id: 204, name: '1.5GB Weekly', price: 1000, days: '7', validityCategory: 'Weekly' },
+    { id: 205, name: '3.5GB Weekly', price: 1500, days: '7', validityCategory: 'Weekly' },
+    { id: 206, name: '1.5GB Monthly', price: 1200, days: '30', validityCategory: 'Monthly' },
+    { id: 207, name: '2GB Monthly', price: 1500, days: '30', validityCategory: 'Monthly' },
+    { id: 208, name: '3GB Monthly', price: 2000, days: '30', validityCategory: 'Monthly' },
+    { id: 209, name: '5GB Monthly', price: 3000, days: '30', validityCategory: 'Monthly' },
+    { id: 210, name: '10GB Monthly', price: 5000, days: '30', validityCategory: 'Monthly' },
+    { id: 211, name: '120GB Yearly', price: 50000, days: '365', validityCategory: 'Yearly' },
   ],
   glo: [
-    { id: 301, name: '1GB Daily', price: 300, days: '1', planType: 'Daily' },
-    { id: 302, name: '2GB (2 Days)', price: 500, days: '2', planType: 'Daily' },
-    { id: 303, name: '1.5GB Weekly', price: 800, days: '7', planType: 'Weekly' },
-    { id: 304, name: '3.5GB Weekly', price: 1200, days: '7', planType: 'Weekly' },
-    { id: 305, name: '2GB Monthly', price: 1200, days: '30', planType: 'Monthly' },
-    { id: 306, name: '3.5GB Monthly', price: 1500, days: '30', planType: 'Monthly' },
-    { id: 307, name: '5.5GB Monthly', price: 2000, days: '30', planType: 'Monthly' },
-    { id: 308, name: '10GB Monthly', price: 4000, days: '30', planType: 'Monthly' },
-    { id: 309, name: '120GB Yearly', price: 45000, days: '365', planType: 'Yearly' },
+    { id: 301, name: '1GB Daily', price: 300, days: '1', validityCategory: 'Daily' },
+    { id: 302, name: '2GB (2 Days)', price: 500, days: '2', validityCategory: 'Daily' },
+    { id: 303, name: '1.5GB Weekly', price: 800, days: '7', validityCategory: 'Weekly' },
+    { id: 304, name: '3.5GB Weekly', price: 1200, days: '7', validityCategory: 'Weekly' },
+    { id: 305, name: '2GB Monthly', price: 1200, days: '30', validityCategory: 'Monthly' },
+    { id: 306, name: '3.5GB Monthly', price: 1500, days: '30', validityCategory: 'Monthly' },
+    { id: 307, name: '5.5GB Monthly', price: 2000, days: '30', validityCategory: 'Monthly' },
+    { id: 308, name: '10GB Monthly', price: 4000, days: '30', validityCategory: 'Monthly' },
+    { id: 309, name: '120GB Yearly', price: 45000, days: '365', validityCategory: 'Yearly' },
   ],
   '9mobile': [
-    { id: 401, name: '1GB Daily', price: 350, days: '1', planType: 'Daily' },
-    { id: 402, name: '2GB (3 Days)', price: 600, days: '3', planType: 'Daily' },
-    { id: 403, name: '2GB Weekly', price: 1000, days: '7', planType: 'Weekly' },
-    { id: 404, name: '1.5GB Monthly', price: 1200, days: '30', planType: 'Monthly' },
-    { id: 405, name: '3GB Monthly', price: 2000, days: '30', planType: 'Monthly' },
-    { id: 406, name: '5GB Monthly', price: 3000, days: '30', planType: 'Monthly' },
-    { id: 407, name: '11GB Monthly', price: 5000, days: '30', planType: 'Monthly' },
-    { id: 408, name: '100GB Yearly', price: 50000, days: '365', planType: 'Yearly' },
+    { id: 401, name: '1GB Daily', price: 350, days: '1', validityCategory: 'Daily' },
+    { id: 402, name: '2GB (3 Days)', price: 600, days: '3', validityCategory: 'Daily' },
+    { id: 403, name: '2GB Weekly', price: 1000, days: '7', validityCategory: 'Weekly' },
+    { id: 404, name: '1.5GB Monthly', price: 1200, days: '30', validityCategory: 'Monthly' },
+    { id: 405, name: '3GB Monthly', price: 2000, days: '30', validityCategory: 'Monthly' },
+    { id: 406, name: '5GB Monthly', price: 3000, days: '30', validityCategory: 'Monthly' },
+    { id: 407, name: '11GB Monthly', price: 5000, days: '30', validityCategory: 'Monthly' },
+    { id: 408, name: '100GB Yearly', price: 50000, days: '365', validityCategory: 'Yearly' },
   ],
 };
 
@@ -232,7 +235,7 @@ function parseValidity(days: string, name: string): string {
 function getPlanCategory(plan: LivePlan): Exclude<CategoryId, 'hot'> {
   const v = parseValidity(plan.days, plan.name).toLowerCase();
   const n = (plan.name || '').toLowerCase();
-  const t = (plan.planType || '').toLowerCase();
+  const t = (plan.validityCategory || '').toLowerCase();
 
   // Router plans
   if (n.includes('router') || t.includes('router')) return 'router';
@@ -998,9 +1001,15 @@ export function DataPage({ onBack, session, onFund }: DataPageProps) {
                 <span className="data-confirm-val strong">{formatPhoneDisplay(phone)}</span>
               </div>
               <div className="data-confirm-row">
-                <span className="data-confirm-label">Data Bundle</span>
+                <span className="data-confirm-label">Plan Type</span>
                 <span className="data-confirm-val strong">
-                  {parseVolume(selectedPlan.name)} · {parseValidity(selectedPlan.days, selectedPlan.name)}
+                  {selectedPlan.planType || 'Data Bundle'} · {parseVolume(selectedPlan.name)}
+                </span>
+              </div>
+              <div className="data-confirm-row">
+                <span className="data-confirm-label">Validity</span>
+                <span className="data-confirm-val strong">
+                  {parseValidity(selectedPlan.days, selectedPlan.name)}
                 </span>
               </div>
               <div className="data-confirm-divider" />

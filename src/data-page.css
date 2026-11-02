@@ -1165,6 +1165,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 16px;
   font-size: 13.5px;
 }
 
@@ -1181,6 +1182,7 @@
 .data-confirm-val {
   color: #0F172A;
   font-weight: 600;
+  text-align: right;
 }
 
 .data-confirm-val.strong {

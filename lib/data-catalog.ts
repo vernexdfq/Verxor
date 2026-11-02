@@ -4,7 +4,7 @@
  * apiPrice = child panel / API user price (reference only here).
  *
  * UI rules:
- *  - No SME / Gifting / AWOOF labels
+ *  - Show a provider bundle family only where it is verified by plan ID
  *  - Tabs by validity: daily / weekly / monthly / 3 months+ / yearly
  *  - Hot deals chosen later after full catalog
  *
@@ -27,6 +27,8 @@ export interface CatalogPlan {
   retail: number;
   /** Child panel / API user price (₦) */
   apiPrice: number;
+  /** Provider bundle type label, only when verified from the provider/catalog source. */
+  planType?: string;
   /** Provider cost snapshot (optional, for admin) */
   cost?: number;
 }
@@ -51,10 +53,10 @@ export const MTN_DAILY: CatalogPlan[] = [
 
 /** MTN Weekly — locked from live 247API (Gifting + AWOOF + SME1 DataShare) */
 export const MTN_WEEKLY: CatalogPlan[] = [
-  { id: 10, network: 'mtn', size: '500MB', days: '7', tab: 'weekly', retail: 495, apiPrice: 240, cost: 220 },
-  { id: 9, network: 'mtn', size: '1GB', days: '7', tab: 'weekly', retail: 790, apiPrice: 385, cost: 375 },
+  { id: 10, network: 'mtn', size: '500MB', days: '7', tab: 'weekly', retail: 495, apiPrice: 240, cost: 220, planType: 'SME1 DataShare' },
+  { id: 9, network: 'mtn', size: '1GB', days: '7', tab: 'weekly', retail: 790, apiPrice: 385, cost: 375, planType: 'SME1 DataShare' },
   { id: 261, network: 'mtn', size: '1.5GB', days: '7', tab: 'weekly', retail: 1000, apiPrice: 972, cost: 962 },
-  { id: 8, network: 'mtn', size: '2GB', days: '7', tab: 'weekly', retail: 900, apiPrice: 800, cost: 670 },
+  { id: 8, network: 'mtn', size: '2GB', days: '7', tab: 'weekly', retail: 900, apiPrice: 800, cost: 670, planType: 'SME1 DataShare' },
   { id: 101, network: 'mtn', size: '3.5GB', days: '7', tab: 'weekly', retail: 1545, apiPrice: 1465, cost: 1445 },
   { id: 262, network: 'mtn', size: '6GB', days: '7', tab: 'weekly', retail: 2700, apiPrice: 2450, cost: 2405 },
   { id: 263, network: 'mtn', size: '7GB', days: '7', tab: 'weekly', retail: 3600, apiPrice: 3500, cost: 3367 },
@@ -124,6 +126,7 @@ export function toLivePlan(p: CatalogPlan) {
     name: p.size,
     price: p.retail,
     days: p.days,
-    planType: p.tab === 'threemonths' ? '3 months+' : p.tab.charAt(0).toUpperCase() + p.tab.slice(1),
+    planType: p.planType || 'Data Bundle',
+    validityCategory: p.tab === 'threemonths' ? '3 months+' : p.tab.charAt(0).toUpperCase() + p.tab.slice(1),
   };
 }
