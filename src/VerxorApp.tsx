@@ -57,10 +57,6 @@ function isFaqService(s: ServiceView | null): s is 'faq' | 'help' {
   return s === 'faq' || s === 'help';
 }
 
-/**
- * Soft session: after a successful PIN unlock, the user stays logged in
- * across refreshes. Balance is always refreshed from public.wallets.
- */
 export function VerxorApp() {
   const [page, setPage] = useState<Page>('home');
   const [service, setService] = useState<ServiceView | null>(null);
@@ -120,7 +116,6 @@ export function VerxorApp() {
     setService(null);
   }, []);
 
-  /** Pull live balance from public.wallets and update session + local profile */
   const refreshBalance = useCallback(async (session?: AuthSession | null) => {
     const s = session ?? authRef.current;
     if (!s) return;
@@ -409,7 +404,7 @@ export function VerxorApp() {
   } else if (service === 'gift-card') {
     content = <GiftCardPage onBack={closeService} session={auth} />;
   } else if (service === 'tv-cable') {
-    content = <TvPage onBack={closeService} />;
+    content = <TvPage onBack={closeService} session={auth} />;
   } else if (service === 'electricity') {
     content = <ElectricityPage onBack={closeService} session={auth} onFund={() => navigatePage('fund')} />;
   } else if (service === 'esim') {
