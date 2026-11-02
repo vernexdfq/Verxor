@@ -1,5 +1,5 @@
 /**
- * ClubKonnect (Nellobyte Systems) — airtime + electricity provider.
+ * ClubKonnect (Nellobyte Systems) — airtime + electricity + cable TV provider.
  * Auth: UserID + APIKey query params
  * Base: CLUBKONNECT_BASE_URL (default https://www.nellobytesystems.com)
  *
@@ -137,6 +137,10 @@ function errorFromStatus(status: unknown, fallback: string): string {
     INVALID_METERNO: 'Invalid meter number',
     INVALID_MeterNo: 'Invalid meter number',
     MeterType_NOT_AVAILABLE: 'Selected meter type is not available',
+    INVALID_SMARTCARDNO: 'Invalid smartcard / IUC number',
+    MISSING_CABLETV: 'Cable TV provider is required',
+    MISSING_PACKAGE: 'Cable package is required',
+    PACKAGE_NOT_AVAILABLE: 'Selected package is not currently available',
   };
   if (map[s]) return map[s];
   if (s && s !== 'UNDEFINED' && s !== 'NULL' && s !== '[OBJECT OBJECT]') {
@@ -174,10 +178,6 @@ function sleep(ms: number) {
   return new Promise((r) => setTimeout(r, ms));
 }
 
-/**
- * Buy airtime via ClubKonnect APIAirtimeV1.asp
- * On PAYMENT_SAVE_NOT_CONFIRMED, retry once with the SAME RequestID (per ClubKonnect docs).
- */
 export async function purchaseAirtime(opts: {
   network: CkNetworkSlug;
   phone: string;
@@ -246,7 +246,6 @@ export async function purchaseAirtime(opts: {
   throw new Error(`${base}${balNote}`);
 }
 
-/** ClubKonnect electricity disco codes (from APIElectricityDiscosV1 / docs) */
 export type CkDiscoSlug =
   | 'eko'
   | 'ikeja'
@@ -298,11 +297,6 @@ export const CK_METER_TYPE: Record<CkMeterType, string> = {
   postpaid: '02',
 };
 
-/**
- * Verify electricity meter via APIVerifyElectricityV1.asp
- * ClubKonnect often returns { customer_name: "N/A" } for unknown meters
- * instead of INVALID_METERNO — treat those as failed verification.
- */
 export async function verifyElectricityMeter(opts: {
   disco: CkDiscoSlug;
   meterType: CkMeterType;
@@ -350,17 +344,12 @@ export async function verifyElectricityMeter(opts: {
   if (/^(MISSING_|INVALID_|ERROR|FAIL)/i.test(name)) {
     return { ok: false, error: errorFromStatus(name, 'Meter verification failed') };
   }
-  // Real customer names should contain letters
   if (!/[A-Za-z]{2,}/.test(name)) {
     return { ok: false, error: 'Meter not found. Check the number and try again.' };
   }
   return { ok: true, customerName: name };
 }
 
-/**
- * Pay electricity via APIElectricityV1.asp
- * Do NOT send CallBackURL on this account.
- */
 export async function purchaseElectricity(opts: {
   disco: CkDiscoSlug;
   meterType: CkMeterType;
@@ -440,6 +429,161 @@ export async function purchaseElectricity(opts: {
   const base = errorFromStatus(
     status,
     `Electricity payment failed (${JSON.stringify(data).slice(0, 160)})`,
+  );
+  const balNote = walletBal != null ? ` (wallet ₦${walletBal.toFixed(2)})` : '';
+  throw new Error(`${base}${balNote}`);
+}
+
+/* ─── Cable TV (DStv / GOtv / StarTimes) ─────────────────────────────── */
+
+export type CkCableProvider = 'dstv' | 'gotv' | 'startimes';
+
+export const CK_CABLE_CODE: Record<CkCableProvider, string> = {
+  dstv: 'dstv',
+  gotv: 'gotv',
+  startimes: 'startimes',
+};
+
+export const CK_CABLE_LABEL: Record<CkCableProvider, string> = {
+  dstv: 'DStv',
+  gotv: 'GOtv',
+  startimes: 'StarTimes',
+};
+
+export async function verifyCableSmartcard(opts: {
+  provider: CkCableProvider;
+  smartCardNo: string;
+}): Promise<{ ok: true; customerName: string } | { ok: false; error: string }> {
+  const cableTv = CK_CABLE_CODE[opts.provider];
+  if (!cableTv) return { ok: false, error: 'Invalid cable TV provider' };
+
+  const smartCardNo = String(opts.smartCardNo).replace(/\D/g, '');
+  if (smartCardNo.length < 8 || smartCardNo.length > 15) {
+    return { ok: false, error: 'Enter a valid smartcard / IUC number' };
+  }
+
+  const { data } = await ckGet('APIVerifyCableTVV1.asp', {
+    CableTV: cableTv,
+    SmartCardNo: smartCardNo,
+  });
+
+  const name = String(
+    data?.customer_name ?? data?.customerName ?? data?.CustomerName ?? data?.name ?? '',
+  ).trim();
+  const upper = name.toUpperCase();
+  const invalidNames = new Set([
+    '',
+    'N/A',
+    'NA',
+    'N.A',
+    'N.A.',
+    'NULL',
+    'UNDEFINED',
+    'NONE',
+    'UNKNOWN',
+    'NOT FOUND',
+    'NOT_FOUND',
+    'INVALID',
+    'INVALID_SMARTCARDNO',
+    'INVALID SMARTCARDNO',
+    'INVALID SMARTCARD',
+    'CUSTOMER NOT FOUND',
+  ]);
+  if (
+    !name ||
+    invalidNames.has(upper) ||
+    upper.includes('INVALID') ||
+    upper.includes('NOT FOUND')
+  ) {
+    return { ok: false, error: 'Smartcard not found. Check the number and try again.' };
+  }
+  if (/^(MISSING_|INVALID_|ERROR|FAIL)/i.test(name)) {
+    return { ok: false, error: errorFromStatus(name, 'Smartcard verification failed') };
+  }
+  if (!/[A-Za-z]{2,}/.test(name)) {
+    return { ok: false, error: 'Smartcard not found. Check the number and try again.' };
+  }
+  return { ok: true, customerName: name };
+}
+
+export async function purchaseCable(opts: {
+  provider: CkCableProvider;
+  packageCode: string;
+  smartCardNo: string;
+  phone: string;
+  amount: number;
+  ref?: string;
+}) {
+  const cableTv = CK_CABLE_CODE[opts.provider];
+  if (!cableTv) throw new Error('Invalid cable TV provider');
+
+  const packageCode = String(opts.packageCode || '').trim();
+  if (!packageCode) throw new Error('Cable package is required');
+
+  const smartCardNo = String(opts.smartCardNo).replace(/\D/g, '');
+  if (smartCardNo.length < 8 || smartCardNo.length > 15) {
+    throw new Error('Enter a valid smartcard / IUC number');
+  }
+
+  const amount = Math.round(Number(opts.amount));
+  if (!Number.isFinite(amount) || amount < 100) {
+    throw new Error('Invalid package amount');
+  }
+
+  const phone = normalizeNgPhone(opts.phone);
+  const requestId = opts.ref || makeRef('TV');
+
+  let walletBal: number | null = null;
+  try {
+    const w = await getClubKonnectBalance();
+    walletBal = w.balance;
+    if (walletBal < amount * 0.9) {
+      throw new Error(
+        `ClubKonnect wallet too low (₦${walletBal.toFixed(2)}). Need about ₦${amount} — fund wallet first`,
+      );
+    }
+  } catch (e) {
+    if (e instanceof Error && e.message.includes('wallet too low')) throw e;
+    if (e instanceof Error && /invalid|credential|apikey|userid/i.test(e.message)) throw e;
+  }
+
+  const params = {
+    CableTV: cableTv,
+    Package: packageCode,
+    SmartCardNo: smartCardNo,
+    PhoneNo: phone,
+    RequestID: requestId,
+  };
+
+  let data: any = (await ckGet('APICableTVV1.asp', params)).data;
+  let status = pickStatus(data);
+  let statusCode = data?.statuscode ?? data?.statusCode;
+
+  if (isPaymentNotConfirmed(status)) {
+    await sleep(1500);
+    data = (await ckGet('APICableTVV1.asp', params)).data;
+    status = pickStatus(data);
+    statusCode = data?.statuscode ?? data?.statusCode;
+  }
+
+  if (isSuccessStatus(status) || String(statusCode) === '100' || String(statusCode) === '200') {
+    return {
+      ref: String(data?.requestid || data?.RequestID || data?.orderid || data?.orderId || requestId),
+      orderId: String(data?.orderid || data?.orderId || ''),
+      status: 'successful' as const,
+      smartCardNo,
+      amount,
+      provider: opts.provider,
+      packageCode,
+      customerName: data?.customer_name || data?.customerName || null,
+      message: String(data?.remark || data?.message || data?.orderremark || 'Cable subscription order received'),
+      raw: data,
+    };
+  }
+
+  const base = errorFromStatus(
+    status,
+    `Cable subscription failed (${JSON.stringify(data).slice(0, 160)})`,
   );
   const balNote = walletBal != null ? ` (wallet ₦${walletBal.toFixed(2)})` : '';
   throw new Error(`${base}${balNote}`);
