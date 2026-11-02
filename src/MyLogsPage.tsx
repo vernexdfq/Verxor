@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { ArrowLeft, Copy, Check, Package, RefreshCw, ShoppingBag } from 'lucide-react';
 import type { AuthSession } from './auth/AuthFlow';
 import { loadSessionTokens, isSessionUnlocked } from './auth/session-unlock';
@@ -20,11 +20,13 @@ export function MyLogsPage({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
+  const sessionRef = useRef(session);
+  sessionRef.current = session;
 
   const load = useCallback(async () => {
     const tokens = loadSessionTokens();
     const token = tokens?.access_token;
-    if (!token && !session && !isSessionUnlocked()) {
+    if (!token && !sessionRef.current && !isSessionUnlocked()) {
       setError('Your session has expired. Sign in again to view your logs.');
       setLoading(false);
       return;
@@ -51,8 +53,9 @@ export function MyLogsPage({
     } finally {
       setLoading(false);
     }
-  }, [session]);
+  }, []);
 
+  // Load once on open. Further refreshes only happen when the user taps Refresh.
   useEffect(() => {
     void load();
   }, [load]);
