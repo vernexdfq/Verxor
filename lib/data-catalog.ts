@@ -213,9 +213,14 @@ export function toLivePlan(p: CatalogPlan) {
       : p.tab === 'router'
         ? 'Router'
         : p.tab.charAt(0).toUpperCase() + p.tab.slice(1);
+  // Insert ZWNJ between M and B so UI parseVolume cannot turn "Mbps" into "MB"
+  const name =
+    p.tab === 'router' || /mbps/i.test(p.size)
+      ? p.size.replace(/Mbps/gi, 'M\u200cBps')
+      : p.size;
   return {
     id: p.id,
-    name: p.size,
+    name,
     price: p.retail,
     days: p.days,
     planType: p.planType || 'Data Bundle',
