@@ -9,6 +9,7 @@
  *  - Hot deals chosen later after full catalog
  *
  * MTN: Daily + Weekly + Monthly + 3 months+ + Yearly locked.
+ * Airtel: Daily + Weekly + Monthly locked (43 plans).
  */
 
 export type DataNetwork = 'mtn' | 'glo' | 'airtel' | '9mobile';
@@ -101,6 +102,61 @@ export const MTN_YEARLY: CatalogPlan[] = [
   { id: 293, network: 'mtn', size: '1.5TB', days: '365', tab: 'yearly', retail: 227000, apiPrice: 222000, cost: 222000 },
 ];
 
+/** Airtel Daily — locked from live 247API + user retail (18 plans) */
+export const AIRTEL_DAILY: CatalogPlan[] = [
+  { id: 350, network: 'airtel', size: '75MB', days: '1', tab: 'daily', retail: 75, apiPrice: 73, cost: 72.53, planType: 'Gifting' },
+  { id: 351, network: 'airtel', size: '100MB', days: '1', tab: 'daily', retail: 100, apiPrice: 97, cost: 96.7, planType: 'Gifting' },
+  { id: 400, network: 'airtel', size: '150MB', days: '1', tab: 'daily', retail: 80, apiPrice: 58, cost: 55, planType: 'SME' },
+  { id: 352, network: 'airtel', size: '200MB', days: '1', tab: 'daily', retail: 200, apiPrice: 195, cost: 193.4, planType: 'Gifting' },
+  { id: 401, network: 'airtel', size: '250MB Night', days: '1', tab: 'daily', retail: 100, apiPrice: 58, cost: 55, planType: 'SME' },
+  { id: 410, network: 'airtel', size: '200MB', days: '2', tab: 'daily', retail: 150, apiPrice: 112, cost: 110, planType: 'SME' },
+  { id: 411, network: 'airtel', size: '300MB', days: '2', tab: 'daily', retail: 300, apiPrice: 112, cost: 110, planType: 'SME' },
+  { id: 412, network: 'airtel', size: '600MB', days: '2', tab: 'daily', retail: 350, apiPrice: 215, cost: 210, planType: 'SME' },
+  { id: 420, network: 'airtel', size: '500MB', days: '3', tab: 'daily', retail: 450, apiPrice: 365, cost: 360, planType: 'SME' },
+  { id: 349, network: 'airtel', size: '1GB', days: '1', tab: 'daily', retail: 500, apiPrice: 486, cost: 483.5, planType: 'Gifting' },
+  { id: 421, network: 'airtel', size: '1GB', days: '3', tab: 'daily', retail: 550, apiPrice: 325, cost: 320, planType: 'SME' },
+  { id: 403, network: 'airtel', size: '1.5GB', days: '1', tab: 'daily', retail: 550, apiPrice: 425, cost: 420, planType: 'SME' },
+  { id: 413, network: 'airtel', size: '1.5GB', days: '2', tab: 'daily', retail: 700, apiPrice: 635, cost: 630, planType: 'SME' },
+  { id: 409, network: 'airtel', size: '2GB', days: '2', tab: 'daily', retail: 700, apiPrice: 635, cost: 630, planType: 'SME' },
+  { id: 415, network: 'airtel', size: '3GB', days: '2', tab: 'daily', retail: 900, apiPrice: 785, cost: 780, planType: 'SME' },
+  { id: 414, network: 'airtel', size: '3.2GB', days: '2', tab: 'daily', retail: 1200, apiPrice: 1005, cost: 1000, planType: 'SME' },
+  { id: 416, network: 'airtel', size: '5GB', days: '2', tab: 'daily', retail: 1700, apiPrice: 1505, cost: 1500, planType: 'SME' },
+  { id: 450, network: 'airtel', size: '6GB', days: '2', tab: 'daily', retail: 1800, apiPrice: 1505, cost: 1500, planType: 'SME' },
+];
+
+/** Airtel Weekly — locked (10 plans; dropped 356, 426, 428) */
+export const AIRTEL_WEEKLY: CatalogPlan[] = [
+  { id: 354, network: 'airtel', size: '500MB', days: '7', tab: 'weekly', retail: 500, apiPrice: 486, cost: 483.5, planType: 'Gifting' },
+  { id: 425, network: 'airtel', size: '1.5GB', days: '7', tab: 'weekly', retail: 600, apiPrice: 533, cost: 530, planType: 'SME' },
+  { id: 355, network: 'airtel', size: '1GB', days: '7', tab: 'weekly', retail: 800, apiPrice: 776, cost: 773.6, planType: 'Gifting' },
+  { id: 357, network: 'airtel', size: '3.5GB', days: '7', tab: 'weekly', retail: 1500, apiPrice: 1455, cost: 1450.5, planType: 'Gifting' },
+  { id: 452, network: 'airtel', size: '4GB', days: '7', tab: 'weekly', retail: 1800, apiPrice: 1505, cost: 1500, planType: 'SME' },
+  { id: 453, network: 'airtel', size: '6GB', days: '7', tab: 'weekly', retail: 2300, apiPrice: 2005, cost: 2000, planType: 'SME' },
+  { id: 358, network: 'airtel', size: '8GB', days: '7', tab: 'weekly', retail: 3000, apiPrice: 2425, cost: 2417.5, planType: 'Gifting' },
+  { id: 359, network: 'airtel', size: '10GB', days: '7', tab: 'weekly', retail: 3500, apiPrice: 2910, cost: 2901, planType: 'Gifting' },
+  { id: 360, network: 'airtel', size: '18GB', days: '7', tab: 'weekly', retail: 5000, apiPrice: 4860, cost: 4835, planType: 'Gifting' },
+  { id: 377, network: 'airtel', size: '20GB', days: '7', tab: 'weekly', retail: 5500, apiPrice: 5010, cost: 5000, planType: 'Gifting' },
+];
+
+/** Airtel Monthly — locked from live 247API + user retail (15 plans) */
+export const AIRTEL_MONTHLY: CatalogPlan[] = [
+  { id: 361, network: 'airtel', size: '2GB', days: '30', tab: 'monthly', retail: 1500, apiPrice: 1455, cost: 1450.5, planType: 'Gifting' },
+  { id: 362, network: 'airtel', size: '3GB', days: '30', tab: 'monthly', retail: 2000, apiPrice: 1940, cost: 1934, planType: 'Gifting' },
+  { id: 363, network: 'airtel', size: '4GB', days: '30', tab: 'monthly', retail: 2500, apiPrice: 2425, cost: 2417.5, planType: 'Gifting' },
+  { id: 364, network: 'airtel', size: '8GB', days: '30', tab: 'monthly', retail: 3000, apiPrice: 2910, cost: 2901, planType: 'Gifting' },
+  { id: 430, network: 'airtel', size: '10GB', days: '30', tab: 'monthly', retail: 4000, apiPrice: 3070, cost: 3060, planType: 'SME' },
+  { id: 366, network: 'airtel', size: '13GB', days: '30', tab: 'monthly', retail: 5000, apiPrice: 4845, cost: 4835, planType: 'Gifting' },
+  { id: 367, network: 'airtel', size: '18GB', days: '30', tab: 'monthly', retail: 6000, apiPrice: 5810, cost: 5802, planType: 'Gifting' },
+  { id: 368, network: 'airtel', size: '25GB', days: '30', tab: 'monthly', retail: 8000, apiPrice: 7750, cost: 7736, planType: 'Gifting' },
+  { id: 369, network: 'airtel', size: '35GB', days: '30', tab: 'monthly', retail: 10000, apiPrice: 9680, cost: 9670, planType: 'Gifting' },
+  { id: 446, network: 'airtel', size: '40GB', days: '30', tab: 'monthly', retail: 11500, apiPrice: 10020, cost: 10000, planType: 'Gifting' },
+  { id: 370, network: 'airtel', size: '60GB', days: '30', tab: 'monthly', retail: 15000, apiPrice: 14520, cost: 14505, planType: 'Gifting' },
+  { id: 447, network: 'airtel', size: '75GB', days: '30', tab: 'monthly', retail: 16500, apiPrice: 15020, cost: 15000, planType: 'Gifting' },
+  { id: 371, network: 'airtel', size: '100GB', days: '30', tab: 'monthly', retail: 20000, apiPrice: 19360, cost: 19340, planType: 'Gifting' },
+  { id: 372, network: 'airtel', size: '160GB', days: '30', tab: 'monthly', retail: 30150, apiPrice: 29040, cost: 29010, planType: 'Gifting' },
+  { id: 373, network: 'airtel', size: '210GB', days: '30', tab: 'monthly', retail: 40200, apiPrice: 38720, cost: 38680, planType: 'Gifting' },
+];
+
 /** All curated plans (grows as we add tabs/networks) */
 export const DATA_CATALOG: CatalogPlan[] = [
   ...MTN_DAILY,
@@ -108,6 +164,9 @@ export const DATA_CATALOG: CatalogPlan[] = [
   ...MTN_MONTHLY,
   ...MTN_THREEMONTHS,
   ...MTN_YEARLY,
+  ...AIRTEL_DAILY,
+  ...AIRTEL_WEEKLY,
+  ...AIRTEL_MONTHLY,
 ];
 
 export function catalogForNetwork(network: string): CatalogPlan[] {
