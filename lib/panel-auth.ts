@@ -44,6 +44,8 @@ const DEFAULT_ALLOWED_PRODUCTS = [
   'airtime',
   'data',
   'electricity',
+  'tv',
+  'cable',
 ];
 
 export async function resolvePanelClient(req: Request): Promise<PanelClient | null> {
@@ -106,6 +108,8 @@ export async function resolvePanelClient(req: Request): Promise<PanelClient | nu
       next.add('data');
       next.add('boost');
       next.add('electricity');
+      next.add('tv');
+      next.add('cable');
       allowedProducts = Array.from(next);
     }
 
@@ -177,6 +181,25 @@ export function panelAllowsElectricity(panel: PanelClient): boolean {
   );
 }
 
+/** Cable TV (DStv / GOtv / StarTimes) for child panels. */
+export function panelAllowsTv(panel: PanelClient): boolean {
+  const allowed = panel.allowedProducts.map((p) => p.toLowerCase());
+  return (
+    allowed.length === 0 ||
+    allowed.includes('tv') ||
+    allowed.includes('cable') ||
+    allowed.includes('cabletv') ||
+    allowed.includes('dstv') ||
+    allowed.includes('gotv') ||
+    allowed.includes('vtu') ||
+    allowed.includes('*') ||
+    allowed.includes('all') ||
+    allowed.includes('virtual_numbers') ||
+    allowed.includes('vn') ||
+    panelAllowsElectricity(panel)
+  );
+}
+
 /**
  * ClubKonnect API electricity discount is ~0.5%.
  * Child panels get 0.3%; Verxor keeps ~0.2% as parent margin.
@@ -189,6 +212,21 @@ export function panelElectricityDebitAmount(faceAmount: number): number {
   const face = Math.round(Number(faceAmount));
   if (!Number.isFinite(face) || face <= 0) return 0;
   const debit = face * (1 - PANEL_ELECTRICITY_DISCOUNT_PCT / 100);
+  return Math.round(debit * 100) / 100;
+}
+
+/**
+ * ClubKonnect cable TV discount is ~1%.
+ * Child panels get 0.5%; Verxor keeps ~0.5% as parent margin.
+ */
+export const PANEL_TV_DISCOUNT_PCT = 0.5;
+export const CK_TV_DISCOUNT_PCT = 1.0;
+
+/** Amount to debit the panel wallet for a face-value TV subscription. */
+export function panelTvDebitAmount(faceAmount: number): number {
+  const face = Math.round(Number(faceAmount));
+  if (!Number.isFinite(face) || face <= 0) return 0;
+  const debit = face * (1 - PANEL_TV_DISCOUNT_PCT / 100);
   return Math.round(debit * 100) / 100;
 }
 

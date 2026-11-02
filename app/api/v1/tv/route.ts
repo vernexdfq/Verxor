@@ -11,32 +11,13 @@ import { CABLE_PACKAGES, CABLE_PROVIDERS, findCablePackage } from '@/lib/cable-c
 import { supabaseConfigured } from '@/lib/supabase-admin';
 import {
   resolvePanelClient,
-  panelAllowsElectricity,
-  PANEL_ELECTRICITY_DISCOUNT_PCT,
+  panelAllowsTv,
+  panelTvDebitAmount,
+  PANEL_TV_DISCOUNT_PCT,
+  CK_TV_DISCOUNT_PCT,
 } from '@/lib/panel-auth';
 
 export const dynamic = 'force-dynamic';
-
-/** Reuse electricity panel allowance for VTU cable until dedicated flag exists. */
-function panelAllowsTv(panel: NonNullable<Awaited<ReturnType<typeof resolvePanelClient>>>) {
-  const allowed = panel.allowedProducts.map((p) => p.toLowerCase());
-  return (
-    panelAllowsElectricity(panel) ||
-    allowed.includes('tv') ||
-    allowed.includes('cable') ||
-    allowed.includes('cabletv') ||
-    allowed.includes('dstv')
-  );
-}
-
-const PANEL_TV_DISCOUNT_PCT = PANEL_ELECTRICITY_DISCOUNT_PCT; // 0.3%
-const CK_TV_DISCOUNT_PCT = 1.0; // ClubKonnect ~1% on cable
-
-function panelTvDebitAmount(faceAmount: number): number {
-  const face = Math.round(Number(faceAmount));
-  if (!Number.isFinite(face) || face <= 0) return 0;
-  return Math.round(face * (1 - PANEL_TV_DISCOUNT_PCT / 100) * 100) / 100;
-}
 
 function supabaseBase() {
   return (process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '')
@@ -237,6 +218,9 @@ export async function GET() {
 /**
  * POST /api/v1/tv
  * action: verify | pay
+ *
+ * Retail: full face amount debited.
+ * Child panel (vx_panel_*): 0.5% discount (ClubKonnect gives ~1%, Verxor keeps ~0.5%).
  */
 export async function POST(req: NextRequest) {
   if (!isClubKonnectConfigured()) {
