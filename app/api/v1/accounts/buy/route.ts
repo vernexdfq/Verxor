@@ -145,7 +145,8 @@ export async function POST(req: NextRequest) {
     const totalNgn = unitPrice * quantity;
     if (!Number.isSafeInteger(totalNgn) || totalNgn <= 0) return bad('Invalid order total', 400);
 
-    const clientRef = `vx-acc-${userId.slice(0, 8)}-${Date.now()}`;
+    // AccsZone requires a UUID v4 client_reference (idempotency key for purchases).
+    const clientRef = crypto.randomUUID();
     const debitRef = `acc-buy-${clientRef}`;
 
     try {
@@ -177,6 +178,22 @@ export async function POST(req: NextRequest) {
     }
 
     if (!purchase.ok) {
+      // Ambiguous provider timeouts: the purchase may have completed on
+      // AccsZone's side even though we could not confirm it. Auto-refunding
+      // here risks paying the provider without charging the customer, so the
+      // wallet stays debited and support reconciles with the client reference.
+      if (purchase.code === 'provider_timeout_unconfirmed') {
+        return NextResponse.json(
+          {
+            ok: false,
+            error:
+              'The purchase is still being confirmed with the provider. Your wallet was debited and any overcharge will be refunded automatically once the order status is confirmed. Please contact support with this reference if you do not receive your accounts shortly.',
+            code: purchase.code,
+            reference: clientRef,
+          },
+          { status: 504 },
+        );
+      }
       const refunded = await creditRetailWallet(
         userId,
         totalNgn,
