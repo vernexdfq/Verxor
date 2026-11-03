@@ -417,11 +417,8 @@ export function normalizePlatform(platform: string): string {
   const lower = p.toLowerCase();
   if (lower.includes('mobile prox') || lower.includes('proxy') || lower.includes('proxies')) return 'Mobile Proxies';
   if (lower.includes('google voice')) return 'Google Voice';
-  if (lower === 'gift card' || lower === 'gift cards') return 'Gift Cards';
-  if (lower.includes('apple id')) return 'Apple ID & Gift Cards';
   if (lower.includes('apple')) return 'Apple';
   if (lower.includes('mastercard')) return 'Mastercard';
-  if (lower.includes('google play')) return 'Google Play';
   if (lower.includes('google ads')) return 'Google Ads';
   if (lower.includes('ai accounts') || lower === 'ai') return 'AI Accounts';
   if (lower.includes('indeed')) return 'Indeed';
@@ -433,7 +430,6 @@ export function normalizePlatform(platform: string): string {
   if (lower.includes('grindr')) return 'Grindr';
   if (lower.includes('eharmony')) return 'eHarmony';
   if (lower.includes('badoo')) return 'Badoo';
-  if (lower.includes('gift card')) return 'Gaming & Gift Cards';
   if (lower.includes('gaming account') || lower === 'gaming') return 'Gaming';
   if (lower.includes('premium subscription')) return 'Premium Subscriptions';
   if (lower.includes('dating')) return 'Dating Apps';
@@ -483,12 +479,8 @@ export async function resolveCategoryIdForPlatform(platform: string): Promise<nu
   else if (norm === 'Badoo') terms.push('badoo');
   else if (norm === 'Gaming') terms.push('gaming account', 'gaming accounts', 'gaming');
   else if (norm === 'Premium Subscriptions') terms.push('premium subscriptions', 'premium subscription', 'subscriptions');
-  else if (norm === 'Gaming & Gift Cards') terms.push('gift cards', 'gaming & gift cards', 'gift card');
-  else if (norm === 'Gift Cards') terms.push('gift cards', 'gift card');
   else if (norm === 'Mastercard') terms.push('mastercard');
   else if (norm === 'Apple') terms.push('apple accounts', 'apple');
-  else if (norm === 'Apple ID & Gift Cards') terms.push('apple id', 'apple');
-  else if (norm === 'Google Play') terms.push('google play', 'google play gift');
   else terms.push(norm.toLowerCase());
 
   for (const t of terms) {
@@ -589,7 +581,9 @@ async function buildPlatformCatalog(
 
     const offers = listings
       .map((l) => mapListing(l, platform, rate))
-      .filter((o) => o.stock > 0)
+      // Marketplace rule: gift cards are not sold on Verxor. Filter them out
+      // everywhere so they can never surface via any platform chip.
+      .filter((o) => o.stock > 0 && !/gift\s*card|gift\s*code|giftcode/i.test(o.title))
       .sort((a, b) => b.stock - a.stock || a.priceNgn - b.priceNgn);
 
     const stockBySub = new Map<
