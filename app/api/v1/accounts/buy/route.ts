@@ -257,12 +257,14 @@ export async function POST(req: NextRequest) {
     }
     const useReseller = Boolean(panel);
     const userId = panel ? panel.walletUserId : await resolveUserId(req);
-    if (!panel && !userId) return bad('Unauthorized', 401);
-    if (panel && !userId) {
-      return bad(
-        'Panel wallet not linked. Regenerate the panel key with ownerEmail, or set meta.wallet_user_id / VERXOR_PANEL_WALLET_USER_ID.',
-        402,
-      );
+    if (!userId) {
+      if (panel) {
+        return bad(
+          'Panel wallet not linked. Regenerate the panel key with ownerEmail, or set meta.wallet_user_id / VERXOR_PANEL_WALLET_USER_ID.',
+          402,
+        );
+      }
+      return bad('Unauthorized', 401);
     }
 
     const adId = Number(body.providerListingId ?? body.listingId);
