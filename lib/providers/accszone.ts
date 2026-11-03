@@ -425,6 +425,12 @@ export function normalizePlatform(platform: string): string {
   if (lower.includes('twitch')) return 'Twitch';
   if (lower.includes('trustpilot')) return 'Trustpilot';
   if (lower.includes('quora')) return 'Quora';
+  if (lower.includes('grindr')) return 'Grindr';
+  if (lower.includes('eharmony')) return 'eHarmony';
+  if (lower.includes('badoo')) return 'Badoo';
+  if (lower.includes('gift card')) return 'Gaming & Gift Cards';
+  if (lower.includes('gaming account') || lower === 'gaming') return 'Gaming';
+  if (lower.includes('premium subscription')) return 'Premium Subscriptions';
   if (lower.includes('dating')) return 'Dating Apps';
   if (lower === 'x' || lower.includes('twitter')) return 'X / Twitter';
   if (lower.includes('instagram')) return 'Instagram';
@@ -467,6 +473,12 @@ export async function resolveCategoryIdForPlatform(platform: string): Promise<nu
   else if (norm === 'Bluesky') terms.push('bluesky', 'blue sky', 'bsky');
   else if (norm === 'Reddit') terms.push('reddit');
   else if (norm === 'Dating Apps') terms.push('dating apps', 'dating');
+  else if (norm === 'Grindr') terms.push('grindr');
+  else if (norm === 'eHarmony') terms.push('eharmony');
+  else if (norm === 'Badoo') terms.push('badoo');
+  else if (norm === 'Gaming') terms.push('gaming account', 'gaming accounts', 'gaming');
+  else if (norm === 'Premium Subscriptions') terms.push('premium subscriptions', 'premium subscription', 'subscriptions');
+  else if (norm === 'Gaming & Gift Cards') terms.push('gift cards', 'gaming & gift cards', 'gift card');
   else terms.push(norm.toLowerCase());
 
   for (const t of terms) {

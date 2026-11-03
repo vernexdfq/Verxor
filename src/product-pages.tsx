@@ -58,10 +58,16 @@ const PLATFORMS = [
   'Trustpilot',
   'Quora',
   'Dating Apps',
+  'Grindr',
+  'eHarmony',
+  'Badoo',
+  'Gaming',
+  'Premium Subscriptions',
+  'Gaming & Gift Cards',
 ] as const;
 
 /** Platforms with live AccsZone checkout. Chips above match this list 1:1. */
-const LIVE_PLATFORMS = ['Facebook', 'Instagram', 'TikTok', 'X / Twitter', 'Telegram', 'Gmail', 'YouTube', 'Threads', 'WhatsApp', 'Mobile Proxies', 'Google Voice', 'Odnoklassniki', 'LinkedIn', 'Reddit', 'Indeed', 'Truth Social', 'AI Accounts', 'Google Ads', 'Bluesky', 'Snapchat', 'Discord', 'Twitch', 'Trustpilot', 'Quora', 'Dating Apps'] as const;
+const LIVE_PLATFORMS = ['Facebook', 'Instagram', 'TikTok', 'X / Twitter', 'Telegram', 'Gmail', 'YouTube', 'Threads', 'WhatsApp', 'Mobile Proxies', 'Google Voice', 'Odnoklassniki', 'LinkedIn', 'Reddit', 'Indeed', 'Truth Social', 'AI Accounts', 'Google Ads', 'Bluesky', 'Snapchat', 'Discord', 'Twitch', 'Trustpilot', 'Quora', 'Dating Apps', 'Grindr', 'eHarmony', 'Badoo', 'Gaming', 'Premium Subscriptions', 'Gaming & Gift Cards'] as const;
 const LIVE_PLATFORM_SET = new Set<string>(LIVE_PLATFORMS);
 
 /** Live stock cache is considered fresh for 15 minutes. */
@@ -289,6 +295,56 @@ function BrandLogo({ platform, size = 36 }: { platform: string; size?: number })
         <svg {...common} aria-hidden>
           <rect width="40" height="40" rx="10" fill="#EC4899" />
           <path d="M20 30.8c-.7-.6-10.3-6.6-10.3-13.4 0-3.8 2.9-6.5 6.3-6.5 2 0 3.6 1 4 1.5.4-.5 2-1.5 4-1.5 3.4 0 6.3 2.7 6.3 6.5 0 6.8-9.6 12.8-10.3 13.4z" fill="#fff" />
+        </svg>
+      );
+    case 'Grindr':
+      return (
+        <svg {...common} aria-hidden>
+          <rect width="40" height="40" rx="10" fill="#1A1A1A" />
+          <path d="M20 9c-5 0-8.6 2.2-8.6 2.2s.9 3.4 3 5.9c2.6 3.1 4.6 14 5.6 14s3-10.9 5.6-14c2.1-2.5 3-5.9 3-5.9S25 9 20 9z" fill="#FFC300" />
+          <circle cx="20" cy="11.4" r="1.6" fill="#1A1A1A" />
+        </svg>
+      );
+    case 'eHarmony':
+      return (
+        <svg {...common} aria-hidden>
+          <rect width="40" height="40" rx="10" fill="#00A3E0" />
+          <path d="M20 30c-.6-.5-9.6-6.2-9.6-12.5 0-3.5 2.7-6 5.8-6 1.8 0 3.3.9 3.8 1.4.4-.5 2-1.4 3.8-1.4 3 0 5.8 2.5 5.8 6C29.6 23.8 20.6 29.5 20 30z" fill="#fff" />
+        </svg>
+      );
+    case 'Badoo':
+      return (
+        <svg {...common} aria-hidden>
+          <rect width="40" height="40" rx="10" fill="#7C4DFF" />
+          <path d="M20 30.6c-.6-.6-10-6.5-10-13.4 0-3.7 2.8-6.4 6.1-6.4 1.9 0 3.4 1 3.9 1.5.5-.5 2-1.5 3.9-1.5 3.3 0 6.1 2.7 6.1 6.4 0 6.9-9.4 12.8-10 13.4z" fill="#fff" />
+          <circle cx="20" cy="24" r="1.5" fill="#7C4DFF" />
+        </svg>
+      );
+    case 'Gaming':
+      return (
+        <svg {...common} aria-hidden>
+          <rect width="40" height="40" rx="10" fill="#111827" />
+          <rect x="8" y="14" width="24" height="13" rx="6.5" stroke="#fff" strokeWidth="2" fill="none" />
+          <path d="M15.5 17.5v2.4h-2.4v2.2h2.4v2.4h2.2v-2.4h2.4v-2.2h-2.4v-2.4z" fill="#fff" />
+          <circle cx="24.5" cy="18.8" r="1.4" fill="#fff" />
+          <circle cx="27.2" cy="21.8" r="1.4" fill="#fff" />
+        </svg>
+      );
+    case 'Premium Subscriptions':
+      return (
+        <svg {...common} aria-hidden>
+          <rect width="40" height="40" rx="10" fill="#F59E0B" />
+          <path d="M11 27l-1.6-10.4 6.4 4.2L20 12.4l4.2 8.4 6.4-4.2L29 27H11z" fill="#fff" />
+        </svg>
+      );
+    case 'Gaming & Gift Cards':
+      return (
+        <svg {...common} aria-hidden>
+          <rect width="40" height="40" rx="10" fill="#0EA5E9" />
+          <rect x="11" y="15" width="18" height="14" rx="2" stroke="#fff" strokeWidth="2" fill="none" />
+          <path d="M10 19.5h20" stroke="#fff" strokeWidth="2" />
+          <rect x="19" y="15" width="2" height="14" fill="#fff" />
+          <path d="M20 15c-2.8 0-5.2-1-5.2-2.5S16.6 10 18 10c2.4 0 2.7 3.4 2 5zm0 0c2.8 0 5.2-1 5.2-2.5S23.4 10 22 10c-2.4 0-2.7 3.4-2 5z" stroke="#fff" strokeWidth="1.6" fill="none" />
         </svg>
       );
     case 'Discord':
@@ -897,7 +953,7 @@ function AccountDetail({
   const [copied, setCopied] = useState(false);
   const total = product.price * qty;
   const LIVE_CHECKOUT_SET = useMemo(
-    () => new Set(['Facebook', 'Instagram', 'TikTok', 'X / Twitter', 'Telegram', 'X', 'Gmail', 'YouTube', 'Threads', 'WhatsApp', 'Mobile Proxies', 'Google Voice', 'Odnoklassniki', 'LinkedIn', 'Reddit', 'Indeed', 'Truth Social', 'AI Accounts', 'Google Ads', 'Bluesky', 'Snapchat', 'Discord', 'Twitch', 'Trustpilot', 'Quora', 'Dating Apps']),
+    () => new Set(['Facebook', 'Instagram', 'TikTok', 'X / Twitter', 'Telegram', 'X', 'Gmail', 'YouTube', 'Threads', 'WhatsApp', 'Mobile Proxies', 'Google Voice', 'Odnoklassniki', 'LinkedIn', 'Reddit', 'Indeed', 'Truth Social', 'AI Accounts', 'Google Ads', 'Bluesky', 'Snapchat', 'Discord', 'Twitch', 'Trustpilot', 'Quora', 'Dating Apps', 'Grindr', 'eHarmony', 'Badoo', 'Gaming', 'Premium Subscriptions', 'Gaming & Gift Cards']),
     [],
   );
   const isLiveListing = LIVE_CHECKOUT_SET.has(product.platform) && Number(product.providerListingId) > 0;
@@ -906,7 +962,7 @@ function AccountDetail({
   async function submitPurchase() {
     if (buying) return;
     if (!isLiveListing) {
-      setBuyError('Live checkout is currently available for Facebook, Instagram, TikTok, X / Twitter, Telegram, Gmail, YouTube, Threads, WhatsApp, Mobile Proxies, Google Voice, Odnoklassniki, LinkedIn, Reddit, Indeed, Truth Social, AI Accounts, Google Ads, Bluesky, Snapchat, Discord, Twitch, Trustpilot, Quora, and Dating Apps.');
+      setBuyError('Live checkout is currently available for Facebook, Instagram, TikTok, X / Twitter, Telegram, Gmail, YouTube, Threads, WhatsApp, Mobile Proxies, Google Voice, Odnoklassniki, LinkedIn, Reddit, Indeed, Truth Social, AI Accounts, Google Ads, Bluesky, Snapchat, Discord, Twitch, Trustpilot, Quora, Dating Apps, Grindr, eHarmony, Badoo, Gaming, Premium Subscriptions, and Gaming & Gift Cards.');
       return;
     }
     const token = loadSessionTokens()?.access_token;

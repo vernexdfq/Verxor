@@ -36,12 +36,18 @@ const ENABLED_PLATFORMS = new Set([
   'trustpilot',
   'quora',
   'dating apps',
+  'grindr',
+  'eharmony',
+  'badoo',
+  'gaming',
+  'premium subscriptions',
+  'gaming & gift cards',
 ]);
 
 /**
  * GET /api/v1/accounts/catalog
  * Query:
- *   platform=Facebook | Instagram | TikTok | X / Twitter | Telegram | Gmail | YouTube | Threads | WhatsApp | Mobile Proxies | Google Voice | Odnoklassniki | LinkedIn | Reddit | Indeed | Truth Social | AI Accounts | Google Ads | Bluesky | Snapchat | Discord | Twitch | Trustpilot | Quora | Dating Apps | categories
+ *   platform=Facebook | Instagram | TikTok | X / Twitter | Telegram | Gmail | YouTube | Threads | WhatsApp | Mobile Proxies | Google Voice | Odnoklassniki | LinkedIn | Reddit | Indeed | Truth Social | AI Accounts | Google Ads | Bluesky | Snapchat | Discord | Twitch | Trustpilot | Quora | Dating Apps | Grindr | eHarmony | Badoo | Gaming | Premium Subscriptions | Gaming & Gift Cards | categories
  *   refresh=1 force upstream re-fetch
  */
 export async function GET(req: NextRequest) {
@@ -77,7 +83,7 @@ export async function GET(req: NextRequest) {
           offers: [],
           total: 0,
           inStock: 0,
-          error: `Live catalogue for ${rawPlatform} is coming soon. Facebook, Instagram, TikTok, X / Twitter, Telegram, Gmail, YouTube, Threads, WhatsApp, Mobile Proxies, Google Voice, Odnoklassniki, LinkedIn, Reddit, Indeed, Truth Social, AI Accounts, Google Ads, Bluesky, Snapchat, Discord, Twitch, Trustpilot, Quora, and Dating Apps are live.`,
+          error: `Live catalogue for ${rawPlatform} is coming soon. Facebook, Instagram, TikTok, X / Twitter, Telegram, Gmail, YouTube, Threads, WhatsApp, Mobile Proxies, Google Voice, Odnoklassniki, LinkedIn, Reddit, Indeed, Truth Social, AI Accounts, Google Ads, Bluesky, Snapchat, Discord, Twitch, Trustpilot, Quora, Dating Apps, Grindr, eHarmony, Badoo, Gaming, Premium Subscriptions, and Gaming & Gift Cards are live.`,
         },
         {
           status: 200,
