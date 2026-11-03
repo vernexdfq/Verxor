@@ -1,15 +1,16 @@
 /**
  * Child-panel API authentication.
  *
- * Accepts:
+ * Accepts either:
  *   Authorization: Bearer vx_panel_<hex>
  *   X-Api-Key: vx_panel_<hex>
  *
  * Resolves against public.api_clients (key hash) or env VERXOR_PANEL_API_KEY.
  * Optional meta.wallet_user_id links debits to a Verxor wallet.
  */
+
 import { createHash } from 'crypto';
-import { sbSelect, supabaseConfigured } from './supabase-admin';
+import { sbSelect, supabaseConfigured } from '@/lib/supabase-admin';
 
 export type PanelClient = {
   id: string;
@@ -18,27 +19,26 @@ export type PanelClient = {
   allowedProducts: string[];
   walletUserId: string | null;
   ownerEmail: string | null;
-  source: 'db' | 'env';
 };
 
-function extractApiKey(req: Request): string | null {
-  const xKey = req.headers.get('x-api-key') || req.headers.get('x-verxor-key');
+function extractPanelKey(req: Request): string | null {
+  const xKey = req.headers.get('x-api-key') || req.headers.get('X-Api-Key');
   if (xKey && xKey.trim().startsWith('vx_panel_')) return xKey.trim();
-
   const auth = req.headers.get('authorization') || '';
-  if (auth.startsWith('Bearer ')) {
+  if (auth.toLowerCase().startsWith('bearer ')) {
     const token = auth.slice(7).trim();
     if (token.startsWith('vx_panel_')) return token;
   }
   return null;
 }
 
-function hashKey(apiKey: string): string {
-  return createHash('sha256').update(apiKey).digest('hex');
+function hashKey(key: string): string {
+  return createHash('sha256').update(key).digest('hex');
 }
 
-const DEFAULT_ALLOWED_PRODUCTS = [
+const CORE_VTU_PRODUCTS = [
   'virtual_numbers',
+  'vn',
   'boost',
   'smm',
   'airtime',
@@ -46,81 +46,91 @@ const DEFAULT_ALLOWED_PRODUCTS = [
   'electricity',
   'tv',
   'cable',
+  'vtu',
 ];
 
 export async function resolvePanelClient(req: Request): Promise<PanelClient | null> {
-  const apiKey = extractApiKey(req);
-  if (!apiKey) return null;
+  const key = extractPanelKey(req);
+  if (!key) return null;
 
   const envKey = (process.env.VERXOR_PANEL_API_KEY || '').trim();
-  if (envKey && apiKey === envKey) {
+  if (envKey && key === envKey) {
     return {
       id: 'env-panel',
       name: process.env.VERXOR_PANEL_NAME || 'Child Panel',
       markupPercent: Number(process.env.VERXOR_PANEL_MARKUP_PCT || 15) || 15,
-      allowedProducts: DEFAULT_ALLOWED_PRODUCTS,
+      allowedProducts: ['*'],
       walletUserId: (process.env.VERXOR_PANEL_WALLET_USER_ID || '').trim() || null,
-      ownerEmail:
+      ownerEmail: (
         (process.env.VERXOR_PANEL_ADMIN_EMAIL || process.env.VERXOR_PANEL_OWNER_EMAIL || '')
           .trim()
-          .toLowerCase() || null,
-      source: 'env',
+          .toLowerCase() || null
+      ),
     };
   }
 
   if (!supabaseConfigured()) return null;
 
   try {
-    const keyHash = hashKey(apiKey);
+    const keyHash = hashKey(key);
     const rows = (await sbSelect(
       'api_clients',
       `api_key_hash=eq.${encodeURIComponent(keyHash)}&is_active=eq.true&select=id,name,markup_percent,allowed_products,meta&limit=1`,
     )) as Array<{
       id: string;
-      name: string;
+      name?: string;
       markup_percent?: number;
-      allowed_products?: string[];
-      meta?: {
-        wallet_user_id?: string;
-        walletUserId?: string;
-        owner_email?: string;
-        ownerEmail?: string;
-      };
+      allowed_products?: string[] | null;
+      meta?: Record<string, unknown> | null;
     }>;
 
     const row = rows?.[0];
     if (!row) return null;
 
-    const meta = row.meta || {};
-    const fromDb = Array.isArray(row.allowed_products) ? row.allowed_products.map(String) : [];
-    let allowedProducts = fromDb && fromDb.length > 0 ? fromDb : DEFAULT_ALLOWED_PRODUCTS;
-    const lower = allowedProducts.map((p) => p.toLowerCase());
+    const meta = (row.meta || {}) as Record<string, unknown>;
+    const walletUserId =
+      typeof meta.wallet_user_id === 'string'
+        ? meta.wallet_user_id
+        : typeof meta.walletUserId === 'string'
+          ? meta.walletUserId
+          : null;
+    const ownerEmail =
+      typeof meta.owner_email === 'string'
+        ? meta.owner_email.trim().toLowerCase()
+        : typeof meta.ownerEmail === 'string'
+          ? meta.ownerEmail.trim().toLowerCase()
+          : null;
+
+    let allowed = Array.isArray(row.allowed_products)
+      ? row.allowed_products.map((p) => String(p).toLowerCase())
+      : [];
+
     // Core VTU expansion for partner panels that already have virtual numbers / all.
+    const next = new Set(allowed);
     if (
-      lower.includes('virtual_numbers') ||
-      lower.includes('vn') ||
-      lower.includes('*') ||
-      lower.includes('all') ||
-      lower.includes('vtu')
+      allowed.length === 0 ||
+      allowed.includes('*') ||
+      allowed.includes('all') ||
+      allowed.includes('virtual_numbers') ||
+      allowed.includes('vn')
     ) {
-      const next = new Set(allowedProducts.map(String));
+      for (const p of CORE_VTU_PRODUCTS) next.add(p);
       next.add('airtime');
       next.add('data');
       next.add('boost');
       next.add('electricity');
       next.add('tv');
       next.add('cable');
-      allowedProducts = Array.from(next);
     }
+    allowed = Array.from(next);
 
     return {
       id: row.id,
       name: row.name || 'Child Panel',
       markupPercent: Number(row.markup_percent ?? 15) || 15,
-      allowedProducts,
-      walletUserId: (meta.wallet_user_id || meta.walletUserId || '').trim() || null,
-      ownerEmail: (meta.owner_email || meta.ownerEmail || '').trim().toLowerCase() || null,
-      source: 'db',
+      allowedProducts: allowed,
+      walletUserId,
+      ownerEmail,
     };
   } catch (e) {
     console.warn('[panel-auth] resolve failed', e);
@@ -132,10 +142,10 @@ export function panelAllowsVirtualNumbers(panel: PanelClient): boolean {
   const allowed = panel.allowedProducts.map((p) => p.toLowerCase());
   return (
     allowed.length === 0 ||
-    allowed.includes('virtual_numbers') ||
-    allowed.includes('vn') ||
     allowed.includes('*') ||
-    allowed.includes('all')
+    allowed.includes('all') ||
+    allowed.includes('virtual_numbers') ||
+    allowed.includes('vn')
   );
 }
 
@@ -143,10 +153,10 @@ export function panelAllowsBoost(panel: PanelClient): boolean {
   const allowed = panel.allowedProducts.map((p) => p.toLowerCase());
   return (
     allowed.length === 0 ||
-    allowed.includes('boost') ||
-    allowed.includes('smm') ||
     allowed.includes('*') ||
     allowed.includes('all') ||
+    allowed.includes('boost') ||
+    allowed.includes('smm') ||
     allowed.includes('virtual_numbers') ||
     allowed.includes('vn')
   );
@@ -227,6 +237,31 @@ export function panelTvDebitAmount(faceAmount: number): number {
   const face = Math.round(Number(faceAmount));
   if (!Number.isFinite(face) || face <= 0) return 0;
   const debit = face * (1 - PANEL_TV_DISCOUNT_PCT / 100);
+  return Math.round(debit * 100) / 100;
+}
+
+/**
+ * Child-panel airtime discounts (face-value buy, panel pays less).
+ * MTN 2% · Airtel 2% · Glo 6% · 9mobile 2%
+ */
+export const PANEL_AIRTIME_DISCOUNT_PCT: Record<string, number> = {
+  mtn: 2,
+  airtel: 2,
+  glo: 6,
+  '9mobile': 2,
+};
+
+export function panelAirtimeDiscountPct(network: string): number {
+  const key = String(network || '').toLowerCase().trim();
+  return PANEL_AIRTIME_DISCOUNT_PCT[key] ?? 0;
+}
+
+/** Amount to debit the panel wallet for a face-value airtime purchase. */
+export function panelAirtimeDebitAmount(faceAmount: number, network: string): number {
+  const face = Math.round(Number(faceAmount));
+  if (!Number.isFinite(face) || face <= 0) return 0;
+  const pct = panelAirtimeDiscountPct(network);
+  const debit = face * (1 - pct / 100);
   return Math.round(debit * 100) / 100;
 }
 

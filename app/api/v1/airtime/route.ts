@@ -13,7 +13,14 @@ import {
 } from '@/lib/providers/api247';
 import { supabaseConfigured } from '@/lib/supabase-admin';
 import { sendAirtimeReceipt, sendDataReceipt } from '@/lib/email/receipts';
-import { resolvePanelClient, panelAllowsAirtime, getPanelAdminEmail } from '@/lib/panel-auth';
+import {
+  resolvePanelClient,
+  panelAllowsAirtime,
+  getPanelAdminEmail,
+  panelAirtimeDebitAmount,
+  panelAirtimeDiscountPct,
+  PANEL_AIRTIME_DISCOUNT_PCT,
+} from '@/lib/panel-auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -53,8 +60,8 @@ async function resolveUserId(req: NextRequest, bodyUserId?: string): Promise<str
   }
 }
 
-function formatNaira(n: number): string {
-  return `₦${Math.round(n).toLocaleString('en-NG')}`;
+function formatNaira(n: number) {
+  return `₦${Number(n).toLocaleString('en-NG')}`;
 }
 
 /** Partner / child-panel wholesale balance (reseller_wallet). */
@@ -62,108 +69,44 @@ async function debitResellerWallet(userId: string, amount: number, reference: st
   const base = supabaseBase();
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!base || !serviceKey) throw new Error('Wallet backend not configured');
-  const hdr = {
-    apikey: serviceKey,
-    Authorization: `Bearer ${serviceKey}`,
-  };
-  await fetch(`${base}/rest/v1/reseller_wallet`, {
+  const res = await fetch(`${base}/rest/v1/rpc/debit_reseller_wallet`, {
     method: 'POST',
     headers: {
-      ...hdr,
+      apikey: serviceKey,
+      Authorization: `Bearer ${serviceKey}`,
       'Content-Type': 'application/json',
-      Prefer: 'resolution=ignore-duplicates,return=minimal',
     },
-    body: JSON.stringify({ user_id: userId, balance: 0 }),
-  }).catch(() => null);
-  const balRes = await fetch(
-    `${base}/rest/v1/reseller_wallet?user_id=eq.${encodeURIComponent(userId)}&select=balance&limit=1`,
-    { headers: hdr, cache: 'no-store' },
-  );
-  if (!balRes.ok) throw new Error(`Reseller balance read failed: ${balRes.status}`);
-  const rows = (await balRes.json()) as Array<{ balance: number }>;
-  const prev = Number(rows?.[0]?.balance) || 0;
-  if (prev < amount) throw new Error('INSUFFICIENT_BALANCE');
-  const next = Math.round((prev - amount) * 100) / 100;
-  const up = await fetch(`${base}/rest/v1/reseller_wallet?user_id=eq.${encodeURIComponent(userId)}`, {
-    method: 'PATCH',
-    headers: {
-      ...hdr,
-      'Content-Type': 'application/json',
-      Prefer: 'return=representation',
-    },
-    body: JSON.stringify({ balance: next, updated_at: new Date().toISOString() }),
+    body: JSON.stringify({
+      p_user_id: userId,
+      p_amount: amount,
+      p_reference: reference,
+    }),
   });
-  if (!up.ok) {
-    const t = await up.text().catch(() => '');
+  if (!res.ok) {
+    const t = await res.text().catch(() => '');
+    if (/insufficient/i.test(t)) throw new Error('INSUFFICIENT_BALANCE');
     throw new Error(`Reseller debit failed: ${t.slice(0, 200)}`);
   }
-  try {
-    await fetch(`${base}/rest/v1/wallet_ledger`, {
-      method: 'POST',
-      headers: {
-        ...hdr,
-        'Content-Type': 'application/json',
-        Prefer: 'return=minimal',
-      },
-      body: JSON.stringify({
-        user_id: userId,
-        kind: 'purchase',
-        amount_ngn: -Math.abs(amount),
-        currency: 'NGN',
-        reference,
-        meta: { type: 'airtime', product: 'airtime', wallet: 'reseller' },
-      }),
-    });
-  } catch {
-    /* best-effort ledger */
-  }
+  return res.json().catch(() => ({}));
 }
 
 async function creditResellerWallet(userId: string, amount: number, reference: string) {
   const base = supabaseBase();
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!base || !serviceKey || amount <= 0) return;
-  const hdr = {
-    apikey: serviceKey,
-    Authorization: `Bearer ${serviceKey}`,
-  };
-  const balRes = await fetch(
-    `${base}/rest/v1/reseller_wallet?user_id=eq.${encodeURIComponent(userId)}&select=balance&limit=1`,
-    { headers: hdr, cache: 'no-store' },
-  );
-  if (!balRes.ok) return;
-  const rows = (await balRes.json()) as Array<{ balance: number }>;
-  const prev = Number(rows?.[0]?.balance) || 0;
-  const next = Math.round((prev + amount) * 100) / 100;
-  await fetch(`${base}/rest/v1/reseller_wallet?user_id=eq.${encodeURIComponent(userId)}`, {
-    method: 'PATCH',
+  await fetch(`${base}/rest/v1/rpc/credit_reseller_wallet`, {
+    method: 'POST',
     headers: {
-      ...hdr,
+      apikey: serviceKey,
+      Authorization: `Bearer ${serviceKey}`,
       'Content-Type': 'application/json',
-      Prefer: 'return=minimal',
     },
-    body: JSON.stringify({ balance: next, updated_at: new Date().toISOString() }),
-  });
-  try {
-    await fetch(`${base}/rest/v1/wallet_ledger`, {
-      method: 'POST',
-      headers: {
-        ...hdr,
-        'Content-Type': 'application/json',
-        Prefer: 'return=minimal',
-      },
-      body: JSON.stringify({
-        user_id: userId,
-        kind: 'refund',
-        amount_ngn: Math.abs(amount),
-        currency: 'NGN',
-        reference,
-        meta: { type: 'airtime', product: 'airtime', wallet: 'reseller' },
-      }),
-    });
-  } catch {
-    /* best-effort */
-  }
+    body: JSON.stringify({
+      p_user_id: userId,
+      p_amount: amount,
+      p_reference: reference,
+    }),
+  }).catch(() => null);
 }
 
 async function debitRetailWallet(
@@ -175,7 +118,6 @@ async function debitRetailWallet(
   const base = supabaseBase();
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!base || !serviceKey) throw new Error('Wallet backend not configured');
-
   const res = await fetch(`${base}/rest/v1/rpc/debit_wallet`, {
     method: 'POST',
     headers: {
@@ -190,12 +132,9 @@ async function debitRetailWallet(
       p_description: description,
     }),
   });
-
   if (!res.ok) {
     const t = await res.text().catch(() => '');
-    if (/INSUFFICIENT_BALANCE/i.test(t)) {
-      throw new Error('INSUFFICIENT_BALANCE');
-    }
+    if (/insufficient/i.test(t)) throw new Error('INSUFFICIENT_BALANCE');
     throw new Error(`Debit failed: ${t.slice(0, 200)}`);
   }
   return res.json().catch(() => ({}));
@@ -251,6 +190,10 @@ export async function GET() {
     providers: { api247: api247Ready, clubkonnect: ckReady },
     api247,
     clubkonnect: ckBalance,
+    pricing: {
+      panelDiscountPct: PANEL_AIRTIME_DISCOUNT_PCT,
+      note: 'Child panels: MTN 2%, Airtel 2%, Glo 6%, 9mobile 2%. Retail users pay face value.',
+    },
   });
 }
 
@@ -261,30 +204,17 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const ckReady = isClubKonnectConfigured();
   const api247Ready = isApi247Configured();
-
   if (!ckReady && !api247Ready) {
-    return NextResponse.json(
-      { ok: false, error: 'Airtime provider not configured' },
-      { status: 503 },
-    );
+    return NextResponse.json({ ok: false, error: 'Airtime provider not configured' }, { status: 503 });
   }
 
-  let body: {
-    network?: string;
-    phone?: string;
-    amount?: number;
-    ref?: string;
-    userId?: string;
-  };
-  try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ ok: false, error: 'Invalid JSON' }, { status: 400 });
-  }
-
-  const network = String(body.network || '').toLowerCase();
+  const body = await req.json().catch(() => ({} as Record<string, unknown>));
+  const network = String(body.network || '').toLowerCase().trim();
   if (!NETWORKS.has(network)) {
-    return NextResponse.json({ ok: false, error: 'Invalid network' }, { status: 400 });
+    return NextResponse.json(
+      { ok: false, error: 'Invalid network. Use mtn, glo, airtel, or 9mobile.' },
+      { status: 400 },
+    );
   }
 
   const amount = Math.round(Number(body.amount));
@@ -310,7 +240,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  let userId = await resolveUserId(req, body.userId);
+  let userId = await resolveUserId(req, body.userId as string | undefined);
   if (panel) {
     userId = panel.walletUserId || userId;
   }
@@ -333,6 +263,11 @@ export async function POST(req: NextRequest) {
 
   const useReseller = Boolean(panel);
   const netLabel = NETWORK_LABEL[network] || network.toUpperCase();
+  const panelDiscountPct = useReseller ? panelAirtimeDiscountPct(network) : 0;
+  const debitAmount = useReseller ? panelAirtimeDebitAmount(amount, network) : amount;
+  const panelDiscountNgn = useReseller
+    ? Math.round((amount - debitAmount) * 100) / 100
+    : 0;
   const successTitle = `${netLabel} airtime purchase of ${formatNaira(amount)} was successful`;
   const debitDesc = `${netLabel} airtime purchase of ${formatNaira(amount)}`;
   const debitRef = body.ref || `at-${(userId || 'panel').slice(0, 8)}-${Date.now()}`;
@@ -340,7 +275,7 @@ export async function POST(req: NextRequest) {
 
   try {
     if (useReseller) {
-      await debitResellerWallet(userId, amount, debitRef);
+      await debitResellerWallet(userId, debitAmount, debitRef);
     } else {
       await debitRetailWallet(userId, amount, debitRef, debitDesc);
     }
@@ -395,7 +330,10 @@ export async function POST(req: NextRequest) {
           message: successTitle,
           title: successTitle,
         },
-        balanceDebited: amount,
+        balanceDebited: debitAmount,
+        faceAmount: amount,
+        panelDiscountPct: useReseller ? panelDiscountPct : 0,
+        panelDiscountNgn: useReseller ? panelDiscountNgn : 0,
         walletMode: useReseller ? 'reseller_wallet' : 'retail',
         panel: panel ? { id: panel.id, name: panel.name } : null,
       });
@@ -437,7 +375,10 @@ export async function POST(req: NextRequest) {
           message: successTitle,
           title: successTitle,
         },
-        balanceDebited: amount,
+        balanceDebited: debitAmount,
+        faceAmount: amount,
+        panelDiscountPct: useReseller ? panelDiscountPct : 0,
+        panelDiscountNgn: useReseller ? panelDiscountNgn : 0,
         walletMode: useReseller ? 'reseller_wallet' : 'retail',
         panel: panel ? { id: panel.id, name: panel.name } : null,
       });
@@ -449,7 +390,7 @@ export async function POST(req: NextRequest) {
 
   if (debited) {
     if (useReseller) {
-      await creditResellerWallet(userId, amount, `refund-${debitRef}`);
+      await creditResellerWallet(userId, debitAmount, `refund-${debitRef}`);
     } else {
       await creditRetailWallet(userId, amount, `refund-${debitRef}`, `Refund — ${debitDesc}`);
     }
