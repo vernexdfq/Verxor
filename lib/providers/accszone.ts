@@ -422,6 +422,10 @@ export function normalizePlatform(platform: string): string {
   if (lower.includes('indeed')) return 'Indeed';
   if (lower.includes('truth')) return 'Truth Social';
   if (lower.includes('bluesky') || lower.includes('blue sky') || lower.includes('bsky')) return 'Bluesky';
+  if (lower.includes('twitch')) return 'Twitch';
+  if (lower.includes('trustpilot')) return 'Trustpilot';
+  if (lower.includes('quora')) return 'Quora';
+  if (lower.includes('dating')) return 'Dating Apps';
   if (lower === 'x' || lower.includes('twitter')) return 'X / Twitter';
   if (lower.includes('instagram')) return 'Instagram';
   if (lower.includes('tiktok')) return 'TikTok';
@@ -462,6 +466,7 @@ export async function resolveCategoryIdForPlatform(platform: string): Promise<nu
   else if (norm === 'Google Ads') terms.push('google ads', 'google adwords', 'adwords');
   else if (norm === 'Bluesky') terms.push('bluesky', 'blue sky', 'bsky');
   else if (norm === 'Reddit') terms.push('reddit');
+  else if (norm === 'Dating Apps') terms.push('dating apps', 'dating');
   else terms.push(norm.toLowerCase());
 
   for (const t of terms) {

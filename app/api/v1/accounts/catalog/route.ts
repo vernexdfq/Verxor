@@ -30,12 +30,18 @@ const ENABLED_PLATFORMS = new Set([
   'ai accounts',
   'google ads',
   'bluesky',
+  'snapchat',
+  'discord',
+  'twitch',
+  'trustpilot',
+  'quora',
+  'dating apps',
 ]);
 
 /**
  * GET /api/v1/accounts/catalog
  * Query:
- *   platform=Facebook | Instagram | TikTok | X / Twitter | Telegram | Gmail | YouTube | Threads | WhatsApp | Mobile Proxies | Google Voice | Odnoklassniki | LinkedIn | Reddit | Indeed | Truth Social | AI Accounts | Google Ads | Bluesky | categories
+ *   platform=Facebook | Instagram | TikTok | X / Twitter | Telegram | Gmail | YouTube | Threads | WhatsApp | Mobile Proxies | Google Voice | Odnoklassniki | LinkedIn | Reddit | Indeed | Truth Social | AI Accounts | Google Ads | Bluesky | Snapchat | Discord | Twitch | Trustpilot | Quora | Dating Apps | categories
  *   refresh=1 force upstream re-fetch
  */
 export async function GET(req: NextRequest) {
@@ -71,7 +77,7 @@ export async function GET(req: NextRequest) {
           offers: [],
           total: 0,
           inStock: 0,
-          error: `Live catalogue for ${rawPlatform} is coming soon. Facebook, Instagram, TikTok, X / Twitter, Telegram, Gmail, YouTube, Threads, WhatsApp, Mobile Proxies, Google Voice, Odnoklassniki, LinkedIn, Reddit, Indeed, Truth Social, AI Accounts, Google Ads, and Bluesky are live.`,
+          error: `Live catalogue for ${rawPlatform} is coming soon. Facebook, Instagram, TikTok, X / Twitter, Telegram, Gmail, YouTube, Threads, WhatsApp, Mobile Proxies, Google Voice, Odnoklassniki, LinkedIn, Reddit, Indeed, Truth Social, AI Accounts, Google Ads, Bluesky, Snapchat, Discord, Twitch, Trustpilot, Quora, and Dating Apps are live.`,
         },
         {
           status: 200,
