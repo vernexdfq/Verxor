@@ -1,5 +1,5 @@
 -- account_orders — My Logs persistence for Buy Accounts & Logs
--- Run once in Supabase SQL editor.
+-- Run once in Supabase SQL editor. Safe to re-run.
 
 create table if not exists public.account_orders (
   id uuid primary key default gen_random_uuid(),
@@ -23,8 +23,10 @@ create index if not exists account_orders_user_created_idx
 
 alter table public.account_orders enable row level security;
 
+-- NOTE: Postgres has no "create policy if not exists" — drop then create.
 -- Users can only read their own orders
-create policy if not exists "account_orders_select_own"
+drop policy if exists "account_orders_select_own" on public.account_orders;
+create policy "account_orders_select_own"
   on public.account_orders
   for select
   using (auth.uid() = user_id);
