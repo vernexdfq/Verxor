@@ -427,6 +427,7 @@ export function normalizePlatform(platform: string): string {
   if (lower.includes('threads')) return 'Threads';
   if (lower.includes('reddit')) return 'Reddit';
   if (lower.includes('snapchat')) return 'Snapchat';
+  if (lower.includes('whatsapp')) return 'WhatsApp';
   return p || 'Facebook';
 }
 
