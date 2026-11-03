@@ -13,6 +13,7 @@ import {
   X,
   Minus,
   Plus,
+  ChevronDown,
 } from 'lucide-react';
 import { Card, PrimaryButton } from './components/ui';
 import './product-pages.css';
@@ -526,6 +527,7 @@ export function AccountsPage({ onBack, session }: { onBack: () => void; session?
   const [query, setQuery] = useState('');
   const [platform, setPlatform] = useState<string>('All');
   const [subtype, setSubtype] = useState<string | null>(null);
+  const [subtypeOpen, setSubtypeOpen] = useState(false);
   const [selected, setSelected] = useState<AccountProduct | null>(null);
   const [showMyLogs, setShowMyLogs] = useState(false);
   const [slide, setSlide] = useState(0);
@@ -662,6 +664,7 @@ export function AccountsPage({ onBack, session }: { onBack: () => void; session?
 
   useEffect(() => {
     setSubtype(null);
+    setSubtypeOpen(false);
   }, [platform]);
 
   const catalog = useMemo(() => {
@@ -857,40 +860,56 @@ export function AccountsPage({ onBack, session }: { onBack: () => void; session?
 
       {showSubtypeBar && (
         <div className="subtype-inline-card">
-          <div className="subtype-inline-head">
-            <div className="subtype-inline-title">
-              <strong>{platform} Categories ({platformSubtypes.length})</strong>
-              <p>Filter listings by type</p>
-            </div>
+          <div className="subtype-inline-toggle-row">
+            <button
+              type="button"
+              className="subtype-inline-toggle"
+              aria-expanded={subtypeOpen}
+              onClick={() => setSubtypeOpen((o) => !o)}
+            >
+              <span className="subtype-inline-toggle-text">
+                <strong>{subtype ?? `All {platform}`}</strong>
+                <small>{platformSubtypes.length} categories · tap to {subtypeOpen ? 'close' : 'filter'}</small>
+              </span>
+              <ChevronDown size={16} className={`subtype-inline-chevron${subtypeOpen ? ' open' : ''}`} />
+            </button>
             {subtype && (
               <button type="button" className="subtype-inline-reset" onClick={() => selectSubtype(null)}>
                 Reset
               </button>
             )}
           </div>
-          <div className="subtype-inline-list">
-            <button
-              type="button"
-              className={`subtype-inline-option${!subtype ? ' active' : ''}`}
-              onClick={() => selectSubtype(null)}
-            >
-              <span className="subtype-inline-name">All {platform}</span>
-              <span className="subtype-inline-meta">{filtered.length} listings</span>
-            </button>
-            {platformSubtypes.map((s) => (
+          {subtypeOpen && (
+            <div className="subtype-inline-list">
               <button
-                key={s.name}
                 type="button"
-                className={`subtype-inline-option${subtype === s.name ? ' active' : ''}`}
-                onClick={() => selectSubtype(s.name)}
+                className={`subtype-inline-option${!subtype ? ' active' : ''}`}
+                onClick={() => {
+                  selectSubtype(null);
+                  setSubtypeOpen(false);
+                }}
               >
-                <span className="subtype-inline-name">{s.name}</span>
-                <span className="subtype-inline-meta">
-                  {s.count} listings · {s.stock.toLocaleString()} in stock
-                </span>
+                <span className="subtype-inline-name">All {platform}</span>
+                <span className="subtype-inline-meta">{filtered.length} listings</span>
               </button>
-            ))}
-          </div>
+              {platformSubtypes.map((s) => (
+                <button
+                  key={s.name}
+                  type="button"
+                  className={`subtype-inline-option${subtype === s.name ? ' active' : ''}`}
+                  onClick={() => {
+                    selectSubtype(s.name);
+                    setSubtypeOpen(false);
+                  }}
+                >
+                  <span className="subtype-inline-name">{s.name}</span>
+                  <span className="subtype-inline-meta">
+                    {s.count} listings · {s.stock.toLocaleString()} in stock
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
