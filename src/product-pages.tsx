@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState, useCallback } from 'react';
+import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import {
   ArrowLeft,
   ArrowRight,
@@ -8,12 +8,10 @@ import {
   CheckCircle2,
   ChevronRight,
   Copy,
-  BookOpen,
   FolderOpen,
   Package,
   Search,
   ShieldCheck,
-  Wallet,
   X,
   Minus,
   Plus,
@@ -22,14 +20,13 @@ import { Card, PrimaryButton } from './components/ui';
 import './product-pages.css';
 import type { AuthSession } from './auth/AuthFlow';
 import type { AccountProduct } from './accounts-types';
-import { STATIC_CATALOG as CATALOG } from './accounts-static-catalog';
 import { DescriptionBody } from './accounts-description';
 import { MyLogsPage } from './MyLogsPage';
 import { loadSessionTokens } from './auth/session-unlock';
 
 /**
  * Buy Accounts & Logs — Verxor marketplace
- * Facebook = live AccsZone. Other platforms = static fallback until enabled.
+ * All platforms load live AccsZone stock, cached briefly in localStorage.
  */
 
 export type { AccountProduct } from './accounts-types';
@@ -41,14 +38,14 @@ const PLATFORMS = [
   'TikTok',
   'X / Twitter',
   'Telegram',
-  'YouTube',
-  'Gmail',
-  'Discord',
-  'LinkedIn',
-  'Threads',
-  'Reddit',
-  'Snapchat',
 ] as const;
+
+/** Platforms with live AccsZone checkout. Chips above match this list 1:1. */
+const LIVE_PLATFORMS = ['Facebook', 'Instagram', 'TikTok', 'X / Twitter', 'Telegram'] as const;
+const LIVE_PLATFORM_SET = new Set<string>(LIVE_PLATFORMS);
+
+/** Live stock cache is considered fresh for 15 minutes. */
+const CAT_CACHE_TTL_MS = 15 * 60 * 1000;
 
 const PROMO_SLIDES = [
   {
@@ -229,10 +226,14 @@ export function AccountsPage({ onBack, session }: { onBack: () => void; session?
   const [showMyLogs, setShowMyLogs] = useState(false);
   const [slide, setSlide] = useState(0);
   const [toast, setToast] = useState<string | null>(null);
-  const LIVE_PLATFORMS = useMemo(
-    () => new Set(['Facebook', 'Instagram', 'TikTok', 'X / Twitter', 'Telegram']),
-    [],
-  );
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   const [liveByPlatform, setLiveByPlatform] = useState<
     Record<
@@ -247,16 +248,18 @@ export function AccountsPage({ onBack, session }: { onBack: () => void; session?
   const [errorByPlatform, setErrorByPlatform] = useState<Record<string, string | null>>({});
 
   const loadPlatformStock = useCallback(async (p: string) => {
-    if (!LIVE_PLATFORMS.has(p)) return;
+    if (!LIVE_PLATFORM_SET.has(p)) return;
     const cacheKey = `verxor:cat:${p.toLowerCase()}:v1`;
     type Cat = { offers: unknown[]; subtypes: { name: string; count: number; stock: number }[] };
 
-    let hadCache = false;
+    let hadFreshCache = false;
     try {
       const raw = localStorage.getItem(cacheKey);
       if (raw) {
         const saved = JSON.parse(raw) as { at: number; data: Cat };
         if (saved?.data && Array.isArray(saved.data.offers) && saved.data.offers.length > 0) {
+          // Hydrate immediately from cache (fresh or stale) so the list is never blank,
+          // but only treat fresh cache as authoritative — stale cache triggers a re-fetch.
           setLiveByPlatform((prev) => ({
             ...prev,
             [p]: {
@@ -264,21 +267,21 @@ export function AccountsPage({ onBack, session }: { onBack: () => void; session?
               subtypes: saved.data.subtypes || [],
             },
           }));
-          hadCache = true;
+          hadFreshCache = Date.now() - (saved.at || 0) < CAT_CACHE_TTL_MS;
         }
       }
     } catch {
       /* ignore */
     }
 
-    if (!hadCache) {
+    if (!hadFreshCache) {
       setLoadingPlatforms((prev) => ({ ...prev, [p]: true }));
     }
     setErrorByPlatform((prev) => ({ ...prev, [p]: null }));
 
     async function fetchOnce(): Promise<Cat> {
       const ctrl = new AbortController();
-      const timer = setTimeout(() => ctrl.abort(), 25000);
+      const timer = setTimeout(() => ctrl.abort(), 15000);
       try {
         const res = await fetch(`/api/v1/accounts/catalog?platform=${encodeURIComponent(p)}`, {
           signal: ctrl.signal,
@@ -300,9 +303,11 @@ export function AccountsPage({ onBack, session }: { onBack: () => void; session?
     }
 
     let lastErr = `Could not load live ${p} stock`;
-    for (let attempt = 0; attempt < 3; attempt += 1) {
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      if (!mountedRef.current) return;
       try {
         const data = await fetchOnce();
+        if (!mountedRef.current) return;
         const offers = (data.offers as Parameters<typeof offerToProduct>[0][]).map(offerToProduct);
         const subtypes = (data.subtypes || []).map((sub) => ({
           name: sub.name,
@@ -323,24 +328,27 @@ export function AccountsPage({ onBack, session }: { onBack: () => void; session?
         return;
       } catch (e) {
         lastErr = e instanceof Error ? e.message : 'Network error';
-        await new Promise((r) => setTimeout(r, 1200 * (attempt + 1)));
+        await new Promise((r) => setTimeout(r, 800 * (attempt + 1)));
       }
     }
 
-    if (!hadCache) {
-      setErrorByPlatform((prev) => ({ ...prev, [p]: lastErr }));
-    }
+    if (!mountedRef.current) return;
+    setErrorByPlatform((prev) => ({ ...prev, [p]: lastErr }));
     setLoadingPlatforms((prev) => ({ ...prev, [p]: false }));
-  }, [LIVE_PLATFORMS]);
+  }, []);
 
+  // Auto-load live stock for every platform on mount.
   useEffect(() => {
-    void loadPlatformStock('Facebook');
+    for (const p of LIVE_PLATFORMS) {
+      void loadPlatformStock(p);
+    }
   }, [loadPlatformStock]);
 
   useEffect(() => {
+    if (selected || showMyLogs) return;
     const t = setInterval(() => setSlide((s) => (s + 1) % PROMO_SLIDES.length), 4500);
     return () => clearInterval(t);
-  }, []);
+  }, [selected, showMyLogs]);
 
   useEffect(() => {
     if (!toast) return;
@@ -354,15 +362,9 @@ export function AccountsPage({ onBack, session }: { onBack: () => void; session?
   }, [platform]);
 
   const catalog = useMemo(() => {
-    let list = [...CATALOG];
-    for (const [p, stock] of Object.entries(liveByPlatform)) {
-      if (stock.offers.length > 0) {
-        list = list.filter((item) => {
-          if (p === 'X / Twitter') return item.platform !== 'X' && item.platform !== 'X / Twitter';
-          return item.platform !== p;
-        });
-        list.push(...stock.offers);
-      }
+    const list: AccountProduct[] = [];
+    for (const stock of Object.values(liveByPlatform)) {
+      list.push(...stock.offers);
     }
     return list;
   }, [liveByPlatform]);
@@ -432,7 +434,7 @@ export function AccountsPage({ onBack, session }: { onBack: () => void; session?
 
   function selectPlatform(p: string) {
     setPlatform(p);
-    if (LIVE_PLATFORMS.has(p)) {
+    if (LIVE_PLATFORM_SET.has(p) && !liveByPlatform[p]) {
       void loadPlatformStock(p);
     }
   }
@@ -510,16 +512,25 @@ export function AccountsPage({ onBack, session }: { onBack: () => void; session?
       </div>
 
       {(() => {
+        const anyLoading = Object.values(loadingPlatforms).some(Boolean);
         const isCurrentLoading =
           platform === 'All'
-            ? Boolean(loadingPlatforms['Facebook'])
+            ? anyLoading && catalog.length === 0
             : Boolean(loadingPlatforms[platform]);
         const isCurrentLive =
           platform === 'All'
             ? Object.values(liveByPlatform).some((st) => st.offers.length > 0)
             : Boolean(liveByPlatform[platform]?.offers.length);
-        const currentError = platform !== 'All' ? errorByPlatform[platform] : null;
         const currentLiveOffers = platform !== 'All' ? liveByPlatform[platform]?.offers : null;
+        const allFeedsFailed =
+          LIVE_PLATFORMS.every((p) => !(liveByPlatform[p]?.offers.length > 0)) &&
+          LIVE_PLATFORMS.every((p) => errorByPlatform[p]);
+        const currentError =
+          platform !== 'All'
+            ? errorByPlatform[platform]
+            : allFeedsFailed
+              ? 'Live stock feed is unavailable right now. Tap a platform to retry.'
+              : null;
 
         return (
           <>
@@ -535,7 +546,7 @@ export function AccountsPage({ onBack, session }: { onBack: () => void; session?
             </div>
             {currentError && (!currentLiveOffers || currentLiveOffers.length === 0) && (
               <p className="accounts-catalog-hint" role="status">
-                Live {platform} feed unavailable — showing demo stock. {currentError}
+                {currentError}
               </p>
             )}
           </>
@@ -609,18 +620,10 @@ export function AccountsPage({ onBack, session }: { onBack: () => void; session?
 
       <div className="accounts-list">
         {filtered.map((p) => (
-          <article
+          <div
             key={p.id}
             className="account-card-row"
             onClick={() => setSelected(p)}
-            role="button"
-            tabIndex={0}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                setSelected(p);
-              }
-            }}
           >
             <div className="card-row-left">
               <div className="card-row-logo-wrap">
@@ -660,11 +663,11 @@ export function AccountsPage({ onBack, session }: { onBack: () => void; session?
                 Buy →
               </button>
             </div>
-          </article>
+          </div>
         ))}
       </div>
 
-      {!filtered.length && !(platform === 'All' ? loadingPlatforms['Facebook'] : loadingPlatforms[platform]) && (
+      {!filtered.length && !Object.values(loadingPlatforms).some(Boolean) && (
         <Card className="accounts-empty">
           <Package size={22} />
           <strong>No accounts match</strong>
@@ -802,7 +805,7 @@ function AccountDetail({
           <h1>Your account{purchase.credentials.length === 1 ? ' is' : 's are'} ready</h1>
           <p className="account-result-summary">{product.title} · {purchase.credentials.length} delivered · {money(purchase.totalNgn)}</p>
           {purchase.orderId && <p className="account-result-reference">Order reference <code>{purchase.orderId}</code></p>}
-          {purchase.warning && <p className="account-result-warning" role="status">Delivery succeeded, but My Logs could not be updated. Copy and save these credentials, then contact support with your order reference.</p>}
+          {purchase.warning && <p className="account-result-warning" role="status">{purchase.warning}</p>}
           <section className="account-delivery-credentials" aria-label="Delivered account credentials">
             <div className="account-credentials-heading"><div><strong>Delivered credentials</strong><span>Keep these details private and secure.</span></div><button type="button" onClick={async () => { try { await navigator.clipboard.writeText(purchase.credentials.join('\n')); setCopied(true); setTimeout(() => setCopied(false), 1600); } catch { setBuyError('Clipboard access is unavailable. Select and copy the credentials manually.'); } }}>{copied ? <Check size={15} /> : <Copy size={15} />} {copied ? 'Copied' : 'Copy all'}</button></div>
             <div className="account-credential-list">{purchase.credentials.map((line, index) => <code key={`${index}-${line}`}>{line}</code>)}</div>
@@ -947,3 +950,4 @@ function AccountDetail({
     </div>
   );
 }
+
