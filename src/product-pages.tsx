@@ -6,9 +6,7 @@ import {
   ArrowRight,
   Check,
   CheckCircle2,
-  ChevronRight,
   Copy,
-  FolderOpen,
   Package,
   Search,
   ShieldCheck,
@@ -528,7 +526,6 @@ export function AccountsPage({ onBack, session }: { onBack: () => void; session?
   const [query, setQuery] = useState('');
   const [platform, setPlatform] = useState<string>('All');
   const [subtype, setSubtype] = useState<string | null>(null);
-  const [subtypeDrawerOpen, setSubtypeDrawerOpen] = useState(false);
   const [selected, setSelected] = useState<AccountProduct | null>(null);
   const [showMyLogs, setShowMyLogs] = useState(false);
   const [slide, setSlide] = useState(0);
@@ -665,7 +662,6 @@ export function AccountsPage({ onBack, session }: { onBack: () => void; session?
 
   useEffect(() => {
     setSubtype(null);
-    setSubtypeDrawerOpen(false);
   }, [platform]);
 
   const catalog = useMemo(() => {
@@ -748,7 +744,6 @@ export function AccountsPage({ onBack, session }: { onBack: () => void; session?
 
   function selectSubtype(name: string | null) {
     setSubtype(name);
-    setSubtypeDrawerOpen(false);
   }
 
   return (
@@ -861,41 +856,42 @@ export function AccountsPage({ onBack, session }: { onBack: () => void; session?
       })()}
 
       {showSubtypeBar && (
-        <button
-          type="button"
-          className={`accounts-subtype-bar${subtype ? ' is-filtered' : ''}`}
-          onClick={() => setSubtypeDrawerOpen(true)}
-          aria-expanded={subtypeDrawerOpen}
-          aria-haspopup="dialog"
-        >
-          <span className="subtype-bar-icon" aria-hidden>
-            <FolderOpen size={16} />
-          </span>
-          <span className="subtype-bar-copy">
-            {subtype ? (
-              <>
-                <strong>
-                  {platform} › {subtype}
-                </strong>
-                <small>
-                  {platformSubtypes.find((s) => s.name === subtype)?.count ?? 0} listing
-                  {(platformSubtypes.find((s) => s.name === subtype)?.count ?? 0) === 1 ? '' : 's'}
-                </small>
-              </>
-            ) : (
-              <>
-                <strong>
-                  All {platform} Accounts ({filtered.length})
-                </strong>
-                <small>Tap to filter by type (Marketplace, Aged, Softreg…)</small>
-              </>
+        <div className="subtype-inline-card">
+          <div className="subtype-inline-head">
+            <div className="subtype-inline-title">
+              <strong>{platform} Categories ({platformSubtypes.length})</strong>
+              <p>Filter listings by type</p>
+            </div>
+            {subtype && (
+              <button type="button" className="subtype-inline-reset" onClick={() => selectSubtype(null)}>
+                Reset
+              </button>
             )}
-          </span>
-          <span className="subtype-bar-action">
-            {subtype ? 'Change' : ''}
-            <ChevronRight size={16} />
-          </span>
-        </button>
+          </div>
+          <div className="subtype-inline-list">
+            <button
+              type="button"
+              className={`subtype-inline-option${!subtype ? ' active' : ''}`}
+              onClick={() => selectSubtype(null)}
+            >
+              <span className="subtype-inline-name">All {platform}</span>
+              <span className="subtype-inline-meta">{filtered.length} listings</span>
+            </button>
+            {platformSubtypes.map((s) => (
+              <button
+                key={s.name}
+                type="button"
+                className={`subtype-inline-option${subtype === s.name ? ' active' : ''}`}
+                onClick={() => selectSubtype(s.name)}
+              >
+                <span className="subtype-inline-name">{s.name}</span>
+                <span className="subtype-inline-meta">
+                  {s.count} listings · {s.stock.toLocaleString()} in stock
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
       )}
 
       <div className="accounts-promo">
@@ -980,52 +976,6 @@ export function AccountsPage({ onBack, session }: { onBack: () => void; session?
           <strong>No accounts match</strong>
           <p>Try another platform or clear search.</p>
         </Card>
-      )}
-
-      {subtypeDrawerOpen && showSubtypeBar && (
-        <div className="sheet-backdrop subtype-drawer-backdrop" onClick={() => setSubtypeDrawerOpen(false)}>
-          <div className="subtype-drawer" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
-            <div className="subtype-drawer-handle" />
-            <div className="subtype-drawer-head">
-              <div>
-                <strong>{platform} Categories ({platformSubtypes.length})</strong>
-                <p>Filter listings by type</p>
-              </div>
-              <button type="button" onClick={() => setSubtypeDrawerOpen(false)} aria-label="Close">
-                <X size={18} />
-              </button>
-            </div>
-            <div className="subtype-option-list">
-              <button
-                type="button"
-                className={`subtype-option${!subtype ? ' active' : ''}`}
-                onClick={() => selectSubtype(null)}
-              >
-                <div className="subtype-option-main">
-                  <strong>All {platform}</strong>
-                  <small>{filtered.length} listings</small>
-                </div>
-                {!subtype && <Check size={16} />}
-              </button>
-              {platformSubtypes.map((s) => (
-                <button
-                  key={s.name}
-                  type="button"
-                  className={`subtype-option${subtype === s.name ? ' active' : ''}`}
-                  onClick={() => selectSubtype(s.name)}
-                >
-                  <div className="subtype-option-main">
-                    <strong>{s.name}</strong>
-                    <small>
-                      {s.count} · {s.stock.toLocaleString()} in stock
-                    </small>
-                  </div>
-                  {subtype === s.name && <Check size={16} />}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
       )}
 
       {toast && <div className="accounts-toast">{toast}</div>}
