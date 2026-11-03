@@ -43,12 +43,23 @@ const ENABLED_PLATFORMS = new Set([
   'premium subscriptions',
   'mastercard',
   'apple',
+  'e-commerce',
+  'spotify',
+  'vpn',
+  'netflix',
+  'pinterest',
+  'yahoo',
+  'capcut',
+  'phone & messaging',
+  'roblox',
+  'github',
+  'outlook',
 ]);
 
 /**
  * GET /api/v1/accounts/catalog
  * Query:
- *   platform=Facebook | Instagram | TikTok | X / Twitter | Telegram | Gmail | YouTube | Threads | WhatsApp | Mobile Proxies | Google Voice | Odnoklassniki | LinkedIn | Reddit | Indeed | Truth Social | AI Accounts | Google Ads | Bluesky | Snapchat | Discord | Twitch | Trustpilot | Quora | Dating Apps | Grindr | eHarmony | Badoo | Gaming | Premium Subscriptions | Mastercard | Apple | categories
+ *   platform=Facebook | Instagram | TikTok | X / Twitter | Telegram | Gmail | YouTube | Threads | WhatsApp | Mobile Proxies | Google Voice | Odnoklassniki | LinkedIn | Reddit | Indeed | Truth Social | AI Accounts | Google Ads | Bluesky | Snapchat | Discord | Twitch | Trustpilot | Quora | Dating Apps | Grindr | eHarmony | Badoo | Gaming | Premium Subscriptions | Mastercard | Apple | E-Commerce | Spotify | VPN | Netflix | Pinterest | Yahoo | CapCut | Phone & Messaging | Roblox | GitHub | Outlook | categories
  *   refresh=1 force upstream re-fetch
  */
 export async function GET(req: NextRequest) {
@@ -84,7 +95,7 @@ export async function GET(req: NextRequest) {
           offers: [],
           total: 0,
           inStock: 0,
-          error: `Live catalogue for ${rawPlatform} is coming soon. Facebook, Instagram, TikTok, X / Twitter, Telegram, Gmail, YouTube, Threads, WhatsApp, Mobile Proxies, Google Voice, Odnoklassniki, LinkedIn, Reddit, Indeed, Truth Social, AI Accounts, Google Ads, Bluesky, Snapchat, Discord, Twitch, Trustpilot, Quora, Dating Apps, Grindr, eHarmony, Badoo, Gaming, Premium Subscriptions, Mastercard, and Apple are live.`,
+          error: `Live catalogue for ${rawPlatform} is coming soon. Facebook, Instagram, TikTok, X / Twitter, Telegram, Gmail, YouTube, Threads, WhatsApp, Mobile Proxies, Google Voice, Odnoklassniki, LinkedIn, Reddit, Indeed, Truth Social, AI Accounts, Google Ads, Bluesky, Snapchat, Discord, Twitch, Trustpilot, Quora, Dating Apps, Grindr, eHarmony, Badoo, Gaming, Premium Subscriptions, Mastercard, Apple, E-Commerce, Spotify, VPN, Netflix, Pinterest, Yahoo, CapCut, Phone & Messaging, Roblox, GitHub, and Outlook are live.`,
         },
         {
           status: 200,

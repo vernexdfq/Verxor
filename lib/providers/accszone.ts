@@ -417,6 +417,17 @@ export function normalizePlatform(platform: string): string {
   const lower = p.toLowerCase();
   if (lower.includes('mobile prox') || lower.includes('proxy') || lower.includes('proxies')) return 'Mobile Proxies';
   if (lower.includes('google voice')) return 'Google Voice';
+  if (lower.includes('e-commerce') || lower.includes('ecommerce')) return 'E-Commerce';
+  if (lower.includes('spotify')) return 'Spotify';
+  if (lower.includes('vpn')) return 'VPN';
+  if (lower.includes('netflix')) return 'Netflix';
+  if (lower.includes('pinterest')) return 'Pinterest';
+  if (lower.includes('yahoo')) return 'Yahoo';
+  if (lower.includes('capcut')) return 'CapCut';
+  if (lower.includes('phone') || lower.includes('messaging')) return 'Phone & Messaging';
+  if (lower.includes('roblox')) return 'Roblox';
+  if (lower.includes('github')) return 'GitHub';
+  if (lower.includes('outlook')) return 'Outlook';
   if (lower.includes('apple')) return 'Apple';
   if (lower.includes('mastercard')) return 'Mastercard';
   if (lower.includes('google ads')) return 'Google Ads';
@@ -481,6 +492,17 @@ export async function resolveCategoryIdForPlatform(platform: string): Promise<nu
   else if (norm === 'Premium Subscriptions') terms.push('premium subscriptions', 'premium subscription', 'subscriptions');
   else if (norm === 'Mastercard') terms.push('mastercard');
   else if (norm === 'Apple') terms.push('apple accounts', 'apple');
+  else if (norm === 'E-Commerce') terms.push('e-commerce', 'ecommerce');
+  else if (norm === 'Spotify') terms.push('spotify premium', 'spotify');
+  else if (norm === 'VPN') terms.push('vpn premium', 'vpn');
+  else if (norm === 'Netflix') terms.push('netflix');
+  else if (norm === 'Pinterest') terms.push('pinterest');
+  else if (norm === 'Yahoo') terms.push('yahoo mail', 'yahoo');
+  else if (norm === 'CapCut') terms.push('capcut pro', 'capcut');
+  else if (norm === 'Phone & Messaging') terms.push('phone & messaging', 'messaging', 'phone');
+  else if (norm === 'Roblox') terms.push('roblox');
+  else if (norm === 'GitHub') terms.push('github');
+  else if (norm === 'Outlook') terms.push('outlook email', 'outlook');
   else terms.push(norm.toLowerCase());
 
   for (const t of terms) {
