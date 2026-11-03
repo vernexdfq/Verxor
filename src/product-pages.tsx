@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import {
   ArrowLeft,
   ArrowRight,
@@ -229,45 +229,60 @@ export function AccountsPage({ onBack, session }: { onBack: () => void; session?
   const [showMyLogs, setShowMyLogs] = useState(false);
   const [slide, setSlide] = useState(0);
   const [toast, setToast] = useState<string | null>(null);
-  const [liveFacebook, setLiveFacebook] = useState<AccountProduct[]>([]);
-  const [liveFbSubtypes, setLiveFbSubtypes] = useState<{ name: string; count: number; stock: number }[]>([]);
-  const [catalogLoading, setCatalogLoading] = useState(true);
-  const [catalogError, setCatalogError] = useState<string | null>(null);
+  const LIVE_PLATFORMS = useMemo(
+    () => new Set(['Facebook', 'Instagram', 'TikTok', 'X / Twitter', 'Telegram']),
+    [],
+  );
 
-  useEffect(() => {
-    let cancelled = false;
-    const CACHE_KEY = 'verxor:fb-catalog:v1';
+  const [liveByPlatform, setLiveByPlatform] = useState<
+    Record<
+      string,
+      {
+        offers: AccountProduct[];
+        subtypes: { name: string; count: number; stock: number }[];
+      }
+    >
+  >({});
+  const [loadingPlatforms, setLoadingPlatforms] = useState<Record<string, boolean>>({});
+  const [errorByPlatform, setErrorByPlatform] = useState<Record<string, string | null>>({});
+
+  const loadPlatformStock = useCallback(async (p: string) => {
+    if (!LIVE_PLATFORMS.has(p)) return;
+    const cacheKey = `verxor:cat:${p.toLowerCase()}:v1`;
     type Cat = { offers: unknown[]; subtypes: { name: string; count: number; stock: number }[] };
 
-    const apply = (data: Cat) => {
-      setLiveFacebook((data.offers as Parameters<typeof offerToProduct>[0][]).map(offerToProduct));
-      setLiveFbSubtypes(
-        (data.subtypes || []).map((s) => ({ name: s.name, count: s.count, stock: s.stock })),
-      );
-    };
-
-    // 1) Paint instantly from the last good catalog on this device.
     let hadCache = false;
     try {
-      const raw = localStorage.getItem(CACHE_KEY);
+      const raw = localStorage.getItem(cacheKey);
       if (raw) {
         const saved = JSON.parse(raw) as { at: number; data: Cat };
         if (saved?.data && Array.isArray(saved.data.offers) && saved.data.offers.length > 0) {
-          apply(saved.data);
+          setLiveByPlatform((prev) => ({
+            ...prev,
+            [p]: {
+              offers: (saved.data.offers as Parameters<typeof offerToProduct>[0][]).map(offerToProduct),
+              subtypes: saved.data.subtypes || [],
+            },
+          }));
           hadCache = true;
-          setCatalogLoading(false);
         }
       }
     } catch {
-      /* ignore corrupt cache */
+      /* ignore */
     }
 
-    // 2) Revalidate quietly in the background (with retries, JSON-safe).
+    if (!hadCache) {
+      setLoadingPlatforms((prev) => ({ ...prev, [p]: true }));
+    }
+    setErrorByPlatform((prev) => ({ ...prev, [p]: null }));
+
     async function fetchOnce(): Promise<Cat> {
       const ctrl = new AbortController();
       const timer = setTimeout(() => ctrl.abort(), 25000);
       try {
-        const res = await fetch('/api/v1/accounts/catalog?platform=Facebook', { signal: ctrl.signal });
+        const res = await fetch(`/api/v1/accounts/catalog?platform=${encodeURIComponent(p)}`, {
+          signal: ctrl.signal,
+        });
         const text = await res.text();
         let data: (Cat & { ok?: boolean; error?: string }) | null = null;
         try {
@@ -276,7 +291,7 @@ export function AccountsPage({ onBack, session }: { onBack: () => void; session?
           throw new Error('Stock is refreshing. Retrying…');
         }
         if (!data?.ok || !Array.isArray(data.offers)) {
-          throw new Error(data?.error || 'Could not load live Facebook stock');
+          throw new Error(data?.error || `Could not load live ${p} stock`);
         }
         return data;
       } finally {
@@ -284,40 +299,43 @@ export function AccountsPage({ onBack, session }: { onBack: () => void; session?
       }
     }
 
-    (async () => {
-      if (!hadCache) setCatalogLoading(true);
-      setCatalogError(null);
-      let lastErr = 'Could not load live Facebook stock';
-      for (let attempt = 0; attempt < 3 && !cancelled; attempt += 1) {
+    let lastErr = `Could not load live ${p} stock`;
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      try {
+        const data = await fetchOnce();
+        const offers = (data.offers as Parameters<typeof offerToProduct>[0][]).map(offerToProduct);
+        const subtypes = (data.subtypes || []).map((sub) => ({
+          name: sub.name,
+          count: sub.count,
+          stock: sub.stock,
+        }));
+        setLiveByPlatform((prev) => ({
+          ...prev,
+          [p]: { offers, subtypes },
+        }));
+        setErrorByPlatform((prev) => ({ ...prev, [p]: null }));
         try {
-          const data = await fetchOnce();
-          if (cancelled) return;
-          apply(data);
-          setCatalogError(null);
-          try {
-            localStorage.setItem(CACHE_KEY, JSON.stringify({ at: Date.now(), data }));
-          } catch {
-            /* storage full */
-          }
-          setCatalogLoading(false);
-          return;
-        } catch (e) {
-          lastErr = e instanceof Error ? e.message : 'Network error';
-          await new Promise((r) => setTimeout(r, 1500 * (attempt + 1)));
+          localStorage.setItem(cacheKey, JSON.stringify({ at: Date.now(), data }));
+        } catch {
+          /* storage full */
         }
+        setLoadingPlatforms((prev) => ({ ...prev, [p]: false }));
+        return;
+      } catch (e) {
+        lastErr = e instanceof Error ? e.message : 'Network error';
+        await new Promise((r) => setTimeout(r, 1200 * (attempt + 1)));
       }
-      if (cancelled) return;
-      if (!hadCache) {
-        setCatalogError(lastErr);
-        setLiveFacebook([]);
-        setLiveFbSubtypes([]);
-      }
-      setCatalogLoading(false);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    }
+
+    if (!hadCache) {
+      setErrorByPlatform((prev) => ({ ...prev, [p]: lastErr }));
+    }
+    setLoadingPlatforms((prev) => ({ ...prev, [p]: false }));
+  }, [LIVE_PLATFORMS]);
+
+  useEffect(() => {
+    void loadPlatformStock('Facebook');
+  }, [loadPlatformStock]);
 
   useEffect(() => {
     const t = setInterval(() => setSlide((s) => (s + 1) % PROMO_SLIDES.length), 4500);
@@ -336,14 +354,23 @@ export function AccountsPage({ onBack, session }: { onBack: () => void; session?
   }, [platform]);
 
   const catalog = useMemo(() => {
-    const nonFb = CATALOG.filter((p) => p.platform !== 'Facebook');
-    if (liveFacebook.length > 0) return [...liveFacebook, ...nonFb];
-    return CATALOG;
-  }, [liveFacebook]);
+    let list = [...CATALOG];
+    for (const [p, stock] of Object.entries(liveByPlatform)) {
+      if (stock.offers.length > 0) {
+        list = list.filter((item) => {
+          if (p === 'X / Twitter') return item.platform !== 'X' && item.platform !== 'X / Twitter';
+          return item.platform !== p;
+        });
+        list.push(...stock.offers);
+      }
+    }
+    return list;
+  }, [liveByPlatform]);
 
   const platformSubtypes = useMemo(() => {
     if (platform === 'All') return [] as { name: string; count: number; stock: number }[];
-    if (platform === 'Facebook' && liveFbSubtypes.length > 0) return liveFbSubtypes;
+    const live = liveByPlatform[platform];
+    if (live && live.subtypes.length > 0) return live.subtypes;
     const map = new Map<string, { count: number; stock: number }>();
     for (const p of catalog) {
       if (p.stock <= 0) continue;
@@ -359,7 +386,7 @@ export function AccountsPage({ onBack, session }: { onBack: () => void; session?
     return Array.from(map.entries())
       .map(([name, v]) => ({ name, count: v.count, stock: v.stock }))
       .sort((a, b) => b.stock - a.stock);
-  }, [platform, catalog, liveFbSubtypes]);
+  }, [platform, catalog, liveByPlatform]);
 
   const showSubtypeBar = platform !== 'All' && platformSubtypes.length >= 2;
 
@@ -405,6 +432,9 @@ export function AccountsPage({ onBack, session }: { onBack: () => void; session?
 
   function selectPlatform(p: string) {
     setPlatform(p);
+    if (LIVE_PLATFORMS.has(p)) {
+      void loadPlatformStock(p);
+    }
   }
 
   function selectSubtype(name: string | null) {
@@ -479,21 +509,38 @@ export function AccountsPage({ onBack, session }: { onBack: () => void; session?
         })}
       </div>
 
-      <div className="accounts-meta-row">
-        <strong>
-          {catalogLoading
-            ? 'Loading live stock…'
-            : `${filtered.length} listing${filtered.length === 1 ? '' : 's'}`}
-        </strong>
-        <span className="live-dot">
-          <i /> {liveFacebook.length > 0 ? 'Live · In stock only' : 'In stock only'}
-        </span>
-      </div>
-      {catalogError && liveFacebook.length === 0 && (
-        <p className="accounts-catalog-hint" role="status">
-          Live Facebook feed unavailable — showing demo stock. {catalogError}
-        </p>
-      )}
+      {(() => {
+        const isCurrentLoading =
+          platform === 'All'
+            ? Boolean(loadingPlatforms['Facebook'])
+            : Boolean(loadingPlatforms[platform]);
+        const isCurrentLive =
+          platform === 'All'
+            ? Object.values(liveByPlatform).some((st) => st.offers.length > 0)
+            : Boolean(liveByPlatform[platform]?.offers.length);
+        const currentError = platform !== 'All' ? errorByPlatform[platform] : null;
+        const currentLiveOffers = platform !== 'All' ? liveByPlatform[platform]?.offers : null;
+
+        return (
+          <>
+            <div className="accounts-meta-row">
+              <strong>
+                {isCurrentLoading
+                  ? 'Loading live stock…'
+                  : `${filtered.length} listing${filtered.length === 1 ? '' : 's'}`}
+              </strong>
+              <span className="live-dot">
+                <i /> {isCurrentLive ? 'Live · In stock only' : 'In stock only'}
+              </span>
+            </div>
+            {currentError && (!currentLiveOffers || currentLiveOffers.length === 0) && (
+              <p className="accounts-catalog-hint" role="status">
+                Live {platform} feed unavailable — showing demo stock. {currentError}
+              </p>
+            )}
+          </>
+        );
+      })()}
 
       {showSubtypeBar && (
         <button
@@ -617,7 +664,7 @@ export function AccountsPage({ onBack, session }: { onBack: () => void; session?
         ))}
       </div>
 
-      {!filtered.length && !catalogLoading && (
+      {!filtered.length && !(platform === 'All' ? loadingPlatforms['Facebook'] : loadingPlatforms[platform]) && (
         <Card className="accounts-empty">
           <Package size={22} />
           <strong>No accounts match</strong>
@@ -695,13 +742,17 @@ function AccountDetail({
   const [purchase, setPurchase] = useState<{ orderId: string | null; credentials: string[]; totalNgn: number; warning?: string } | null>(null);
   const [copied, setCopied] = useState(false);
   const total = product.price * qty;
-  const liveFacebookListing = product.platform === 'Facebook' && Number(product.providerListingId) > 0;
+  const LIVE_CHECKOUT_SET = useMemo(
+    () => new Set(['Facebook', 'Instagram', 'TikTok', 'X / Twitter', 'Telegram', 'X']),
+    [],
+  );
+  const isLiveListing = LIVE_CHECKOUT_SET.has(product.platform) && Number(product.providerListingId) > 0;
   const canPay = wallet >= total;
 
   async function submitPurchase() {
     if (buying) return;
-    if (!liveFacebookListing) {
-      setBuyError('Live checkout is currently available for Facebook listings only.');
+    if (!isLiveListing) {
+      setBuyError('Live checkout is currently available for Facebook, Instagram, TikTok, X / Twitter, and Telegram.');
       return;
     }
     const token = loadSessionTokens()?.access_token;
@@ -715,7 +766,7 @@ function AccountDetail({
       const res = await fetch('/api/v1/accounts/buy', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ providerListingId: product.providerListingId, quantity: qty }),
+        body: JSON.stringify({ providerListingId: product.providerListingId, quantity: qty, platform: product.platform }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data?.ok) throw new Error(data?.error || 'Purchase could not be completed.');
@@ -878,7 +929,7 @@ function AccountDetail({
         {buyError && <p className="account-checkout-error" role="alert">{buyError}</p>}
         <PrimaryButton
           className="detail-order-btn"
-          disabled={buying || !liveFacebookListing}
+          disabled={buying || !isLiveListing}
           onClick={() => {
             if (!canPay) {
               onCheckoutBlocked('Insufficient wallet balance. Fund wallet to continue.');
@@ -887,7 +938,7 @@ function AccountDetail({
             void submitPurchase();
           }}
         >
-          {buying ? 'Processing secure payment…' : liveFacebookListing ? (canPay ? `Pay ${money(total)}` : 'Fund Wallet') : 'Facebook checkout only'}
+          {buying ? 'Processing secure payment…' : isLiveListing ? (canPay ? `Pay ${money(total)}` : 'Fund Wallet') : 'Coming soon'}
           {!buying && <ArrowRight size={16} />}
         </PrimaryButton>
 

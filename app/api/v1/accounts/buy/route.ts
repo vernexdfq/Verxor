@@ -4,7 +4,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { fetchFacebookCatalog, purchaseListing } from '@/lib/providers/accszone';
+import { fetchPlatformCatalog, purchaseListing, normalizePlatform } from '@/lib/providers/accszone';
 import { sbInsert, supabaseConfigured } from '@/lib/supabase-admin';
 
 export const dynamic = 'force-dynamic';
@@ -122,11 +122,18 @@ export async function POST(req: NextRequest) {
 
     // Never trust client-supplied price/title/platform. Confirm this listing and
     // current retail price from the server-side provider catalogue before debit.
-    const catalog = await fetchFacebookCatalog({ forceRefresh: true });
-    if (!catalog.ok || catalog.source === 'fallback' || catalog.source === 'error') {
-      return bad('Live Facebook catalogue is temporarily unavailable. No payment was taken.', 503);
+    const platformToValidate = normalizePlatform(body.platform?.trim() || 'Facebook');
+    const enabledPlatforms = new Set(['Facebook', 'Instagram', 'TikTok', 'X / Twitter', 'Telegram']);
+    if (!enabledPlatforms.has(platformToValidate)) {
+      return bad('Live checkout is not enabled for this platform.', 400);
     }
-    const listing = catalog.offers.find((offer) => offer.providerListingId === adId);
+    const catalog = await fetchPlatformCatalog(platformToValidate, { forceRefresh: true });
+    if (!catalog.ok || catalog.source === 'fallback' || catalog.source === 'error') {
+      return bad(`Live ${platformToValidate} catalogue is temporarily unavailable. No payment was taken.`, 503);
+    }
+    const listing = catalog.offers.find(
+      (offer) => offer.providerListingId === adId && normalizePlatform(offer.platform) === platformToValidate,
+    );
     if (!listing || listing.stock < requestedQty || listing.priceNgn <= 0) {
       return bad('This listing is no longer available in the requested quantity. Refresh the catalogue.', 409);
     }

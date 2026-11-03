@@ -1,35 +1,63 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { fetchFacebookCatalog } from '@/lib/providers/accszone';
+import {
+  fetchPlatformCatalog,
+  fetchAccsZoneCategories,
+  normalizePlatform,
+} from '@/lib/providers/accszone';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
+const ENABLED_PLATFORMS = new Set([
+  'facebook',
+  'instagram',
+  'tiktok',
+  'x / twitter',
+  'x',
+  'twitter',
+  'telegram',
+]);
+
 /**
  * GET /api/v1/accounts/catalog
  * Query:
- *   platform=Facebook (default, only Facebook live for now)
+ *   platform=Facebook | Instagram | TikTok | X / Twitter | Telegram | categories
  *   refresh=1 force upstream re-fetch
  */
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
-    const platform = (searchParams.get('platform') || 'Facebook').trim();
+    const rawPlatform = (searchParams.get('platform') || 'Facebook').trim();
     const forceRefresh =
       searchParams.get('refresh') === '1' || searchParams.get('refresh') === 'true';
 
-    if (platform.toLowerCase() !== 'facebook') {
+    if (rawPlatform.toLowerCase() === 'categories') {
+      const categories = await fetchAccsZoneCategories().catch(() => []);
+      return NextResponse.json(
+        {
+          ok: true,
+          categories,
+        },
+        {
+          headers: { 'Cache-Control': 'public, s-maxage=3600' },
+        },
+      );
+    }
+
+    const normLower = rawPlatform.toLowerCase();
+    if (!ENABLED_PLATFORMS.has(normLower)) {
       return NextResponse.json(
         {
           ok: false,
           source: 'empty',
-          platform,
+          platform: rawPlatform,
           rate: Number(process.env.USD_NGN_RATE || 1380),
           updatedAt: new Date().toISOString(),
           subtypes: [],
           offers: [],
           total: 0,
           inStock: 0,
-          error: `Live catalogue for ${platform} is not enabled yet. Facebook is live.`,
+          error: `Live catalogue for ${rawPlatform} is coming soon. Facebook, Instagram, TikTok, X / Twitter, and Telegram are live.`,
         },
         {
           status: 200,
@@ -38,7 +66,8 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const catalog = await fetchFacebookCatalog({ forceRefresh });
+    const platform = normalizePlatform(rawPlatform);
+    const catalog = await fetchPlatformCatalog(platform, { forceRefresh });
 
     if (!catalog.ok) {
       const isMissingConfig = catalog.error?.toLowerCase().includes('not configured');
@@ -60,7 +89,7 @@ export async function GET(req: NextRequest) {
       {
         ok: false,
         source: 'error',
-        platform: 'Facebook',
+        platform: 'All',
         rate: Number(process.env.USD_NGN_RATE || 1380),
         updatedAt: new Date().toISOString(),
         subtypes: [],

@@ -324,45 +324,135 @@ function mapListing(item: AccsZoneListing, platform: string, rate: number): Acco
 
 export const ACCSZONE_FACEBOOK_CATEGORY_ID = 22;
 
+export const KNOWN_CATEGORY_IDS: Record<string, number> = {
+  facebook: 22,
+};
+
+let cachedCategories: AccsZoneCategory[] | null = null;
+let categoriesFetchedAt = 0;
+const CATEGORIES_CACHE_TTL = 60 * 60 * 1000; // 1 hour
+
+export async function fetchAccsZoneCategories(): Promise<AccsZoneCategory[]> {
+  const now = Date.now();
+  if (cachedCategories && now - categoriesFetchedAt < CATEGORIES_CACHE_TTL) {
+    return cachedCategories;
+  }
+  const res = await accsFetch<{ success: boolean; data: AccsZoneCategory[] } | AccsZoneCategory[]>('/categories');
+  let list: AccsZoneCategory[] = [];
+  if (Array.isArray(res)) {
+    list = res;
+  } else if (res && typeof res === 'object') {
+    const data = (res as Record<string, unknown>).data;
+    if (Array.isArray(data)) list = data as AccsZoneCategory[];
+    else if (Array.isArray((res as Record<string, unknown>).categories)) {
+      list = (res as Record<string, unknown>).categories as AccsZoneCategory[];
+    }
+  }
+  if (list.length > 0) {
+    cachedCategories = list;
+    categoriesFetchedAt = now;
+  }
+  return list;
+}
+
+export function normalizePlatform(platform: string): string {
+  const p = (platform || '').trim();
+  const lower = p.toLowerCase();
+  if (lower === 'x' || lower.includes('twitter')) return 'X / Twitter';
+  if (lower.includes('instagram')) return 'Instagram';
+  if (lower.includes('tiktok')) return 'TikTok';
+  if (lower.includes('telegram')) return 'Telegram';
+  if (lower.includes('facebook')) return 'Facebook';
+  if (lower.includes('youtube')) return 'YouTube';
+  if (lower.includes('gmail') || lower.includes('google')) return 'Gmail';
+  if (lower.includes('discord')) return 'Discord';
+  if (lower.includes('linkedin')) return 'LinkedIn';
+  if (lower.includes('threads')) return 'Threads';
+  if (lower.includes('reddit')) return 'Reddit';
+  if (lower.includes('snapchat')) return 'Snapchat';
+  return p || 'Facebook';
+}
+
+export async function resolveCategoryIdForPlatform(platform: string): Promise<number | null> {
+  const norm = normalizePlatform(platform);
+  const key = norm.toLowerCase();
+  if (KNOWN_CATEGORY_IDS[key]) return KNOWN_CATEGORY_IDS[key];
+
+  const categories = await fetchAccsZoneCategories().catch(() => []);
+  if (!categories || categories.length === 0) return KNOWN_CATEGORY_IDS[key] ?? null;
+
+  const terms: string[] = [];
+  if (norm === 'Facebook') terms.push('facebook');
+  else if (norm === 'Instagram') terms.push('instagram');
+  else if (norm === 'TikTok') terms.push('tiktok');
+  else if (norm === 'X / Twitter') terms.push('twitter', 'x accounts', 'x / twitter', 'x.com');
+  else if (norm === 'Telegram') terms.push('telegram');
+  else terms.push(norm.toLowerCase());
+
+  for (const t of terms) {
+    const match = categories.find((c) => {
+      const title = (c.title || '').toLowerCase();
+      const slug = (c.slug || '').toLowerCase();
+      return title.includes(t) || slug.includes(t);
+    });
+    if (match) {
+      KNOWN_CATEGORY_IDS[key] = match.id;
+      return match.id;
+    }
+  }
+
+  return null;
+}
+
+
 type CacheEntry = { at: number; catalog: AccountsCatalog };
 const cache = new Map<string, CacheEntry>();
 
 const inflight = new Map<string, Promise<AccountsCatalog>>();
 
-export async function fetchFacebookCatalog(options?: {
-  forceRefresh?: boolean;
-}): Promise<AccountsCatalog> {
+export async function fetchPlatformCatalog(
+  platformInput: string,
+  options?: { forceRefresh?: boolean },
+): Promise<AccountsCatalog> {
   const rate = exchangeRate();
-  const cacheKey = `facebook:${rate}`;
+  const platform = normalizePlatform(platformInput);
+  const cacheKey = `${platform.toLowerCase()}:${rate}`;
   const now = Date.now();
   const hit = cache.get(cacheKey);
   if (hit && !options?.forceRefresh) {
     const age = now - hit.at;
     if (age < CACHE_TTL_MS) return { ...hit.catalog, source: 'cached' };
     if (age < STALE_MAX_MS) {
-      // Serve instantly, refresh in the background.
-      void loadFacebookCatalog(cacheKey, rate).catch(() => undefined);
+      void loadPlatformCatalog(platform, cacheKey, rate).catch(() => undefined);
       return { ...hit.catalog, source: 'cached' };
     }
   }
-  return loadFacebookCatalog(cacheKey, rate);
+  return loadPlatformCatalog(platform, cacheKey, rate);
 }
 
-function loadFacebookCatalog(cacheKey: string, rate: number): Promise<AccountsCatalog> {
+function loadPlatformCatalog(
+  platform: string,
+  cacheKey: string,
+  rate: number,
+): Promise<AccountsCatalog> {
   const existing = inflight.get(cacheKey);
   if (existing) return existing;
-  const p = buildFacebookCatalog(cacheKey, rate).finally(() => inflight.delete(cacheKey));
+  const p = buildPlatformCatalog(platform, cacheKey, rate).finally(() => inflight.delete(cacheKey));
   inflight.set(cacheKey, p);
   return p;
 }
 
-async function buildFacebookCatalog(cacheKey: string, rate: number): Promise<AccountsCatalog> {
+async function buildPlatformCatalog(
+  platform: string,
+  cacheKey: string,
+  rate: number,
+): Promise<AccountsCatalog> {
   const now = Date.now();
   if (!apiKey()) {
     return {
       ok: false,
       source: 'error',
-      platform: 'Facebook',
+      platform,
       rate,
       updatedAt: new Date().toISOString(),
       subtypes: [],
@@ -373,14 +463,30 @@ async function buildFacebookCatalog(cacheKey: string, rate: number): Promise<Acc
     };
   }
 
+  const categoryId = await resolveCategoryIdForPlatform(platform);
+  if (!categoryId) {
+    return {
+      ok: false,
+      source: 'error',
+      platform,
+      rate,
+      updatedAt: new Date().toISOString(),
+      subtypes: [],
+      offers: [],
+      total: 0,
+      inStock: 0,
+      error: `Could not resolve AccsZone category for ${platform}. Check categories endpoint.`,
+    };
+  }
+
   try {
     const [subs, listings] = await Promise.all([
-      fetchSubcategories(ACCSZONE_FACEBOOK_CATEGORY_ID),
-      paginateListings(ACCSZONE_FACEBOOK_CATEGORY_ID),
+      fetchSubcategories(categoryId),
+      paginateListings(categoryId),
     ]);
 
     const offers = listings
-      .map((l) => mapListing(l, 'Facebook', rate))
+      .map((l) => mapListing(l, platform, rate))
       .filter((o) => o.stock > 0)
       .sort((a, b) => b.stock - a.stock || a.priceNgn - b.priceNgn);
 
@@ -431,7 +537,7 @@ async function buildFacebookCatalog(cacheKey: string, rate: number): Promise<Acc
     const catalog: AccountsCatalog = {
       ok: true,
       source: 'live',
-      platform: 'Facebook',
+      platform,
       rate,
       updatedAt: new Date().toISOString(),
       subtypes,
@@ -442,13 +548,13 @@ async function buildFacebookCatalog(cacheKey: string, rate: number): Promise<Acc
     cache.set(cacheKey, { at: now, catalog });
     return catalog;
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'AccsZone catalog failed';
+    const message = err instanceof Error ? err.message : `AccsZone ${platform} catalog failed`;
     const hit = cache.get(cacheKey);
     if (hit) return { ...hit.catalog, source: 'fallback', warning: message };
     return {
       ok: false,
       source: 'error',
-      platform: 'Facebook',
+      platform,
       rate,
       updatedAt: new Date().toISOString(),
       subtypes: [],
@@ -459,6 +565,9 @@ async function buildFacebookCatalog(cacheKey: string, rate: number): Promise<Acc
     };
   }
 }
+
+export const fetchFacebookCatalog = (options?: { forceRefresh?: boolean }) =>
+  fetchPlatformCatalog('Facebook', options);
 
 export async function fetchAccsZoneBalance(): Promise<{
   ok: boolean;
