@@ -4,7 +4,7 @@
  *
  * Auth: X-API-Key
  * Base: ACCSZONE_API_BASE (default https://accszone.com/api/v1)
- * Catalogue rate limit: 30 req/min shared across categories + listings.
+ * Catalogue rate limit: 30 req/min shared across categories + subcategories + listings.
  */
 
 export type AccsZoneListing = {
@@ -86,6 +86,14 @@ const DEFAULT_RATE = 1380;
 const CACHE_TTL_MS = 2 * 60 * 1000;
 const STALE_MAX_MS = 60 * 60 * 1000;
 
+/**
+ * Catalogue endpoints (categories, subcategories, listings) share a single
+ * 30 req/min bucket per AccsZone account. With five platforms auto-loading we
+ * must cap how deep we walk each platform or we trip the limit. 5 pages of 20
+ * listings = up to 100 live listings per platform, plus 1 subcategory page.
+ */
+const MAX_LISTING_PAGES = 5;
+
 /** Retail multipliers (end-user). */
 export function retailMultiplier(costUsd: number): number {
   if (costUsd <= 1) return 3.0;
@@ -140,7 +148,10 @@ async function accsFetch<T = unknown>(path: string, init?: RequestInit): Promise
   }
   const body = await res.json().catch(() => ({}));
   if (!res.ok || body?.success === false) {
-    throw new Error(body?.message || `AccsZone HTTP ${res.status}`);
+    const err = new Error(body?.message || `AccsZone HTTP ${res.status}`);
+    (err as Error & { statusCode?: number }).statusCode = res.status;
+    (err as Error & { errorCode?: string }).errorCode = body?.error_code;
+    throw err;
   }
   return body as T;
 }
@@ -158,7 +169,7 @@ async function paginateListings(categoryId: number): Promise<AccsZoneListing[]> 
     );
   const first = await fetchPage(1);
   const out: AccsZoneListing[] = Array.isArray(first.data) ? [...first.data] : [];
-  const last = first.meta?.last_page || 1;
+  const last = Math.min(first.meta?.last_page || 1, MAX_LISTING_PAGES);
   const rest: number[] = [];
   for (let p = 2; p <= last; p += 1) rest.push(p);
   // Small parallel batches: fast, but stays well inside the 30 req/min provider limit.
@@ -171,15 +182,28 @@ async function paginateListings(categoryId: number): Promise<AccsZoneListing[]> 
 }
 
 async function fetchSubcategories(categoryId: number): Promise<AccsZoneSubcategory[]> {
-  const res = await accsFetch<
-    ListResponse<{ category: AccsZoneCategory; subcategories: AccsZoneSubcategory[] }>
-  >(`/categories/${categoryId}/subcategories?page=1`);
-  const data = res.data;
-  if (data && Array.isArray((data as { subcategories?: AccsZoneSubcategory[] }).subcategories)) {
-    return (data as { subcategories: AccsZoneSubcategory[] }).subcategories;
+  type SubsPayload = { category: AccsZoneCategory; subcategories: AccsZoneSubcategory[] };
+  const collect = (payload: unknown, out: AccsZoneSubcategory[]) => {
+    if (payload && Array.isArray((payload as SubsPayload).subcategories)) {
+      out.push(...(payload as SubsPayload).subcategories);
+    } else if (Array.isArray(payload)) {
+      out.push(...(payload as AccsZoneSubcategory[]));
+    }
+  };
+  const fetchPage = (page: number) =>
+    accsFetch<ListResponse<SubsPayload | AccsZoneSubcategory[]>>(
+      `/categories/${categoryId}/subcategories?page=${page}`,
+    );
+  const out: AccsZoneSubcategory[] = [];
+  const first = await fetchPage(1);
+  collect(first.data, out);
+  // Subcategories are paginated at 20/page (Facebook alone has 21) — walk all pages.
+  const last = first.meta?.last_page || 1;
+  for (let p = 2; p <= last; p += 1) {
+    const res = await fetchPage(p);
+    collect(res.data, out);
   }
-  if (Array.isArray(data)) return data as unknown as AccsZoneSubcategory[];
-  return [];
+  return out;
 }
 
 function sleep(ms: number) {
@@ -337,16 +361,32 @@ export async function fetchAccsZoneCategories(): Promise<AccsZoneCategory[]> {
   if (cachedCategories && now - categoriesFetchedAt < CATEGORIES_CACHE_TTL) {
     return cachedCategories;
   }
-  const res = await accsFetch<{ success: boolean; data: AccsZoneCategory[] } | AccsZoneCategory[]>('/categories');
-  let list: AccsZoneCategory[] = [];
-  if (Array.isArray(res)) {
-    list = res;
-  } else if (res && typeof res === 'object') {
-    const data = (res as Record<string, unknown>).data;
-    if (Array.isArray(data)) list = data as AccsZoneCategory[];
-    else if (Array.isArray((res as Record<string, unknown>).categories)) {
-      list = (res as Record<string, unknown>).categories as AccsZoneCategory[];
+  const collect = (res: unknown, out: AccsZoneCategory[]) => {
+    if (Array.isArray(res)) {
+      out.push(...res);
+    } else if (res && typeof res === 'object') {
+      const data = (res as Record<string, unknown>).data;
+      if (Array.isArray(data)) out.push(...(data as AccsZoneCategory[]));
+      else if (Array.isArray((res as Record<string, unknown>).categories)) {
+        out.push(...((res as Record<string, unknown>).categories as AccsZoneCategory[]));
+      }
     }
+  };
+  const fetchPage = (page: number) => accsFetch(`/categories?page=${page}`);
+  let list: AccsZoneCategory[] = [];
+  try {
+    const first = await fetchPage(1);
+    collect(first, list);
+    // Categories are paginated at 20/page and AccsZone has 70+ categories.
+    // Instagram/TikTok/X/Telegram sit on later pages — walk them all.
+    const meta = (first as ListResponse<unknown>)?.meta;
+    const last = meta?.last_page || 1;
+    for (let p = 2; p <= last; p += 1) {
+      const res = await fetchPage(p);
+      collect(res, list);
+    }
+  } catch {
+    // Fall through with whatever pages we managed to read.
   }
   if (list.length > 0) {
     cachedCategories = list;
@@ -598,7 +638,12 @@ export type PurchaseError = {
 
 /**
  * Purchase one or more units of an AccsZone listing.
- * Server-side only. Body matches AccsZone /purchase.
+ * Server-side only. Body matches AccsZone POST /purchase.
+ *
+ * `clientReference` is AccsZone's idempotency key and must be a UUID v4 —
+ * on a timeout/dropped connection the purchase may still have completed, and
+ * replaying with the SAME reference returns the original order (charged once)
+ * instead of buying twice. When no reference is supplied we generate one.
  */
 export async function purchaseListing(params: {
   adId: number;
@@ -614,85 +659,113 @@ export async function purchaseListing(params: {
     return { ok: false, error: 'ACCSZONE_API_KEY is not configured', code: 'config' };
   }
 
+  const clientReference = params.clientReference || crypto.randomUUID();
   const body: Record<string, unknown> = {
     ad_id: adId,
     quantity,
+    client_reference: clientReference,
   };
-  if (params.clientReference) {
-    body.client_reference = String(params.clientReference).slice(0, 64);
-  }
 
-  try {
-    const res = await accsFetch<{
-      success?: boolean;
-      message?: string;
-      data?: {
-        order_id?: string | number;
-        id?: string | number;
-        accounts?: string[] | Array<Record<string, unknown>>;
-        items?: string[] | Array<Record<string, unknown>>;
-        credentials?: string[] | Array<Record<string, unknown>>;
-        [key: string]: unknown;
-      };
-      accounts?: string[];
+  type PurchaseResponse = {
+    success?: boolean;
+    message?: string;
+    data?: {
+      order_id?: string | number;
+      id?: string | number;
+      accounts?: string[] | Array<Record<string, unknown>>;
+      items?: string[] | Array<Record<string, unknown>>;
+      credentials?: string[] | Array<Record<string, unknown>>;
       [key: string]: unknown;
-    }>('/purchase', {
+    };
+    accounts?: string[];
+    [key: string]: unknown;
+  };
+
+  const doPurchase = () =>
+    accsFetch<PurchaseResponse>('/purchase', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     });
 
-    const data = res.data ?? res;
-    const rawList =
-      (data as { accounts?: unknown }).accounts ??
-      (data as { items?: unknown }).items ??
-      (data as { credentials?: unknown }).credentials ??
-      (res as { accounts?: unknown }).accounts ??
-      [];
-
-    const accounts: string[] = [];
-    if (Array.isArray(rawList)) {
-      for (const item of rawList) {
-        if (typeof item === 'string' && item.trim()) {
-          accounts.push(item.trim());
-        } else if (item && typeof item === 'object') {
-          const obj = item as Record<string, unknown>;
-          const line =
-            (typeof obj.account === 'string' && obj.account) ||
-            (typeof obj.login === 'string' && obj.login) ||
-            (typeof obj.credential === 'string' && obj.credential) ||
-            (typeof obj.value === 'string' && obj.value) ||
-            [
-              obj.email ?? obj.login ?? obj.username,
-              obj.password,
-              obj.token ?? obj.cookie ?? obj['2fa'] ?? obj.twofa,
-            ]
-              .filter((x) => x != null && String(x).length > 0)
-              .join(':');
-          if (line) accounts.push(String(line));
-        }
-      }
-    }
-
-    const orderId =
-      (data as { order_id?: string | number }).order_id ??
-      (data as { id?: string | number }).id ??
-      undefined;
-
-    if (accounts.length === 0) {
+  let res: PurchaseResponse;
+  try {
+    res = await doPurchase();
+  } catch (err) {
+    // Only network-level failures are ambiguous (timeout / dropped connection /
+    // DNS). HTTP errors from AccsZone mean the transaction definitely did not
+    // go through, so those are final and safe to surface as-is.
+    const ambiguous =
+      err instanceof DOMException ||
+      (err instanceof TypeError) ||
+      (err instanceof Error && /fetch failed|network|ECONNRESET|ETIMEDOUT|aborted/i.test(err.message));
+    if (!ambiguous) {
       return {
         ok: false,
-        error: 'Purchase succeeded but no credentials were returned',
-        code: 'empty_credentials',
+        error: err instanceof Error ? err.message : 'Purchase failed',
+        code: (err as Error & { errorCode?: string })?.errorCode || 'provider_error',
       };
     }
+    // Replay once with the same client_reference. AccsZone returns the original
+    // order (HTTP 200, "replayed": true) if the first attempt actually landed.
+    try {
+      res = await doPurchase();
+    } catch (err2) {
+      return {
+        ok: false,
+        error:
+          err2 instanceof Error
+            ? `Provider connection failed: ${err2.message}`
+            : 'Provider connection failed. The order status is unconfirmed — contact support with the reference before retrying.',
+        code: 'provider_timeout_unconfirmed',
+      };
+    }
+  }
 
-    return { ok: true, orderId, accounts, raw: res };
-  } catch (err) {
+  const data = res.data ?? res;
+  const rawList =
+    (data as { accounts?: unknown }).accounts ??
+    (data as { items?: unknown }).items ??
+    (data as { credentials?: unknown }).credentials ??
+    (res as { accounts?: unknown }).accounts ??
+    [];
+
+  const accounts: string[] = [];
+  if (Array.isArray(rawList)) {
+    for (const item of rawList) {
+      if (typeof item === 'string' && item.trim()) {
+        accounts.push(item.trim());
+      } else if (item && typeof item === 'object') {
+        const obj = item as Record<string, unknown>;
+        const line =
+          (typeof obj.account === 'string' && obj.account) ||
+          (typeof obj.login === 'string' && obj.login) ||
+          (typeof obj.credential === 'string' && obj.credential) ||
+          (typeof obj.value === 'string' && obj.value) ||
+          [
+            obj.email ?? obj.login ?? obj.username,
+            obj.password,
+            obj.token ?? obj.cookie ?? obj['2fa'] ?? obj.twofa,
+          ]
+            .filter((x) => x != null && String(x).length > 0)
+            .join(':');
+        if (line) accounts.push(String(line));
+      }
+    }
+  }
+
+  const orderId =
+    (data as { order_id?: string | number }).order_id ??
+    (data as { id?: string | number }).id ??
+    undefined;
+
+  if (accounts.length === 0) {
     return {
       ok: false,
-      error: err instanceof Error ? err.message : 'Purchase failed',
-      code: 'provider_error',
+      error: 'Purchase succeeded but no credentials were returned',
+      code: 'empty_credentials',
     };
   }
+
+  return { ok: true, orderId, accounts, raw: res };
 }
