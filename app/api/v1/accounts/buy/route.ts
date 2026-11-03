@@ -123,7 +123,7 @@ export async function POST(req: NextRequest) {
     // Never trust client-supplied price/title/platform. Confirm this listing and
     // current retail price from the server-side provider catalogue before debit.
     const platformToValidate = normalizePlatform(body.platform?.trim() || 'Facebook');
-    const enabledPlatforms = new Set(['Facebook', 'Instagram', 'TikTok', 'X / Twitter', 'Telegram', 'Gmail', 'YouTube', 'Threads', 'WhatsApp', 'Mobile Proxies', 'Google Voice', 'Odnoklassniki', 'LinkedIn', 'Reddit', 'Indeed', 'Truth Social', 'AI Accounts', 'Google Ads', 'Bluesky', 'Snapchat', 'Discord', 'Twitch', 'Trustpilot', 'Quora', 'Dating Apps', 'Grindr', 'eHarmony', 'Badoo', 'Gaming', 'Premium Subscriptions', 'Gaming & Gift Cards', 'Gift Cards', 'Mastercard', 'Apple', 'Apple ID & Gift Cards', 'Google Play']);
+    const enabledPlatforms = new Set(['Facebook', 'Instagram', 'TikTok', 'X / Twitter', 'Telegram', 'Gmail', 'YouTube', 'Threads', 'WhatsApp', 'Mobile Proxies', 'Google Voice', 'Odnoklassniki', 'LinkedIn', 'Reddit', 'Indeed', 'Truth Social', 'AI Accounts', 'Google Ads', 'Bluesky', 'Snapchat', 'Discord', 'Twitch', 'Trustpilot', 'Quora', 'Dating Apps', 'Grindr', 'eHarmony', 'Badoo', 'Gaming', 'Premium Subscriptions', 'Mastercard', 'Apple']);
     if (!enabledPlatforms.has(platformToValidate)) {
       return bad('Live checkout is not enabled for this platform.', 400);
     }
