@@ -417,6 +417,11 @@ export function normalizePlatform(platform: string): string {
   const lower = p.toLowerCase();
   if (lower.includes('mobile prox') || lower.includes('proxy') || lower.includes('proxies')) return 'Mobile Proxies';
   if (lower.includes('google voice')) return 'Google Voice';
+  if (lower === 'gift card' || lower === 'gift cards') return 'Gift Cards';
+  if (lower.includes('apple id')) return 'Apple ID & Gift Cards';
+  if (lower.includes('apple')) return 'Apple';
+  if (lower.includes('mastercard')) return 'Mastercard';
+  if (lower.includes('google play')) return 'Google Play';
   if (lower.includes('google ads')) return 'Google Ads';
   if (lower.includes('ai accounts') || lower === 'ai') return 'AI Accounts';
   if (lower.includes('indeed')) return 'Indeed';
@@ -479,6 +484,11 @@ export async function resolveCategoryIdForPlatform(platform: string): Promise<nu
   else if (norm === 'Gaming') terms.push('gaming account', 'gaming accounts', 'gaming');
   else if (norm === 'Premium Subscriptions') terms.push('premium subscriptions', 'premium subscription', 'subscriptions');
   else if (norm === 'Gaming & Gift Cards') terms.push('gift cards', 'gaming & gift cards', 'gift card');
+  else if (norm === 'Gift Cards') terms.push('gift cards', 'gift card');
+  else if (norm === 'Mastercard') terms.push('mastercard');
+  else if (norm === 'Apple') terms.push('apple accounts', 'apple');
+  else if (norm === 'Apple ID & Gift Cards') terms.push('apple id', 'apple');
+  else if (norm === 'Google Play') terms.push('google play', 'google play gift');
   else terms.push(norm.toLowerCase());
 
   for (const t of terms) {
