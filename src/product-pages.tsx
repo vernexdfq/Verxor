@@ -38,10 +38,14 @@ const PLATFORMS = [
   'TikTok',
   'X / Twitter',
   'Telegram',
+  'Gmail',
+  'YouTube',
+  'Threads',
+  'WhatsApp',
 ] as const;
 
 /** Platforms with live AccsZone checkout. Chips above match this list 1:1. */
-const LIVE_PLATFORMS = ['Facebook', 'Instagram', 'TikTok', 'X / Twitter', 'Telegram'] as const;
+const LIVE_PLATFORMS = ['Facebook', 'Instagram', 'TikTok', 'X / Twitter', 'Telegram', 'Gmail', 'YouTube', 'Threads', 'WhatsApp'] as const;
 const LIVE_PLATFORM_SET = new Set<string>(LIVE_PLATFORMS);
 
 /** Live stock cache is considered fresh for 15 minutes. */
@@ -138,6 +142,20 @@ function BrandLogo({ platform, size = 36 }: { platform: string; size?: number })
           <path d="M10 14l10 7.5L10 26V14z" fill="#FBBC05" />
           <path d="M30 14l-10 7.5L30 26V14z" fill="#34A853" />
           <path d="M10 14h20v2.5L20 23.5 10 16.5V14z" fill="#4285F4" />
+        </svg>
+      );
+    case 'WhatsApp':
+      return (
+        <svg {...common} aria-hidden>
+          <rect width="40" height="40" rx="10" fill="#25D366" />
+          <path d="M20 9.5c-5.8 0-10.5 4.7-10.5 10.5 0 1.9.5 3.6 1.4 5.2L9.5 30.5l5.5-1.4c1.5.8 3.2 1.2 5 1.2 5.8 0 10.5-4.7 10.5-10.5S25.8 9.5 20 9.5zm0 19.1c-1.6 0-3.1-.4-4.4-1.2l-.3-.2-3.2.8.9-3.1-.2-.3c-.9-1.4-1.3-3-1.3-4.6 0-4.7 3.8-8.5 8.5-8.5s8.5 3.8 8.5 8.5-3.8 8.6-8.5 8.6zm4.9-6.4c-.3-.1-1.6-.8-1.8-.9-.2-.1-.4-.1-.6.1-.2.3-.7.9-.8 1.1-.1.2-.3.2-.6.1-1.5-.7-2.5-1.4-3.5-3-.3-.5.3-.5.8-1.6.1-.2 0-.4 0-.5 0-.2.1-1 .7-1.3.9-.2.2-.4.2-.7.1-.6-.3-1.2-.6-1.7-1.1-.5-.4-.9-.9-1.3-1.5-.3-.5.2-.5.5-1 .1-.2 0-.4 0-.5-.1-.2-.7-1.7-.9-2.3-.2-.6-.5-.5-.7-.5h-.6c-.2 0-.5.1-.8.4-.5.5-1 1.2-1 2.4 0 1.4 1 2.8 1.2 3 .1.2 1.9 3 4.7 4.2 1.7.7 2.9.9 3.9 1 .6.1 1.7.1 2.2 0 1-.2 2-.7 2.4-1.4.4-.8.6-1.8.5-2-.1-.2-.3-.3-.6-.4z" fill="#fff" />
+        </svg>
+      );
+    case 'Threads':
+      return (
+        <svg {...common} aria-hidden>
+          <rect width="40" height="40" rx="10" fill="#010101" />
+          <text x="20" y="27" textAnchor="middle" fill="#fff" fontSize="18" fontWeight="800">@</text>
         </svg>
       );
     case 'Discord':
@@ -746,7 +764,7 @@ function AccountDetail({
   const [copied, setCopied] = useState(false);
   const total = product.price * qty;
   const LIVE_CHECKOUT_SET = useMemo(
-    () => new Set(['Facebook', 'Instagram', 'TikTok', 'X / Twitter', 'Telegram', 'X']),
+    () => new Set(['Facebook', 'Instagram', 'TikTok', 'X / Twitter', 'Telegram', 'X', 'Gmail', 'YouTube', 'Threads', 'WhatsApp']),
     [],
   );
   const isLiveListing = LIVE_CHECKOUT_SET.has(product.platform) && Number(product.providerListingId) > 0;
@@ -755,7 +773,7 @@ function AccountDetail({
   async function submitPurchase() {
     if (buying) return;
     if (!isLiveListing) {
-      setBuyError('Live checkout is currently available for Facebook, Instagram, TikTok, X / Twitter, and Telegram.');
+      setBuyError('Live checkout is currently available for Facebook, Instagram, TikTok, X / Twitter, Telegram, Gmail, YouTube, Threads, and WhatsApp.');
       return;
     }
     const token = loadSessionTokens()?.access_token;
