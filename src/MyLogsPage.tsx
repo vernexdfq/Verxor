@@ -20,6 +20,7 @@ export function MyLogsPage({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
+  const [copyError, setCopyError] = useState<string | null>(null);
   const sessionRef = useRef(session);
   sessionRef.current = session;
 
@@ -60,13 +61,21 @@ export function MyLogsPage({
     void load();
   }, [load]);
 
+  useEffect(() => {
+    if (!copyError) return;
+    const t = setTimeout(() => setCopyError(null), 2500);
+    return () => clearTimeout(t);
+  }, [copyError]);
+
   async function copyText(text: string, key: string) {
     try {
       await navigator.clipboard.writeText(text);
       setCopied(key);
+      setCopyError(null);
       setTimeout(() => setCopied(null), 1500);
     } catch {
-      /* ignore */
+      setCopied(null);
+      setCopyError('Copy failed — select the text and copy it manually.');
     }
   }
 
@@ -98,6 +107,12 @@ export function MyLogsPage({
       </header>
 
       <div className="accounts-logs-body">
+        {copyError && (
+          <p className="accounts-catalog-hint" role="status">
+            {copyError}
+          </p>
+        )}
+
         {loading && (
           <div className="accounts-empty">
             <Package size={26} />
