@@ -912,6 +912,97 @@
 .accounts-promo { margin-top: 4px; }
 
 /* Subtype bar + drawer */
+/* --- Tiny inline subtype filter (replaces tap-to-open bar + drawer) --- */
+.subtype-inline-card {
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  background: #fff;
+  overflow: hidden;
+}
+.subtype-inline-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 14px 8px;
+}
+.subtype-inline-title {
+  min-width: 0;
+}
+.subtype-inline-head strong {
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  color: #0f172a;
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.subtype-inline-head p {
+  margin: 2px 0 0;
+  font-size: 11px;
+  color: #94a3b8;
+}
+.subtype-inline-reset {
+  flex: none;
+  border: 0;
+  background: none;
+  padding: 2px 0;
+  color: #2563eb;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.subtype-inline-list {
+  max-height: 232px;
+  overflow-y: auto;
+  display: grid;
+  gap: 4px;
+  padding: 0 8px 10px;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.subtype-inline-list::-webkit-scrollbar {
+  display: none;
+}
+.subtype-inline-option {
+  width: 100%;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 10px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: #fff;
+  text-align: left;
+  cursor: pointer;
+}
+.subtype-inline-option:hover {
+  border-color: #e2e8f0;
+}
+.subtype-inline-option.active {
+  border-color: #2563eb;
+  background: #eff6ff;
+}
+.subtype-inline-name {
+  min-width: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: #0f172a;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.subtype-inline-meta {
+  flex: none;
+  font-size: 10px;
+  color: #94a3b8;
+  white-space: nowrap;
+}
+
 .accounts-subtype-bar {
   display: flex;
   align-items: center;
