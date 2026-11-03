@@ -46,10 +46,16 @@ const PLATFORMS = [
   'Google Voice',
   'Odnoklassniki',
   'LinkedIn',
+  'Reddit',
+  'Indeed',
+  'Truth Social',
+  'AI Accounts',
+  'Google Ads',
+  'Bluesky',
 ] as const;
 
 /** Platforms with live AccsZone checkout. Chips above match this list 1:1. */
-const LIVE_PLATFORMS = ['Facebook', 'Instagram', 'TikTok', 'X / Twitter', 'Telegram', 'Gmail', 'YouTube', 'Threads', 'WhatsApp', 'Mobile Proxies', 'Google Voice', 'Odnoklassniki', 'LinkedIn'] as const;
+const LIVE_PLATFORMS = ['Facebook', 'Instagram', 'TikTok', 'X / Twitter', 'Telegram', 'Gmail', 'YouTube', 'Threads', 'WhatsApp', 'Mobile Proxies', 'Google Voice', 'Odnoklassniki', 'LinkedIn', 'Reddit', 'Indeed', 'Truth Social', 'AI Accounts', 'Google Ads', 'Bluesky'] as const;
 const LIVE_PLATFORM_SET = new Set<string>(LIVE_PLATFORMS);
 
 /** Live stock cache is considered fresh for 15 minutes. */
@@ -189,6 +195,59 @@ function BrandLogo({ platform, size = 36 }: { platform: string; size?: number })
           <rect width="40" height="40" rx="10" fill="#0F766E" />
           <circle cx="20" cy="20" r="9.2" stroke="#fff" strokeWidth="2" />
           <path d="M11 17.4h18M11 22.6h18M20 10.8c-2.6 2.4-4 5.6-4 9.2s1.4 6.8 4 9.2c2.6-2.4 4-5.6 4-9.2s-1.4-6.8-4-9.2z" stroke="#fff" strokeWidth="1.6" fill="none" />
+        </svg>
+      );
+    case 'Reddit':
+      return (
+        <svg {...common} aria-hidden>
+          <rect width="40" height="40" rx="10" fill="#FF4500" />
+          <circle cx="20" cy="23.5" r="7.5" fill="#fff" />
+          <circle cx="17" cy="22.5" r="1.3" fill="#FF4500" />
+          <circle cx="23" cy="22.5" r="1.3" fill="#FF4500" />
+          <path d="M20 15.8V12.4" stroke="#fff" strokeWidth="1.6" />
+          <circle cx="20" cy="11.2" r="1.7" fill="#fff" />
+          <path d="M16 26.4c1.2.9 2.5 1.3 4 1.3s2.8-.4 4-1.3" stroke="#FF4500" strokeWidth="1.3" fill="none" />
+        </svg>
+      );
+    case 'Indeed':
+      return (
+        <svg {...common} aria-hidden>
+          <rect width="40" height="40" rx="10" fill="#2553EC" />
+          <circle cx="17" cy="17" r="4" stroke="#fff" strokeWidth="2" fill="none" />
+          <path d="M20 20.2l6.5 6.5" stroke="#fff" strokeWidth="2.4" />
+          <rect x="10" y="27" width="20" height="2.4" rx="1.2" fill="#fff" />
+        </svg>
+      );
+    case 'Truth Social':
+      return (
+        <svg {...common} aria-hidden>
+          <rect width="40" height="40" rx="10" fill="#4A148C" />
+          <path d="M14 13h13.5v4H22.7v10.5h-4.2V17H14v-4z" fill="#fff" />
+        </svg>
+      );
+    case 'AI Accounts':
+      return (
+        <svg {...common} aria-hidden>
+          <rect width="40" height="40" rx="10" fill="#6D28D9" />
+          <path d="M17.2 10.5h5.6L29 29h-4.7l-1-3h-6.6l-1 3H11l6.2-18.5zM18.4 22h3.2l-1.6-5-1.6 5z" fill="#fff" />
+        </svg>
+      );
+    case 'Google Ads':
+      return (
+        <svg {...common} aria-hidden>
+          <rect width="40" height="40" rx="10" fill="#1A73E8" />
+          <path d="M20 8.5c3.5 3.4 5.5 7.4 5.5 11.5S23.5 28.1 20 31.5c-3.5-3.4-5.5-7.4-5.5-11.5S16.5 11.9 20 8.5z" fill="#fff" />
+          <circle cx="14.5" cy="20" r="1.7" fill="#FBBC05" />
+          <circle cx="25.5" cy="20" r="1.7" fill="#34A853" />
+          <circle cx="20" cy="31.5" r="1.7" fill="#EA4335" />
+          <circle cx="20" cy="8.5" r="1.7" fill="#fff" />
+        </svg>
+      );
+    case 'Bluesky':
+      return (
+        <svg {...common} aria-hidden>
+          <rect width="40" height="40" rx="10" fill="#0285FF" />
+          <path d="M20 22.5c-2.6-4.3-7.8-6.3-9.9-4.4-1.9 1.7.2 5.9 3.5 7.2-2.3.9-3.6 3.3-2.7 5.3.9 1.9 3.3 1.2 4.9-.8.7-.8 1.5-1.7 1.9-2.3.4.6 1.2 1.5 1.9 2.3 1.6 2 4 2.7 4.9.8.9-2-.4-4.4-2.7-5.3 2.3-1.3 4.4-5.5 3.5-7.2-2.1-1.9-7.3.1-9.9 4.4z" fill="#fff" />
         </svg>
       );
     case 'Discord':
@@ -797,7 +856,7 @@ function AccountDetail({
   const [copied, setCopied] = useState(false);
   const total = product.price * qty;
   const LIVE_CHECKOUT_SET = useMemo(
-    () => new Set(['Facebook', 'Instagram', 'TikTok', 'X / Twitter', 'Telegram', 'X', 'Gmail', 'YouTube', 'Threads', 'WhatsApp', 'Mobile Proxies', 'Google Voice', 'Odnoklassniki', 'LinkedIn']),
+    () => new Set(['Facebook', 'Instagram', 'TikTok', 'X / Twitter', 'Telegram', 'X', 'Gmail', 'YouTube', 'Threads', 'WhatsApp', 'Mobile Proxies', 'Google Voice', 'Odnoklassniki', 'LinkedIn', 'Reddit', 'Indeed', 'Truth Social', 'AI Accounts', 'Google Ads', 'Bluesky']),
     [],
   );
   const isLiveListing = LIVE_CHECKOUT_SET.has(product.platform) && Number(product.providerListingId) > 0;
@@ -806,7 +865,7 @@ function AccountDetail({
   async function submitPurchase() {
     if (buying) return;
     if (!isLiveListing) {
-      setBuyError('Live checkout is currently available for Facebook, Instagram, TikTok, X / Twitter, Telegram, Gmail, YouTube, Threads, WhatsApp, Mobile Proxies, Google Voice, Odnoklassniki, and LinkedIn.');
+      setBuyError('Live checkout is currently available for Facebook, Instagram, TikTok, X / Twitter, Telegram, Gmail, YouTube, Threads, WhatsApp, Mobile Proxies, Google Voice, Odnoklassniki, LinkedIn, Reddit, Indeed, Truth Social, AI Accounts, Google Ads, and Bluesky.');
       return;
     }
     const token = loadSessionTokens()?.access_token;

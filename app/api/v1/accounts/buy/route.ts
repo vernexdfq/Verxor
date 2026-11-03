@@ -123,7 +123,7 @@ export async function POST(req: NextRequest) {
     // Never trust client-supplied price/title/platform. Confirm this listing and
     // current retail price from the server-side provider catalogue before debit.
     const platformToValidate = normalizePlatform(body.platform?.trim() || 'Facebook');
-    const enabledPlatforms = new Set(['Facebook', 'Instagram', 'TikTok', 'X / Twitter', 'Telegram', 'Gmail', 'YouTube', 'Threads', 'WhatsApp', 'Mobile Proxies', 'Google Voice', 'Odnoklassniki', 'LinkedIn']);
+    const enabledPlatforms = new Set(['Facebook', 'Instagram', 'TikTok', 'X / Twitter', 'Telegram', 'Gmail', 'YouTube', 'Threads', 'WhatsApp', 'Mobile Proxies', 'Google Voice', 'Odnoklassniki', 'LinkedIn', 'Reddit', 'Indeed', 'Truth Social', 'AI Accounts', 'Google Ads', 'Bluesky']);
     if (!enabledPlatforms.has(platformToValidate)) {
       return bad('Live checkout is not enabled for this platform.', 400);
     }
@@ -211,6 +211,22 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Provider safety: if AccsZone delivers fewer units than were debited,
+    // refund the difference immediately so the customer never overpays.
+    const deliveredQty = purchase.accounts.length;
+    const shortQty = quantity - deliveredQty;
+    let chargedTotal = totalNgn;
+    if (shortQty > 0) {
+      const shortRefund = unitPrice * shortQty;
+      const refundedShort = await creditRetailWallet(
+        userId,
+        shortRefund,
+        `refund-short-${debitRef}`,
+        `Refund ${shortQty} undelivered unit(s): ${title}`,
+      );
+      if (refundedShort) chargedTotal = totalNgn - shortRefund;
+    }
+
     let orderId: string | null = null;
     let persistenceWarning: string | undefined;
     if (supabaseConfigured()) {
@@ -219,9 +235,9 @@ export async function POST(req: NextRequest) {
           user_id: userId,
           platform,
           title,
-          quantity,
+          quantity: deliveredQty,
           unit_price_ngn: unitPrice,
-          total_ngn: totalNgn,
+          total_ngn: chargedTotal,
           provider_listing_id: adId,
           credentials: purchase.accounts,
           status: 'delivered',
@@ -242,8 +258,8 @@ export async function POST(req: NextRequest) {
       ok: true,
       orderId,
       credentials: purchase.accounts,
-      quantity: purchase.accounts.length,
-      totalNgn,
+      quantity: deliveredQty,
+      totalNgn: chargedTotal,
       platform,
       title,
       warning: persistenceWarning,

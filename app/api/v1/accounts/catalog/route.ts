@@ -24,12 +24,18 @@ const ENABLED_PLATFORMS = new Set([
   'google voice',
   'odnoklassniki',
   'linkedin',
+  'reddit',
+  'indeed',
+  'truth social',
+  'ai accounts',
+  'google ads',
+  'bluesky',
 ]);
 
 /**
  * GET /api/v1/accounts/catalog
  * Query:
- *   platform=Facebook | Instagram | TikTok | X / Twitter | Telegram | Gmail | YouTube | Threads | WhatsApp | Mobile Proxies | Google Voice | Odnoklassniki | LinkedIn | categories
+ *   platform=Facebook | Instagram | TikTok | X / Twitter | Telegram | Gmail | YouTube | Threads | WhatsApp | Mobile Proxies | Google Voice | Odnoklassniki | LinkedIn | Reddit | Indeed | Truth Social | AI Accounts | Google Ads | Bluesky | categories
  *   refresh=1 force upstream re-fetch
  */
 export async function GET(req: NextRequest) {
@@ -65,7 +71,7 @@ export async function GET(req: NextRequest) {
           offers: [],
           total: 0,
           inStock: 0,
-          error: `Live catalogue for ${rawPlatform} is coming soon. Facebook, Instagram, TikTok, X / Twitter, Telegram, Gmail, YouTube, Threads, WhatsApp, Mobile Proxies, Google Voice, Odnoklassniki, and LinkedIn are live.`,
+          error: `Live catalogue for ${rawPlatform} is coming soon. Facebook, Instagram, TikTok, X / Twitter, Telegram, Gmail, YouTube, Threads, WhatsApp, Mobile Proxies, Google Voice, Odnoklassniki, LinkedIn, Reddit, Indeed, Truth Social, AI Accounts, Google Ads, and Bluesky are live.`,
         },
         {
           status: 200,
