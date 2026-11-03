@@ -7,10 +7,17 @@ if (!fs.existsSync(file)) {
   process.exit(0);
 }
 let s = fs.readFileSync(file, 'utf8');
-if (s.includes('PANEL_AIRTIME_MARGIN')) {
+
+// Already wired in source (panel-auth helpers) — do not re-patch.
+if (
+  s.includes('panelAirtimeDebitAmount') ||
+  s.includes('PANEL_AIRTIME_DISCOUNT_PCT') ||
+  s.includes('PANEL_AIRTIME_MARGIN')
+) {
   console.log('[patch-airtime-margin] already applied');
   process.exit(0);
 }
+
 const marginBlock = `
 /** Child-panel wholesale discount (partner margin, not customer cashback). */
 const PANEL_AIRTIME_MARGIN: Record<string, number> = {
