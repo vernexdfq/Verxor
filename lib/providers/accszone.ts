@@ -88,11 +88,11 @@ const STALE_MAX_MS = 60 * 60 * 1000;
 
 /**
  * Catalogue endpoints (categories, subcategories, listings) share a single
- * 30 req/min bucket per AccsZone account. With five platforms auto-loading we
- * must cap how deep we walk each platform or we trip the limit. 5 pages of 20
- * listings = up to 100 live listings per platform, plus 1 subcategory page.
+ * 30 req/min bucket per AccsZone account. We walk EVERY page so the full
+ * provider catalogue (600+ listings) is mirrored, and rely on pacing plus
+ * Retry-After backoff to stay inside the provider limit. Results are cached
+ * server-side for 2 minutes, so steady-state traffic is near zero.
  */
-const MAX_LISTING_PAGES = 5;
 
 /** Retail multipliers (end-user). */
 export function retailMultiplier(costUsd: number): number {
@@ -163,20 +163,33 @@ type ListResponse<T> = {
 };
 
 async function paginateListings(categoryId: number): Promise<AccsZoneListing[]> {
-  const fetchPage = (page: number) =>
-    accsFetch<ListResponse<AccsZoneListing[]>>(
-      `/listings?page=${page}&category_id=${categoryId}&include=description`,
-    );
+  // Fetch a single listings page, backing off on the shared 30 req/min limit.
+  async function fetchPage(page: number): Promise<ListResponse<AccsZoneListing[]>> {
+    const path = `/listings?page=${page}&category_id=${categoryId}&include=description`;
+    for (let attempt = 0; attempt < 4; attempt += 1) {
+      try {
+        return await accsFetch<ListResponse<AccsZoneListing[]>>(path);
+      } catch (err) {
+        const retryAfter = (err as Error & { retryAfter?: number })?.retryAfter;
+        if (typeof retryAfter !== 'number' || attempt === 3) throw err;
+        await sleep((retryAfter + 1) * 1000);
+      }
+    }
+    throw new Error(`AccsZone listings page ${page} failed`);
+  }
   const first = await fetchPage(1);
   const out: AccsZoneListing[] = Array.isArray(first.data) ? [...first.data] : [];
-  const last = Math.min(first.meta?.last_page || 1, MAX_LISTING_PAGES);
+  // Walk EVERY page — the full provider catalogue, not a sample.
+  const last = first.meta?.last_page || 1;
   const rest: number[] = [];
   for (let p = 2; p <= last; p += 1) rest.push(p);
-  // Small parallel batches: fast, but stays well inside the 30 req/min provider limit.
-  const BATCH = 4;
+  // Small parallel batches with pacing between them: quick, but gentle on the
+  // shared 30 req/min provider bucket; 429s are retried above with Retry-After.
+  const BATCH = 3;
   for (let i = 0; i < rest.length; i += BATCH) {
     const results = await Promise.all(rest.slice(i, i + BATCH).map(fetchPage));
     for (const r of results) if (Array.isArray(r.data)) out.push(...r.data);
+    if (i + BATCH < rest.length) await sleep(1500);
   }
   return out;
 }
@@ -273,6 +286,13 @@ function shortTitle(title: string, max = 42): string {
 function htmlToPlainText(input: string): string {
   if (!input) return '';
   let s = input;
+  // Keep the provider's guidance links usable: "label (https://…)" — the client
+  // DescriptionBody linkifies them back into clickable anchors.
+  s = s.replace(
+    /<a\s[^>]*href=(["'])(https?:\/\/[^"']+)\1[^>]*>([\s\S]*?)<\/a>/gi,
+    (_m, _q, href: string, label: string) =>
+      `${label.trim() || href} (${href})`,
+  );
   s = s.replace(/<\s*br\s*\/?\s*>/gi, '\n');
   s = s.replace(/<\/\s*p\s*>/gi, '\n');
   s = s.replace(/<\/\s*li\s*>/gi, '\n');
@@ -311,15 +331,12 @@ function mapListing(item: AccsZoneListing, platform: string, rate: number): Acco
   const cost = Number(item.price) || 0;
   const meta = enrichFromTitle(item.title || '');
   const subtype = item.subcategory?.title || 'General';
-  const rawDesc = item.description
-    ? scrubProviderTraces(htmlToPlainText(item.description))
-    : '';
-  const description =
-    rawDesc.length > 40
-      ? rawDesc
-      : scrubProviderTraces(
-          `${item.title}. Instant delivery when in stock. Use matching proxy and follow platform rules.`,
-        );
+  // Keep the provider's FULL description verbatim — specs, how-to guidance and
+  // links included. It is what explains each service to the customer. Only
+  // fall back to a short note when the listing has no description at all.
+  const description = item.description
+    ? htmlToPlainText(item.description)
+    : `${item.title}. Instant delivery when in stock. Use matching proxy and follow platform rules.`;
 
   return {
     id: `acz-${item.id}`,

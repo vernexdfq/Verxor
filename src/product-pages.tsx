@@ -249,7 +249,7 @@ export function AccountsPage({ onBack, session }: { onBack: () => void; session?
 
   const loadPlatformStock = useCallback(async (p: string) => {
     if (!LIVE_PLATFORM_SET.has(p)) return;
-    const cacheKey = `verxor:cat:${p.toLowerCase()}:v1`;
+    const cacheKey = `verxor:cat:${p.toLowerCase()}:v2`;
     type Cat = { offers: unknown[]; subtypes: { name: string; count: number; stock: number }[] };
 
     let hadFreshCache = false;
