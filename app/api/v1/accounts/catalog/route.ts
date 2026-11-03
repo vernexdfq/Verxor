@@ -42,12 +42,17 @@ const ENABLED_PLATFORMS = new Set([
   'gaming',
   'premium subscriptions',
   'gaming & gift cards',
+  'gift cards',
+  'mastercard',
+  'apple',
+  'apple id & gift cards',
+  'google play',
 ]);
 
 /**
  * GET /api/v1/accounts/catalog
  * Query:
- *   platform=Facebook | Instagram | TikTok | X / Twitter | Telegram | Gmail | YouTube | Threads | WhatsApp | Mobile Proxies | Google Voice | Odnoklassniki | LinkedIn | Reddit | Indeed | Truth Social | AI Accounts | Google Ads | Bluesky | Snapchat | Discord | Twitch | Trustpilot | Quora | Dating Apps | Grindr | eHarmony | Badoo | Gaming | Premium Subscriptions | Gaming & Gift Cards | categories
+ *   platform=Facebook | Instagram | TikTok | X / Twitter | Telegram | Gmail | YouTube | Threads | WhatsApp | Mobile Proxies | Google Voice | Odnoklassniki | LinkedIn | Reddit | Indeed | Truth Social | AI Accounts | Google Ads | Bluesky | Snapchat | Discord | Twitch | Trustpilot | Quora | Dating Apps | Grindr | eHarmony | Badoo | Gaming | Premium Subscriptions | Gaming & Gift Cards | Gift Cards | Mastercard | Apple | Apple ID & Gift Cards | Google Play | categories
  *   refresh=1 force upstream re-fetch
  */
 export async function GET(req: NextRequest) {
@@ -83,7 +88,7 @@ export async function GET(req: NextRequest) {
           offers: [],
           total: 0,
           inStock: 0,
-          error: `Live catalogue for ${rawPlatform} is coming soon. Facebook, Instagram, TikTok, X / Twitter, Telegram, Gmail, YouTube, Threads, WhatsApp, Mobile Proxies, Google Voice, Odnoklassniki, LinkedIn, Reddit, Indeed, Truth Social, AI Accounts, Google Ads, Bluesky, Snapchat, Discord, Twitch, Trustpilot, Quora, Dating Apps, Grindr, eHarmony, Badoo, Gaming, Premium Subscriptions, and Gaming & Gift Cards are live.`,
+          error: `Live catalogue for ${rawPlatform} is coming soon. Facebook, Instagram, TikTok, X / Twitter, Telegram, Gmail, YouTube, Threads, WhatsApp, Mobile Proxies, Google Voice, Odnoklassniki, LinkedIn, Reddit, Indeed, Truth Social, AI Accounts, Google Ads, Bluesky, Snapchat, Discord, Twitch, Trustpilot, Quora, Dating Apps, Grindr, eHarmony, Badoo, Gaming, Premium Subscriptions, Gaming & Gift Cards, Gift Cards, Mastercard, Apple, Apple ID & Gift Cards, and Google Play are live.`,
         },
         {
           status: 200,
