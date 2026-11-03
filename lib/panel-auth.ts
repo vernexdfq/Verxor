@@ -19,6 +19,7 @@ export type PanelClient = {
   allowedProducts: string[];
   walletUserId: string | null;
   ownerEmail: string | null;
+  source: 'db' | 'env';
 };
 
 function extractPanelKey(req: Request): string | null {
@@ -66,6 +67,7 @@ export async function resolvePanelClient(req: Request): Promise<PanelClient | nu
           .trim()
           .toLowerCase() || null
       ),
+      source: 'env',
     };
   }
 
@@ -131,6 +133,7 @@ export async function resolvePanelClient(req: Request): Promise<PanelClient | nu
       allowedProducts: allowed,
       walletUserId,
       ownerEmail,
+      source: 'db',
     };
   } catch (e) {
     console.warn('[panel-auth] resolve failed', e);
