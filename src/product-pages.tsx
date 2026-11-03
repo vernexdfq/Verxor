@@ -42,10 +42,14 @@ const PLATFORMS = [
   'YouTube',
   'Threads',
   'WhatsApp',
+  'Mobile Proxies',
+  'Google Voice',
+  'Odnoklassniki',
+  'LinkedIn',
 ] as const;
 
 /** Platforms with live AccsZone checkout. Chips above match this list 1:1. */
-const LIVE_PLATFORMS = ['Facebook', 'Instagram', 'TikTok', 'X / Twitter', 'Telegram', 'Gmail', 'YouTube', 'Threads', 'WhatsApp'] as const;
+const LIVE_PLATFORMS = ['Facebook', 'Instagram', 'TikTok', 'X / Twitter', 'Telegram', 'Gmail', 'YouTube', 'Threads', 'WhatsApp', 'Mobile Proxies', 'Google Voice', 'Odnoklassniki', 'LinkedIn'] as const;
 const LIVE_PLATFORM_SET = new Set<string>(LIVE_PLATFORMS);
 
 /** Live stock cache is considered fresh for 15 minutes. */
@@ -156,6 +160,35 @@ function BrandLogo({ platform, size = 36 }: { platform: string; size?: number })
         <svg {...common} aria-hidden>
           <rect width="40" height="40" rx="10" fill="#010101" />
           <text x="20" y="27" textAnchor="middle" fill="#fff" fontSize="18" fontWeight="800">@</text>
+        </svg>
+      );
+    case 'LinkedIn':
+      return (
+        <svg {...common} aria-hidden>
+          <rect width="40" height="40" rx="10" fill="#0A66C2" />
+          <path d="M13.4 16.9c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm-1.7 2.6h3.4v11h-3.4v-11zm5.7 0h3.3v1.5c.5-.9 1.6-1.8 3.4-1.8 2.9 0 3.9 1.8 3.9 4.6v6.7h-3.4v-6c0-1.5-.4-2.5-1.8-2.5-1.5 0-2.1 1-2.1 2.5v6h-3.3v-11z" fill="#fff" />
+        </svg>
+      );
+    case 'Google Voice':
+      return (
+        <svg {...common} aria-hidden>
+          <rect width="40" height="40" rx="10" fill="#1A73E8" />
+          <path d="M20 9.8c-5.6 0-10.2 4.5-10.2 10.2S14.4 30.2 20 30.2c1 0 2-.2 2.9-.5l4.4 1.9-1.2-3.7c2.4-1.9 4-4.7 4-7.9C30.2 14.3 25.6 9.8 20 9.8zm-4.3 6.1c.4 0 .8.2 1 .7l1 2.2c.2.5.1 1-.3 1.4l-.8.8c.6 1.3 1.7 2.5 3.1 3.2l.8-.8c.4-.4.9-.5 1.4-.3l2.2 1c.5.2.7.6.7 1 0 .6-.6 1.3-1.5 1.6-.7.2-1.4.3-2.2.3-4.6 0-8.4-3.7-8.4-8.4 0-.8.1-1.5.3-2.2.3-.9 1-1.5 1.7-1.5z" fill="#fff" />
+        </svg>
+      );
+    case 'Odnoklassniki':
+      return (
+        <svg {...common} aria-hidden>
+          <rect width="40" height="40" rx="10" fill="#EE8208" />
+          <path d="M20 9.6c-2.9 0-5.2 2.3-5.2 5.2s2.3 5.2 5.2 5.2 5.2-2.3 5.2-5.2-2.3-5.2-5.2-5.2zm0 7.6c-1.3 0-2.4-1.1-2.4-2.4s1.1-2.4 2.4-2.4 2.4 1.1 2.4 2.4-1.1 2.4-2.4 2.4zm7.2 4.7c-.5-.8-1.3-1.3-2.6-1.6-.6-.2-1.2 0-1.6.4-1 .8-2.1 1.2-3 1.2s-2-.4-3-1.2c-.4-.4-1-.6-1.6-.4-1.3.3-2.1.8-2.6 1.6-.3.5-.2 1.1.3 1.4 2 1.3 4.2 2 6.9 2 .7 0 1.4-.1 2-.2l2.4 3.4c.3.4.9.5 1.3.2.5-.3.6-.9.3-1.3l-2.1-3c.5-.4 1-.8 1.4-1.3.4-.4.4-1 .3-1.4z" fill="#fff" />
+        </svg>
+      );
+    case 'Mobile Proxies':
+      return (
+        <svg {...common} aria-hidden>
+          <rect width="40" height="40" rx="10" fill="#0F766E" />
+          <circle cx="20" cy="20" r="9.2" stroke="#fff" strokeWidth="2" />
+          <path d="M11 17.4h18M11 22.6h18M20 10.8c-2.6 2.4-4 5.6-4 9.2s1.4 6.8 4 9.2c2.6-2.4 4-5.6 4-9.2s-1.4-6.8-4-9.2z" stroke="#fff" strokeWidth="1.6" fill="none" />
         </svg>
       );
     case 'Discord':
@@ -764,7 +797,7 @@ function AccountDetail({
   const [copied, setCopied] = useState(false);
   const total = product.price * qty;
   const LIVE_CHECKOUT_SET = useMemo(
-    () => new Set(['Facebook', 'Instagram', 'TikTok', 'X / Twitter', 'Telegram', 'X', 'Gmail', 'YouTube', 'Threads', 'WhatsApp']),
+    () => new Set(['Facebook', 'Instagram', 'TikTok', 'X / Twitter', 'Telegram', 'X', 'Gmail', 'YouTube', 'Threads', 'WhatsApp', 'Mobile Proxies', 'Google Voice', 'Odnoklassniki', 'LinkedIn']),
     [],
   );
   const isLiveListing = LIVE_CHECKOUT_SET.has(product.platform) && Number(product.providerListingId) > 0;
@@ -773,7 +806,7 @@ function AccountDetail({
   async function submitPurchase() {
     if (buying) return;
     if (!isLiveListing) {
-      setBuyError('Live checkout is currently available for Facebook, Instagram, TikTok, X / Twitter, Telegram, Gmail, YouTube, Threads, and WhatsApp.');
+      setBuyError('Live checkout is currently available for Facebook, Instagram, TikTok, X / Twitter, Telegram, Gmail, YouTube, Threads, WhatsApp, Mobile Proxies, Google Voice, Odnoklassniki, and LinkedIn.');
       return;
     }
     const token = loadSessionTokens()?.access_token;

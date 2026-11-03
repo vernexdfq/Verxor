@@ -415,6 +415,8 @@ export async function fetchAccsZoneCategories(): Promise<AccsZoneCategory[]> {
 export function normalizePlatform(platform: string): string {
   const p = (platform || '').trim();
   const lower = p.toLowerCase();
+  if (lower.includes('mobile prox') || lower.includes('proxy') || lower.includes('proxies')) return 'Mobile Proxies';
+  if (lower.includes('google voice')) return 'Google Voice';
   if (lower === 'x' || lower.includes('twitter')) return 'X / Twitter';
   if (lower.includes('instagram')) return 'Instagram';
   if (lower.includes('tiktok')) return 'TikTok';
@@ -428,6 +430,7 @@ export function normalizePlatform(platform: string): string {
   if (lower.includes('reddit')) return 'Reddit';
   if (lower.includes('snapchat')) return 'Snapchat';
   if (lower.includes('whatsapp')) return 'WhatsApp';
+  if (lower.includes('odnoklassniki') || lower.includes('ok.ru') || lower === 'ok') return 'Odnoklassniki';
   return p || 'Facebook';
 }
 
@@ -445,6 +448,9 @@ export async function resolveCategoryIdForPlatform(platform: string): Promise<nu
   else if (norm === 'TikTok') terms.push('tiktok');
   else if (norm === 'X / Twitter') terms.push('twitter', 'x accounts', 'x / twitter', 'x.com');
   else if (norm === 'Telegram') terms.push('telegram');
+  else if (norm === 'Mobile Proxies') terms.push('mobile proxies', 'proxies');
+  else if (norm === 'Google Voice') terms.push('google voice', 'google');
+  else if (norm === 'Odnoklassniki') terms.push('odnoklassniki', 'ok.ru');
   else terms.push(norm.toLowerCase());
 
   for (const t of terms) {
