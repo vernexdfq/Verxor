@@ -417,6 +417,11 @@ export function normalizePlatform(platform: string): string {
   const lower = p.toLowerCase();
   if (lower.includes('mobile prox') || lower.includes('proxy') || lower.includes('proxies')) return 'Mobile Proxies';
   if (lower.includes('google voice')) return 'Google Voice';
+  if (lower.includes('google ads')) return 'Google Ads';
+  if (lower.includes('ai accounts') || lower === 'ai') return 'AI Accounts';
+  if (lower.includes('indeed')) return 'Indeed';
+  if (lower.includes('truth')) return 'Truth Social';
+  if (lower.includes('bluesky') || lower.includes('blue sky') || lower.includes('bsky')) return 'Bluesky';
   if (lower === 'x' || lower.includes('twitter')) return 'X / Twitter';
   if (lower.includes('instagram')) return 'Instagram';
   if (lower.includes('tiktok')) return 'TikTok';
@@ -451,6 +456,12 @@ export async function resolveCategoryIdForPlatform(platform: string): Promise<nu
   else if (norm === 'Mobile Proxies') terms.push('mobile proxies', 'proxies');
   else if (norm === 'Google Voice') terms.push('google voice', 'google');
   else if (norm === 'Odnoklassniki') terms.push('odnoklassniki', 'ok.ru');
+  else if (norm === 'Indeed') terms.push('indeed');
+  else if (norm === 'Truth Social') terms.push('truth social', 'truthsocial', 'truth');
+  else if (norm === 'AI Accounts') terms.push('ai accounts', 'chatgpt', 'openai', 'claude');
+  else if (norm === 'Google Ads') terms.push('google ads', 'google adwords', 'adwords');
+  else if (norm === 'Bluesky') terms.push('bluesky', 'blue sky', 'bsky');
+  else if (norm === 'Reddit') terms.push('reddit');
   else terms.push(norm.toLowerCase());
 
   for (const t of terms) {
