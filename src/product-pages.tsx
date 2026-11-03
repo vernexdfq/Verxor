@@ -523,7 +523,7 @@ export function AccountsPage({ onBack, session }: { onBack: () => void; session?
             : Boolean(liveByPlatform[platform]?.offers.length);
         const currentLiveOffers = platform !== 'All' ? liveByPlatform[platform]?.offers : null;
         const allFeedsFailed =
-          LIVE_PLATFORMS.every((p) => !(liveByPlatform[p]?.offers.length > 0)) &&
+          LIVE_PLATFORMS.every((p) => (liveByPlatform[p]?.offers.length ?? 0) === 0) &&
           LIVE_PLATFORMS.every((p) => errorByPlatform[p]);
         const currentError =
           platform !== 'All'
