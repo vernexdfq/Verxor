@@ -169,9 +169,13 @@ export function MarketingFooter() {
             <a href="/child-panels">Child Panels</a>
             <a href="/workspace">Launch Workspace</a>
             <a href="/privacy-policy">Privacy Policy</a>
-            {/* Discreet operator entry — separate from user /workspace login */}
-            <a href="/admin" className="mk-footer-admin" aria-label="Admin console">
-              Admin
+            {/* Discreet operator entry — same pattern as child partner panel; separate from /workspace user login */}
+            <a
+              href="/admin"
+              className="mk-footer-admin"
+              aria-label="Admin console"
+            >
+              Admin Console
             </a>
           </div>
         </div>
