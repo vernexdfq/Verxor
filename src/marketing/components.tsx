@@ -62,7 +62,7 @@ export function MarketingHeader() {
               <span className="mk-ping-wave" />
               <span className="mk-ping-core" />
             </span>
-            <strong className="mk-ticker-bold">Live &amp; Operational:</strong> Fast automated virtual numbers, telecom pipelines &amp; developer APIs.
+            <strong className="mk-ticker-bold">Live & Operational:</strong> Fast automated virtual numbers, telecom pipelines & developer APIs.
           </span>
         </div>
       </div>
@@ -155,20 +155,24 @@ export function MarketingFooter() {
 
           {/* Col 3: Utilities */}
           <div className="mk-footer-col">
-            <b>Utilities &amp; Cards</b>
-            <a href="/services/data">Data &amp; Airtime VTU</a>
+            <b>Utilities & Cards</b>
+            <a href="/services/data">Data & Airtime VTU</a>
             <a href="/services/virtual-cards">USD Virtual Cards</a>
-            <a href="/services/smm">Social Growth &amp; SMM</a>
+            <a href="/services/smm">Social Growth & SMM</a>
             <a href="/services/gift-cards">Gift Card Trading</a>
           </div>
 
           {/* Col 4: Platform & Support */}
           <div className="mk-footer-col">
-            <b>Developers &amp; Legal</b>
+            <b>Developers & Legal</b>
             <a href="/api-partnership">API Partnerships</a>
             <a href="/child-panels">Child Panels</a>
             <a href="/workspace">Launch Workspace</a>
             <a href="/privacy-policy">Privacy Policy</a>
+            {/* Discreet operator entry — separate from user /workspace login */}
+            <a href="/admin" className="mk-footer-admin" aria-label="Admin console">
+              Admin
+            </a>
           </div>
         </div>
 
