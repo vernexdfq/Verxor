@@ -9,9 +9,31 @@ const url =
   'https://raw.githubusercontent.com/vernexdfq/Verxor/f827969d0e37e93248cf7da2c0820ce9cf91ee80/lib/providers/smm.ts';
 const tmp = path.join(__dirname, '_smm_restored.ts');
 
+// If the file already exists and has the required symbols, skip the network download.
+// (raw.githubusercontent.com returns 404 while the account is flagged spammy.)
+if (fs.existsSync(target)) {
+  const existing = fs.readFileSync(target, 'utf8');
+  if (
+    existing.includes('fetchSmmCatalog') &&
+    existing.includes('getSmmPartnerMultiplier') &&
+    existing.length >= 5000
+  ) {
+    console.log('[restore-smm] already present (' + existing.length + ' bytes) — skip download');
+    process.exit(0);
+  }
+}
+
 try {
   execSync('curl -fsSL "' + url + '" -o "' + tmp + '"', { stdio: 'inherit' });
 } catch (e) {
+  // Fallback: if download fails but a usable file already exists, continue.
+  if (fs.existsSync(target)) {
+    const existing = fs.readFileSync(target, 'utf8');
+    if (existing.includes('fetchSmmCatalog') && existing.length >= 3000) {
+      console.warn('[restore-smm] download failed; using existing file (' + existing.length + ' bytes)');
+      process.exit(0);
+    }
+  }
   console.error('[restore-smm] download failed');
   process.exit(1);
 }
