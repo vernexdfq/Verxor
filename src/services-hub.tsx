@@ -36,7 +36,7 @@ type ServiceItem = {
 const DIGITAL: ServiceItem[] = [
   { id: 'esim', title: 'eSIM', icon: Globe, soon: true, tags: ['esim', 'sim', 'travel'] },
   { id: 'virtual-card', title: 'Virtual Card', icon: CreditCard, soon: true, tags: ['card', 'usd', 'virtual'] },
-  { id: 'sell-gift-card', title: 'Sell Gift Card', icon: Gift, service: 'gift-card', tags: ['gift', 'sell', 'redeem'] },
+  { id: 'sell-gift-card', title: 'Buy Gift Card', icon: Gift, service: 'gift-card', tags: ['gift', 'sell', 'redeem'] },
   { id: 'trade-gift-card', title: 'Trade Gift Card', icon: Repeat, service: 'gift-card', tags: ['gift', 'trade', 'exchange'] },
   { id: 'ai-subs', title: 'AI/App Subs', icon: Sparkles, soon: true, tags: ['ai', 'subscription', 'chatgpt', 'netflix'] },
   { id: 'gaming', title: 'Gaming Top Up', icon: Trophy, soon: true, tags: ['game', 'gaming', 'steam'] },
