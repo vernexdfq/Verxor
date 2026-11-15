@@ -79,13 +79,15 @@ export function VirtualNumbersPage({
   onOpenNotifications: _onOpenNotifications,
   orders: externalOrders = [],
   session,
+  initialStep = 'pools',
 }: {
   onBack: () => void;
   onOpenNotifications: () => void;
   orders?: CustomerNumberOrder[];
   session?: AuthSession | null;
+  initialStep?: Step;
 }) {
-  const [step, setStep] = useState<Step>('pools');
+  const [step, setStep] = useState<Step>(initialStep);
   const [selectedPool, setSelectedPool] = useState<Pool | null>(null);
   const [selectedService, setSelectedService] = useState<Service | null>(null);
   const [selectedCountry, setSelectedCountry] = useState<Country | null>(null);

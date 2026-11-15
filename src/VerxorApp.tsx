@@ -35,6 +35,7 @@ import {
   saveSessionProfile,
 } from './auth/session-unlock';
 import type { Page } from './types';
+import type { Step } from './virtual-numbers-data';
 
 type NavState = {
   page: Page;
@@ -64,6 +65,7 @@ export function VerxorApp() {
   const [admin, setAdmin] = useState(false);
   const [auth, setAuth] = useState<AuthSession | null>(null);
   const [authReady, setAuthReady] = useState(false);
+  const [vnInitialStep, setVnInitialStep] = useState<Step>('pools');
 
   const skipPushRef = useRef(false);
   const pageRef = useRef(page);
@@ -92,7 +94,8 @@ export function VerxorApp() {
   }, []);
 
   const openService = useCallback(
-    (next: ServiceView) => {
+    (next: ServiceView, opts?: { vnInitialStep?: Step }) => {
+      setVnInitialStep(opts?.vnInitialStep ?? 'pools');
       setService(next);
       pushNav({ page: pageRef.current, service: next });
     },
@@ -387,6 +390,7 @@ export function VerxorApp() {
     content = (
       <VirtualNumbersPage
         session={auth}
+        initialStep={vnInitialStep}
         onBack={closeService}
         onOpenNotifications={() => openService('alerts')}
       />
@@ -452,7 +456,13 @@ export function VerxorApp() {
   } else if (service) {
     content = <ServicePage view={service} onBack={closeService} />;
   } else if (page === 'history') {
-    content = <HistoryPage openService={openService} />;
+    content = (
+      <HistoryPage
+        openService={openService}
+        onOpenVnOrders={() => openService('virtual-numbers', { vnInitialStep: 'orders' })}
+        goHome={() => navigatePage('home')}
+      />
+    );
   } else if (page === 'services') {
     content = <ServicesPage open={openService} onBack={() => navigatePage('home')} />;
   } else {

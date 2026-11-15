@@ -45,8 +45,9 @@ export function AppShell({
   const firstName = (userName || 'User').trim().split(/\s+/)[0] || 'User';
   const greet = homeGreeting(firstName);
   // Hide shell topbar on Fund — page has its own title (avoids duplicate header)
+  // Hide shell topbar on History too — the page renders its own strong header
   const hideTopbar =
-    deepService || page === 'services' || page === 'profile' || page === 'fund';
+    deepService || page === 'services' || page === 'profile' || page === 'fund' || page === 'history';
 
   return (
     <div className={`app ${dark ? 'dark' : ''}`}>
