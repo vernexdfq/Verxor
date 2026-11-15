@@ -22,7 +22,6 @@ import {
 import { formatNgn } from './lib/wallet-ui';
 import { loadSessionTokens, loadSessionProfile } from './auth/session-unlock';
 import type { ServiceView } from './service-pages';
-import type { ServiceView } from './service-pages';
 import './history-page.css';
 
 export type Transaction = {
