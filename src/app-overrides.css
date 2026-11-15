@@ -6,8 +6,8 @@
   --vx-border: #e2e8f0;
   --vx-ink: #0f172a;
   --vx-muted: #64748b;
-  --vx-primary: #2563eb;
-  --vx-primary-hover: #1d4ed8;
+  --vx-primary: #0052ff;
+  --vx-primary-hover: #0043cc;
   --vx-nav: #1877f2;
   --surface-muted: #f1f5f9;
 }
@@ -126,7 +126,7 @@
   width: 160px;
   height: 160px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(37, 99, 235, 0.28), transparent 70%);
+  background: radial-gradient(circle, rgba(0, 82, 255, 0.28), transparent 70%);
   pointer-events: none;
 }
 .vx-wallet-top {
@@ -206,12 +206,12 @@
   gap: 6px;
   border-radius: 12px;
   border: none;
-  background: #2563eb;
+  background: #0052ff;
   color: #fff;
   font-size: 13px;
   font-weight: 700;
 }
-.vx-btn-fund:hover { background: #1d4ed8; }
+.vx-btn-fund:hover { background: #0043cc; }
 .vx-btn-history {
   min-height: 44px;
   display: inline-flex;
@@ -282,7 +282,7 @@
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
-.qa-blue { color: #2563eb; background: rgba(37, 99, 235, 0.1); }
+.qa-blue { color: #2563eb; background: rgba(0, 82, 255, 0.1); }
 .qa-purple { color: #8b5cf6; background: rgba(139, 92, 246, 0.1); }
 .qa-amber { color: #d97706; background: rgba(245, 158, 11, 0.12); }
 .qa-teal { color: #0d9488; background: rgba(13, 148, 136, 0.12); }
@@ -324,10 +324,10 @@
   width: 140px;
   height: 140px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(37, 99, 235, 0.35), transparent 70%);
+  background: radial-gradient(circle, rgba(0, 82, 255, 0.35), transparent 70%);
   pointer-events: none;
 }
-.promo-accent-blue .vx-promo-glow { background: radial-gradient(circle, rgba(37, 99, 235, 0.4), transparent 70%); }
+.promo-accent-blue .vx-promo-glow { background: radial-gradient(circle, rgba(0, 82, 255, 0.4), transparent 70%); }
 .promo-accent-purple .vx-promo-glow { background: radial-gradient(circle, rgba(139, 92, 246, 0.4), transparent 70%); }
 .promo-accent-amber .vx-promo-glow { background: radial-gradient(circle, rgba(245, 158, 11, 0.35), transparent 70%); }
 .promo-accent-teal .vx-promo-glow { background: radial-gradient(circle, rgba(13, 148, 136, 0.4), transparent 70%); }
