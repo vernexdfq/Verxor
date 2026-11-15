@@ -2,7 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  ArrowLeft,
   ArrowLeftRight,
+  ChevronRight,
   Calendar,
   FileText,
   PhoneCall,
@@ -19,6 +21,7 @@ import {
 } from 'lucide-react';
 import { formatNgn } from './lib/wallet-ui';
 import { loadSessionTokens, loadSessionProfile } from './auth/session-unlock';
+import type { ServiceView } from './service-pages';
 import type { ServiceView } from './service-pages';
 import './history-page.css';
 
@@ -39,19 +42,20 @@ type HistoryPageProps = {
 
 type CatKey = 'all' | 'deposit' | 'numbers' | 'bills';
 
-const HIST_CARDS: {
+const HIST_BOXES: {
   key: CatKey | 'boost' | 'logs' | 'rent';
   title: string;
   sub: string;
   icon: typeof Wallet;
   nav?: ServiceView;
 }[] = [
-  { key: 'deposit', title: 'Deposit History', sub: 'Wallet funding and payments', icon: Wallet },
+  { key: 'all', title: 'All Transactions', sub: 'Every payment and purchase in one list', icon: LayoutList },
+  { key: 'deposit', title: 'Deposit History', sub: 'Wallet funding and payment records', icon: Wallet },
   { key: 'numbers', title: 'Number History', sub: 'OTP numbers and received codes', icon: Smartphone },
-  { key: 'bills', title: 'Bills History', sub: 'Airtime, data, TV and electricity', icon: Receipt },
+  { key: 'bills', title: 'Bills History', sub: 'Airtime, data, cable and electricity', icon: Receipt },
   { key: 'boost', title: 'Boost Orders', sub: 'Social boost orders', icon: Rocket, nav: 'boost' },
   { key: 'logs', title: 'Logs Orders', sub: 'Account logs purchases', icon: FileText, nav: 'accounts' },
-  { key: 'rent', title: 'Rent History', sub: 'Rented numbers and rentals', icon: PhoneCall, nav: 'rental' },
+  { key: 'rent', title: 'Rent History', sub: 'Rented numbers and active rentals', icon: PhoneCall, nav: 'rental' },
 ];
 
 function txMatchesCat(t: Transaction, cat: CatKey): boolean {
@@ -132,7 +136,7 @@ export function HistoryPage({ userId: userIdProp, openService }: HistoryPageProp
   const [query, setQuery] = useState('');
   const [error, setError] = useState('');
   const [view, setView] = useState<ViewMode>('list');
-  const [cat, setCat] = useState<CatKey>('all');
+  const [openCat, setOpenCat] = useState<CatKey | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -168,7 +172,7 @@ export function HistoryPage({ userId: userIdProp, openService }: HistoryPageProp
   }, [load]);
 
   const filtered = useMemo(() => {
-    let list = cat === 'all' ? items : items.filter((t) => txMatchesCat(t, cat));
+    let list = !openCat || openCat === 'all' ? items : items.filter((t) => txMatchesCat(t, openCat));
     const q = query.trim().toLowerCase();
     if (!q) return list;
     list = list.filter(
@@ -178,7 +182,7 @@ export function HistoryPage({ userId: userIdProp, openService }: HistoryPageProp
         (t.kind && t.kind.toLowerCase().includes(q)),
     );
     return list;
-  }, [items, query, cat]);
+  }, [items, query, openCat]);
 
   const stats = useMemo(() => {
     const now = new Date();
@@ -224,35 +228,94 @@ export function HistoryPage({ userId: userIdProp, openService }: HistoryPageProp
     };
   }, [items]);
 
+  const activeBox = openCat ? HIST_BOXES.find((b) => b.key === openCat) ?? null : null;
+  const BoxIcon = activeBox?.icon ?? Receipt;
+
   return (
     <div className="hist-page">
-      <header className="hist-head">
-        <h1>Transactions</h1>
-      </header>
-
-      <div className="hist-toggles" role="tablist" aria-label="History views">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={view === 'list'}
-          className={view === 'list' ? 'active' : ''}
-          onClick={() => setView('list')}
-        >
-          <LayoutList size={18} strokeWidth={2.2} />
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={view === 'stats'}
-          className={view === 'stats' ? 'active' : ''}
-          onClick={() => setView('stats')}
-        >
-          <PieChart size={18} strokeWidth={2.2} />
-        </button>
-      </div>
-
-      {view === 'list' ? (
+      {!activeBox ? (
         <>
+          <header className="hist-head">
+            <h1>History</h1>
+          </header>
+
+          <section className="hist-boxes" aria-label="History categories">
+            {HIST_BOXES.map((box) => {
+              const Icon = box.icon;
+              return (
+                <button
+                  key={box.key}
+                  type="button"
+                  className="hist-box"
+                  onClick={() => {
+                    if (box.nav) {
+                      openService?.(box.nav);
+                      return;
+                    }
+                    setQuery('');
+                    setOpenCat(box.key as CatKey);
+                  }}
+                >
+                  <span className="hist-box-icon">
+                    <Icon size={20} strokeWidth={2} />
+                  </span>
+                  <span className="hist-box-copy">
+                    <strong>{box.title}</strong>
+                    <small>{box.sub}</small>
+                  </span>
+                  <ChevronRight size={18} strokeWidth={2.2} className="hist-box-chevron" />
+                </button>
+              );
+            })}
+          </section>
+        </>
+      ) : (
+        <>
+          <header className="hist-sub-head">
+            <button
+              type="button"
+              className="hist-back-btn"
+              aria-label="Back to History"
+              onClick={() => setOpenCat(null)}
+            >
+              <ArrowLeft size={18} strokeWidth={2.2} />
+            </button>
+            <h1>{activeBox.title}</h1>
+          </header>
+
+          <div className="hist-sub-banner">
+            <span className="hist-box-icon">
+              <BoxIcon size={20} strokeWidth={2} />
+            </span>
+            <span className="hist-box-copy">
+              <strong>{activeBox.title}</strong>
+              <small>{activeBox.sub}</small>
+            </span>
+          </div>
+
+          {openCat === 'all' && (
+            <div className="hist-toggles" role="tablist" aria-label="History views">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={view === 'list'}
+                className={view === 'list' ? 'active' : ''}
+                onClick={() => setView('list')}
+              >
+                <LayoutList size={18} strokeWidth={2.2} />
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={view === 'stats'}
+                className={view === 'stats' ? 'active' : ''}
+                onClick={() => setView('stats')}
+              >
+                <PieChart size={18} strokeWidth={2.2} />
+              </button>
+            </div>
+          )}
+
           <div className="hist-search">
             <Search size={16} className="hist-search-icon" />
             <input
@@ -274,50 +337,7 @@ export function HistoryPage({ userId: userIdProp, openService }: HistoryPageProp
             ) : null}
           </div>
 
-          <section className="hist-cards-section" aria-label="History categories">
-            <h2 className="hist-section-label">BROWSE RECORDS</h2>
-            <div className="hist-cards">
-              {HIST_CARDS.map((card) => {
-                const Icon = card.icon;
-                return (
-                  <button
-                    key={card.key}
-                    type="button"
-                    className="hist-card"
-                    onClick={() => {
-                      if (card.nav) {
-                        openService?.(card.nav);
-                        return;
-                      }
-                      setCat(card.key as CatKey);
-                      setView('list');
-                    }}
-                  >
-                    <span className="hist-card-icon">
-                      <Icon size={18} strokeWidth={2} />
-                    </span>
-                    <span className="hist-card-copy">
-                      <strong>{card.title}</strong>
-                      <small>{card.sub}</small>
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </section>
-
-          <section className="hist-list-section" aria-label="All activity">
-            <div className="hist-list-head">
-              <h2 className="hist-section-label">
-                {cat === 'all' ? 'ALL ACTIVITY' : 'FILTERED ACTIVITY'}
-              </h2>
-              {cat !== 'all' && (
-                <button type="button" className="hist-cat-chip" onClick={() => setCat('all')}>
-                  Clear filter <X size={12} />
-                </button>
-              )}
-            </div>
-
+          <section className="hist-list-section" aria-label={activeBox.title}>
             {loading ? (
               <div className="hist-empty">
                 <div className="hist-empty-icon hist-empty-icon--muted">
@@ -340,11 +360,8 @@ export function HistoryPage({ userId: userIdProp, openService }: HistoryPageProp
                 <div className="hist-empty-icon">
                   <Receipt size={28} strokeWidth={1.8} />
                 </div>
-                <strong>No transactions yet</strong>
-                <p>
-                  Your transaction history will appear here once you make your first deposit or
-                  purchase.
-                </p>
+                <strong>No history yet</strong>
+                <p>Your records will show here once available.</p>
               </div>
             ) : (
               <ul className="hist-list">
@@ -386,76 +403,77 @@ export function HistoryPage({ userId: userIdProp, openService }: HistoryPageProp
               </ul>
             )}
           </section>
+
+          {openCat === 'all' && view === 'stats' && (
+            <section className="hist-stats" aria-label="Transaction summary">
+              <article className="hist-stat-card hist-stat-navy">
+                <div className="hist-stat-icon">
+                  <Wallet size={18} strokeWidth={2} />
+                </div>
+                <span className="hist-stat-label">ALL-TIME FUNDING</span>
+                <strong>{formatMoney(stats.allTimeFunding, stats.currency)}</strong>
+                <small>Total deposits ever made</small>
+              </article>
+
+              <article className="hist-stat-card hist-stat-teal">
+                <div className="hist-stat-icon">
+                  <TrendingDown size={18} strokeWidth={2} style={{ transform: 'rotate(180deg)' }} />
+                </div>
+                <span className="hist-stat-label">THIS MONTH'S TOP-UPS</span>
+                <strong>{formatMoney(stats.monthTopUps, stats.currency)}</strong>
+                <small>{stats.monthName}</small>
+              </article>
+
+              <article className="hist-stat-card hist-stat-violet">
+                <div className="hist-stat-icon">
+                  <TrendingDown size={18} strokeWidth={2} />
+                </div>
+                <span className="hist-stat-label">THIS MONTH'S SPENDING</span>
+                <strong>{formatMoney(stats.monthSpending, stats.currency)}</strong>
+                <small>{stats.monthName}</small>
+              </article>
+
+              <article className="hist-stat-card hist-stat-deep">
+                <div className="hist-stat-icon">
+                  <ShoppingBag size={18} strokeWidth={2} />
+                </div>
+                <span className="hist-stat-label">TOTAL PURCHASES</span>
+                <strong>{stats.totalPurchases}</strong>
+                <small>{stats.monthName}</small>
+              </article>
+
+              <div className="hist-month-summary">
+                <h2>
+                  <Calendar size={16} strokeWidth={2.2} />
+                  {stats.monthName} Summary
+                </h2>
+                <div className="hist-month-row">
+                  <span>
+                    <ArrowLeftRight size={14} strokeWidth={2} /> TOTAL TRANSACTIONS
+                  </span>
+                  <strong>{stats.monthTxCount}</strong>
+                </div>
+                <div className="hist-month-row hist-month-row--up">
+                  <span>
+                    <span className="hist-dot hist-dot--green" /> TOTAL TOP-UPS
+                  </span>
+                  <strong className="pos">{formatMoney(stats.monthTopUps, stats.currency)}</strong>
+                </div>
+                <div className="hist-month-row hist-month-row--down">
+                  <span>
+                    <span className="hist-dot hist-dot--red" /> TOTAL SPENT
+                  </span>
+                  <strong className="neg">{formatMoney(stats.monthSpending, stats.currency)}</strong>
+                </div>
+                <div className="hist-month-row">
+                  <ShoppingBag size={14} strokeWidth={2} />
+                  <span> PURCHASE COUNT</span>
+                  <strong>{stats.totalPurchases}</strong>
+                </div>
+              </div>
+            </section>
+          )}
         </>
-      ) : (
-        <section className="hist-stats" aria-label="Transaction summary">
-          <article className="hist-stat-card hist-stat-navy">
-            <div className="hist-stat-icon">
-              <Wallet size={18} strokeWidth={2} />
-            </div>
-            <span className="hist-stat-label">ALL-TIME FUNDING</span>
-            <strong>{formatMoney(stats.allTimeFunding, stats.currency)}</strong>
-            <small>Total deposits ever made</small>
-          </article>
-
-          <article className="hist-stat-card hist-stat-teal">
-            <div className="hist-stat-icon">
-              <TrendingDown size={18} strokeWidth={2} style={{ transform: 'rotate(180deg)' }} />
-            </div>
-            <span className="hist-stat-label">THIS MONTH'S TOP-UPS</span>
-            <strong>{formatMoney(stats.monthTopUps, stats.currency)}</strong>
-            <small>{stats.monthName}</small>
-          </article>
-
-          <article className="hist-stat-card hist-stat-violet">
-            <div className="hist-stat-icon">
-              <TrendingDown size={18} strokeWidth={2} />
-            </div>
-            <span className="hist-stat-label">THIS MONTH'S SPENDING</span>
-            <strong>{formatMoney(stats.monthSpending, stats.currency)}</strong>
-            <small>{stats.monthName}</small>
-          </article>
-
-          <article className="hist-stat-card hist-stat-deep">
-            <div className="hist-stat-icon">
-              <ShoppingBag size={18} strokeWidth={2} />
-            </div>
-            <span className="hist-stat-label">TOTAL PURCHASES</span>
-            <strong>{stats.totalPurchases}</strong>
-            <small>{stats.monthName}</small>
-          </article>
-
-          <div className="hist-month-summary">
-            <h2>
-              <Calendar size={16} strokeWidth={2.2} />
-              {stats.monthName} Summary
-            </h2>
-            <div className="hist-month-row">
-              <span>
-                <ArrowLeftRight size={14} strokeWidth={2} /> TOTAL TRANSACTIONS
-              </span>
-              <strong>{stats.monthTxCount}</strong>
-            </div>
-            <div className="hist-month-row hist-month-row--up">
-              <span>
-                <span className="hist-dot hist-dot--green" /> TOTAL TOP-UPS
-              </span>
-              <strong className="pos">{formatMoney(stats.monthTopUps, stats.currency)}</strong>
-            </div>
-            <div className="hist-month-row hist-month-row--down">
-              <span>
-                <span className="hist-dot hist-dot--red" /> TOTAL SPENT
-              </span>
-              <strong className="neg">{formatMoney(stats.monthSpending, stats.currency)}</strong>
-            </div>
-            <div className="hist-month-row">
-              <span>
-                <ShoppingBag size={14} strokeWidth={2} /> PURCHASE COUNT
-              </span>
-              <strong>{stats.totalPurchases}</strong>
-            </div>
-          </div>
-        </section>
       )}
     </div>
   );
