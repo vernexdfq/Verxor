@@ -53,7 +53,7 @@ export async function GET(req: NextRequest) {
   try {
     const rows = (await sbSelect(
       'vn_orders',
-      `user_id=eq.${userId}&order=created_at.desc&limit=100&select=id,provider,provider_order_id,phone,service,country,pool_id,price_ngn,status,otp_code,refunded,created_at,raw`,
+      `user_id=eq.${userId}&order=created_at.desc&limit=100&select=id,provider,activation_id,phone_number,service_code,country_code,charged_ngn,status,sms_code,created_at,expires_at`,
     )) as Array<Record<string, unknown>>;
 
     if (!Array.isArray(rows)) {
@@ -66,25 +66,24 @@ export async function GET(req: NextRequest) {
     const orders = rows.map((r) => {
       const createdAt = String(r.created_at || new Date().toISOString());
       const createdMs = Date.parse(createdAt) || Date.now();
-      const raw = (r.raw && typeof r.raw === 'object' ? r.raw : {}) as Record<string, unknown>;
+      const dbExpires = r.expires_at != null ? Date.parse(String(r.expires_at)) : NaN;
 
       return {
-        id: String(r.id || r.provider_order_id || ''),
-        number: String(r.phone || ''),
-        service: String(r.service || ''),
-        serviceId: String(r.service || ''),
-        country: String(r.country || ''),
-        poolTitle: String(raw.poolTitle || r.pool_id || 'Virtual number'),
-        poolId: r.pool_id != null ? String(r.pool_id) : undefined,
+        id: String(r.id || r.activation_id || ''),
+        number: String(r.phone_number || ''),
+        service: String(r.service_code || ''),
+        serviceId: String(r.service_code || ''),
+        country: String(r.country_code || ''),
+        poolTitle: 'Virtual number',
         status: mapVnStatus(r.status),
-        otp: r.otp_code != null ? String(r.otp_code) : undefined,
-        priceNgn: Number(r.price_ngn) || 0,
-        expiresAt: createdMs + LIFETIME_MS,
+        otp: r.sms_code != null ? String(r.sms_code) : undefined,
+        priceNgn: Number(r.charged_ngn) || 0,
+        expiresAt: Number.isFinite(dbExpires) ? dbExpires : createdMs + LIFETIME_MS,
         cancelAvailableAt: createdMs + CANCEL_LOCK_MS,
         createdAt,
         provider: String(r.provider || 'grizzly'),
-        providerOrderId: r.provider_order_id != null ? String(r.provider_order_id) : undefined,
-        refunded: Boolean(r.refunded),
+        providerOrderId: r.activation_id != null ? String(r.activation_id) : undefined,
+        refunded: false,
       };
     });
 

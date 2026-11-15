@@ -68,11 +68,11 @@ export async function GET(req: NextRequest) {
         let existingOrder: {
           id: string;
           user_id?: string | null;
-          phone?: string | null;
-          service?: string | null;
-          country?: string | null;
-          price_ngn?: number | null;
-          raw?: any;
+          phone_number?: string | null;
+          service_code?: string | null;
+          country_code?: string | null;
+          charged_ngn?: number | null;
+          status?: string | null;
         } | null = null;
         let matchedTable = 'vn_orders';
 
@@ -80,7 +80,7 @@ export async function GET(req: NextRequest) {
           try {
             const rows = (await sbSelect(
               'vn_orders',
-              `id=eq.${encodeURIComponent(orderId)}&select=id,user_id,phone,service,country,price_ngn,raw&limit=1`,
+              `id=eq.${encodeURIComponent(orderId)}&select=id,user_id,phone_number,service_code,country_code,charged_ngn,status&limit=1`,
             )) as Array<any>;
             if (Array.isArray(rows) && rows[0]) existingOrder = rows[0];
           } catch {
@@ -92,7 +92,7 @@ export async function GET(req: NextRequest) {
           try {
             const rows = (await sbSelect(
               'vn_orders',
-              `provider_order_id=eq.${encodeURIComponent(providerOrderId)}&select=id,user_id,phone,service,country,price_ngn,raw&limit=1`,
+              `activation_id=eq.${encodeURIComponent(providerOrderId)}&select=id,user_id,phone_number,service_code,country_code,charged_ngn,status&limit=1`,
             )) as Array<any>;
             if (Array.isArray(rows) && rows[0]) existingOrder = rows[0];
           } catch {
@@ -110,11 +110,11 @@ export async function GET(req: NextRequest) {
               existingOrder = {
                 id: rows[0].id,
                 user_id: rows[0].user_id,
-                phone: rows[0].phone,
-                service: rows[0].service,
-                country: rows[0].country,
-                price_ngn: rows[0].amount,
-                raw: rows[0].raw,
+                phone_number: rows[0].phone,
+                service_code: rows[0].service,
+                country_code: rows[0].country,
+                charged_ngn: rows[0].amount,
+                status: rows[0].status,
               };
               matchedTable = 'number_orders';
             }
@@ -123,20 +123,21 @@ export async function GET(req: NextRequest) {
           }
         }
 
-        const raw = (existingOrder?.raw && typeof existingOrder.raw === 'object' ? existingOrder.raw : {}) as Record<string, unknown>;
-        const emailSent = Boolean(raw.email_sent);
         let emailDispatched = false;
 
         const targetUserId = existingOrder?.user_id;
-        if (targetUserId && !emailSent) {
+        // vn_orders has no raw/meta column: send the delivery email only on the
+        // waiting -> received transition so polling never re-sends it.
+        const firstDelivery = String(existingOrder?.status || '').toLowerCase() !== 'received';
+        if (targetUserId && firstDelivery) {
           try {
             const mail = await sendVirtualNumberDeliveredReceipt({
               userId: targetUserId,
               orderId: existingOrder?.id || orderId || providerOrderId,
-              phone: existingOrder?.phone || '',
-              service: existingOrder?.service || 'Virtual Number',
-              country: existingOrder?.country || undefined,
-              amountNgn: Number(existingOrder?.price_ngn || 0),
+              phone: existingOrder?.phone_number || '',
+              service: existingOrder?.service_code || 'Virtual Number',
+              country: existingOrder?.country_code || undefined,
+              amountNgn: Number(existingOrder?.charged_ngn || 0),
             });
             if (mail.ok) {
               emailDispatched = true;
@@ -149,18 +150,10 @@ export async function GET(req: NextRequest) {
         }
 
         const patch: Record<string, unknown> = {
-          otp_code: otp,
+          sms_code: otp,
           status: 'received',
           updated_at: new Date().toISOString(),
         };
-
-        if (emailDispatched) {
-          patch.raw = {
-            ...raw,
-            email_sent: true,
-            email_sent_at: new Date().toISOString(),
-          };
-        }
 
         const targetId = existingOrder?.id || orderId;
         if (targetId) {

@@ -281,7 +281,7 @@ export async function GET(req: NextRequest) {
   try {
     const rows = (await sbSelect(
       'vn_orders',
-      `user_id=eq.${userId}&order=created_at.desc&limit=50&select=id,service_code,country_code,price_ngn,status,created_at,phone`,
+      `user_id=eq.${userId}&order=created_at.desc&limit=50&select=id,service_code,country_code,charged_ngn,status,created_at,phone_number`,
     )) as Array<Record<string, unknown>>;
 
     if (Array.isArray(rows)) {
@@ -291,7 +291,7 @@ export async function GET(req: NextRequest) {
         seen.add(id);
         const svc = String(r.service_code || 'Number');
         const country = String(r.country_code || '').toUpperCase();
-        const price = Number(r.price_ngn || 0);
+        const price = Number(r.charged_ngn || 0);
         const st = String(r.status || '').toLowerCase();
         const label = country
           ? `Virtual Number (${svc} / ${country})`

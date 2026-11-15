@@ -339,24 +339,19 @@ export async function POST(req: NextRequest) {
     let savedId: string | null = null;
     if (supabaseConfigured()) {
       try {
-        const rows = await sbInsert('vn_orders', {
-          user_id: userId || null,
-          provider: 'grizzly',
-          provider_order_id: String(result.id),
-          phone,
-          service,
-          country,
-          pool_id: poolId || null,
-          price_ngn: priceNgn,
-          status: 'waiting',
-          raw: {
-            access: result.raw,
-            debitRef: debited ? debitRef : null,
-            walletMode: useReseller ? 'reseller_wallet' : 'retail',
-            panelId: panel?.id || null,
-            panelName: panel?.name || null,
-          },
-        });
+        const rows = userId
+          ? await sbInsert('vn_orders', {
+              user_id: userId,
+              provider: 'grizzly',
+              activation_id: String(result.id),
+              phone_number: phone,
+              service_code: service,
+              country_code: country,
+              cost_usd: maxPriceUsd,
+              charged_ngn: priceNgn,
+              status: 'waiting',
+            })
+          : null;
         if (Array.isArray(rows) && rows[0]?.id) savedId = String(rows[0].id);
       } catch {
         /* order row optional */

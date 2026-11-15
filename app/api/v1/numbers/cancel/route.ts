@@ -260,9 +260,10 @@ export async function POST(req: NextRequest) {
         if (orderId) {
           await sbUpdate(table, { id: orderId }, patch);
         } else if (providerOrderId) {
+          const lookupCol = table === 'vn_orders' ? 'activation_id' : 'provider_order_id';
           const rows = (await sbSelect(
             table,
-            `provider_order_id=eq.${encodeURIComponent(providerOrderId)}&select=id&limit=1`,
+            `${lookupCol}=eq.${encodeURIComponent(providerOrderId)}&select=id&limit=1`,
           )) as Array<{ id: string }>;
           if (rows?.[0]?.id) await sbUpdate(table, { id: rows[0].id }, patch);
         }
