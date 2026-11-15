@@ -1,4 +1,4 @@
-/* All Services — Additional first, Popular second */
+/* All Services — compact 3-per-row tiles, one brand color */
 
 .svc-hub {
   display: flex;
@@ -48,8 +48,8 @@
 }
 
 .svc-hub-search:focus-within {
-  border-color: #1877f2;
-  box-shadow: 0 0 0 3px rgba(24, 119, 242, 0.12);
+  border-color: var(--primary, #0052ff);
+  box-shadow: 0 0 0 3px rgba(0, 82, 255, 0.12);
 }
 
 .svc-hub-search-icon {
@@ -99,167 +99,74 @@
   color: #64748b;
 }
 
-.svc-hub-grid-2 {
+.svc-hub-grid-3 {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
 }
 
-/* Large cards — Additional services */
-.svc-hub-card-lg {
+.svc-hub-tile {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  gap: 12px;
-  min-height: 118px;
-  padding: 14px 14px 12px;
-  text-align: left;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 96px;
+  padding: 12px 6px 10px;
+  text-align: center;
   border-radius: 16px;
   border: 1px solid #e2e8f0;
   background: #fff;
   color: #0f172a;
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  box-sizing: border-box;
 }
 
-.svc-hub-card-lg:active {
-  transform: scale(0.98);
+.svc-hub-tile:active {
+  transform: scale(0.97);
 }
 
-.svc-hub-icon-lg {
-  width: 48px;
-  height: 48px;
+.svc-hub-tile:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
+}
+
+.svc-hub-tile-icon {
+  position: relative;
+  width: 44px;
+  height: 44px;
   border-radius: 14px;
   display: grid;
   place-items: center;
   flex: none;
+  color: #fff;
+  background: var(--primary, #0052ff);
 }
 
-.svc-hub-card-body {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
-  width: 100%;
+.svc-hub-soon {
+  position: absolute;
+  top: -6px;
+  right: -10px;
+  background: #f59e0b;
+  color: #fff;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  padding: 2px 5px;
+  border-radius: 999px;
+  line-height: 1.2;
 }
 
-.svc-hub-card-title {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 13px;
-  font-weight: 700;
-  line-height: 16px;
-  color: #0f172a;
-}
-
-.svc-hub-card-desc {
+.svc-hub-tile-label {
   font-size: 11px;
-  line-height: 14px;
-  color: #64748b;
-  font-weight: 500;
-}
-
-.svc-arrow {
-  color: #94a3b8;
-  flex: none;
-}
-
-/* Compact cards — Popular services */
-.svc-hub-card-sm {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-height: 56px;
-  padding: 10px 12px;
-  text-align: left;
-  border-radius: 14px;
-  border: 1px solid #e2e8f0;
-  background: #fff;
-  color: #0f172a;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
-}
-
-.svc-hub-card-sm:active {
-  transform: scale(0.98);
-}
-
-.svc-hub-icon-sm {
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  display: grid;
-  place-items: center;
-  flex: none;
-}
-
-.svc-hub-card-title-sm {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 6px;
-  flex: 1;
-  min-width: 0;
-  font-size: 12px;
-  font-weight: 700;
-  line-height: 15px;
-  color: #0f172a;
-}
-
-.svc-blue {
-  color: #2563eb;
-  background: rgba(37, 99, 235, 0.1);
-}
-.svc-purple {
-  color: #8b5cf6;
-  background: rgba(139, 92, 246, 0.1);
-}
-.svc-amber {
-  color: #d97706;
-  background: rgba(245, 158, 11, 0.12);
-}
-.svc-emerald {
-  color: #059669;
-  background: rgba(16, 185, 129, 0.12);
-}
-.svc-sky {
-  color: #0284c7;
-  background: rgba(14, 165, 233, 0.12);
-}
-.svc-teal {
-  color: #0d9488;
-  background: rgba(13, 148, 136, 0.12);
-}
-.svc-indigo {
-  color: #4f46e5;
-  background: rgba(99, 102, 241, 0.12);
-}
-.svc-cyan {
-  color: #0891b2;
-  background: rgba(6, 182, 212, 0.12);
-}
-.svc-rose {
-  color: #e11d48;
-  background: rgba(244, 63, 94, 0.1);
-}
-.svc-yellow {
-  color: #ca8a04;
-  background: rgba(234, 179, 8, 0.14);
-}
-.svc-green {
-  color: #059669;
-  background: rgba(16, 185, 129, 0.12);
-}
-.svc-slate {
-  color: #0f172a;
-  background: rgba(15, 23, 42, 0.08);
-}
-.svc-pink {
-  color: #db2777;
-  background: rgba(236, 72, 153, 0.12);
-}
-.svc-orange {
-  color: #ea580c;
-  background: rgba(249, 115, 22, 0.12);
+  line-height: 13px;
+  font-weight: 600;
+  color: #334155;
+  max-width: 100%;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .svc-hub-empty {
@@ -284,18 +191,18 @@
 }
 
 @media (max-width: 360px) {
-  .svc-hub-grid-2 {
+  .svc-hub-grid-3 {
     gap: 8px;
   }
-  .svc-hub-card-lg {
-    min-height: 110px;
-    padding: 12px;
+  .svc-hub-tile {
+    min-height: 90px;
+    padding: 10px 4px;
   }
-  .svc-hub-icon-lg {
-    width: 44px;
-    height: 44px;
+  .svc-hub-tile-icon {
+    width: 40px;
+    height: 40px;
   }
-  .svc-hub-card-title {
-    font-size: 12px;
+  .svc-hub-tile-label {
+    font-size: 10px;
   }
 }

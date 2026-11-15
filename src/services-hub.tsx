@@ -3,19 +3,17 @@
 import { useMemo, useState } from 'react';
 import {
   ArrowLeft,
-  ArrowRight,
+  AtSign,
   CreditCard,
-  FileText,
   Gamepad2,
   Gift,
   Globe,
   GraduationCap,
-  Phone,
-  PhoneCall,
   PhoneForwarded,
-  Rocket,
+  Repeat,
   Search,
-  ShieldCheck,
+  Sparkles,
+  Trophy,
   Tv,
   Wifi,
   X,
@@ -28,145 +26,31 @@ import './services-hub.css';
 type ServiceItem = {
   id: string;
   title: string;
-  description: string;
-  tone: string;
   icon: LucideIcon;
   service?: ServiceView;
+  soon?: boolean;
   tags: string[];
 };
 
-/** Nigerian VTU services — bold on Services page */
-const ADDITIONAL: ServiceItem[] = [
-  {
-    id: 'data',
-    title: 'Data',
-    description: 'Cheap mobile data bundles.',
-    tone: 'svc-sky',
-    icon: Wifi,
-    service: 'data',
-    tags: ['data', 'bundle', 'mtn', 'glo'],
-  },
-  {
-    id: 'airtime',
-    title: 'Airtime',
-    description: 'Top up all networks.',
-    tone: 'svc-teal',
-    icon: PhoneForwarded,
-    service: 'airtime',
-    tags: ['airtime', 'topup'],
-  },
-  {
-    id: 'tv',
-    title: 'TV Sub / Cable',
-    description: 'Renew DStv, GOtv, and more.',
-    tone: 'svc-rose',
-    icon: Tv,
-    service: 'tv-cable',
-    tags: ['dstv', 'gotv', 'cable', 'tv'],
-  },
-  {
-    id: 'electricity',
-    title: 'Electricity',
-    description: 'Prepaid meter top-ups fast.',
-    tone: 'svc-yellow',
-    icon: Zap,
-    service: 'electricity',
-    tags: ['electricity', 'prepaid', 'nepa', 'phcn'],
-  },
-  {
-    id: 'exam-pin',
-    title: 'Exam Pin',
-    description: 'Purchase results pins effortlessly.',
-    tone: 'svc-green',
-    icon: GraduationCap,
-    service: 'exam-pin',
-    tags: ['waec', 'neco', 'jamb', 'pin'],
-  },
-  {
-    id: 'bet-wallet',
-    title: 'Bet Wallet',
-    description: 'Fund betting wallets instantly.',
-    tone: 'svc-orange',
-    icon: Gamepad2,
-    service: 'bet-wallet',
-    tags: ['betting', 'sportybet', 'bet9ja'],
-  },
+/** Digital services — new & upcoming, shown first */
+const DIGITAL: ServiceItem[] = [
+  { id: 'esim', title: 'eSIM', icon: Globe, soon: true, tags: ['esim', 'sim', 'travel'] },
+  { id: 'virtual-card', title: 'Virtual Card', icon: CreditCard, soon: true, tags: ['card', 'usd', 'virtual'] },
+  { id: 'sell-gift-card', title: 'Sell Gift Card', icon: Gift, service: 'gift-card', tags: ['gift', 'sell', 'redeem'] },
+  { id: 'trade-gift-card', title: 'Trade Gift Card', icon: Repeat, service: 'gift-card', tags: ['gift', 'trade', 'exchange'] },
+  { id: 'ai-subs', title: 'AI/App Subs', icon: Sparkles, soon: true, tags: ['ai', 'subscription', 'chatgpt', 'netflix'] },
+  { id: 'gaming', title: 'Gaming Top Up', icon: Trophy, soon: true, tags: ['game', 'gaming', 'steam'] },
+  { id: 'domain', title: 'Domain Reg', icon: AtSign, soon: true, tags: ['domain', 'website', 'dns'] },
 ];
 
-/** Same 8 global services as Home quick actions — for discovery */
-const POPULAR: ServiceItem[] = [
-  {
-    id: 'virtual-number',
-    title: 'Virtual Number',
-    description: 'Instant OTP verification.',
-    tone: 'svc-blue',
-    icon: Phone,
-    service: 'virtual-numbers',
-    tags: ['otp', 'sms', 'whatsapp', 'telegram'],
-  },
-  {
-    id: 'boost',
-    title: 'Boost Account',
-    description: 'Social growth orders.',
-    tone: 'svc-purple',
-    icon: Rocket,
-    service: 'boost',
-    tags: ['smm', 'instagram', 'tiktok'],
-  },
-  {
-    id: 'buy-logs',
-    title: 'Buy Logs',
-    description: 'Verified accounts & logs.',
-    tone: 'svc-amber',
-    icon: FileText,
-    service: 'accounts',
-    tags: ['accounts', 'logs'],
-  },
-  {
-    id: 'rent-number',
-    title: 'Rent Number',
-    description: 'Dedicated rental lines.',
-    tone: 'svc-emerald',
-    icon: PhoneCall,
-    service: 'rental',
-    tags: ['rental', 'dedicated'],
-  },
-  {
-    id: 'esim',
-    title: 'eSIM Profiles',
-    description: 'Global connectivity instantly.',
-    tone: 'svc-indigo',
-    icon: Globe,
-    service: 'esim',
-    tags: ['esim', 'roaming', 'sim', 'global'],
-  },
-  {
-    id: 'proxies',
-    title: 'Proxies (IP)',
-    description: 'Secure residential & datacenter IPs.',
-    tone: 'svc-cyan',
-    icon: ShieldCheck,
-    service: 'proxies',
-    tags: ['proxy', 'ip', 'residential'],
-  },
-  {
-    id: 'gift-card',
-    title: 'Gift Card',
-    description: 'Buy & trade gift cards.',
-    tone: 'svc-pink',
-    icon: Gift,
-    service: 'gift-card',
-    tags: ['gift', 'trade'],
-  },
-  {
-    id: 'virtual-card',
-    title: 'Virtual Card',
-    description: 'Online payment cards.',
-    tone: 'svc-slate',
-    icon: CreditCard,
-    service: 'virtual-card',
-    tags: ['card', 'usd', 'virtual'],
-  },
+/** Nigerian VTU services */
+const VTU: ServiceItem[] = [
+  { id: 'data', title: 'Data', icon: Wifi, service: 'data', tags: ['data', 'bundle', 'mtn', 'glo'] },
+  { id: 'airtime', title: 'Airtime', icon: PhoneForwarded, service: 'airtime', tags: ['airtime', 'topup'] },
+  { id: 'tv', title: 'TV Sub / Cable', icon: Tv, service: 'tv-cable', tags: ['dstv', 'gotv', 'cable', 'tv'] },
+  { id: 'electricity', title: 'Electricity', icon: Zap, service: 'electricity', tags: ['electricity', 'prepaid', 'nepa'] },
+  { id: 'exam-pin', title: 'Exam Pin', icon: GraduationCap, service: 'exam-pin', tags: ['waec', 'neco', 'jamb', 'pin'] },
+  { id: 'bet-wallet', title: 'Bet Wallet', icon: Gamepad2, service: 'bet-wallet', tags: ['betting', 'sportybet', 'bet9ja'] },
 ];
 
 function filterList(items: ServiceItem[], q: string) {
@@ -174,8 +58,38 @@ function filterList(items: ServiceItem[], q: string) {
   return items.filter(
     (item) =>
       item.title.toLowerCase().includes(q) ||
-      item.description.toLowerCase().includes(q) ||
       item.tags.some((t) => t.includes(q)),
+  );
+}
+
+function TileGrid({ items, onOpen }: { items: ServiceItem[]; onOpen: (view: ServiceView) => void }) {
+  return (
+    <div className="svc-hub-grid-3">
+      {items.map((item) => {
+        const Icon = item.icon;
+        return (
+          <button
+            key={item.id}
+            type="button"
+            className="svc-hub-tile"
+            aria-label={item.soon ? `${item.title} coming soon` : item.title}
+            onClick={() => {
+              if (item.soon) {
+                window.alert('Service coming soon');
+                return;
+              }
+              if (item.service) onOpen(item.service);
+            }}
+          >
+            <span className="svc-hub-tile-icon">
+              <Icon size={20} strokeWidth={1.9} />
+              {item.soon ? <span className="svc-hub-soon">SOON</span> : null}
+            </span>
+            <span className="svc-hub-tile-label">{item.title}</span>
+          </button>
+        );
+      })}
+    </div>
   );
 }
 
@@ -190,9 +104,9 @@ export function ServicesHub({
   const [searchOpen, setSearchOpen] = useState(true);
 
   const q = query.trim().toLowerCase();
-  const additional = useMemo(() => filterList(ADDITIONAL, q), [q]);
-  const popular = useMemo(() => filterList(POPULAR, q), [q]);
-  const total = additional.length + popular.length;
+  const digital = useMemo(() => filterList(DIGITAL, q), [q]);
+  const vtu = useMemo(() => filterList(VTU, q), [q]);
+  const total = digital.length + vtu.length;
 
   return (
     <div className="svc-hub">
@@ -235,59 +149,16 @@ export function ServicesHub({
         </div>
       ) : (
         <>
-          {additional.length > 0 && (
+          {digital.length > 0 && (
             <section className="svc-hub-group">
-              <h2 className="svc-hub-group-title">ADDITIONAL SERVICES</h2>
-              <div className="svc-hub-grid-2">
-                {additional.map((item) => {
-                  const Icon = item.icon;
-                  return (
-                    <button
-                      key={item.id}
-                      type="button"
-                      className="svc-hub-card-lg"
-                      onClick={() => item.service && open(item.service)}
-                    >
-                      <span className={`svc-hub-icon-lg ${item.tone}`}>
-                        <Icon size={22} strokeWidth={1.9} />
-                      </span>
-                      <span className="svc-hub-card-body">
-                        <span className="svc-hub-card-title">
-                          {item.title} <ArrowRight size={14} className="svc-arrow" />
-                        </span>
-                        <span className="svc-hub-card-desc">{item.description}</span>
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
+              <h2 className="svc-hub-group-title">DIGITAL SERVICES</h2>
+              <TileGrid items={digital} onOpen={open} />
             </section>
           )}
-
-          {popular.length > 0 && (
+          {vtu.length > 0 && (
             <section className="svc-hub-group">
-              <h2 className="svc-hub-group-title">POPULAR SERVICES</h2>
-              <div className="svc-hub-grid-2">
-                {popular.map((item) => {
-                  const Icon = item.icon;
-                  return (
-                    <button
-                      key={item.id}
-                      type="button"
-                      className="svc-hub-card-sm"
-                      onClick={() => item.service && open(item.service)}
-                    >
-                      <span className={`svc-hub-icon-sm ${item.tone}`}>
-                        <Icon size={18} strokeWidth={1.9} />
-                      </span>
-                      <span className="svc-hub-card-title-sm">
-                        {item.title}
-                        <ArrowRight size={13} className="svc-arrow" />
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
+              <h2 className="svc-hub-group-title">VTU SERVICES</h2>
+              <TileGrid items={vtu} onOpen={open} />
             </section>
           )}
         </>
