@@ -452,7 +452,7 @@ export function VerxorApp() {
   } else if (service) {
     content = <ServicePage view={service} onBack={closeService} />;
   } else if (page === 'history') {
-    content = <HistoryPage />;
+    content = <HistoryPage openService={openService} />;
   } else if (page === 'services') {
     content = <ServicesPage open={openService} onBack={() => navigatePage('home')} />;
   } else {

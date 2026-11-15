@@ -4,6 +4,10 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ArrowLeftRight,
   Calendar,
+  FileText,
+  PhoneCall,
+  Rocket,
+  Smartphone,
   LayoutList,
   PieChart,
   Receipt,
@@ -15,6 +19,7 @@ import {
 } from 'lucide-react';
 import { formatNgn } from './lib/wallet-ui';
 import { loadSessionTokens, loadSessionProfile } from './auth/session-unlock';
+import type { ServiceView } from './service-pages';
 import './history-page.css';
 
 export type Transaction = {
@@ -29,7 +34,50 @@ export type Transaction = {
 
 type HistoryPageProps = {
   userId?: string;
+  openService?: (view: ServiceView) => void;
 };
+
+type CatKey = 'all' | 'deposit' | 'numbers' | 'bills';
+
+const HIST_CARDS: {
+  key: CatKey | 'boost' | 'logs' | 'rent';
+  title: string;
+  sub: string;
+  icon: typeof Wallet;
+  nav?: ServiceView;
+}[] = [
+  { key: 'deposit', title: 'Deposit History', sub: 'Wallet funding and payments', icon: Wallet },
+  { key: 'numbers', title: 'Number History', sub: 'OTP numbers and received codes', icon: Smartphone },
+  { key: 'bills', title: 'Bills History', sub: 'Airtime, data, TV and electricity', icon: Receipt },
+  { key: 'boost', title: 'Boost Orders', sub: 'Social boost orders', icon: Rocket, nav: 'boost' },
+  { key: 'logs', title: 'Logs Orders', sub: 'Account logs purchases', icon: FileText, nav: 'accounts' },
+  { key: 'rent', title: 'Rent History', sub: 'Rented numbers and rentals', icon: PhoneCall, nav: 'rental' },
+];
+
+function txMatchesCat(t: Transaction, cat: CatKey): boolean {
+  const title = (t.title || '').toLowerCase();
+  const kind = (t.kind || '').toLowerCase();
+  if (cat === 'deposit') {
+    return t.amount > 0 || kind === 'fund' || title.includes('wallet fund');
+  }
+  if (cat === 'numbers') {
+    return title.includes('virtual number') || title.includes('number');
+  }
+  if (cat === 'bills') {
+    return (
+      title.includes('airtime') ||
+      title.includes('data') ||
+      title.includes('tv') ||
+      title.includes('dstv') ||
+      title.includes('gotv') ||
+      title.includes('cable') ||
+      title.includes('electricity') ||
+      title.includes('exam') ||
+      title.includes('bet')
+    );
+  }
+  return true;
+}
 
 type ViewMode = 'list' | 'stats';
 
@@ -78,12 +126,13 @@ async function resolveAuth(userIdProp?: string) {
   return { accessToken, userId };
 }
 
-export function HistoryPage({ userId: userIdProp }: HistoryPageProps) {
+export function HistoryPage({ userId: userIdProp, openService }: HistoryPageProps) {
   const [items, setItems] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState('');
   const [error, setError] = useState('');
   const [view, setView] = useState<ViewMode>('list');
+  const [cat, setCat] = useState<CatKey>('all');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -119,15 +168,17 @@ export function HistoryPage({ userId: userIdProp }: HistoryPageProps) {
   }, [load]);
 
   const filtered = useMemo(() => {
+    let list = cat === 'all' ? items : items.filter((t) => txMatchesCat(t, cat));
     const q = query.trim().toLowerCase();
-    if (!q) return items;
-    return items.filter(
+    if (!q) return list;
+    list = list.filter(
       (t) =>
         t.title.toLowerCase().includes(q) ||
         t.id.toLowerCase().includes(q) ||
         (t.kind && t.kind.toLowerCase().includes(q)),
     );
-  }, [items, query]);
+    return list;
+  }, [items, query, cat]);
 
   const stats = useMemo(() => {
     const now = new Date();
@@ -223,8 +274,49 @@ export function HistoryPage({ userId: userIdProp }: HistoryPageProps) {
             ) : null}
           </div>
 
+          <section className="hist-cards-section" aria-label="History categories">
+            <h2 className="hist-section-label">BROWSE RECORDS</h2>
+            <div className="hist-cards">
+              {HIST_CARDS.map((card) => {
+                const Icon = card.icon;
+                return (
+                  <button
+                    key={card.key}
+                    type="button"
+                    className="hist-card"
+                    onClick={() => {
+                      if (card.nav) {
+                        openService?.(card.nav);
+                        return;
+                      }
+                      setCat(card.key as CatKey);
+                      setView('list');
+                    }}
+                  >
+                    <span className="hist-card-icon">
+                      <Icon size={18} strokeWidth={2} />
+                    </span>
+                    <span className="hist-card-copy">
+                      <strong>{card.title}</strong>
+                      <small>{card.sub}</small>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+
           <section className="hist-list-section" aria-label="All activity">
-            <h2 className="hist-section-label">ALL ACTIVITY</h2>
+            <div className="hist-list-head">
+              <h2 className="hist-section-label">
+                {cat === 'all' ? 'ALL ACTIVITY' : 'FILTERED ACTIVITY'}
+              </h2>
+              {cat !== 'all' && (
+                <button type="button" className="hist-cat-chip" onClick={() => setCat('all')}>
+                  Clear filter <X size={12} />
+                </button>
+              )}
+            </div>
 
             {loading ? (
               <div className="hist-empty">
