@@ -119,15 +119,15 @@
 .vn-pool-card {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: stretch;
   gap: 6px;
-  padding: 12px;
+  padding: 14px;
   text-align: left;
   border-radius: 16px;
   border: 1px solid #e2e8f0;
   background: #fff;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
-  min-height: 128px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+  min-height: 138px;
   cursor: pointer;
 }
 
@@ -164,7 +164,7 @@
 }
 
 .tier-eco { background: #ecfdf5; color: #059669; }
-.tier-std { background: #eff6ff; color: #2563eb; }
+.tier-std { background: #eff6ff; color: var(--primary, #0052ff); }
 .tier-fast { background: #fffbeb; color: #d97706; }
 .tier-premium { background: #fff1f2; color: #e11d48; }
 
@@ -184,21 +184,46 @@
   flex: 1;
 }
 
-.vn-price-pill {
-  margin-top: 4px;
-  display: inline-flex;
-  align-items: center;
-  height: 26px;
-  padding: 0 10px;
-  border-radius: 999px;
-  font-size: 11px;
-  font-weight: 700;
+.vn-pool-bottom {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 2px;
 }
 
-.vn-price-pill.tier-eco { background: #d1fae5; color: #047857; }
-.vn-price-pill.tier-std { background: #dbeafe; color: #1d4ed8; }
-.vn-price-pill.tier-fast { background: #fef3c7; color: #b45309; }
-.vn-price-pill.tier-premium { background: #ffe4e6; color: #be123c; }
+.vn-pool-price {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.vn-pool-price small {
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: #94a3b8;
+}
+
+.vn-pool-price strong {
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #0f172a;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.vn-pool-go {
+  width: 30px;
+  height: 30px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--primary, #0052ff);
+  color: #fff;
+}
 
 .vn-promo {
   position: relative;
@@ -355,9 +380,9 @@
 }
 
 .vn-chips button.active {
-  background: #2563eb;
+  background: var(--primary, #0052ff);
   color: #fff;
-  border-color: #2563eb;
+  border-color: var(--primary, #0052ff);
 }
 
 .vn-chips button.active .vn-cat-count {
@@ -437,7 +462,7 @@
 .vn-current-strip-head button {
   border: none;
   background: transparent;
-  color: #2563eb;
+  color: var(--primary, #0052ff);
   font-size: 12px;
   font-weight: 700;
   cursor: pointer;
@@ -517,7 +542,7 @@
   flex: none;
   border: none;
   background: transparent;
-  color: #2563eb;
+  color: var(--primary, #0052ff);
   font-size: 12px;
   font-weight: 700;
   cursor: pointer;
@@ -610,7 +635,7 @@
   border-radius: 10px;
   border: 1.5px solid #bfdbfe;
   background: #eff6ff;
-  color: #2563eb;
+  color: var(--primary, #0052ff);
   cursor: pointer;
 }
 
@@ -718,7 +743,7 @@
   padding: 0 12px;
   border-radius: 999px;
   border: none;
-  background: #2563eb;
+  background: var(--primary, #0052ff);
   color: #fff;
   font-size: 12px;
   font-weight: 700;
@@ -839,7 +864,7 @@
   height: 48px;
   border: none;
   border-radius: 12px;
-  background: #2563eb;
+  background: var(--primary, #0052ff);
   color: #fff;
   font-size: 15px;
   font-weight: 700;
@@ -884,7 +909,7 @@
   height: 44px;
   border: none;
   border-radius: 12px;
-  background: #2563eb;
+  background: var(--primary, #0052ff);
   color: #fff;
   font-size: 15px;
   font-weight: 700;

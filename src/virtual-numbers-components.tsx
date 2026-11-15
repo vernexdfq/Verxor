@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState, type CSSProperties } from 'react';
-import { Globe2 } from 'lucide-react';
+import { ArrowRight, Globe2 } from 'lucide-react';
 import { type Pool, formatNgn } from './virtual-numbers-data';
 
 /**
@@ -398,9 +398,17 @@ export function PoolCard({ pool, onSelect }: { pool: Pool; onSelect: (p: Pool) =
         </span>
         <span className={`vn-tier-badge ${tierClass}`}>{pool.tier}</span>
       </div>
-      <span className="vn-pool-title">{pool.title}</span>
+      <span className="vn-pool-title">{pool.location === 'USA' ? 'USA' : 'Worldwide'}</span>
       <span className="vn-pool-hint">{pool.hint}</span>
-      <span className={`vn-price-pill ${tierClass}`}>From {formatNgn(pool.fromNgn)}</span>
+      <span className="vn-pool-bottom">
+        <span className="vn-pool-price">
+          <small>FROM</small>
+          <strong>{formatNgn(pool.fromNgn)}</strong>
+        </span>
+        <span className="vn-pool-go" aria-hidden="true">
+          <ArrowRight size={15} strokeWidth={2.4} />
+        </span>
+      </span>
     </button>
   );
 }
