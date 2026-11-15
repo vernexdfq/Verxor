@@ -60,7 +60,7 @@ export function AppShell({
                     <img src="/brand/verxor-logo.svg" alt="" width="40" height="40" />
                   </div>
                   <div className="topbar-greeting" aria-label="Welcome back">
-                    <span>{greet.line}</span>
+                    <span>{greet}</span>
                   </div>
                 </div>
               ) : page === 'history' ? (
