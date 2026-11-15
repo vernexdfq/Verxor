@@ -242,6 +242,68 @@ export function VirtualNumbersPage({
     } catch {}
   }, [localOrders]);
 
+  // Load the user's orders from the server so history survives new devices / fresh logins.
+  useEffect(() => {
+    let stopped = false;
+    (async () => {
+      try {
+        const headers: Record<string, string> = {};
+        let token = loadSessionTokens()?.access_token || '';
+        try {
+          const { getSupabaseBrowser } = await import('../lib/supabase/client');
+          const sb = getSupabaseBrowser();
+          if (sb) {
+            const { data: { session: s } } = await sb.auth.getSession();
+            if (s?.access_token) token = s.access_token;
+          }
+        } catch {}
+        if (token) headers.Authorization = `Bearer ${token}`;
+        const res = await fetch('/api/v1/numbers/orders', { headers, cache: 'no-store' });
+        if (!res.ok || stopped) return;
+        const data = (await res.json().catch(() => ({}))) as { ok?: boolean; orders?: CustomerNumberOrder[] };
+        if (!data?.ok || !Array.isArray(data.orders) || data.orders.length === 0 || stopped) return;
+
+        setLocalOrders((prev) => {
+          const merged = [...prev];
+          for (const s of data.orders!) {
+            if (!s || !s.id) continue;
+            const sKey = String((s as any).providerOrderId || s.id);
+            const idx = merged.findIndex((o) => {
+              const oKey = String(o.providerOrderId || o.id);
+              return oKey === sKey || String(o.id) === String(s.id) || String(o.id) === sKey;
+            });
+            if (idx >= 0) {
+              const existing = merged[idx];
+              merged[idx] = {
+                ...existing,
+                ...s,
+                // keep local timers for live orders; server values are approximations
+                expiresAt: existing.status === 'waiting' ? existing.expiresAt : (s as any).expiresAt || existing.expiresAt,
+                cancelAvailableAt:
+                  existing.status === 'waiting' ? existing.cancelAvailableAt : (s as any).cancelAvailableAt || existing.cancelAvailableAt,
+                otp: s.otp || existing.otp,
+                status: s.status,
+              };
+            } else {
+              const created = s.createdAt ? new Date(s.createdAt).getTime() : Date.now();
+              merged.push({
+                ...(s as CustomerNumberOrder),
+                expiresAt: (s as any).expiresAt || created + LIFETIME_MS,
+                cancelAvailableAt: (s as any).cancelAvailableAt || created + CANCEL_LOCK_MS,
+              });
+            }
+          }
+          return merged.sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
+        });
+      } catch {
+        /* server history is best-effort; localStorage still works */
+      }
+    })();
+    return () => {
+      stopped = true;
+    };
+  }, []);
+
   useEffect(() => {
     const t = setInterval(() => setPromoIndex((i) => (i + 1) % PROMO_SLIDES.length), 4500);
     return () => clearInterval(t);
