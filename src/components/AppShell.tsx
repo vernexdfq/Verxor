@@ -7,10 +7,7 @@ import type { Page } from '../types';
 import type { ServiceView } from '../service-pages';
 
 function homeGreeting(name: string) {
-  const h = new Date().getHours();
-  if (h < 12) return { line: `Good morning, ${name}`, emoji: '☀️' };
-  if (h < 17) return { line: `Good afternoon, ${name}`, emoji: '⛅' };
-  return { line: `Good evening, ${name}`, emoji: '🌙' };
+  return `Hi, ${name.toUpperCase()}`;
 }
 
 export function AppShell({
@@ -63,10 +60,7 @@ export function AppShell({
                     <img src="/brand/verxor-logo.svg" alt="" width="40" height="40" />
                   </div>
                   <div className="topbar-greeting" aria-label="Welcome back">
-                    <span>
-                      {greet.line} <span className="greet-emoji">{greet.emoji}</span>
-                    </span>
-                    <small>Your Verxor Dashboard</small>
+                    <span>{greet.line}</span>
                   </div>
                 </div>
               ) : page === 'history' ? (

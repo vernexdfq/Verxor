@@ -282,14 +282,10 @@
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
-.qa-blue { color: #2563eb; background: rgba(0, 82, 255, 0.1); }
-.qa-purple { color: #8b5cf6; background: rgba(139, 92, 246, 0.1); }
-.qa-amber { color: #d97706; background: rgba(245, 158, 11, 0.12); }
-.qa-teal { color: #0d9488; background: rgba(13, 148, 136, 0.12); }
-.qa-royal { color: #0284c7; background: rgba(14, 165, 233, 0.12); }
-.qa-green { color: #0d9488; background: rgba(16, 185, 129, 0.12); }
-.qa-pink { color: #db2777; background: rgba(236, 72, 153, 0.12); }
-.qa-slate { color: #4f46e5; background: rgba(99, 102, 241, 0.12); }
+.qa-solid {
+  color: #fff;
+  background: var(--primary, #0052ff);
+}
 
 @media (max-width: 360px) {
   .vx-quick-grid { gap: 8px; }

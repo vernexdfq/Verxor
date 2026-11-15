@@ -3,15 +3,15 @@
 import {
   ArrowRight,
   Clock3,
-  CreditCard,
+  Mail,
   Eye,
   EyeOff,
   FileText,
-  Gift,
-  Globe,
+  Send,
   History,
   Phone,
   PhoneCall,
+  PhoneForwarded,
   Plus,
   Rocket,
   ShieldCheck,
@@ -33,14 +33,14 @@ const QUICK_ACTIONS: {
   service?: ServiceView;
   soon?: boolean;
 }[] = [
-  { id: 'virtual-numbers', title: 'Virtual Number', icon: Phone, tone: 'qa-blue', service: 'virtual-numbers' },
-  { id: 'boost', title: 'Boost Account', icon: Rocket, tone: 'qa-purple', service: 'boost' },
-  { id: 'accounts', title: 'Buy Logs', icon: FileText, tone: 'qa-amber', service: 'accounts' },
-  { id: 'rental', title: 'Rent Number', icon: PhoneCall, tone: 'qa-teal', service: 'rental' },
-  { id: 'esim', title: 'eSIM', icon: Globe, tone: 'qa-royal', service: 'esim', soon: true },
-  { id: 'proxies', title: 'Proxies', icon: ShieldCheck, tone: 'qa-green', service: 'proxies', soon: true },
-  { id: 'gift', title: 'Gift Card', icon: Gift, tone: 'qa-pink', service: 'gift-card' },
-  { id: 'vcard', title: 'Virtual Card', icon: CreditCard, tone: 'qa-slate', service: 'virtual-card' },
+  { id: 'virtual-numbers', title: 'Virtual Number', icon: Phone, tone: 'qa-solid', service: 'virtual-numbers' },
+  { id: 'boost', title: 'Boost Account', icon: Rocket, tone: 'qa-solid', service: 'boost' },
+  { id: 'accounts', title: 'Buy Logs', icon: FileText, tone: 'qa-solid', service: 'accounts' },
+  { id: 'email-otp', title: 'Email OTP', icon: Mail, tone: 'qa-solid', soon: true },
+  { id: 'telegram-premium', title: 'Telegram Premium', icon: Send, tone: 'qa-solid', soon: true },
+  { id: 'rent-sms', title: 'Rent for SMS', icon: PhoneCall, tone: 'qa-solid', service: 'rental' },
+  { id: 'rent-sms-calls', title: 'Rent for SMS/Calls', icon: PhoneForwarded, tone: 'qa-solid', service: 'rental' },
+  { id: 'proxies', title: 'Proxies', icon: ShieldCheck, tone: 'qa-solid', soon: true },
 ];
 
 const PROMO_SLIDES: {
@@ -68,7 +68,7 @@ const PROMO_SLIDES: {
     subtext: 'Followers, likes & views — tracked.',
     cta: 'Boost Now',
     service: 'boost',
-    accent: 'promo-accent-purple',
+    accent: 'promo-accent-blue',
   },
   {
     id: 'buy-logs',
@@ -77,7 +77,7 @@ const PROMO_SLIDES: {
     subtext: 'Verified accounts with instant delivery.',
     cta: 'Explore Logs',
     service: 'accounts',
-    accent: 'promo-accent-amber',
+    accent: 'promo-accent-blue',
   },
   {
     id: 'rent-number',
@@ -86,42 +86,7 @@ const PROMO_SLIDES: {
     subtext: 'Long-term SMS & call numbers.',
     cta: 'Rent Line',
     service: 'rental',
-    accent: 'promo-accent-teal',
-  },
-  {
-    id: 'esim',
-    badge: 'eSIM',
-    headline: 'Stay connected abroad',
-    subtext: 'Digital SIM profiles for travel.',
-    cta: 'Get eSIM',
-    service: 'esim',
-    accent: 'promo-accent-sky',
-  },
-  {
-    id: 'proxies',
-    badge: 'PROXIES',
-    headline: 'Secure residential IPs',
-    subtext: 'Residential & datacenter proxies.',
-    cta: 'Browse Proxies',
-    accent: 'promo-accent-green',
-  },
-  {
-    id: 'gift-card',
-    badge: 'GIFT CARDS',
-    headline: 'Trade gift cards easily',
-    subtext: 'Buy from users or redeem brands.',
-    cta: 'Open Cards',
-    service: 'gift-card',
-    accent: 'promo-accent-pink',
-  },
-  {
-    id: 'virtual-card',
-    badge: 'VIRTUAL CARDS',
-    headline: 'Pay anywhere online',
-    subtext: 'Dollar & local cards for checkout.',
-    cta: 'Get Card',
-    service: 'virtual-card',
-    accent: 'promo-accent-indigo',
+    accent: 'promo-accent-blue',
   },
 ];
 
