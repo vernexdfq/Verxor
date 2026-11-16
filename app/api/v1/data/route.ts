@@ -178,6 +178,9 @@ export async function POST(req: NextRequest) {
     planName?: string;
     ported?: boolean;
     ref?: string;
+    userId?: string;
+    email?: string;
+    contact?: string;
   };
   try {
     body = await req.json();
