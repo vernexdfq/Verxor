@@ -623,16 +623,14 @@ export function DataPage({ onBack, session, onFund }: DataPageProps) {
         // The API will reject checkout if there is no verifiable auth session.
       }
 
-      if (!accessToken) {
-        throw new Error('Your sign-in session could not be verified. Please sign in again.');
-      }
+      // No hard token check here: the API resolves the user from the live
+      // Supabase user id, stored profile id, or profile email/phone fallbacks.
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
 
       const res = await fetch('/api/v1/data', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${accessToken}`,
-        },
+        headers,
         body: JSON.stringify({
           network: networkId,
           phone: phoneDigits,
