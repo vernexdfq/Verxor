@@ -1,4 +1,4 @@
-/* Fund Wallet — Primex-style generate VA flow, Verxor colors */
+/* Fund Wallet — multi-provider bank + crypto */
 
 .fund-page {
   display: flex;
@@ -72,6 +72,37 @@
   font-size: 12px;
   font-weight: 600;
   color: #86efac;
+}
+
+.fund-method-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  padding: 4px;
+  border-radius: 14px;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+}
+
+.fund-method-tabs button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 42px;
+  border: none;
+  border-radius: 11px;
+  background: transparent;
+  color: #64748b;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.fund-method-tabs button.active {
+  background: #fff;
+  color: #0f172a;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
 }
 
 .fund-section-title {

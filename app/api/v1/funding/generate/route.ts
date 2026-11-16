@@ -4,12 +4,38 @@ import { sbInsert, supabaseConfigured } from '@/lib/supabase-admin';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
 
-const BANK = { code: '100004', name: 'OPay' };
-/** Soft floor only — bank may still reject tiny amounts; no user-facing minimum. */
 const MIN_AMOUNT_NGN = 1;
+
+/** XixaPay bank codes (docs) */
+const XIXA_BANKS: Record<string, { code: string; name: string }> = {
+  opay: { code: '100004', name: 'OPay' },
+  palmpay: { code: '20867', name: 'PalmPay' },
+};
+
+/** PayVessel 9PSB */
+const PAYVESSEL_9PSB = { code: '120001', name: '9Payment Service Bank' };
+const PAYVESSEL_STATIC_FEE_NGN = 50;
 
 function xixapayBase() {
   return (process.env.XIXAPAY_BASE_URL || 'https://api.xixapay.com').replace(/\/$/, '');
+}
+
+function payvesselBase() {
+  return (process.env.PAYVESSEL_BASE_URL || 'https://api.payvessel.com').replace(/\/$/, '');
+}
+
+function xixapayFeePercent(): number {
+  const n = Number(process.env.XIXAPAY_FEE_PERCENT);
+  return Number.isFinite(n) && n >= 0 ? n : 1;
+}
+
+/** Wallet amount → amount customer must transfer (fee passed to customer). */
+function amountToSendFromWallet(walletAmount: number, feePercent: number): {
+  amountToSend: number;
+  feeNgn: number;
+} {
+  const feeNgn = Math.max(0, Math.ceil((walletAmount * feePercent) / 100));
+  return { amountToSend: walletAmount + feeNgn, feeNgn };
 }
 
 function toNgPhone(raw: string): string {
@@ -115,7 +141,7 @@ async function tryResolveUserId(
   return userId || null;
 }
 
-function pickAccount(raw: Record<string, unknown>) {
+function pickXixaAccount(raw: Record<string, unknown>) {
   const data = (raw?.data as Record<string, unknown>) || raw;
   const bankAccounts = (data.bankAccounts || data.accounts || raw.bankAccounts || []) as Array<
     Record<string, unknown>
@@ -149,21 +175,314 @@ function pickAccount(raw: Record<string, unknown>) {
   );
   const expireAt = first.expire_at || first.expireAt || data.expire_at || data.expireAt || null;
 
-  return { accountNumber, accountName, bankName, providerCustomerId, expireAt };
+  const feeFromProvider = Number(
+    first.fee ?? first.charge ?? data.fee ?? data.charge ?? data.serviceFee ?? NaN,
+  );
+
+  return {
+    accountNumber,
+    accountName,
+    bankName,
+    providerCustomerId,
+    expireAt,
+    feeFromProvider: Number.isFinite(feeFromProvider) ? feeFromProvider : null,
+  };
 }
 
-export async function POST(req: NextRequest) {
+function pickPayvesselAccount(raw: Record<string, unknown>) {
+  const data = (raw?.data as Record<string, unknown>) || raw;
+  const banks = (data.banks || data.accounts || data.bankAccounts || []) as Array<
+    Record<string, unknown>
+  >;
+  const first = banks[0] || data;
+  const accountNumber = String(
+    first.accountNumber || first.account_number || data.accountNumber || data.account_number || '',
+  ).replace(/\D/g, '');
+  const accountName = String(
+    first.accountName || first.account_name || data.accountName || data.account_name || '',
+  );
+  const bankName = String(
+    first.bankName || first.bank_name || data.bankName || data.bank_name || PAYVESSEL_9PSB.name,
+  );
+  const trackingReference = String(
+    first.trackingReference || first.tracking_reference || data.trackingReference || '',
+  );
+  return { accountNumber, accountName, bankName, trackingReference };
+}
+
+async function createXixaDynamic(
+  providerId: 'opay' | 'palmpay',
+  opts: {
+    email: string;
+    name: string;
+    phone: string;
+    walletAmount: number;
+    userId: string;
+  },
+) {
   const apiKey = process.env.XIXAPAY_API_KEY;
   const secret = process.env.XIXAPAY_SECRET_KEY;
   const businessId = process.env.XIXAPAY_BUSINESS_ID;
-
   if (!apiKey || !secret || !businessId) {
-    return NextResponse.json(
-      { ok: false, message: 'XixaPay is not configured. Check XIXAPAY_* env vars on the server.' },
-      { status: 503 },
-    );
+    return {
+      error: NextResponse.json(
+        { ok: false, message: 'XixaPay is not configured. Check XIXAPAY_* env vars.' },
+        { status: 503 },
+      ),
+    };
   }
 
+  const bank = XIXA_BANKS[providerId];
+  const feePercent = xixapayFeePercent();
+  const { amountToSend, feeNgn } = amountToSendFromWallet(opts.walletAmount, feePercent);
+
+  const externalRef = `vx-${providerId}-${opts.userId.slice(0, 8)}-${Date.now()}`;
+  const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://verxor.com').replace(/\/$/, '');
+  const callbackUrl =
+    process.env.XIXAPAY_VIRTUAL_ACCOUNT_WEBHOOK_URL ||
+    `${appUrl}/api/webhooks/xixapay/virtual-account`;
+
+  const payload: Record<string, unknown> = {
+    email: opts.email,
+    name: opts.name.slice(0, 80),
+    phoneNumber: opts.phone,
+    bankCode: [bank.code],
+    businessId,
+    accountType: 'dynamic',
+    amount: amountToSend,
+    externalReference: externalRef,
+    callbackUrl,
+  };
+
+  let xixapayRes: Response;
+  try {
+    xixapayRes = await fetch(`${xixapayBase()}/api/v1/createVirtualAccount`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${secret}`,
+        'api-key': apiKey,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+      cache: 'no-store',
+    });
+  } catch (e) {
+    console.error('[funding/generate] xixapay network', e);
+    return {
+      error: NextResponse.json(
+        { ok: false, message: 'Could not reach payment provider. Try again.' },
+        { status: 502 },
+      ),
+    };
+  }
+
+  const rawText = await xixapayRes.text().catch(() => '');
+  let raw: Record<string, unknown> = {};
+  try {
+    raw = JSON.parse(rawText) as Record<string, unknown>;
+  } catch {
+    raw = { raw: rawText.slice(0, 200) };
+  }
+
+  if (
+    !xixapayRes.ok ||
+    raw.status === 'fail' ||
+    String(raw.message || '').includes('API Key is not active')
+  ) {
+    console.error('[funding/generate] xixapay error', xixapayRes.status, rawText.slice(0, 500));
+    const msg =
+      (typeof raw.message === 'string' && raw.message) ||
+      (typeof raw.error === 'string' && raw.error) ||
+      `Provider error (${xixapayRes.status})`;
+    return { error: NextResponse.json({ ok: false, message: String(msg) }, { status: 502 }) };
+  }
+
+  const picked = pickXixaAccount(raw);
+  if (!picked.accountNumber) {
+    return {
+      error: NextResponse.json(
+        {
+          ok: false,
+          message:
+            'Provider returned no account number. Confirm XixaPay credentials and dynamic accounts.',
+        },
+        { status: 502 },
+      ),
+    };
+  }
+
+  const feeFinal =
+    picked.feeFromProvider != null && picked.feeFromProvider >= 0
+      ? Math.round(picked.feeFromProvider)
+      : feeNgn;
+  const amountToSendFinal =
+    picked.feeFromProvider != null
+      ? opts.walletAmount + feeFinal
+      : amountToSend;
+
+  if (supabaseConfigured()) {
+    try {
+      await sbInsert('virtual_accounts', {
+        user_id: opts.userId,
+        provider: 'xixapay',
+        bank_code: bank.code,
+        bank_name: picked.bankName || bank.name,
+        account_number: String(picked.accountNumber),
+        account_name: String(picked.accountName || opts.name),
+        account_type: 'dynamic',
+        amount_ngn: opts.walletAmount,
+        external_ref: externalRef,
+        provider_customer_id: picked.providerCustomerId || null,
+        raw: {
+          ...raw,
+          expire_at: picked.expireAt,
+          amount_to_send: amountToSendFinal,
+          fee_ngn: feeFinal,
+          fee_percent: feePercent,
+        },
+      });
+    } catch (e) {
+      console.error('[funding/generate] save VA', e);
+    }
+  }
+
+  return {
+    ok: true as const,
+    account: {
+      bankName: picked.bankName || bank.name,
+      accountNumber: String(picked.accountNumber),
+      accountName: String(picked.accountName || opts.name),
+      amountNgn: opts.walletAmount,
+      amountToSend: amountToSendFinal,
+      feeNgn: feeFinal,
+      feeNote: `${feePercent}% provider fee (₦${feeFinal.toLocaleString()})`,
+      bankCode: bank.code,
+      providerId,
+      accountType: 'dynamic' as const,
+      externalRef,
+      expireAt: picked.expireAt ? String(picked.expireAt) : null,
+    },
+  };
+}
+
+async function createPayvesselStatic9psb(opts: {
+  email: string;
+  name: string;
+  phone: string;
+  userId: string;
+}) {
+  const apiKey = process.env.PAYVESSEL_API_KEY;
+  const secret = process.env.PAYVESSEL_SECRET_KEY;
+  const businessId = process.env.PAYVESSEL_BUSINESS_ID;
+  if (!apiKey || !secret || !businessId) {
+    return {
+      error: NextResponse.json(
+        { ok: false, message: 'PayVessel is not configured. Check PAYVESSEL_* env vars.' },
+        { status: 503 },
+      ),
+    };
+  }
+
+  const payload = {
+    email: opts.email,
+    name: opts.name.slice(0, 80),
+    phoneNumber: opts.phone,
+    bankcode: [PAYVESSEL_9PSB.code],
+    account_type: 'STATIC',
+    businessid: businessId,
+  };
+
+  let res: Response;
+  try {
+    res = await fetch(`${payvesselBase()}/pms/api/external/request/customerReservedAccount/`, {
+      method: 'POST',
+      headers: {
+        'api-key': apiKey,
+        'api-secret': secret,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+      cache: 'no-store',
+    });
+  } catch (e) {
+    console.error('[funding/generate] payvessel network', e);
+    return {
+      error: NextResponse.json(
+        { ok: false, message: 'Could not reach PayVessel. Try again.' },
+        { status: 502 },
+      ),
+    };
+  }
+
+  const rawText = await res.text().catch(() => '');
+  let raw: Record<string, unknown> = {};
+  try {
+    raw = JSON.parse(rawText) as Record<string, unknown>;
+  } catch {
+    raw = { raw: rawText.slice(0, 200) };
+  }
+
+  if (!res.ok || raw.status === false) {
+    console.error('[funding/generate] payvessel error', res.status, rawText.slice(0, 500));
+    const msg =
+      (typeof raw.message === 'string' && raw.message) ||
+      (typeof raw.error === 'string' && raw.error) ||
+      `PayVessel error (${res.status})`;
+    return { error: NextResponse.json({ ok: false, message: String(msg) }, { status: 502 }) };
+  }
+
+  const picked = pickPayvesselAccount(raw);
+  if (!picked.accountNumber) {
+    return {
+      error: NextResponse.json(
+        { ok: false, message: 'PayVessel returned no account number.' },
+        { status: 502 },
+      ),
+    };
+  }
+
+  const externalRef = `pv-9psb-${opts.userId.slice(0, 8)}-${Date.now()}`;
+
+  if (supabaseConfigured()) {
+    try {
+      await sbInsert('virtual_accounts', {
+        user_id: opts.userId,
+        provider: 'payvessel',
+        bank_code: PAYVESSEL_9PSB.code,
+        bank_name: picked.bankName || PAYVESSEL_9PSB.name,
+        account_number: String(picked.accountNumber),
+        account_name: String(picked.accountName || opts.name),
+        account_type: 'static',
+        amount_ngn: null,
+        external_ref: externalRef,
+        provider_customer_id: picked.trackingReference || null,
+        raw: { ...raw, fee_ngn: PAYVESSEL_STATIC_FEE_NGN },
+      });
+    } catch (e) {
+      console.error('[funding/generate] save payvessel VA', e);
+    }
+  }
+
+  return {
+    ok: true as const,
+    account: {
+      bankName: picked.bankName || PAYVESSEL_9PSB.name,
+      accountNumber: String(picked.accountNumber),
+      accountName: String(picked.accountName || opts.name),
+      amountNgn: null as number | null,
+      amountToSend: null as number | null,
+      feeNgn: PAYVESSEL_STATIC_FEE_NGN,
+      feeNote: `₦${PAYVESSEL_STATIC_FEE_NGN} flat fee per deposit`,
+      bankCode: PAYVESSEL_9PSB.code,
+      providerId: '9psb',
+      accountType: 'static' as const,
+      externalRef,
+      expireAt: null as string | null,
+    },
+  };
+}
+
+export async function POST(req: NextRequest) {
   let body: {
     providerId?: string;
     bankCode?: string;
@@ -181,13 +500,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, message: 'Invalid JSON' }, { status: 400 });
   }
 
-  const amount = Math.round(Number(body.amountNgn ?? body.amount));
-  if (!Number.isFinite(amount) || amount < MIN_AMOUNT_NGN) {
-    return NextResponse.json(
-      { ok: false, message: 'Enter the amount you want to fund.' },
-      { status: 400 },
-    );
-  }
+  const providerId = String(body.providerId || 'opay').toLowerCase();
 
   const email = (body.email || '').trim().toLowerCase();
   const phoneRaw = body.phone || body.contact || '';
@@ -220,112 +533,39 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const externalRef = `vx-${userId.slice(0, 8)}-${Date.now()}`;
-  const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://www.verxor.com').replace(/\/$/, '');
-  const callbackUrl =
-    process.env.XIXAPAY_VIRTUAL_ACCOUNT_WEBHOOK_URL ||
-    `${appUrl}/api/webhooks/xixapay/virtual-account`;
-
-  const payload: Record<string, unknown> = {
-    email: customerEmail,
-    name: name.slice(0, 80),
-    phoneNumber: phone,
-    bankCode: [BANK.code],
-    businessId,
-    accountType: 'dynamic',
-    amount,
-    externalReference: externalRef,
-    callbackUrl,
-  };
-
-  let xixapayRes: Response;
-  try {
-    xixapayRes = await fetch(`${xixapayBase()}/api/v1/createVirtualAccount`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${secret}`,
-        'api-key': apiKey,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(payload),
-      cache: 'no-store',
+  if (providerId === '9psb' || providerId === 'payvessel') {
+    const result = await createPayvesselStatic9psb({
+      email: customerEmail,
+      name,
+      phone,
+      userId,
     });
-  } catch (e) {
-    console.error('[funding/generate] xixapay network', e);
-    return NextResponse.json(
-      { ok: false, message: 'Could not reach payment provider. Try again.' },
-      { status: 502 },
-    );
+    if ('error' in result && result.error) return result.error;
+    return NextResponse.json({ ok: true, account: result.account });
   }
 
-  const rawText = await xixapayRes.text().catch(() => '');
-  let raw: Record<string, unknown> = {};
-  try {
-    raw = JSON.parse(rawText) as Record<string, unknown>;
-  } catch {
-    raw = { raw: rawText.slice(0, 200) };
-  }
-
-  if (
-    !xixapayRes.ok ||
-    raw.status === 'fail' ||
-    String(raw.message || '').includes('API Key is not active')
-  ) {
-    console.error('[funding/generate] xixapay error', xixapayRes.status, rawText.slice(0, 500));
-    const msg =
-      (typeof raw.message === 'string' && raw.message) ||
-      (typeof raw.error === 'string' && raw.error) ||
-      `Provider error (${xixapayRes.status})`;
-    return NextResponse.json({ ok: false, message: String(msg) }, { status: 502 });
-  }
-
-  const picked = pickAccount(raw);
-  if (!picked.accountNumber) {
-    return NextResponse.json(
-      {
-        ok: false,
-        message:
-          'Provider returned no account number. Confirm XixaPay credentials and that dynamic accounts are enabled.',
-      },
-      { status: 502 },
-    );
-  }
-
-  const accountName = picked.accountName || name;
-  const bankName = picked.bankName || BANK.name;
-  const expireAt = picked.expireAt ? String(picked.expireAt) : null;
-
-  if (supabaseConfigured()) {
-    try {
-      await sbInsert('virtual_accounts', {
-        user_id: userId,
-        provider: 'xixapay',
-        bank_code: BANK.code,
-        bank_name: bankName,
-        account_number: String(picked.accountNumber),
-        account_name: String(accountName),
-        account_type: 'dynamic',
-        amount_ngn: amount,
-        external_ref: externalRef,
-        provider_customer_id: picked.providerCustomerId || null,
-        raw: { ...raw, expire_at: expireAt },
-      });
-    } catch (e) {
-      console.error('[funding/generate] save VA', e);
+  if (providerId === 'opay' || providerId === 'palmpay') {
+    const amount = Math.round(Number(body.amountNgn ?? body.amount));
+    if (!Number.isFinite(amount) || amount < MIN_AMOUNT_NGN) {
+      return NextResponse.json(
+        { ok: false, message: 'Enter the amount you want to fund.' },
+        { status: 400 },
+      );
     }
+
+    const result = await createXixaDynamic(providerId, {
+      email: customerEmail,
+      name,
+      phone,
+      walletAmount: amount,
+      userId,
+    });
+    if ('error' in result && result.error) return result.error;
+    return NextResponse.json({ ok: true, account: result.account });
   }
 
-  return NextResponse.json({
-    ok: true,
-    account: {
-      bankName,
-      accountNumber: String(picked.accountNumber),
-      accountName: String(accountName),
-      amountNgn: amount,
-      bankCode: BANK.code,
-      providerId: 'opay',
-      externalRef,
-      expireAt,
-    },
-  });
+  return NextResponse.json(
+    { ok: false, message: 'Unknown funding provider. Use opay, palmpay, or 9psb.' },
+    { status: 400 },
+  );
 }
