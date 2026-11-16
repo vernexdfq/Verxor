@@ -16,7 +16,7 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import type { AuthSession } from './auth/AuthFlow';
-import { loadSessionProfile, loadSessionTokens } from './auth/session-unlock';
+import { loadSessionProfile, loadSessionTokens, saveSessionProfile, saveSessionTokens } from './auth/session-unlock';
 import './airtime-page.css';
 
 type NetworkId = 'mtn' | 'airtel' | 'glo' | '9mobile';
@@ -314,15 +314,37 @@ export function AirtimePage({
     if (!formReady || insufficient || submitting || !networkId) return;
     setSubmitting(true);
     try {
-      let accessToken = loadSessionTokens()?.access_token || '';
-      let userId = loadSessionProfile()?.userId || '';
+      let accessToken = loadSessionTokens()?.access_token || session?.accessToken || '';
+      let userId = session?.userId || loadSessionProfile()?.userId || '';
       try {
         const { getSupabaseBrowser } = await import('../lib/supabase/client');
         const sb = getSupabaseBrowser();
         if (sb) {
-          const { data: sess } = await sb.auth.getSession();
-          if (sess.session?.access_token) accessToken = sess.session.access_token;
-          if (sess.session?.user?.id) userId = sess.session.user.id;
+          let { data: sess } = await sb.auth.getSession();
+          if (!sess.session && accessToken) {
+            const tokens = loadSessionTokens();
+            if (tokens?.refresh_token) {
+              const { data: refreshed } = await sb.auth.setSession({
+                access_token: tokens.access_token || accessToken,
+                refresh_token: tokens.refresh_token,
+              }).catch(() => ({ data: { session: null } }));
+              if (refreshed?.session) sess = refreshed;
+            }
+          }
+          if (sess.session?.access_token) {
+            accessToken = sess.session.access_token;
+            saveSessionTokens({
+              access_token: sess.session.access_token,
+              refresh_token: sess.session.refresh_token,
+            });
+          }
+          if (sess.session?.user?.id) {
+            userId = sess.session.user.id;
+            const existingProf = loadSessionProfile();
+            if (existingProf) {
+              saveSessionProfile({ ...existingProf, userId });
+            }
+          }
         }
       } catch {
         /* optional */
