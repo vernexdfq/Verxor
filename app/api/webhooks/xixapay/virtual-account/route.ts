@@ -4,9 +4,6 @@ import { sbSelect, supabaseConfigured } from '@/lib/supabase-admin';
 
 export const dynamic = 'force-dynamic';
 
-/** No platform fee — full deposit credits the user wallet */
-const FUNDING_FEE_NGN = 0;
-
 function verifySignature(rawBody: string, headerSig: string | null, secret: string): boolean {
   if (!headerSig) return false;
   try {
@@ -119,20 +116,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
   }
 
-  const creditAmount = Math.round((amountPaid - FUNDING_FEE_NGN) * 100) / 100;
-  if (creditAmount <= 0) {
-    console.warn('[xixapay/virtual-account] amount too low', { amountPaid, transactionId });
-    return NextResponse.json({
-      status: 'below_fee',
-      message: 'Deposit amount too low',
-    });
-  }
-
   if (!supabaseConfigured()) {
     return NextResponse.json({ error: 'DB not configured' }, { status: 503 });
   }
 
   let userId: string | null = null;
+  let intendedCredit: number | null = null;
 
   try {
     if (accountDigits) {
@@ -140,7 +129,11 @@ export async function POST(req: NextRequest) {
         'virtual_accounts',
         `account_number=eq.${encodeURIComponent(accountDigits)}&order=created_at.desc&limit=1`,
       );
-      if (Array.isArray(rows) && rows[0]?.user_id) userId = rows[0].user_id;
+      if (Array.isArray(rows) && rows[0]?.user_id) {
+        userId = rows[0].user_id;
+        const amt = Number(rows[0].amount_ngn);
+        if (Number.isFinite(amt) && amt > 0) intendedCredit = amt;
+      }
 
       if (!userId && accountDigits.length >= 8) {
         const tail = accountDigits.slice(-10);
@@ -148,7 +141,11 @@ export async function POST(req: NextRequest) {
           'virtual_accounts',
           `account_number=like.*${tail}&order=created_at.desc&limit=1`,
         );
-        if (Array.isArray(rows) && rows[0]?.user_id) userId = rows[0].user_id;
+        if (Array.isArray(rows) && rows[0]?.user_id) {
+          userId = rows[0].user_id;
+          const amt = Number(rows[0].amount_ngn);
+          if (Number.isFinite(amt) && amt > 0) intendedCredit = amt;
+        }
       }
     }
 
@@ -157,7 +154,11 @@ export async function POST(req: NextRequest) {
         'virtual_accounts',
         `external_ref=eq.${encodeURIComponent(externalRef)}&order=created_at.desc&limit=1`,
       );
-      if (Array.isArray(rows) && rows[0]?.user_id) userId = rows[0].user_id;
+      if (Array.isArray(rows) && rows[0]?.user_id) {
+        userId = rows[0].user_id;
+        const amt = Number(rows[0].amount_ngn);
+        if (Number.isFinite(amt) && amt > 0) intendedCredit = amt;
+      }
     }
 
     if (!userId && customerId) {
@@ -165,7 +166,11 @@ export async function POST(req: NextRequest) {
         'virtual_accounts',
         `provider_customer_id=eq.${encodeURIComponent(customerId)}&order=created_at.desc&limit=1`,
       );
-      if (Array.isArray(rows) && rows[0]?.user_id) userId = rows[0].user_id;
+      if (Array.isArray(rows) && rows[0]?.user_id) {
+        userId = rows[0].user_id;
+        const amt = Number(rows[0].amount_ngn);
+        if (Number.isFinite(amt) && amt > 0) intendedCredit = amt;
+      }
     }
 
     if (!userId && customerEmail) {
@@ -200,6 +205,16 @@ export async function POST(req: NextRequest) {
       transactionId,
     });
     return NextResponse.json({ status: 'user_not_found' });
+  }
+
+  /** Prefer intended wallet amount (fee already in amount-to-send). Else credit full paid. */
+  const creditAmount =
+    intendedCredit != null && intendedCredit > 0 && intendedCredit <= amountPaid
+      ? Math.round(intendedCredit * 100) / 100
+      : Math.round(amountPaid * 100) / 100;
+
+  if (creditAmount <= 0) {
+    return NextResponse.json({ status: 'below_fee', message: 'Deposit amount too low' });
   }
 
   let isPartner = externalRef.startsWith('vxp-');
@@ -292,7 +307,7 @@ export async function POST(req: NextRequest) {
               reference: ref,
               mode: 'partner',
               amount_paid: amountPaid,
-              fee: FUNDING_FEE_NGN,
+              credited: creditAmount,
             },
           }),
         });
@@ -344,7 +359,7 @@ export async function POST(req: NextRequest) {
     console.info('[xixapay/virtual-account] credited', {
       userId,
       amountPaid,
-      fee: FUNDING_FEE_NGN,
+      intendedCredit,
       creditAmount,
       newBal,
       transactionId,
@@ -353,7 +368,6 @@ export async function POST(req: NextRequest) {
       status: 'ok',
       balance: newBal,
       amount_paid: amountPaid,
-      fee: FUNDING_FEE_NGN,
       credited: creditAmount,
     });
   } catch (e) {
@@ -366,6 +380,5 @@ export async function GET() {
   return NextResponse.json({
     service: 'xixapay-virtual-account-webhook',
     ready: Boolean(process.env.XIXAPAY_SECRET_KEY),
-    funding_fee_ngn: FUNDING_FEE_NGN,
   });
 }
