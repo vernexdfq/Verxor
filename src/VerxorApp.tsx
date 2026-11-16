@@ -218,6 +218,7 @@ export function VerxorApp() {
           vtuEligible: profile.vtuEligible ?? true,
           balanceNgn: profile.balanceNgn ?? 0,
           balanceUsd: profile.balanceUsd ?? 0,
+          userId: profile.userId,
         };
         setAuth(restored);
 
@@ -318,6 +319,7 @@ export function VerxorApp() {
         vtuEligible: restoredSession.vtuEligible ?? true,
         balanceNgn: restoredSession.balanceNgn ?? 0,
         balanceUsd: restoredSession.balanceUsd ?? 0,
+        userId: restoredSession.userId,
       });
       void refreshBalance(restoredSession);
       try {
