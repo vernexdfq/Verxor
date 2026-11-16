@@ -1,15 +1,11 @@
 /**
  * Curated data catalog — plan_id matches 247API.
- * Retail = customer price on Verxor.
- * apiPrice = child panel / API user price (reference only here).
+ * Retail = customer price on Verxor (baseline margin = retail - cost).
+ * Live sync (lib/data-plan-sync.ts) hides missing IDs and shifts retail
+ * by the same ₦ delta as 247 cost so margin stays fixed.
  *
- * UI rules:
- *  - Show a provider bundle family only where it is verified by plan ID
- *  - Tabs by validity: daily / weekly / monthly / 3 months+ / yearly / router
- *  - Hot deals chosen later after full catalog
- *
- * MTN: Daily + Weekly + Monthly + 3 months+ + Yearly locked.
- * Airtel: Daily + Weekly + Monthly + 3 months+ + Router + Yearly locked (55 plans).
+ * MTN: Daily + Weekly + Monthly + 3 months+ + Yearly.
+ * Airtel: Daily + Weekly + Monthly + 3 months+ + Router + Yearly.
  */
 
 export type DataNetwork = 'mtn' | 'glo' | 'airtel' | '9mobile';
@@ -24,17 +20,17 @@ export interface CatalogPlan {
   /** Validity in days (string for UI helpers) */
   days: string;
   tab: DataTab;
-  /** Customer retail price (₦) */
+  /** Customer retail price (₦) — baseline; live sync may raise with cost */
   retail: number;
   /** Child panel / API user price (₦) */
   apiPrice: number;
   /** Provider bundle type label, only when verified from the provider/catalog source. */
   planType?: string;
-  /** Provider cost snapshot (optional, for admin) */
+  /** Provider cost snapshot used as margin baseline */
   cost?: number;
 }
 
-/** MTN Daily — locked from live 247API pull + user retail */
+/** MTN Daily */
 export const MTN_DAILY: CatalogPlan[] = [
   { id: 250, network: 'mtn', size: '75MB', days: '1', tab: 'daily', retail: 75, apiPrice: 74, cost: 72.3 },
   { id: 251, network: 'mtn', size: '110MB', days: '1', tab: 'daily', retail: 100, apiPrice: 98, cost: 96.3 },
@@ -52,12 +48,12 @@ export const MTN_DAILY: CatalogPlan[] = [
   { id: 108, network: 'mtn', size: '6.5GB', days: '2', tab: 'daily', retail: 1800, apiPrice: 1585, cost: 1485 },
 ];
 
-/** MTN Weekly — locked from live 247API (Gifting + AWOOF + SME1 DataShare) */
+/** MTN Weekly */
 export const MTN_WEEKLY: CatalogPlan[] = [
   { id: 10, network: 'mtn', size: '500MB', days: '7', tab: 'weekly', retail: 495, apiPrice: 240, cost: 220, planType: 'SME1 DataShare' },
   { id: 9, network: 'mtn', size: '1GB', days: '7', tab: 'weekly', retail: 790, apiPrice: 385, cost: 375, planType: 'SME1 DataShare' },
   { id: 261, network: 'mtn', size: '1.5GB', days: '7', tab: 'weekly', retail: 1000, apiPrice: 972, cost: 962 },
-  { id: 8, network: 'mtn', size: '2GB', days: '7', tab: 'weekly', retail: 900, apiPrice: 800, cost: 670, planType: 'SME1 DataShare' },
+  { id: 8, network: 'mtn', size: '2GB', days: '7', tab: 'weekly', retail: 925, apiPrice: 702, cost: 695, planType: 'SME1 DataShare' },
   { id: 101, network: 'mtn', size: '3.5GB', days: '7', tab: 'weekly', retail: 1545, apiPrice: 1465, cost: 1445 },
   { id: 262, network: 'mtn', size: '6GB', days: '7', tab: 'weekly', retail: 2700, apiPrice: 2450, cost: 2405 },
   { id: 263, network: 'mtn', size: '7GB', days: '7', tab: 'weekly', retail: 3600, apiPrice: 3500, cost: 3367 },
@@ -69,17 +65,14 @@ export const MTN_WEEKLY: CatalogPlan[] = [
   { id: 304, network: 'mtn', size: '40GB', days: '14', tab: 'weekly', retail: 10300, apiPrice: 10000, cost: 9620 },
 ];
 
-/** MTN Monthly — locked from live 247API */
+/** MTN Monthly — IDs 6/7/21 removed (no longer on 247API) */
 export const MTN_MONTHLY: CatalogPlan[] = [
-  { id: 6, network: 'mtn', size: '100MB', days: '30', tab: 'monthly', retail: 100, apiPrice: 60, cost: 50 },
-  { id: 7, network: 'mtn', size: '200MB', days: '30', tab: 'monthly', retail: 200, apiPrice: 100, cost: 90 },
-  { id: 21, network: 'mtn', size: '500MB', days: '30', tab: 'monthly', retail: 450, apiPrice: 350, cost: 350 },
-  { id: 11, network: 'mtn', size: '1GB', days: '30', tab: 'monthly', retail: 700, apiPrice: 425, cost: 400 },
+  { id: 11, network: 'mtn', size: '1GB', days: '30', tab: 'monthly', retail: 740, apiPrice: 445, cost: 440 },
   { id: 12, network: 'mtn', size: '2GB', days: '30', tab: 'monthly', retail: 1200, apiPrice: 750, cost: 735 },
   { id: 13, network: 'mtn', size: '3GB', days: '30', tab: 'monthly', retail: 1500, apiPrice: 1145, cost: 1000 },
   { id: 14, network: 'mtn', size: '5GB', days: '30', tab: 'monthly', retail: 2000, apiPrice: 1465, cost: 1450 },
   { id: 273, network: 'mtn', size: '7GB', days: '30', tab: 'monthly', retail: 3600, apiPrice: 3380, cost: 3370.5 },
-  { id: 15, network: 'mtn', size: '10GB', days: '30', tab: 'monthly', retail: 4000, apiPrice: 2855, cost: 2800 },
+  { id: 15, network: 'mtn', size: '10GB', days: '30', tab: 'monthly', retail: 4100, apiPrice: 2929, cost: 2900 },
   { id: 103, network: 'mtn', size: '20GB', days: '30', tab: 'monthly', retail: 7600, apiPrice: 7165, cost: 7100 },
   { id: 109, network: 'mtn', size: '34GB', days: '30', tab: 'monthly', retail: 10500, apiPrice: 9858, cost: 9850 },
   { id: 279, network: 'mtn', size: '36GB', days: '30', tab: 'monthly', retail: 11500, apiPrice: 10450, cost: 10400 },
@@ -90,19 +83,16 @@ export const MTN_MONTHLY: CatalogPlan[] = [
   { id: 283, network: 'mtn', size: '250GB', days: '30', tab: 'monthly', retail: 55000, apiPrice: 53065, cost: 53065 },
 ];
 
-/** MTN 3 months+ — locked from live 247API */
 export const MTN_THREEMONTHS: CatalogPlan[] = [
   { id: 291, network: 'mtn', size: '450GB', days: '90', tab: 'threemonths', retail: 75000, apiPrice: 73150, cost: 73000 },
   { id: 286, network: 'mtn', size: '480GB', days: '90', tab: 'threemonths', retail: 90000, apiPrice: 88100, cost: 88000 },
 ];
 
-/** MTN Yearly — locked from live 247API */
 export const MTN_YEARLY: CatalogPlan[] = [
   { id: 292, network: 'mtn', size: '800GB', days: '365', tab: 'yearly', retail: 127000, apiPrice: 123000, cost: 123000 },
   { id: 293, network: 'mtn', size: '1.5TB', days: '365', tab: 'yearly', retail: 227000, apiPrice: 222000, cost: 222000 },
 ];
 
-/** Airtel Daily — locked from live 247API + user retail (18 plans) */
 export const AIRTEL_DAILY: CatalogPlan[] = [
   { id: 350, network: 'airtel', size: '75MB', days: '1', tab: 'daily', retail: 75, apiPrice: 73, cost: 72.53, planType: 'Gifting' },
   { id: 351, network: 'airtel', size: '100MB', days: '1', tab: 'daily', retail: 100, apiPrice: 97, cost: 96.7, planType: 'Gifting' },
@@ -124,7 +114,6 @@ export const AIRTEL_DAILY: CatalogPlan[] = [
   { id: 450, network: 'airtel', size: '6GB', days: '2', tab: 'daily', retail: 1800, apiPrice: 1505, cost: 1500, planType: 'SME' },
 ];
 
-/** Airtel Weekly — locked (10 plans; dropped 356, 426, 428) */
 export const AIRTEL_WEEKLY: CatalogPlan[] = [
   { id: 354, network: 'airtel', size: '500MB', days: '7', tab: 'weekly', retail: 500, apiPrice: 486, cost: 483.5, planType: 'Gifting' },
   { id: 425, network: 'airtel', size: '1.5GB', days: '7', tab: 'weekly', retail: 600, apiPrice: 533, cost: 530, planType: 'SME' },
@@ -138,7 +127,6 @@ export const AIRTEL_WEEKLY: CatalogPlan[] = [
   { id: 377, network: 'airtel', size: '20GB', days: '7', tab: 'weekly', retail: 5500, apiPrice: 5010, cost: 5000, planType: 'Gifting' },
 ];
 
-/** Airtel Monthly — locked from live 247API + user retail (15 plans) */
 export const AIRTEL_MONTHLY: CatalogPlan[] = [
   { id: 361, network: 'airtel', size: '2GB', days: '30', tab: 'monthly', retail: 1500, apiPrice: 1455, cost: 1450.5, planType: 'Gifting' },
   { id: 362, network: 'airtel', size: '3GB', days: '30', tab: 'monthly', retail: 2000, apiPrice: 1940, cost: 1934, planType: 'Gifting' },
@@ -157,13 +145,11 @@ export const AIRTEL_MONTHLY: CatalogPlan[] = [
   { id: 373, network: 'airtel', size: '210GB', days: '30', tab: 'monthly', retail: 40200, apiPrice: 38720, cost: 38680, planType: 'Gifting' },
 ];
 
-/** Airtel 3 months+ — locked from live 247API + user retail */
 export const AIRTEL_THREEMONTHS: CatalogPlan[] = [
   { id: 374, network: 'airtel', size: '300GB', days: '90', tab: 'threemonths', retail: 50300, apiPrice: 48400, cost: 48350, planType: 'Gifting' },
   { id: 375, network: 'airtel', size: '350GB', days: '120', tab: 'threemonths', retail: 60300, apiPrice: 58050, cost: 58020, planType: 'Gifting' },
 ];
 
-/** Airtel Router (Mbps) — locked from live 247API + user retail */
 export const AIRTEL_ROUTER: CatalogPlan[] = [
   { id: 385, network: 'airtel', size: '50 Mbps', days: '30', tab: 'router', retail: 25000, apiPrice: 24050, cost: 24000, planType: 'Router' },
   { id: 392, network: 'airtel', size: '50 Mbps', days: '30', tab: 'router', retail: 25000, apiPrice: 24050, cost: 24000, planType: 'Router' },
@@ -176,12 +162,10 @@ export const AIRTEL_ROUTER: CatalogPlan[] = [
   { id: 391, network: 'airtel', size: '20 Mbps', days: '180', tab: 'router', retail: 151000, apiPrice: 150100, cost: 150000, planType: 'Router' },
 ];
 
-/** Airtel Yearly — locked from live 247API + user retail */
 export const AIRTEL_YEARLY: CatalogPlan[] = [
   { id: 376, network: 'airtel', size: '650GB', days: '365', tab: 'yearly', retail: 100500, apiPrice: 96800, cost: 96700, planType: 'Gifting' },
 ];
 
-/** All curated plans (grows as we add tabs/networks) */
 export const DATA_CATALOG: CatalogPlan[] = [
   ...MTN_DAILY,
   ...MTN_WEEKLY,
@@ -213,7 +197,6 @@ export function toLivePlan(p: CatalogPlan) {
       : p.tab === 'router'
         ? 'Router'
         : p.tab.charAt(0).toUpperCase() + p.tab.slice(1);
-  // Insert ZWNJ between M and B so UI parseVolume cannot turn "Mbps" into "MB"
   const name =
     p.tab === 'router' || /mbps/i.test(p.size)
       ? p.size.replace(/Mbps/gi, 'M\u200cBps')
