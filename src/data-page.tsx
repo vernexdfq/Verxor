@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import './data-page.css';
 import type { AuthSession } from './auth/AuthFlow';
-import { loadSessionProfile, loadSessionTokens } from './auth/session-unlock';
+import { loadSessionProfile, loadSessionTokens, saveSessionProfile, saveSessionTokens } from './auth/session-unlock';
 
 export type NetworkId = 'mtn' | 'airtel' | 'glo' | '9mobile';
 
@@ -603,20 +603,38 @@ export function DataPage({ onBack, session, onFund }: DataPageProps) {
 
     setSubmitting(true);
     try {
-      let accessToken = loadSessionTokens()?.access_token || '';
-      let sessionUserId = loadSessionProfile()?.userId || '';
+      let accessToken = loadSessionTokens()?.access_token || session?.accessToken || '';
+      let sessionUserId = session?.userId || loadSessionProfile()?.userId || '';
       // Prefer the current Supabase session so a refreshed token is used at checkout.
       // Also capture the user id: it stays valid even when the cached token is stale.
       try {
         const { getSupabaseBrowser } = await import('../lib/supabase/client');
         const sb = getSupabaseBrowser();
         if (sb) {
-          const { data: sessionData } = await sb.auth.getSession();
+          let { data: sessionData } = await sb.auth.getSession();
+          if (!sessionData.session && accessToken) {
+            const tokens = loadSessionTokens();
+            if (tokens?.refresh_token) {
+              const { data: refreshed } = await sb.auth.setSession({
+                access_token: tokens.access_token || accessToken,
+                refresh_token: tokens.refresh_token,
+              }).catch(() => ({ data: { session: null } }));
+              if (refreshed?.session) sessionData = refreshed;
+            }
+          }
           if (sessionData.session?.access_token) {
             accessToken = sessionData.session.access_token;
+            saveSessionTokens({
+              access_token: sessionData.session.access_token,
+              refresh_token: sessionData.session.refresh_token,
+            });
           }
           if (sessionData.session?.user?.id) {
             sessionUserId = sessionData.session.user.id;
+            const existingProf = loadSessionProfile();
+            if (existingProf) {
+              saveSessionProfile({ ...existingProf, userId: sessionUserId });
+            }
           }
         }
       } catch {
