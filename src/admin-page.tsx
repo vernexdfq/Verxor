@@ -217,7 +217,7 @@ function UserManagement() {
                     setServices((prev) =>
                       prev.map((x) => (x.id === s.id ? { ...x, on: !x.on } : x)),
                     );
-                    if (!s.on) window.alert('Phase 2: unlock saves to the database with your note and opens this service for the user's API key.');
+                    if (!s.on) window.alert("Phase 2: unlock saves to the database with your note and opens this service for the user's API key.");
                   }}>
                   <em />
                 </button>
