@@ -15,6 +15,7 @@ import {
 } from './countries';
 import { CountryPickerSheet, PhoneField } from './phone-field';
 import { getSupabaseBrowser, isSupabaseBrowserConfigured } from '../../lib/supabase/client';
+import { saveSessionTokens, saveSessionProfile } from './session-unlock';
 import { authenticateWithBiometric } from '../lib/webauthn';
 import './auth.css';
 
@@ -39,6 +40,8 @@ export type AuthSession = {
   balanceNgn?: number;
   balanceUsd?: number;
   email?: string;
+  userId?: string;
+  accessToken?: string;
 };
 
 const STORAGE_KEY = 'verxor-auth-session';
@@ -296,7 +299,24 @@ export function AuthFlow({ onAuthenticated }: { onAuthenticated: (session: AuthS
       homeCurrency: session.homeCurrency || homeCurrencyFor(iso),
       vtuEligible:
         typeof session.vtuEligible === 'boolean' ? session.vtuEligible : isVtuEligible(iso),
+      userId: session.userId,
+      accessToken: session.accessToken,
     };
+    if (full.userId) {
+      saveSessionProfile({
+        name: full.name || 'User',
+        contact: full.contact || '',
+        email: full.email || '',
+        method: full.method || 'phone',
+        phoneCountry: full.phoneCountry || 'NG',
+        dialCode: full.dialCode || '234',
+        homeCurrency: full.homeCurrency || 'NGN',
+        vtuEligible: full.vtuEligible ?? true,
+        balanceNgn: full.balanceNgn ?? 0,
+        balanceUsd: full.balanceUsd ?? 0,
+        userId: full.userId,
+      });
+    }
     saveRemembered(full);
     upsertAccount(full);
     if (full.method === 'phone' && full.contact) {
@@ -506,8 +526,12 @@ export function AuthFlow({ onAuthenticated }: { onAuthenticated: (session: AuthS
               phoneCountry?: string;
             };
             if (b.access_token && b.refresh_token) {
+              saveSessionTokens({
+                access_token: b.access_token,
+                refresh_token: b.refresh_token,
+              });
               const sb = getSupabaseBrowser();
-              if (sb) await sb.auth.setSession({ access_token: b.access_token, refresh_token: b.refresh_token });
+              if (sb) await sb.auth.setSession({ access_token: b.access_token, refresh_token: b.refresh_token }).catch(() => {});
             }
             finish({
               authenticated: true,
@@ -524,6 +548,8 @@ export function AuthFlow({ onAuthenticated }: { onAuthenticated: (session: AuthS
               balanceNgn: 0,
               balanceUsd: 0,
               email: b.email || em,
+              userId: (b as { userId?: string }).userId,
+              accessToken: b.access_token,
             });
             return;
           }
@@ -563,7 +589,7 @@ export function AuthFlow({ onAuthenticated }: { onAuthenticated: (session: AuthS
     const stored = loadRemembered();
     const expected = stored.pin || remembered.pin;
 
-    if (backendConfigured() && (!expected || expected.length !== 4)) {
+    if (backendConfigured()) {
       setBusy(true);
       try {
         const isEmail = (remembered.method || method) === 'email';
@@ -587,10 +613,15 @@ export function AuthFlow({ onAuthenticated }: { onAuthenticated: (session: AuthS
             phoneCountry?: string;
             balanceNgn?: number;
             balanceUsd?: number;
+            userId?: string;
           };
           if (b.access_token && b.refresh_token) {
+            saveSessionTokens({
+              access_token: b.access_token,
+              refresh_token: b.refresh_token,
+            });
             const sb = getSupabaseBrowser();
-            if (sb) await sb.auth.setSession({ access_token: b.access_token, refresh_token: b.refresh_token });
+            if (sb) await sb.auth.setSession({ access_token: b.access_token, refresh_token: b.refresh_token }).catch(() => {});
           }
           finish({
             ...DEFAULT_MOCK,
@@ -605,6 +636,8 @@ export function AuthFlow({ onAuthenticated }: { onAuthenticated: (session: AuthS
             password: '',
             balanceNgn: b.balanceNgn ?? 0,
             balanceUsd: b.balanceUsd ?? 0,
+            userId: b.userId,
+            accessToken: b.access_token,
           });
           return;
         }
@@ -639,6 +672,10 @@ export function AuthFlow({ onAuthenticated }: { onAuthenticated: (session: AuthS
         fullName?: string; phoneCountry?: string; balanceNgn?: number; balanceUsd?: number;
       };
       if (!b.access_token || !b.refresh_token) throw new Error('Biometric login did not return a valid session.');
+      saveSessionTokens({
+        access_token: b.access_token,
+        refresh_token: b.refresh_token,
+      });
       const sb = getSupabaseBrowser();
       if (!sb) throw new Error('Auth service is unavailable. Use your PIN.');
       const { error: sessionError } = await sb.auth.setSession({ access_token: b.access_token, refresh_token: b.refresh_token });
@@ -655,6 +692,8 @@ export function AuthFlow({ onAuthenticated }: { onAuthenticated: (session: AuthS
         password: '',
         balanceNgn: b.balanceNgn ?? 0,
         balanceUsd: b.balanceUsd ?? 0,
+        userId: (b as { userId?: string }).userId,
+        accessToken: b.access_token,
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Biometric login failed. Use your PIN.');
