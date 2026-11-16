@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { sbInsert, supabaseConfigured } from '@/lib/supabase-admin';
+import { sbInsert, sbSelect, supabaseConfigured } from '@/lib/supabase-admin';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
@@ -29,7 +29,6 @@ function xixapayFeePercent(): number {
   return Number.isFinite(n) && n >= 0 ? n : 1;
 }
 
-/** Wallet amount → amount customer must transfer (fee passed to customer). */
 function amountToSendFromWallet(walletAmount: number, feePercent: number): {
   amountToSend: number;
   feeNgn: number;
@@ -191,10 +190,12 @@ function pickXixaAccount(raw: Record<string, unknown>) {
 
 function pickPayvesselAccount(raw: Record<string, unknown>) {
   const data = (raw?.data as Record<string, unknown>) || raw;
-  const banks = (data.banks || data.accounts || data.bankAccounts || []) as Array<
-    Record<string, unknown>
-  >;
-  const first = banks[0] || data;
+  const banksRaw = data.banks ?? data.accounts ?? data.bankAccounts ?? raw.banks;
+  let first: Record<string, unknown> = {};
+  if (Array.isArray(banksRaw)) first = (banksRaw[0] as Record<string, unknown>) || {};
+  else if (banksRaw && typeof banksRaw === 'object') first = banksRaw as Record<string, unknown>;
+  else first = data;
+
   const accountNumber = String(
     first.accountNumber || first.account_number || data.accountNumber || data.account_number || '',
   ).replace(/\D/g, '');
@@ -208,6 +209,36 @@ function pickPayvesselAccount(raw: Record<string, unknown>) {
     first.trackingReference || first.tracking_reference || data.trackingReference || '',
   );
   return { accountNumber, accountName, bankName, trackingReference };
+}
+
+async function findExistingStatic9psb(userId: string) {
+  if (!supabaseConfigured()) return null;
+  try {
+    const rows = await sbSelect(
+      'virtual_accounts',
+      `user_id=eq.${userId}&provider=eq.payvessel&account_type=eq.static&bank_code=eq.${PAYVESSEL_9PSB.code}&order=created_at.desc&limit=1`,
+    );
+    if (!Array.isArray(rows) || !rows[0]?.account_number) return null;
+    const row = rows[0] as Record<string, unknown>;
+    return {
+      bankName: String(row.bank_name || PAYVESSEL_9PSB.name),
+      accountNumber: String(row.account_number),
+      accountName: String(row.account_name || 'Verxor User'),
+      amountNgn: null as number | null,
+      amountToSend: null as number | null,
+      feeNgn: PAYVESSEL_STATIC_FEE_NGN,
+      feeNote: `₦${PAYVESSEL_STATIC_FEE_NGN} flat fee per deposit`,
+      bankCode: PAYVESSEL_9PSB.code,
+      providerId: '9psb',
+      accountType: 'static' as const,
+      externalRef: String(row.external_ref || ''),
+      expireAt: null as string | null,
+      reused: true,
+    };
+  } catch (e) {
+    console.error('[funding/generate] lookup static 9psb', e);
+    return null;
+  }
 }
 
 async function createXixaDynamic(
@@ -316,9 +347,7 @@ async function createXixaDynamic(
       ? Math.round(picked.feeFromProvider)
       : feeNgn;
   const amountToSendFinal =
-    picked.feeFromProvider != null
-      ? opts.walletAmount + feeFinal
-      : amountToSend;
+    picked.feeFromProvider != null ? opts.walletAmount + feeFinal : amountToSend;
 
   if (supabaseConfigured()) {
     try {
@@ -371,6 +400,11 @@ async function createPayvesselStatic9psb(opts: {
   phone: string;
   userId: string;
 }) {
+  const existing = await findExistingStatic9psb(opts.userId);
+  if (existing) {
+    return { ok: true as const, account: existing };
+  }
+
   const apiKey = process.env.PAYVESSEL_API_KEY;
   const secret = process.env.PAYVESSEL_SECRET_KEY;
   const businessId = process.env.PAYVESSEL_BUSINESS_ID;
@@ -441,7 +475,7 @@ async function createPayvesselStatic9psb(opts: {
     };
   }
 
-  const externalRef = `pv-9psb-${opts.userId.slice(0, 8)}-${Date.now()}`;
+  const externalRef = `pv-9psb-${opts.userId.slice(0, 8)}`;
 
   if (supabaseConfigured()) {
     try {
@@ -478,6 +512,7 @@ async function createPayvesselStatic9psb(opts: {
       accountType: 'static' as const,
       externalRef,
       expireAt: null as string | null,
+      reused: false,
     },
   };
 }
