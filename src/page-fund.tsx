@@ -43,9 +43,9 @@ type FundPageProps = {
 };
 
 const BANK_PROVIDERS: FundingProvider[] = [
-  { id: '9psb', label: '9PSB', kind: 'static', feeLabel: 'Charge: ₦50' },
-  { id: 'opay', label: 'OPay', kind: 'dynamic', feeLabel: '1% fee (exact on generate)' },
-  { id: 'palmpay', label: 'PalmPay', kind: 'dynamic', feeLabel: '1% fee (exact on generate)' },
+  { id: '9psb', label: '9PSB', kind: 'static', feeLabel: 'Permanent account' },
+  { id: 'opay', label: 'OPay', kind: 'dynamic', feeLabel: '' },
+  { id: 'palmpay', label: 'PalmPay', kind: 'dynamic', feeLabel: '' },
 ];
 
 const CRYPTO_RATE = 1600;
@@ -130,6 +130,9 @@ export function FundPage({ session }: FundPageProps) {
   const [cryptoLoading, setCryptoLoading] = useState(false);
   const [liveAccount, setLiveAccount] = useState<LiveAccount | null>(null);
   const [now, setNow] = useState(() => Date.now());
+  const [nineAccount, setNineAccount] = useState<LiveAccount | null>(null);
+  const [nineLoading, setNineLoading] = useState(false);
+  const [quote, setQuote] = useState<{ walletAmount: number; amountToSend: number } | null>(null);
 
   const active = useMemo(
     () => BANK_PROVIDERS.find((p) => p.id === activeId) ?? BANK_PROVIDERS[1],
@@ -146,6 +149,82 @@ export function FundPage({ session }: FundPageProps) {
     const t = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(t);
   }, []);
+
+  // The 9PSB account is permanent: load it silently on open, no button needed.
+  useEffect(() => {
+    let stopped = false;
+    (async () => {
+      setNineLoading(true);
+      try {
+        const ctx = await resolveAuthContext(session);
+        if (!ctx.accessToken && !ctx.userId) return;
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+        if (ctx.accessToken) headers.Authorization = `Bearer ${ctx.accessToken}`;
+        const res = await fetch('/api/v1/funding/generate', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            providerId: '9psb',
+            userId: ctx.userId || undefined,
+            email: ctx.email || undefined,
+            phone: ctx.phone || undefined,
+            name: ctx.name || undefined,
+          }),
+        }).catch(() => null);
+        if (!res || !res.ok || stopped) return;
+        const data = (await res.json().catch(() => null)) as { account?: LiveAccount } | null;
+        if (data?.account?.accountNumber && !stopped) setNineAccount(data.account);
+      } catch {
+        /* silent; the tab still offers a manual load */
+      } finally {
+        if (!stopped) setNineLoading(false);
+      }
+    })();
+    return () => {
+      stopped = true;
+    };
+  }, []);
+
+  // Live quote: exact transfer amount for dynamic banks. Markup stays server-side.
+  useEffect(() => {
+    if (method !== 'bank' || !active || active.kind !== 'dynamic') {
+      setQuote(null);
+      return;
+    }
+    const amt = Number(String(amount).replace(/[^0-9.]/g, ''));
+    if (!Number.isFinite(amt) || amt < 1) {
+      setQuote(null);
+      return;
+    }
+    let stopped = false;
+    const t = setTimeout(async () => {
+      try {
+        const res = await fetch('/api/v1/funding/quote', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ providerId: active.id, amountNgn: amt }),
+        }).catch(() => null);
+        if (!res || !res.ok || stopped) return;
+        const data = (await res.json().catch(() => null)) as {
+          ok?: boolean;
+          walletAmount?: number;
+          amountToSend?: number;
+        } | null;
+        if (data?.ok && data.amountToSend && !stopped) {
+          setQuote({
+            walletAmount: Number(data.walletAmount),
+            amountToSend: Number(data.amountToSend),
+          });
+        }
+      } catch {
+        /* quote is best-effort */
+      }
+    }, 450);
+    return () => {
+      stopped = true;
+      clearTimeout(t);
+    };
+  }, [amount, activeId, method, active]);
 
   useEffect(() => {
     setLiveAccount(null);
@@ -164,7 +243,8 @@ export function FundPage({ session }: FundPageProps) {
     }
   }, [isExpired, liveAccount]);
 
-  const showAccount = Boolean(liveAccount && !(liveAccount.accountType === 'dynamic' && isExpired));
+  const shownAccount = active?.kind === 'static' ? nineAccount : liveAccount;
+  const showAccount = Boolean(shownAccount && !(shownAccount.accountType === 'dynamic' && isExpired));
 
   const copy = async (key: string, value: string) => {
     try {
@@ -419,14 +499,15 @@ export function FundPage({ session }: FundPageProps) {
 
           <div className="fund-fee" role="note">
             <p>
-              <strong>{active.label}:</strong> {active.feeLabel}. The fee is paid by you to the
-              provider — not absorbed by Verxor.
+              {active.kind === 'static'
+                ? 'Your permanent account. Transfer anytime — your wallet is credited automatically once the transfer is confirmed.'
+                : 'Enter an amount and we will show you the exact amount to transfer before you continue.'}
             </p>
           </div>
 
-          {showAccount && liveAccount ? (
+          {showAccount && shownAccount ? (
             <div className="fund-account-card">
-              {liveAccount.accountType === 'dynamic' && msLeft != null && msLeft > 0 ? (
+              {shownAccount.accountType === 'dynamic' && msLeft != null && msLeft > 0 ? (
                 <div className="fund-row">
                   <div className="fund-row-icon">
                     <Timer size={18} />
@@ -440,7 +521,7 @@ export function FundPage({ session }: FundPageProps) {
                 </div>
               ) : null}
 
-              {liveAccount.amountToSend != null ? (
+              {shownAccount.amountToSend != null ? (
                 <div className="fund-row">
                   <div className="fund-row-icon">
                     <Wallet size={18} />
@@ -448,13 +529,13 @@ export function FundPage({ session }: FundPageProps) {
                   <div className="fund-row-copy">
                     <span className="fund-row-label">AMOUNT TO SEND</span>
                     <strong className="fund-mono">
-                      ₦{Number(liveAccount.amountToSend).toLocaleString()}
+                      ₦{Number(shownAccount.amountToSend).toLocaleString()}
                     </strong>
-                    {liveAccount.feeNote ? (
+                    {shownAccount.feeNote ? (
                       <span style={{ fontSize: 11, color: '#64748b', fontWeight: 500 }}>
-                        {liveAccount.feeNote}
-                        {liveAccount.amountNgn != null
-                          ? ` · Wallet credit ₦${Number(liveAccount.amountNgn).toLocaleString()}`
+                        {shownAccount.feeNote}
+                        {shownAccount.amountNgn != null
+                          ? ` · Wallet credit ₦${Number(shownAccount.amountNgn).toLocaleString()}`
                           : ''}
                       </span>
                     ) : null}
@@ -463,20 +544,20 @@ export function FundPage({ session }: FundPageProps) {
                     type="button"
                     className="fund-copy"
                     onClick={() =>
-                      void copy('amount', String(Math.round(Number(liveAccount.amountToSend))))
+                      void copy('amount', String(Math.round(Number(shownAccount.amountToSend))))
                     }
                   >
                     {copied === 'amount' ? 'Copied' : <><Copy size={12} /> Copy</>}
                   </button>
                 </div>
-              ) : liveAccount.feeNgn != null ? (
+              ) : shownAccount.feeNgn != null ? (
                 <div className="fund-row">
                   <div className="fund-row-icon">
                     <Wallet size={18} />
                   </div>
                   <div className="fund-row-copy">
                     <span className="fund-row-label">FEE</span>
-                    <strong>₦{Number(liveAccount.feeNgn).toLocaleString()} flat per deposit</strong>
+                    <strong>₦{Number(shownAccount.feeNgn).toLocaleString()} flat per deposit</strong>
                   </div>
                 </div>
               ) : null}
@@ -487,12 +568,12 @@ export function FundPage({ session }: FundPageProps) {
                 </div>
                 <div className="fund-row-copy">
                   <span className="fund-row-label">BANK NAME</span>
-                  <strong>{liveAccount.bankName}</strong>
+                  <strong>{shownAccount.bankName}</strong>
                 </div>
                 <button
                   type="button"
                   className="fund-copy"
-                  onClick={() => void copy('bank', liveAccount.bankName)}
+                  onClick={() => void copy('bank', shownAccount.bankName)}
                 >
                   {copied === 'bank' ? 'Copied' : <><Copy size={12} /> Copy</>}
                 </button>
@@ -503,12 +584,12 @@ export function FundPage({ session }: FundPageProps) {
                 </div>
                 <div className="fund-row-copy">
                   <span className="fund-row-label">ACCOUNT NUMBER</span>
-                  <strong className="fund-mono">{liveAccount.accountNumber}</strong>
+                  <strong className="fund-mono">{shownAccount.accountNumber}</strong>
                 </div>
                 <button
                   type="button"
                   className="fund-copy"
-                  onClick={() => void copy('number', liveAccount.accountNumber)}
+                  onClick={() => void copy('number', shownAccount.accountNumber)}
                 >
                   {copied === 'number' ? 'Copied' : <><Copy size={12} /> Copy</>}
                 </button>
@@ -519,12 +600,12 @@ export function FundPage({ session }: FundPageProps) {
                 </div>
                 <div className="fund-row-copy">
                   <span className="fund-row-label">ACCOUNT NAME</span>
-                  <strong>{liveAccount.accountName}</strong>
+                  <strong>{shownAccount.accountName}</strong>
                 </div>
                 <button
                   type="button"
                   className="fund-copy"
-                  onClick={() => void copy('name', liveAccount.accountName)}
+                  onClick={() => void copy('name', shownAccount.accountName)}
                 >
                   {copied === 'name' ? 'Copied' : <><Copy size={12} /> Copy</>}
                 </button>
@@ -538,11 +619,11 @@ export function FundPage({ session }: FundPageProps) {
                   lineHeight: 1.45,
                 }}
               >
-                {liveAccount.accountType === 'static' ? (
+                {shownAccount.accountType === 'static' ? (
                   <>
-                    This is your <strong>permanent</strong> 9PSB account. Transfer anytime. A{' '}
-                    <strong>₦{Number(liveAccount.feeNgn || 50).toLocaleString()}</strong> fee is
-                    deducted; the rest credits your wallet.
+                    This account is yours alone and <strong>never expires</strong>. A{' '}
+                    <strong>₦{Number(shownAccount.feeNgn || 50).toLocaleString()}</strong>{' '}
+                    processing fee applies per deposit; the rest is credited to your wallet.
                   </>
                 ) : (
                   <>
@@ -550,7 +631,7 @@ export function FundPage({ session }: FundPageProps) {
                     <strong>
                       ₦
                       {Number(
-                        liveAccount.amountToSend ?? liveAccount.amountNgn ?? 0,
+                        shownAccount.amountToSend ?? shownAccount.amountNgn ?? 0,
                       ).toLocaleString()}
                     </strong>{' '}
                     exactly. Your wallet is credited after the bank confirms.
@@ -567,7 +648,7 @@ export function FundPage({ session }: FundPageProps) {
                     setGenError('');
                   }}
                 >
-                  {liveAccount.accountType === 'static' ? 'Hide account' : 'Generate new amount'}
+                  {shownAccount.accountType === 'static' ? 'Hide account' : 'Generate new amount'}
                 </button>
               </div>
             </div>
@@ -577,14 +658,12 @@ export function FundPage({ session }: FundPageProps) {
                 <Wallet size={28} strokeWidth={1.8} />
               </div>
               <strong>
-                {active.kind === 'static'
-                  ? `Your ${active.label} account`
-                  : `Generate ${active.label} account`}
+                {active.kind === 'static' ? `Your ${active.label} account` : `Fund via ${active.label}`}
               </strong>
               <p>
                 {active.kind === 'static'
-                  ? `One permanent ${active.label} account per user. We reuse it — not generated every time. ₦50 fee per deposit.`
-                  : `Enter the amount you want in your wallet. We show the exact amount to send (fee included).`}
+                  ? 'This account is yours alone and never expires.'
+                  : 'Enter the amount you want in your wallet. We will show you the exact amount to transfer.'}
               </p>
 
               {active.kind === 'dynamic' ? (
@@ -615,6 +694,18 @@ export function FundPage({ session }: FundPageProps) {
                 </label>
               ) : null}
 
+              {active.kind === 'dynamic' && quote ? (
+                <div className="fund-quote">
+                  <span className="fund-quote-label">AMOUNT TO SEND</span>
+                  <strong className="fund-quote-amount">
+                    ₦{quote.amountToSend.toLocaleString()}
+                  </strong>
+                  <small>
+                    Includes processing fee · Wallet credit ₦{quote.walletAmount.toLocaleString()}
+                  </small>
+                </div>
+              ) : null}
+
               <button
                 type="button"
                 className="fund-generate fund-generate--ready"
@@ -630,7 +721,7 @@ export function FundPage({ session }: FundPageProps) {
                   <>
                     <Plus size={18} strokeWidth={2.5} />{' '}
                     {active.kind === 'static'
-                      ? `Show my ${active.label} account`
+                      ? `Load my ${active.label} account`
                       : `Generate ${active.label} Account`}
                   </>
                 )}
@@ -651,13 +742,13 @@ export function FundPage({ session }: FundPageProps) {
           <li>
             <span className="fund-step-num">2</span>
             <p>
-              Bank: OPay/PalmPay enter amount; 9PSB is permanent. Crypto: enter USD → NowPayments
-              (pick coin there).
+              Bank: enter an amount and transfer the exact figure shown. Your 9PSB account is
+              permanent and always available.
             </p>
           </li>
           <li>
             <span className="fund-step-num">3</span>
-            <p>Wallet credits after confirmation. You pay provider fees.</p>
+            <p>Your wallet is credited automatically once the transfer is confirmed.</p>
           </li>
         </ol>
       </section>
@@ -665,8 +756,8 @@ export function FundPage({ session }: FundPageProps) {
       <div className="fund-secure">
         <Shield size={18} strokeWidth={2.2} />
         <p>
-          <strong>Instant & Secure:</strong> Fees are paid by you. Crypto credits at $1 = ₦
-          {CRYPTO_RATE.toLocaleString()}.
+          <strong>Instant & Secure:</strong> Transfers are verified automatically and credited to
+          your wallet.
         </p>
       </div>
     </div>

@@ -185,13 +185,13 @@
 }
 
 .fund-tabs button.active {
-  background: #2563eb;
-  border-color: #2563eb;
+  background: var(--primary, #0052ff);
+  border-color: var(--primary, #0052ff);
   color: #fff;
 }
 
 .fund-tabs button.active .fund-tab-dot {
-  background: #86efac;
+  background: rgba(255, 255, 255, 0.85);
 }
 
 .fund-account-card {
@@ -221,7 +221,7 @@
   place-items: center;
   border-radius: 12px;
   background: #eff6ff;
-  color: #2563eb;
+  color: var(--primary, #0052ff);
   flex: none;
 }
 
@@ -262,7 +262,7 @@
   border-radius: 999px;
   border: 1px solid #dbeafe;
   background: #eff6ff;
-  color: #2563eb;
+  color: var(--primary, #0052ff);
   font-size: 12px;
   font-weight: 700;
   cursor: pointer;
@@ -287,8 +287,8 @@
   display: grid;
   place-items: center;
   margin-bottom: 8px;
-  background: rgba(37, 99, 235, 0.1);
-  color: #2563eb;
+  background: rgba(0, 82, 255, 0.1);
+  color: var(--primary, #0052ff);
 }
 
 .fund-empty-va strong {
@@ -328,9 +328,9 @@
 }
 
 .fund-generate--ready {
-  background: linear-gradient(180deg, #22c55e 0%, #16a34a 100%);
+  background: var(--primary, #0052ff);
   color: #fff;
-  box-shadow: 0 6px 16px rgba(22, 163, 74, 0.35);
+  box-shadow: 0 6px 16px rgba(0, 82, 255, 0.3);
 }
 
 .fund-generate--soon {
@@ -388,7 +388,7 @@
   display: grid;
   place-items: center;
   border-radius: 999px;
-  background: #2563eb;
+  background: var(--primary, #0052ff);
   color: #fff;
   font-size: 12px;
   font-weight: 800;
@@ -410,7 +410,7 @@
   border-radius: 14px;
   background: #eff6ff;
   border: 1px solid #dbeafe;
-  color: #2563eb;
+  color: var(--primary, #0052ff);
 }
 
 .fund-secure p {
@@ -422,4 +422,40 @@
 
 .fund-secure strong {
   color: #0f172a;
+}
+
+/* Amount-to-send quote preview */
+.fund-quote {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  margin: 4px 0 12px;
+  padding: 14px;
+  border-radius: 14px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  box-sizing: border-box;
+}
+
+.fund-quote-label {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: #94a3b8;
+}
+
+.fund-quote-amount {
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #0f172a;
+  font-variant-numeric: tabular-nums;
+}
+
+.fund-quote small {
+  font-size: 11px;
+  font-weight: 600;
+  color: #64748b;
 }
