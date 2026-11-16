@@ -384,7 +384,7 @@ async function createXixaDynamic(
       amountNgn: opts.walletAmount,
       amountToSend: amountToSendFinal,
       feeNgn: feeFinal,
-      feeNote: `${feePercent}% provider fee (₦${feeFinal.toLocaleString()})`,
+      feeNote: 'Includes bank processing fee',
       bankCode: bank.code,
       providerId,
       accountType: 'dynamic' as const,
@@ -588,13 +588,29 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const result = await createXixaDynamic(providerId, {
+    // Bank-facing name is always ours, never the provider's
+    const firstName = (name.split(/\s+/)[0] || 'User').replace(/[^\w\- ]/g, '') || 'User';
+    const displayName = `Verxor - ${firstName}`;
+
+    const dynamicOpts = {
       email: customerEmail,
-      name,
+      name: displayName,
       phone,
       walletAmount: amount,
       userId,
-    });
+    };
+
+    const result = await createXixaDynamic(providerId, dynamicOpts);
+
+    // If PalmPay will not generate, fall back to OPay (same provider) so the
+    // customer always gets a working account.
+    if (providerId === 'palmpay' && 'error' in result && result.error) {
+      const fallback = await createXixaDynamic('opay', dynamicOpts);
+      if (!('error' in fallback) || !fallback.error) {
+        return NextResponse.json({ ok: true, account: fallback.account });
+      }
+    }
+
     if ('error' in result && result.error) return result.error;
     return NextResponse.json({ ok: true, account: result.account });
   }
