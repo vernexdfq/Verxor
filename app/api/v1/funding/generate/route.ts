@@ -608,7 +608,6 @@ export async function POST(req: NextRequest) {
     // (Safe Haven first, then Kolomoni). We never silently fall back to OPay.
     if ('error' in result && result.error) {
       for (const fb of ['safehaven', 'kolomoni'] as const) {
-        if (fb === providerId) continue;
         const alt = await createXixaDynamic(fb, dynamicOpts);
         if (!('error' in alt)) {
           return NextResponse.json({
