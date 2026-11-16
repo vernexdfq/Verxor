@@ -383,6 +383,87 @@ export async function healthCheck247(): Promise<{
   }
 }
 
+export type Api247LiveDataPlan = {
+  plan_id: number;
+  price: number;
+  network?: string;
+  datasize?: string;
+  day?: string;
+  type?: string;
+  name?: string | null;
+};
+
+/**
+ * Live data plan list from 247API (GET /data_plans).
+ * Used to hide dead plan_ids and reprice while keeping Verxor margin.
+ */
+export async function fetchLiveDataPlans247(): Promise<Api247LiveDataPlan[]> {
+  if (!isApi247Configured()) {
+    throw new Error('API_247_KEY is not configured');
+  }
+
+  const token = cleanToken();
+  const url = `${baseUrl()}/data_plans`;
+
+  const doFetch = (auth: string) =>
+    fetch(url, {
+      method: 'GET',
+      headers: {
+        Authorization: auth,
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+        'User-Agent': 'Verxor/1.0',
+      },
+      cache: 'no-store',
+    });
+
+  let res = await doFetch(`Token ${token}`);
+  let text = await res.text().catch(() => '');
+  if (res.status === 401) {
+    res = await doFetch(`Bearer ${token}`);
+    text = await res.text().catch(() => '');
+  }
+
+  let parsed: any = null;
+  try {
+    parsed = text ? JSON.parse(text) : null;
+  } catch {
+    throw new Error(`247API data_plans invalid JSON (HTTP ${res.status})`);
+  }
+
+  if (!res.ok) {
+    throw new Error(extractErrorMessage(parsed, res.status));
+  }
+
+  const rows: any[] = Array.isArray(parsed)
+    ? parsed
+    : Array.isArray(parsed?.data)
+      ? parsed.data
+      : Array.isArray(parsed?.plans)
+        ? parsed.plans
+        : [];
+
+  const out: Api247LiveDataPlan[] = [];
+  for (const row of rows) {
+    if (!row || typeof row !== 'object') continue;
+    const plan_id = Number(row.plan_id ?? row.id ?? row.plan);
+    const price = Number(row.price ?? row.amount ?? row.cost);
+    if (!Number.isFinite(plan_id) || plan_id <= 0) continue;
+    if (!Number.isFinite(price) || price <= 0) continue;
+    out.push({
+      plan_id,
+      price,
+      network: row.network != null ? String(row.network) : undefined,
+      datasize: row.datasize != null ? String(row.datasize) : undefined,
+      day: row.day != null ? String(row.day) : undefined,
+      type: row.type != null ? String(row.type) : undefined,
+      name: row.name ?? null,
+    });
+  }
+
+  return out;
+}
+
 /** Purchase data bundle — 247API POST /data (plan = plan_id). */
 export async function purchaseData247(opts: {
   planId: number;
