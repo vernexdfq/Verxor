@@ -9,6 +9,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import {
   ArrowLeft,
   BarChart3,
+  Ban,
   Check,
   KeyRound,
   LayoutDashboard,
@@ -17,13 +18,46 @@ import {
   Pencil,
   Percent,
   Plug,
+  Search,
   TrendingUp,
+  Users,
   Wallet,
   X,
 } from 'lucide-react';
 import './admin-page.css';
 
-type AdminSection = 'overview' | 'pricing' | 'providers' | 'settings';
+type AdminSection = 'overview' | 'users' | 'pricing' | 'providers' | 'settings';
+
+type AdminUserTab = 'all' | 'customers' | 'api' | 'panels';
+
+/** Per-API-user service permissions. Auto-enabled vs locked by default. */
+const API_SERVICES: { id: string; label: string; on: boolean }[] = [
+  { id: 'virtual-numbers', label: 'Virtual Number (OTP)', on: true },
+  { id: 'email-otp', label: 'Email OTP', on: true },
+  { id: 'boost', label: 'Boost Account (SMM)', on: true },
+  { id: 'vtu', label: 'VTU (Data, Airtime, Electricity, Exam Pin, Bet Wallet, Cable TV)', on: true },
+  { id: 'buy-logs', label: 'Buy Logs & Accounts', on: false },
+  { id: 'rent-sms', label: 'Rent for SMS (Non-VoIP)', on: false },
+  { id: 'rent-sms-calls', label: 'Rent for SMS/Calls (SignalWire)', on: false },
+  { id: 'telegram-premium', label: 'Telegram Premium', on: false },
+];
+
+/**
+ * Phase 1 preview user. Clearly marked as preview; Phase 2 replaces this
+ * whole list with live data from the profiles / api_keys / child_panels tables.
+ */
+const PREVIEW_USER = {
+  id: 'preview-1',
+  name: 'Preview User',
+  contact: '0801 234 5678',
+  email: 'preview@verxor.com',
+  joined: 'Nov 2026',
+  balance: 12500,
+  apiKey: true,
+  panel: false,
+  banned: false,
+  services: API_SERVICES,
+};
 
 const SESSION_KEY = 'verxor-admin-ok';
 const PASS_KEY = 'verxor-admin-pw';
@@ -31,6 +65,7 @@ const RATE_KEY = 'verxor-admin-rate';
 
 const NAV: { id: AdminSection; label: string; icon: typeof LayoutDashboard }[] = [
   { id: 'overview', label: 'Overview', icon: LayoutDashboard },
+  { id: 'users', label: 'Users', icon: Users },
   { id: 'pricing', label: 'Pricing', icon: Percent },
   { id: 'providers', label: 'Providers', icon: Plug },
   { id: 'settings', label: 'Settings', icon: KeyRound },
@@ -51,6 +86,209 @@ function lastNDays(n: number) {
     out.push({ key: d.toISOString().slice(0, 10), label, isToday: i === 0 });
   }
   return out;
+}
+
+function UserManagement() {
+  const [tab, setTab] = useState<AdminUserTab>('all');
+  const [query, setQuery] = useState('');
+  const [selected, setSelected] = useState<typeof PREVIEW_USER | null>(null);
+
+  const [adjustMode, setAdjustMode] = useState<'credit' | 'debit'>('credit');
+  const [adjustAmount, setAdjustAmount] = useState('');
+  const [adjustReason, setAdjustReason] = useState('');
+  const [phoneDraft, setPhoneDraft] = useState('');
+  const [phoneEditing, setPhoneEditing] = useState(false);
+  const [services, setServices] = useState(API_SERVICES);
+  const [unlockNote, setUnlockNote] = useState('');
+  const [banned, setBanned] = useState(false);
+
+  const comingSoon = () =>
+    window.alert('Phase 2: this action connects to the live database.');
+
+  if (selected) {
+    return (
+      <div className="vxa-user-detail">
+        <button type="button" className="vxa-back" onClick={() => setSelected(null)}>
+          <ArrowLeft size={16} /> Back to users
+        </button>
+
+        {/* Header */}
+        <div className="vxa-user-head">
+          <div className="vxa-user-avatar">{selected.name.slice(0, 1).toUpperCase()}</div>
+          <div className="vxa-user-id">
+            <h2>{selected.name} <span className="vxa-tag preview">PREVIEW</span></h2>
+            <p>{selected.contact} · {selected.email} · Joined {selected.joined}</p>
+            <div className="vxa-user-tags">
+              {selected.apiKey ? <span className="vxa-tag blue">API Developer</span> : null}
+              {selected.panel ? <span className="vxa-tag navy">Child Panel</span> : null}
+              <span className="vxa-tag grey">Customer</span>
+            </div>
+          </div>
+          <div className="vxa-user-head-right">
+            <button type="button" className={banned ? 'vxa-ban-btn banned' : 'vxa-ban-btn'} onClick={() => { setBanned(!banned); comingSoon(); }}>
+              <Ban size={15} /> {banned ? 'Frozen — tap to restore' : 'Ban / Freeze'}
+            </button>
+          </div>
+        </div>
+
+        <div className="vxa-duo">
+          {/* Wallet */}
+          <div className="vxa-tile">
+            <span className="vxa-tile-label"><Wallet size={14} /> WALLET BALANCE</span>
+            <strong>{naira(selected.balance)}</strong>
+            <div className="vxa-adjust">
+              <div className="vxa-adjust-toggle">
+                <button type="button" className={adjustMode === 'credit' ? 'active' : ''} onClick={() => setAdjustMode('credit')}>+ Add money</button>
+                <button type="button" className={adjustMode === 'debit' ? 'active' : ''} onClick={() => setAdjustMode('debit')}>− Remove money</button>
+              </div>
+              <input inputMode="decimal" placeholder="Amount" value={adjustAmount}
+                onChange={(e) => setAdjustAmount(e.target.value)} aria-label="Amount" />
+              <div className="vxa-chips">
+                {[500, 1000, 2000, 5000, 10000].map((v) => (
+                  <button type="button" key={v} onClick={() => setAdjustAmount(String(v))}>₦{v.toLocaleString('en-NG')}</button>
+                ))}
+              </div>
+              <input placeholder="Reason (optional)" value={adjustReason}
+                onChange={(e) => setAdjustReason(e.target.value)} aria-label="Reason" />
+              <button type="button" className="vxa-adjust-go" onClick={comingSoon}>
+                {adjustMode === 'credit' ? 'Credit wallet' : 'Debit wallet'}
+              </button>
+              <p className="vxa-note">Every adjustment is written to the admin audit log in Phase 2.</p>
+            </div>
+          </div>
+
+          {/* Contact + transactions */}
+          <div className="vxa-tile">
+            <span className="vxa-tile-label"><Pencil size={14} /> PHONE NUMBER</span>
+            {phoneEditing ? (
+              <div className="vxa-rate-edit">
+                <div className="vxa-rate-row">
+                  <input value={phoneDraft} onChange={(e) => setPhoneDraft(e.target.value)} aria-label="Phone number" />
+                </div>
+                <div className="vxa-rate-actions">
+                  <button type="button" className="vxa-rate-save" onClick={() => { setPhoneEditing(false); comingSoon(); }}>
+                    <Check size={14} /> Save
+                  </button>
+                  <button type="button" className="vxa-rate-cancel" onClick={() => setPhoneEditing(false)}>
+                    <X size={14} /> Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="vxa-rate-row">
+                <strong style={{ fontSize: 19 }}>{selected.contact}</strong>
+                <button type="button" className="vxa-rate-btn" aria-label="Edit phone"
+                  onClick={() => { setPhoneDraft(selected.contact); setPhoneEditing(true); }}>
+                  <Pencil size={14} />
+                </button>
+              </div>
+            )}
+            <p className="vxa-tile-sep">RECENT TRANSACTIONS</p>
+            <div className="vxa-empty small">
+              <strong>No transactions yet.</strong>
+              <p>Real orders and funding records appear here in Phase 2.</p>
+            </div>
+          </div>
+        </div>
+
+        {/* API permission matrix */}
+        <div className="vxa-card">
+          <div className="vxa-card-head">
+            <KeyRound size={17} />
+            <strong>API service access</strong>
+            {selected.apiKey ? <span className="vxa-tag blue">API Developer</span> : <span className="vxa-tag grey">No API key</span>}
+          </div>
+          <p className="vxa-card-sub">
+            Virtual Numbers, Email OTP, Boost and VTU are on by default for every API user.
+            Locked services stay off until you verify the user (CAC or personal trust) and toggle them on.
+          </p>
+          <ul className="vxa-matrix">
+            {services.map((s) => (
+              <li key={s.id}>
+                <div>
+                  <strong>{s.label}</strong>
+                  <span>{s.on ? 'Unlocked' : 'Locked — contact admin to unlock'}</span>
+                </div>
+                <button type="button"
+                  className={s.on ? 'vxa-switch on' : 'vxa-switch'}
+                  aria-pressed={s.on}
+                  aria-label={`Toggle ${s.label}`}
+                  onClick={() => comingSoon()}>
+                  <em />
+                </button>
+              </li>
+            ))}
+          </ul>
+          <div className="vxa-unlock-note">
+            <label>Unlock note (why this user was approved)</label>
+            <input placeholder="e.g. CAC verified, registered business / known in person"
+              value={unlockNote} onChange={(e) => setUnlockNote(e.target.value)} />
+            <p className="vxa-note">Locked endpoints reply: "Service locked. Contact Verxor Admin on WhatsApp/Telegram to unlock wholesale access."</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <div className="vxa-users-toolbar">
+        <div className="vxa-tabs">
+          {([
+            ['all', 'All'],
+            ['customers', 'Customers'],
+            ['api', 'API Developers'],
+            ['panels', 'Child Panels'],
+          ] as [AdminUserTab, string][]).map(([id, label]) => (
+            <button type="button" key={id} className={tab === id ? 'active' : ''} onClick={() => setTab(id)}>
+              {label}
+              {id === 'panels' ? <em className="vxa-tab-count">0</em> : null}
+            </button>
+          ))}
+        </div>
+        <div className="vxa-search">
+          <Search size={16} />
+          <input placeholder="Search name, phone, email or reference" value={query}
+            onChange={(e) => setQuery(e.target.value)} aria-label="Search users" />
+        </div>
+      </div>
+
+      {tab === 'panels' ? (
+        <div className="vxa-card">
+          <div className="vxa-card-head"><strong>Child Panels Monitor</strong></div>
+          <p className="vxa-card-sub">
+            Connected panels with custom domain, today's API volume, last activity and a Suspend / Activate kill-switch.
+            A user becomes a panel only after paying for the panel and you deliver it, then you upgrade them here.
+          </p>
+          <div className="vxa-empty">
+            <strong>No child panels yet.</strong>
+            <p>When you deliver a panel and upgrade the user, it appears here with its domain, spend and kill-switch.</p>
+          </div>
+        </div>
+      ) : (
+        <div className="vxa-card">
+          <div className="vxa-card-head"><strong>Users</strong></div>
+          <ul className="vxa-user-list">
+            <li onClick={() => setSelected(PREVIEW_USER)} role="button">
+              <div className="vxa-user-avatar small">P</div>
+              <div className="vxa-user-cell">
+                <strong>Preview User <span className="vxa-tag preview">PREVIEW</span></strong>
+                <span>0801 234 5678 · preview@verxor.com</span>
+              </div>
+              <div className="vxa-user-cell right">
+                <strong>{naira(PREVIEW_USER.balance)}</strong>
+                <span className="vxa-tag blue">API Developer</span>
+              </div>
+            </li>
+          </ul>
+          <p className="vxa-note">
+            This preview row lets you see the user detail design. Phase 2 replaces it with the live user list
+            (customers, API developers and panels) from the database.
+          </p>
+        </div>
+      )}
+    </>
+  );
 }
 
 export function AdminPage({ onBack }: { onBack: () => void }) {
@@ -255,6 +493,12 @@ export function AdminPage({ onBack }: { onBack: () => void }) {
               </ul>
               <p className="vxa-note">Day rows fill from real orders once the Overview API is connected in Phase 2.</p>
             </div>
+          </section>
+        )}
+
+        {section === 'users' && (
+          <section className="vxa-body">
+            <UserManagement />
           </section>
         )}
 
