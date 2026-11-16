@@ -73,6 +73,11 @@ async function profileIdByEmailOrPhone(email: string, phone: string): Promise<st
     if (id) return id;
   }
 
+  if (phone.includes('@')) {
+    const id = await profileId(`email=eq.${encodeURIComponent(phone.trim().toLowerCase())}`);
+    if (id) return id;
+  }
+
   const d = phone.replace(/\D/g, '');
   if (!d) return null;
   const candidates = new Set<string>([phone.trim(), d, `+${d}`]);
@@ -221,11 +226,11 @@ export async function POST(req: NextRequest) {
   // Soft-session fallback: identify the user by profile email/phone when the
   // Supabase JWT is missing or expired but the app session is still valid.
   if (!userId) {
-    userId =
-      (await profileIdByEmailOrPhone(
-        String(body.email || ''),
-        String(body.contact || body.phone || ''),
-      )) || null;
+    const contactStr = String(body.contact || '').trim();
+    const emailStr = String(body.email || '').trim();
+    const effEmail = emailStr || (contactStr.includes('@') ? contactStr : '');
+    const effPhone = !contactStr.includes('@') ? contactStr : '';
+    userId = (await profileIdByEmailOrPhone(effEmail, effPhone)) || null;
   }
 
   if (!userId) {
