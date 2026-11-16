@@ -604,7 +604,9 @@ export function DataPage({ onBack, session, onFund }: DataPageProps) {
     setSubmitting(true);
     try {
       let accessToken = loadSessionTokens()?.access_token || '';
+      let sessionUserId = loadSessionProfile()?.userId || '';
       // Prefer the current Supabase session so a refreshed token is used at checkout.
+      // Also capture the user id: it stays valid even when the cached token is stale.
       try {
         const { getSupabaseBrowser } = await import('../lib/supabase/client');
         const sb = getSupabaseBrowser();
@@ -612,6 +614,9 @@ export function DataPage({ onBack, session, onFund }: DataPageProps) {
           const { data: sessionData } = await sb.auth.getSession();
           if (sessionData.session?.access_token) {
             accessToken = sessionData.session.access_token;
+          }
+          if (sessionData.session?.user?.id) {
+            sessionUserId = sessionData.session.user.id;
           }
         }
       } catch {
@@ -633,7 +638,7 @@ export function DataPage({ onBack, session, onFund }: DataPageProps) {
           phone: phoneDigits,
           dataPlanId: selectedPlan.id,
           // Soft-session identity fallbacks used when the Supabase JWT is stale.
-          userId: loadSessionProfile()?.userId || undefined,
+          userId: sessionUserId || undefined,
           email: session?.email || loadSessionProfile()?.email || undefined,
           contact: session?.contact || loadSessionProfile()?.contact || undefined,
         }),
