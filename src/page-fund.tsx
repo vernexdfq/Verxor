@@ -48,6 +48,8 @@ const BANK_PROVIDERS: FundingProvider[] = [
   { id: 'palmpay', label: 'PalmPay', kind: 'dynamic', feeLabel: '1% fee (exact on generate)' },
 ];
 
+const CRYPTO_RATE = 1600;
+
 async function resolveAuthContext(session?: AuthSession | null) {
   const profile = loadSessionProfile();
   let accessToken = loadSessionTokens()?.access_token || '';
@@ -123,6 +125,9 @@ export function FundPage({ session }: FundPageProps) {
   const [generating, setGenerating] = useState(false);
   const [genError, setGenError] = useState('');
   const [amount, setAmount] = useState('');
+  const [cryptoUsd, setCryptoUsd] = useState('');
+  const [cryptoError, setCryptoError] = useState('');
+  const [cryptoLoading, setCryptoLoading] = useState(false);
   const [liveAccount, setLiveAccount] = useState<LiveAccount | null>(null);
   const [now, setNow] = useState(() => Date.now());
 
@@ -130,6 +135,12 @@ export function FundPage({ session }: FundPageProps) {
     () => BANK_PROVIDERS.find((p) => p.id === activeId) ?? BANK_PROVIDERS[1],
     [activeId],
   );
+
+  const cryptoPreviewNgn = useMemo(() => {
+    const n = Number(String(cryptoUsd).replace(/[^0-9.]/g, ''));
+    if (!Number.isFinite(n) || n <= 0) return null;
+    return Math.round(n * CRYPTO_RATE);
+  }, [cryptoUsd]);
 
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 1000);
@@ -140,6 +151,7 @@ export function FundPage({ session }: FundPageProps) {
     setLiveAccount(null);
     setGenError('');
     setAmount('');
+    setCryptoError('');
   }, [activeId, method]);
 
   const expireMs = liveAccount ? parseExpireMs(liveAccount.expireAt) : null;
@@ -235,6 +247,56 @@ export function FundPage({ session }: FundPageProps) {
     }
   };
 
+  const startCrypto = async () => {
+    if (cryptoLoading) return;
+    const usd = Number(String(cryptoUsd).replace(/[^0-9.]/g, ''));
+    if (!Number.isFinite(usd) || usd < 1) {
+      setCryptoError('Enter at least $1');
+      return;
+    }
+    setCryptoLoading(true);
+    setCryptoError('');
+    try {
+      const ctx = await resolveAuthContext(session);
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (ctx.accessToken) headers.Authorization = `Bearer ${ctx.accessToken}`;
+
+      const res = await fetch('/api/v1/funding/crypto', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          amountUsd: usd,
+          userId: ctx.userId || undefined,
+          email: ctx.email || undefined,
+        }),
+      }).catch(() => null);
+
+      if (res && res.ok) {
+        const data = (await res.json()) as { ok?: boolean; invoiceUrl?: string; message?: string };
+        if (data.invoiceUrl) {
+          window.location.href = data.invoiceUrl;
+          return;
+        }
+        setCryptoError(data.message || 'Could not open crypto checkout.');
+      } else {
+        let msg = 'Could not start crypto payment.';
+        if (res) {
+          try {
+            const body = (await res.json()) as { message?: string };
+            if (body?.message) msg = body.message;
+          } catch {
+            /* ignore */
+          }
+        }
+        setCryptoError(msg);
+      }
+    } catch {
+      setCryptoError('Could not start crypto payment. Try again.');
+    } finally {
+      setCryptoLoading(false);
+    }
+  };
+
   return (
     <div className="fund-page">
       <header className="fund-head">
@@ -281,12 +343,57 @@ export function FundPage({ session }: FundPageProps) {
           </div>
           <strong>Fund with crypto</strong>
           <p>
-            USDT, USDC and more via NowPayments. Crypto checkout is next — bank transfer is ready
-            now.
+            Enter the USD amount. You choose the coin on NowPayments checkout. Rate:{' '}
+            <strong>$1 = ₦{CRYPTO_RATE.toLocaleString()}</strong>. Gateway fees are paid by you.
           </p>
-          <button type="button" className="fund-generate fund-generate--soon" disabled>
-            Coming next
+
+          <label
+            className="fund-amount-label"
+            style={{ display: 'block', width: '100%', marginBottom: 10, textAlign: 'left' }}
+          >
+            <span style={{ fontSize: 12, fontWeight: 600, color: '#64748B' }}>AMOUNT (USD)</span>
+            <input
+              type="number"
+              min={1}
+              step={0.01}
+              value={cryptoUsd}
+              onChange={(e) => setCryptoUsd(e.target.value)}
+              placeholder="e.g. 10"
+              style={{
+                width: '100%',
+                marginTop: 6,
+                padding: '12px 14px',
+                borderRadius: 12,
+                border: '1px solid #E2E8F0',
+                fontSize: 16,
+                fontWeight: 600,
+              }}
+            />
+          </label>
+
+          {cryptoPreviewNgn != null ? (
+            <p style={{ margin: '0 0 12px', fontSize: 13, color: '#334155', fontWeight: 600 }}>
+              Wallet credit ≈ ₦{cryptoPreviewNgn.toLocaleString()}
+            </p>
+          ) : null}
+
+          <button
+            type="button"
+            className="fund-generate fund-generate--ready"
+            disabled={cryptoLoading}
+            onClick={() => void startCrypto()}
+          >
+            {cryptoLoading ? (
+              <>
+                <Loader2 size={18} className="fund-spin" /> Opening checkout...
+              </>
+            ) : (
+              <>
+                <Bitcoin size={18} strokeWidth={2.2} /> Continue to NowPayments
+              </>
+            )}
           </button>
+          {cryptoError ? <p className="fund-gen-error">{cryptoError}</p> : null}
         </section>
       ) : (
         <section className="fund-transfer" aria-label="Fund via bank transfer">
@@ -433,9 +540,9 @@ export function FundPage({ session }: FundPageProps) {
               >
                 {liveAccount.accountType === 'static' ? (
                   <>
-                    Transfer any amount to this account. A{' '}
+                    This is your <strong>permanent</strong> 9PSB account. Transfer anytime. A{' '}
                     <strong>₦{Number(liveAccount.feeNgn || 50).toLocaleString()}</strong> fee is
-                    deducted; the rest credits your wallet automatically.
+                    deducted; the rest credits your wallet.
                   </>
                 ) : (
                   <>
@@ -460,7 +567,7 @@ export function FundPage({ session }: FundPageProps) {
                     setGenError('');
                   }}
                 >
-                  {liveAccount.accountType === 'static' ? 'Done' : 'Generate new amount'}
+                  {liveAccount.accountType === 'static' ? 'Hide account' : 'Generate new amount'}
                 </button>
               </div>
             </div>
@@ -471,12 +578,12 @@ export function FundPage({ session }: FundPageProps) {
               </div>
               <strong>
                 {active.kind === 'static'
-                  ? `Get ${active.label} account`
+                  ? `Your ${active.label} account`
                   : `Generate ${active.label} account`}
               </strong>
               <p>
                 {active.kind === 'static'
-                  ? `Permanent ${active.label} account. Transfer anytime; ₦50 fee per deposit.`
+                  ? `One permanent ${active.label} account per user. We reuse it — not generated every time. ₦50 fee per deposit.`
                   : `Enter the amount you want in your wallet. We show the exact amount to send (fee included).`}
               </p>
 
@@ -516,13 +623,14 @@ export function FundPage({ session }: FundPageProps) {
               >
                 {generating ? (
                   <>
-                    <Loader2 size={18} className="fund-spin" /> Generating...
+                    <Loader2 size={18} className="fund-spin" />{' '}
+                    {active.kind === 'static' ? 'Loading...' : 'Generating...'}
                   </>
                 ) : (
                   <>
                     <Plus size={18} strokeWidth={2.5} />{' '}
                     {active.kind === 'static'
-                      ? `Generate ${active.label} Account`
+                      ? `Show my ${active.label} account`
                       : `Generate ${active.label} Account`}
                   </>
                 )}
@@ -538,18 +646,18 @@ export function FundPage({ session }: FundPageProps) {
         <ol>
           <li>
             <span className="fund-step-num">1</span>
-            <p>Choose Bank transfer or Crypto, then pick a bank.</p>
+            <p>Choose Bank transfer or Crypto.</p>
           </li>
           <li>
             <span className="fund-step-num">2</span>
             <p>
-              For OPay/PalmPay enter wallet amount and transfer the <strong>Amount to send</strong>.
-              For 9PSB transfer any amount (₦50 fee).
+              Bank: OPay/PalmPay enter amount; 9PSB is permanent. Crypto: enter USD → NowPayments
+              (pick coin there).
             </p>
           </li>
           <li>
             <span className="fund-step-num">3</span>
-            <p>Wallet credits automatically after the bank confirms.</p>
+            <p>Wallet credits after confirmation. You pay provider fees.</p>
           </li>
         </ol>
       </section>
@@ -557,8 +665,8 @@ export function FundPage({ session }: FundPageProps) {
       <div className="fund-secure">
         <Shield size={18} strokeWidth={2.2} />
         <p>
-          <strong>Instant & Secure:</strong> Provider fees are shown up front. Credits apply after
-          confirmation.
+          <strong>Instant & Secure:</strong> Fees are paid by you. Crypto credits at $1 = ₦
+          {CRYPTO_RATE.toLocaleString()}.
         </p>
       </div>
     </div>
