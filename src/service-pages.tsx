@@ -62,7 +62,9 @@ export type ServiceView =
   | 'exam-pin'
   | 'virtual-card'
   | 'gift-card'
-  | 'bet-wallet';
+  | 'bet-wallet'
+  | 'email-otp'
+  | 'telegram-premium';
 
 function ServiceLayout({
   title,
