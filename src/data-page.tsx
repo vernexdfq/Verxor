@@ -632,6 +632,10 @@ export function DataPage({ onBack, session, onFund }: DataPageProps) {
           network: networkId,
           phone: phoneDigits,
           dataPlanId: selectedPlan.id,
+          // Soft-session identity fallbacks used when the Supabase JWT is stale.
+          userId: loadSessionProfile()?.userId || undefined,
+          email: session?.email || loadSessionProfile()?.email || undefined,
+          contact: session?.contact || loadSessionProfile()?.contact || undefined,
         }),
       });
 

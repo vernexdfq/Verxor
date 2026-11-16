@@ -21,7 +21,8 @@ function supabaseBase() {
     .replace(/\/$/, '');
 }
 
-async function resolveUserId(req: NextRequest): Promise<string | null> {
+async function resolveUserId(req: NextRequest, bodyUserId?: string): Promise<string | null> {
+  if (bodyUserId) return bodyUserId;
   const auth = req.headers.get('authorization') || '';
   const token = auth.startsWith('Bearer ') ? auth.slice(7).trim() : '';
   if (!token || token.startsWith('vx_panel_')) return null;
@@ -43,6 +44,59 @@ async function resolveUserId(req: NextRequest): Promise<string | null> {
 
 function formatNaira(n: number): string {
   return `₦${Math.round(n).toLocaleString('en-NG')}`;
+}
+
+/** Resolve a profile id from email or phone, mirroring wallet/balance lookup. */
+async function profileIdByEmailOrPhone(email: string, phone: string): Promise<string | null> {
+  const base = supabaseBase();
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!base || !serviceKey) return null;
+  const hdr = { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` };
+
+  const profileId = async (query: string): Promise<string | null> => {
+    try {
+      const res = await fetch(`${base}/rest/v1/profiles?${query}&select=id&limit=1`, {
+        headers: hdr,
+        cache: 'no-store',
+      });
+      if (!res.ok) return null;
+      const rows = (await res.json()) as Array<{ id?: string }>;
+      return rows[0]?.id || null;
+    } catch {
+      return null;
+    }
+  };
+
+  const emailQ = email.trim().toLowerCase();
+  if (emailQ) {
+    const id = await profileId(`email=eq.${encodeURIComponent(emailQ)}`);
+    if (id) return id;
+  }
+
+  const d = phone.replace(/\D/g, '');
+  if (!d) return null;
+  const candidates = new Set<string>([phone.trim(), d, `+${d}`]);
+  if (d.startsWith('234') && d.length >= 13) {
+    candidates.add(`0${d.slice(3)}`);
+    candidates.add(d.slice(3));
+  }
+  if (d.startsWith('0') && d.length >= 11) {
+    candidates.add(`+234${d.slice(1)}`);
+    candidates.add(`234${d.slice(1)}`);
+  }
+  const last10 = d.slice(-10);
+  if (last10.length === 10) {
+    candidates.add(`+234${last10}`);
+    candidates.add(`0${last10}`);
+  }
+  for (const p of candidates) {
+    const id = await profileId(`phone=eq.${encodeURIComponent(p)}`);
+    if (id) return id;
+  }
+  if (last10.length >= 9) {
+    return profileId(`phone=like.*${last10}`);
+  }
+  return null;
 }
 
 async function debitRetailWallet(
@@ -159,11 +213,21 @@ export async function POST(req: NextRequest) {
 
   const amount = resolved.amount;
   const phone = String(body.phone || '');
-  const userId = await resolveUserId(req);
+  let userId = await resolveUserId(req, body.userId as string | undefined);
+
+  // Soft-session fallback: identify the user by profile email/phone when the
+  // Supabase JWT is missing or expired but the app session is still valid.
+  if (!userId) {
+    userId =
+      (await profileIdByEmailOrPhone(
+        String(body.email || ''),
+        String(body.contact || body.phone || ''),
+      )) || null;
+  }
 
   if (!userId) {
     return NextResponse.json(
-      { ok: false, error: 'Unauthorized. Sign in to buy data.' },
+      { ok: false, error: 'Your session expired. Please sign in again to buy data.' },
       { status: 401 },
     );
   }
