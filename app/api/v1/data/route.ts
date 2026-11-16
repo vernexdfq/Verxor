@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isApi247Configured, purchaseData247 } from '@/lib/providers/api247';
-import { findCatalogPlan } from '@/lib/data-catalog';
+import { resolvePurchasePlan } from '@/lib/data-plan-sync';
 import { supabaseConfigured } from '@/lib/supabase-admin';
 import { sendDataReceipt } from '@/lib/email/receipts';
 
@@ -105,7 +105,7 @@ async function creditRetailWallet(
 
 /**
  * POST /api/v1/data
- * Auth → resolve catalog plan → debit retail price → 247API purchase → refund on fail
+ * Auth → live-synced catalog price → debit → 247 purchase → refund on fail
  */
 export async function POST(req: NextRequest) {
   if (!isApi247Configured()) {
@@ -141,14 +141,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: 'Invalid data plan' }, { status: 400 });
   }
 
-  const catalog = findCatalogPlan(dataPlanId);
-  if (!catalog) {
+  const resolved = await resolvePurchasePlan(dataPlanId);
+  if (!resolved.ok) {
     return NextResponse.json(
-      { ok: false, error: 'This plan is not available yet. Try another bundle.' },
-      { status: 400 },
+      { ok: false, error: resolved.error },
+      { status: resolved.status },
     );
   }
 
+  const catalog = resolved.plan;
   if (catalog.network !== network) {
     return NextResponse.json(
       { ok: false, error: 'Plan does not match selected network' },
@@ -156,11 +157,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const amount = Math.round(catalog.retail);
-  if (amount < 50) {
-    return NextResponse.json({ ok: false, error: 'Invalid plan price' }, { status: 400 });
-  }
-
+  const amount = resolved.amount;
   const phone = String(body.phone || '');
   const userId = await resolveUserId(req);
 
@@ -216,7 +213,10 @@ export async function POST(req: NextRequest) {
         { label: 'Mobile number', value: phone },
         { label: 'Bundle', value: planLabel },
       ],
-    }).then((mail) => { if (!mail.ok) console.warn('[email] Data receipt not sent:', mail.error); });
+    }).then((mail) => {
+      if (!mail.ok) console.warn('[email] Data receipt not sent:', mail.error);
+    });
+
     return NextResponse.json({
       ok: true,
       order: {
@@ -231,6 +231,7 @@ export async function POST(req: NextRequest) {
         title: successTitle,
       },
       balanceDebited: amount,
+      priceSource: resolved.source,
     });
   } catch (err) {
     if (debited) {
@@ -242,7 +243,10 @@ export async function POST(req: NextRequest) {
       );
     }
     const rawMessage = err instanceof Error ? err.message : 'Data purchase failed';
-    const cleanMessage = rawMessage.replace(/(api247|clubkonnect|smeplug|provider|upstream):\s*/gi, '').trim() || 'Data purchase failed. Please try again shortly.';
+    const cleanMessage =
+      rawMessage
+        .replace(/(api247|clubkonnect|smeplug|provider|upstream):\s*/gi, '')
+        .trim() || 'Data purchase failed. Please try again shortly.';
     return NextResponse.json(
       { ok: false, error: cleanMessage, refunded: debited },
       { status: 502 },
