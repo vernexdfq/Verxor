@@ -1,6 +1,7 @@
 /**
- * Verxor platform admin (operator console) — Phase 1 UI rebuild.
- * Overview-first: daily earnings + most used services. Backend wiring is Phase 2.
+ * Verxor platform admin — rebuilt from scratch (Phase 1 UI only).
+ * Overview = Daily earnings view, mirroring the child-panel layout but
+ * from the provider side. All figures stay at zero until Phase 2 APIs land.
  */
 'use client';
 
@@ -8,12 +9,17 @@ import { useEffect, useState, type FormEvent } from 'react';
 import {
   ArrowLeft,
   BarChart3,
+  Check,
   KeyRound,
   LayoutDashboard,
   Lock,
+  Menu,
+  Pencil,
   Percent,
   Plug,
   TrendingUp,
+  Wallet,
+  X,
 } from 'lucide-react';
 import './admin-page.css';
 
@@ -21,6 +27,7 @@ type AdminSection = 'overview' | 'pricing' | 'providers' | 'settings';
 
 const SESSION_KEY = 'verxor-admin-ok';
 const PASS_KEY = 'verxor-admin-pw';
+const RATE_KEY = 'verxor-admin-rate';
 
 const NAV: { id: AdminSection; label: string; icon: typeof LayoutDashboard }[] = [
   { id: 'overview', label: 'Overview', icon: LayoutDashboard },
@@ -29,17 +36,22 @@ const NAV: { id: AdminSection; label: string; icon: typeof LayoutDashboard }[] =
   { id: 'settings', label: 'Settings', icon: KeyRound },
 ];
 
-/** Services tracked for the "most used today" list. */
-const TRACKED_SERVICES = [
-  'Virtual Numbers',
-  'Data',
-  'Airtime',
-  'Boost',
-  'Buy Logs',
-  'Gift Cards',
-  'Rental',
-  'eSIM',
-];
+function naira(n: number) {
+  return '₦' + n.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function lastNDays(n: number) {
+  const out: { key: string; label: string; isToday: boolean }[] = [];
+  const now = new Date();
+  for (let i = 0; i < n; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
+    const label = i === 0
+      ? 'Today'
+      : d.toLocaleDateString('en-NG', { weekday: 'short', day: 'numeric', month: 'short' });
+    out.push({ key: d.toISOString().slice(0, 10), label, isToday: i === 0 });
+  }
+  return out;
+}
 
 export function AdminPage({ onBack }: { onBack: () => void }) {
   const [unlocked, setUnlocked] = useState(false);
@@ -47,12 +59,34 @@ export function AdminPage({ onBack }: { onBack: () => void }) {
   const [loginError, setLoginError] = useState('');
   const [loginBusy, setLoginBusy] = useState(false);
   const [section, setSection] = useState<AdminSection>('overview');
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  // Today's USD→NGN rate. UI-only for now: Phase 2 moves it to the database
+  // so editing it here updates every service and every child panel.
+  const [rate, setRate] = useState(1380);
+  const [rateEditing, setRateEditing] = useState(false);
+  const [rateDraft, setRateDraft] = useState('1380');
+  const [rateSaved, setRateSaved] = useState(false);
 
   useEffect(() => {
     try {
       if (sessionStorage.getItem(SESSION_KEY) === '1') setUnlocked(true);
+      const savedRate = Number(localStorage.getItem(RATE_KEY) || '');
+      if (Number.isFinite(savedRate) && savedRate > 0) setRate(savedRate);
     } catch { /* ignore */ }
   }, []);
+
+  const saveRate = () => {
+    const v = Number(rateDraft.replace(/[^0-9.]/g, ''));
+    if (!Number.isFinite(v) || v <= 0) return;
+    setRate(v);
+    setRateEditing(false);
+    setRateSaved(true);
+    try {
+      localStorage.setItem(RATE_KEY, String(v));
+      window.setTimeout(() => setRateSaved(false), 2000);
+    } catch { /* ignore */ }
+  };
 
   const handleLogin = async (e: FormEvent) => {
     e.preventDefault();
@@ -92,9 +126,9 @@ export function AdminPage({ onBack }: { onBack: () => void }) {
 
   if (!unlocked) {
     return (
-      <div className="vx-admin-login">
-        <form className="vx-admin-login-card" onSubmit={handleLogin}>
-          <div className="vx-admin-login-mark"><Lock size={22} /></div>
+      <div className="vxa-login">
+        <form className="vxa-login-card" onSubmit={handleLogin}>
+          <div className="vxa-login-mark"><Lock size={22} /></div>
           <h1>Verxor Admin</h1>
           <p>Operator console. Set <strong>ADMIN_PASSWORD</strong> on Vercel, then sign in.</p>
           <label>
@@ -102,138 +136,151 @@ export function AdminPage({ onBack }: { onBack: () => void }) {
             <input type="password" autoComplete="current-password" value={password}
               onChange={(e) => setPassword(e.target.value)} placeholder="Admin password" required />
           </label>
-          {loginError ? <div className="vx-admin-login-error">{loginError}</div> : null}
+          {loginError ? <div className="vxa-login-error">{loginError}</div> : null}
           <button type="submit" disabled={loginBusy}>{loginBusy ? 'Checking…' : 'Enter admin'}</button>
-          <button type="button" className="vx-admin-login-back" onClick={onBack}>Back to app</button>
+          <button type="button" className="vxa-login-back" onClick={onBack}>Back to site</button>
         </form>
       </div>
     );
   }
 
-  const today = new Date().toLocaleDateString('en-NG', {
-    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
-  });
+  const days = lastNDays(14);
 
   return (
-    <div className="vx-admin">
-      <aside className="vx-admin-side">
-        <div className="vx-admin-brand">
-          <span className="vx-admin-mark"><img src="/brand/verxor-logo.svg" alt="" width={34} height={34} /></span>
-          <div><strong>Verxor Admin</strong><small>Platform operator</small></div>
-        </div>
-        <nav className="vx-admin-nav" aria-label="Admin sections">
+    <div className="vxa">
+      {/* ── Sidebar ── */}
+      <aside className={menuOpen ? 'vxa-side open' : 'vxa-side'}>
+        <nav className="vxa-nav" aria-label="Admin sections">
           {NAV.map(({ id, label, icon: Icon }) => (
-            <button key={id} type="button" className={section === id ? 'active' : ''} onClick={() => setSection(id)}>
+            <button key={id} type="button" className={section === id ? 'active' : ''}
+              onClick={() => { setSection(id); setMenuOpen(false); }}>
               <Icon size={18} strokeWidth={section === id ? 2.25 : 1.85} />
               {label}
             </button>
           ))}
         </nav>
-        <button type="button" className="vx-admin-exit" onClick={handleLogout}><KeyRound size={16} /> Lock admin</button>
-        <button type="button" className="vx-admin-exit" onClick={onBack}><ArrowLeft size={16} /> Back to site</button>
+        <div className="vxa-side-foot">
+          <button type="button" onClick={handleLogout}><KeyRound size={16} /> Lock admin</button>
+          <button type="button" onClick={onBack}><ArrowLeft size={16} /> Back to site</button>
+        </div>
       </aside>
+      {menuOpen ? <button type="button" className="vxa-scrim" aria-label="Close menu" onClick={() => setMenuOpen(false)} /> : null}
 
-      <div className="vx-admin-main">
-        <header className="vx-admin-top">
+      {/* ── Main ── */}
+      <div className="vxa-main">
+        <header className="vxa-top">
+          <button type="button" className="vxa-burger" aria-label="Open menu" onClick={() => setMenuOpen(true)}>
+            <Menu size={20} />
+          </button>
           <div>
-            <span className="vx-admin-eyebrow">VERXOR PLATFORM</span>
-            <h1>{NAV.find((n) => n.id === section)?.label ?? 'Admin'}</h1>
+            <h1>Daily earnings</h1>
+            <p>Your gain for today, updated live</p>
           </div>
-          <div className="vx-admin-badge">Authenticated · session</div>
         </header>
 
         {section === 'overview' && (
-          <section className="vx-admin-section">
-            <p className="vx-admin-lead">{today}</p>
-
-            {/* Daily earnings hero */}
-            <div className="vx-admin-card vx-admin-earnings">
-              <div className="vx-admin-earnings-head">
-                <span className="vx-admin-earnings-icon"><TrendingUp size={20} /></span>
-                <div>
-                  <small>Daily Earnings · Today</small>
-                  <strong>₦0.00</strong>
-                  <em>Live totals connect in Phase 2 — this card will update automatically.</em>
-                </div>
-              </div>
+          <section className="vxa-body">
+            {/* Today's profit hero */}
+            <div className="vxa-hero">
+              <span className="vxa-hero-label"><TrendingUp size={15} /> TODAY'S PROFIT</span>
+              <strong>{naira(0)}</strong>
+              <em>0 orders completed today · all services combined</em>
             </div>
 
-            {/* Quick stats */}
-            <div className="vx-admin-stats">
-              <div className="vx-admin-stat">
-                <small>Orders Today</small>
-                <strong>—</strong>
-                <span>Awaiting live data</span>
+            {/* Total transactions + today's rate */}
+            <div className="vxa-duo">
+              <div className="vxa-tile">
+                <span className="vxa-tile-label"><Wallet size={14} /> TOTAL TRANSACTIONS</span>
+                <strong>{naira(0)}</strong>
+                <p>Everything customers bought today</p>
               </div>
-              <div className="vx-admin-stat">
-                <small>Revenue Today</small>
-                <strong>—</strong>
-                <span>Awaiting live data</span>
-              </div>
-              <div className="vx-admin-stat">
-                <small>Failed Orders</small>
-                <strong>—</strong>
-                <span>Awaiting live data</span>
-              </div>
-              <div className="vx-admin-stat">
-                <small>New Users Today</small>
-                <strong>—</strong>
-                <span>Awaiting live data</span>
+              <div className="vxa-tile">
+                <span className="vxa-tile-label"><Percent size={14} /> TODAY'S RATE</span>
+                {rateEditing ? (
+                  <div className="vxa-rate-edit">
+                    <div className="vxa-rate-row">
+                      <span>₦</span>
+                      <input inputMode="decimal" value={rateDraft} autoFocus
+                        onChange={(e) => setRateDraft(e.target.value)} aria-label="Naira per dollar" />
+                      <span className="vxa-rate-per">/ $1</span>
+                    </div>
+                    <div className="vxa-rate-actions">
+                      <button type="button" className="vxa-rate-save" onClick={saveRate}><Check size={14} /> Save</button>
+                      <button type="button" className="vxa-rate-cancel" onClick={() => { setRateEditing(false); setRateDraft(String(rate)); }}>
+                        <X size={14} /> Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="vxa-rate-row">
+                    <strong>₦{rate.toLocaleString('en-NG')}</strong>
+                    <span className="vxa-rate-per">/ $1</span>
+                    <button type="button" className="vxa-rate-btn" aria-label="Edit rate"
+                      onClick={() => { setRateDraft(String(rate)); setRateEditing(true); }}>
+                      <Pencil size={14} />
+                    </button>
+                    {rateSaved ? <em className="vxa-rate-saved">Saved</em> : null}
+                  </div>
+                )}
+                <p>Per dollar · used by all services and child panels</p>
               </div>
             </div>
 
             {/* Most used services today */}
-            <div className="vx-admin-card">
-              <div className="vx-admin-card-head">
+            <div className="vxa-card">
+              <div className="vxa-card-head">
                 <BarChart3 size={17} />
-                <strong>Most Used Services Today</strong>
+                <strong>Most-used services today</strong>
               </div>
-              <ul className="vx-admin-list">
-                {TRACKED_SERVICES.map((s) => (
-                  <li key={s}>
-                    <span>{s}</span>
-                    <em>— orders</em>
+              <p className="vxa-card-sub">The service customers use most today sits at the top — that's where the money is being made.</p>
+              <div className="vxa-empty">
+                <strong>No completed orders today yet.</strong>
+                <p>As customers buy, services appear here ranked by usage.</p>
+              </div>
+            </div>
+
+            {/* Last 14 days */}
+            <div className="vxa-card">
+              <div className="vxa-card-head"><strong>Last 14 days</strong></div>
+              <ul className="vxa-days">
+                {days.map((d) => (
+                  <li key={d.key} className={d.isToday ? 'today' : ''}>
+                    <div>
+                      <strong>{d.label}</strong>
+                      <span>0 orders · {naira(0)} sales</span>
+                    </div>
+                    <em>+{naira(0)}</em>
                   </li>
                 ))}
               </ul>
-              <p className="vx-admin-note" style={{ marginTop: 10 }}>
-                Ranks by real order counts once the Overview API is connected in Phase 2.
-              </p>
+              <p className="vxa-note">Day rows fill from real orders once the Overview API is connected in Phase 2.</p>
             </div>
           </section>
         )}
 
         {section === 'pricing' && (
-          <section className="vx-admin-section">
-            <div className="vx-admin-empty tall">
-              <strong>Pricing is being rebuilt</strong>
-              <p>
-                Rate cards, markups and panel pricing move here in Phase 2, backed by the database
-                so prices apply platform-wide without a deploy.
-              </p>
+          <section className="vxa-body">
+            <div className="vxa-empty tall">
+              <strong>Pricing</strong>
+              <p>Rate cards, markups and child-panel pricing land here in Phase 2, stored in the database so changes apply instantly platform-wide.</p>
             </div>
           </section>
         )}
 
         {section === 'providers' && (
-          <section className="vx-admin-section">
-            <div className="vx-admin-empty tall">
-              <strong>Providers is being rebuilt</strong>
-              <p>
-                Upstream provider status, keys and health checks move here in Phase 2.
-                Keys stay on the server only.
-              </p>
+          <section className="vxa-body">
+            <div className="vxa-empty tall">
+              <strong>Providers</strong>
+              <p>Upstream provider health, keys and toggles land here in Phase 2. Keys stay server-side only.</p>
             </div>
           </section>
         )}
 
         {section === 'settings' && (
-          <section className="vx-admin-section">
-            <div className="vx-admin-empty tall">
-              <strong>Settings is being rebuilt</strong>
-              <p>
-                Service on/off switches, announcements and admin access move here in Phase 2.
-              </p>
+          <section className="vxa-body">
+            <div className="vxa-empty tall">
+              <strong>Settings</strong>
+              <p>Service on/off switches, announcements and admin access land here in Phase 2.</p>
             </div>
           </section>
         )}
