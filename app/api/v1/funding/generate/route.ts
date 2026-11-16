@@ -298,6 +298,7 @@ async function createXixaDynamic(
       },
       body: JSON.stringify(payload),
       cache: 'no-store',
+      signal: AbortSignal.timeout(12_000),
     });
   } catch (e) {
     console.error('[funding/generate] xixapay network', e);
@@ -434,17 +435,25 @@ async function createPayvesselStatic9psb(opts: {
       method: 'POST',
       headers: {
         'api-key': apiKey,
-        'api-secret': secret,
+        // PayVessel docs require the secret as "Bearer <secret>" in api-secret
+        'api-secret': secret.startsWith('Bearer ') ? secret : `Bearer ${secret}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(payload),
       cache: 'no-store',
+      signal: AbortSignal.timeout(15_000),
     });
   } catch (e) {
     console.error('[funding/generate] payvessel network', e);
+    const timedOut = e instanceof Error && (e.name === 'TimeoutError' || e.name === 'AbortError');
     return {
       error: NextResponse.json(
-        { ok: false, message: 'Could not reach PayVessel. Try again.' },
+        {
+          ok: false,
+          message: timedOut
+            ? 'PayVessel took too long to respond. Try again in a moment.'
+            : 'Could not reach PayVessel. Try again.',
+        },
         { status: 502 },
       ),
     };
@@ -463,7 +472,7 @@ async function createPayvesselStatic9psb(opts: {
     const msg =
       (typeof raw.message === 'string' && raw.message) ||
       (typeof raw.error === 'string' && raw.error) ||
-      `PayVessel error (${res.status})`;
+      (rawText ? `PayVessel error (${res.status}): ${rawText.slice(0, 140)}` : `PayVessel error (${res.status})`);
     return { error: NextResponse.json({ ok: false, message: String(msg) }, { status: 502 }) };
   }
 
