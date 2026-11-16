@@ -10,6 +10,8 @@ const MIN_AMOUNT_NGN = 1;
 const XIXA_BANKS: Record<string, { code: string; name: string }> = {
   opay: { code: '100004', name: 'OPay' },
   palmpay: { code: '20867', name: 'PalmPay' },
+  safehaven: { code: '29007', name: 'Safe Haven MFB' },
+  kolomoni: { code: '20987', name: 'Kolomoni MFB' },
 };
 
 /** PayVessel 9PSB */
@@ -242,7 +244,7 @@ async function findExistingStatic9psb(userId: string) {
 }
 
 async function createXixaDynamic(
-  providerId: 'opay' | 'palmpay',
+  providerId: 'opay' | 'palmpay' | 'safehaven' | 'kolomoni',
   opts: {
     email: string;
     name: string;
@@ -602,12 +604,19 @@ export async function POST(req: NextRequest) {
 
     const result = await createXixaDynamic(providerId, dynamicOpts);
 
-    // If PalmPay will not generate, fall back to OPay (same provider) so the
-    // customer always gets a working account.
-    if (providerId === 'palmpay' && 'error' in result && result.error) {
-      const fallback = await createXixaDynamic('opay', dynamicOpts);
-      if (!('error' in fallback) || !fallback.error) {
-        return NextResponse.json({ ok: true, account: fallback.account });
+    // If the requested bank will not generate, switch to another XixaPay bank
+    // (Safe Haven first, then Kolomoni). We never silently fall back to OPay.
+    if ('error' in result && result.error) {
+      for (const fb of ['safehaven', 'kolomoni'] as const) {
+        if (fb === providerId) continue;
+        const alt = await createXixaDynamic(fb, dynamicOpts);
+        if (!('error' in alt)) {
+          return NextResponse.json({
+            ok: true,
+            account: alt.account,
+            fallbackFrom: providerId,
+          });
+        }
       }
     }
 

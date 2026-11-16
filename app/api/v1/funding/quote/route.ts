@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
   }
 
   const providerId = String(body.providerId || '').toLowerCase();
-  if (providerId !== 'opay' && providerId !== 'palmpay') {
+  if (!['opay', 'palmpay', 'safehaven', 'kolomoni'].includes(providerId)) {
     return NextResponse.json({ ok: false, message: 'Unknown funding provider.' }, { status: 400 });
   }
 

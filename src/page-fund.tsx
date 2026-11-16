@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Building2,
   CheckCircle2,
@@ -23,6 +23,7 @@ export type FundingProvider = {
   label: string;
   kind: 'static' | 'dynamic';
   feeLabel: string;
+  hidden?: boolean;
 };
 
 type LiveAccount = {
@@ -46,6 +47,9 @@ const BANK_PROVIDERS: FundingProvider[] = [
   { id: '9psb', label: '9PSB', kind: 'static', feeLabel: 'Permanent account' },
   { id: 'opay', label: 'OPay', kind: 'dynamic', feeLabel: '' },
   { id: 'palmpay', label: 'PalmPay', kind: 'dynamic', feeLabel: '' },
+  // Backup XixaPay banks — hidden until one of them is used via auto-fallback
+  { id: 'safehaven', label: 'Safe Haven', kind: 'dynamic', feeLabel: '', hidden: true },
+  { id: 'kolomoni', label: 'Kolomoni', kind: 'dynamic', feeLabel: '', hidden: true },
 ];
 
 const CRYPTO_RATE = 1600;
@@ -133,6 +137,8 @@ export function FundPage({ session }: FundPageProps) {
   const [nineAccount, setNineAccount] = useState<LiveAccount | null>(null);
   const [nineLoading, setNineLoading] = useState(false);
   const [quote, setQuote] = useState<{ walletAmount: number; amountToSend: number } | null>(null);
+  const nineLoadedRef = useRef(false);
+  const keepAccountRef = useRef(false);
 
   const active = useMemo(
     () => BANK_PROVIDERS.find((p) => p.id === activeId) ?? BANK_PROVIDERS[1],
@@ -152,6 +158,7 @@ export function FundPage({ session }: FundPageProps) {
 
   // The 9PSB account is permanent: load it silently on open, no button needed.
   useEffect(() => {
+    if (nineLoadedRef.current) return;
     let stopped = false;
     (async () => {
       setNineLoading(true);
@@ -173,7 +180,10 @@ export function FundPage({ session }: FundPageProps) {
         }).catch(() => null);
         if (!res || !res.ok || stopped) return;
         const data = (await res.json().catch(() => null)) as { account?: LiveAccount } | null;
-        if (data?.account?.accountNumber && !stopped) setNineAccount(data.account);
+        if (data?.account?.accountNumber && !stopped) {
+          nineLoadedRef.current = true;
+          setNineAccount(data.account);
+        }
       } catch {
         /* silent; the tab still offers a manual load */
       } finally {
@@ -183,7 +193,7 @@ export function FundPage({ session }: FundPageProps) {
     return () => {
       stopped = true;
     };
-  }, []);
+  }, [session]);
 
   // Live quote: exact transfer amount for dynamic banks. Markup stays server-side.
   useEffect(() => {
@@ -227,6 +237,10 @@ export function FundPage({ session }: FundPageProps) {
   }, [amount, activeId, method, active]);
 
   useEffect(() => {
+    if (keepAccountRef.current) {
+      keepAccountRef.current = false;
+      return;
+    }
     setLiveAccount(null);
     setGenError('');
     setAmount('');
@@ -293,6 +307,12 @@ export function FundPage({ session }: FundPageProps) {
           account?: LiveAccount;
         };
         if (data.account?.accountNumber) {
+          const usedId = data.account.providerId || active.id;
+          if (usedId !== active.id) {
+            // The provider swapped banks (auto-fallback): update the chip above.
+            keepAccountRef.current = true;
+            setActiveId(usedId);
+          }
           setLiveAccount({
             bankName: data.account.bankName,
             accountNumber: data.account.accountNumber,
@@ -482,7 +502,7 @@ export function FundPage({ session }: FundPageProps) {
           </h2>
 
           <div className="fund-tabs" role="tablist" aria-label="Funding banks">
-            {BANK_PROVIDERS.map((p) => (
+            {BANK_PROVIDERS.filter((p) => !p.hidden || p.id === activeId).map((p) => (
               <button
                 key={p.id}
                 type="button"
