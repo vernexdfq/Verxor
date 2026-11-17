@@ -27,6 +27,8 @@ import { sbSelect, supabaseConfigured } from '@/lib/supabase-admin';
  */
 
 export type BoostAudience = 'retail' | 'api' | 'child';
+/** Audience attached to a catalog response so callers know which prices they got. */
+export type BoostCatalogAudience = BoostAudience;
 export type BoostMarkupTiers = [number, number, number, number];
 export type BoostMarkups = Record<BoostAudience, BoostMarkupTiers>;
 

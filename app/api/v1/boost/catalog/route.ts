@@ -1,5 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { fetchSmmCatalog } from '@/lib/providers/smm';
+import { resolvePanelClient } from '@/lib/panel-auth';
+import {
+  loadBoostMarkups,
+  loadBoostUsdRate,
+  calculateBoostPriceNgn,
+  type BoostCatalogAudience,
+} from '@/lib/boost-markups';
 
 export const dynamic = 'force-dynamic';
 
@@ -9,6 +16,21 @@ export async function GET(req: NextRequest) {
     const forceRefresh = searchParams.get('refresh') === '1' || searchParams.get('refresh') === 'true';
 
     const catalog = await fetchSmmCatalog({ forceRefresh });
+
+    // Child panels call this endpoint with their panel key: they must see
+    // Child Panel prices, not retail. Reprice per request (cheap map).
+    const panel = await resolvePanelClient(req);
+    let audience: BoostCatalogAudience = 'retail';
+    if (panel) {
+      audience = 'child';
+      if (catalog.ok && Array.isArray(catalog.services)) {
+        const [markups, usdRate] = await Promise.all([loadBoostMarkups(), loadBoostUsdRate()]);
+        catalog.services = catalog.services.map((svc) => ({
+          ...svc,
+          ratePer1000: calculateBoostPriceNgn(svc.wholesaleUsd, 'child', markups, usdRate),
+        }));
+      }
+    }
 
     if (!catalog.ok) {
       // Differentiate missing server configuration (503) from upstream provider failure (502)
@@ -23,12 +45,15 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    return NextResponse.json(catalog, {
-      status: 200,
-      headers: {
-        'Cache-Control': 'public, s-maxage=1800, stale-while-revalidate=86400',
+    return NextResponse.json(
+      { ...catalog, audience },
+      {
+        status: 200,
+        headers: {
+          'Cache-Control': panel ? 'no-store' : 'public, s-maxage=1800, stale-while-revalidate=86400',
+        },
       },
-    });
+    );
   } catch (err: any) {
     return NextResponse.json(
       {

@@ -146,57 +146,130 @@ async function handle(
     }
 
     // Provider says "Partial": JAP refunds the undelivered part of the charge
-    // to our provider balance. We mirror that to the customer — the undelivered
-    // remainder of their payment goes back to their wallet, exactly proportional
-    // to what the provider reports as not delivered (remains).
-    if (normalizedStatus.includes('partial')) {
-      const targetUserId = await resolveUserId(req, extra?.userId);
-      const qty = Number(extra?.quantity);
-      const amountNgn = Number(extra?.amountNgn);
+    // to our provider balance. We mirror that to the buyer — the undelivered
+    // remainder of the payment goes back to their wallet, exactly proportional
+    // to what the provider reports as not delivered (remains). Works for retail
+    // (wallet) and child panels (reseller wallet).
+    if (normalizedStatus.includes('partial') && base && serviceKey) {
       const rawRemains = String(st.remains ?? '').trim();
       const remainsCount = Number(rawRemains);
-      if (
-        targetUserId &&
-        Number.isFinite(qty) &&
-        qty > 0 &&
-        Number.isFinite(amountNgn) &&
-        amountNgn > 0 &&
-        rawRemains !== '' &&
-        Number.isFinite(remainsCount) &&
-        remainsCount > 0 &&
-        base &&
-        serviceKey
-      ) {
-        const refundAmount =
-          Math.round(amountNgn * (Math.min(remainsCount, qty) / qty) * 100) / 100;
-        const ref = `boost-partial-refund-${effectiveJapId}`;
-        if (refundAmount > 0) {
-          try {
-            const hdr = {
-              apikey: serviceKey,
-              Authorization: `Bearer ${serviceKey}`,
-              'Content-Type': 'application/json',
-            };
-            const dupe = await fetch(
-              `${base}/rest/v1/wallet_ledger?reference=eq.${encodeURIComponent(ref)}&user_id=eq.${encodeURIComponent(targetUserId)}&select=id&limit=1`,
-              { headers: hdr, cache: 'no-store' },
-            );
-            const rows = dupe.ok ? await dupe.json().catch(() => []) : [];
-            if (!Array.isArray(rows) || rows.length === 0) {
-              await fetch(`${base}/rest/v1/rpc/credit_wallet`, {
-                method: 'POST',
-                headers: hdr,
-                body: JSON.stringify({
-                  p_user_id: targetUserId,
-                  p_amount: refundAmount,
-                  p_reference: ref,
-                  p_description: `Refund — Partial boost order #${effectiveJapId} · ${remainsCount.toLocaleString('en-NG')} not delivered`,
-                }),
-                cache: 'no-store',
-              });
+      if (rawRemains !== '' && Number.isFinite(remainsCount) && remainsCount > 0) {
+        // Authoritative amounts come from the ledger row keyed by the JAP id.
+        type LedgerBoostRow = {
+          id?: string;
+          user_id?: string;
+          amount_ngn?: number | null;
+          meta?: Record<string, unknown> | null;
+        };
+        let row: LedgerBoostRow | null = null;
+        const hdr = {
+          apikey: serviceKey,
+          Authorization: `Bearer ${serviceKey}`,
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+        };
+        try {
+          const byRef = await fetch(
+            `${base}/rest/v1/wallet_ledger?or=(reference.eq.boost-order-${encodeURIComponent(effectiveJapId)},meta->>providerOrderId.eq.${encodeURIComponent(effectiveJapId)})&order=created_at.desc&limit=1&select=id,user_id,amount_ngn,meta`,
+            { headers: hdr, cache: 'no-store' },
+          );
+          if (byRef.ok) {
+            const rows = (await byRef.json().catch(() => [])) as LedgerBoostRow[];
+            if (Array.isArray(rows) && rows.length > 0) row = rows[0];
+          }
+        } catch {
+          /* fall back to client-supplied figures below */
+        }
+
+        const ledgerAmount = row ? Math.abs(Number(row.amount_ngn ?? row.meta?.amountNgn ?? 0)) : 0;
+        const ledgerQty = Number(row?.meta?.quantity ?? 0);
+        const amountNgn = ledgerAmount > 0 ? ledgerAmount : Number(extra?.amountNgn);
+        const qty = ledgerQty > 0 ? ledgerQty : Number(extra?.quantity);
+        const walletUserId =
+          String(row?.user_id || '').trim() ||
+          (await resolveUserId(req, extra?.userId)) ||
+          null;
+        const isPanelOrder =
+          String(row?.meta?.mode || '') === 'reseller_wallet' ||
+          String(row?.meta?.panelId || '') !== '';
+
+        if (
+          walletUserId &&
+          Number.isFinite(qty) &&
+          qty > 0 &&
+          Number.isFinite(amountNgn) &&
+          amountNgn > 0
+        ) {
+          const refundAmount =
+            Math.round(amountNgn * (Math.min(remainsCount, qty) / qty) * 100) / 100;
+          const ref = `boost-partial-refund-${isPanelOrder ? 'panel-' : ''}${effectiveJapId}`;
+          if (refundAmount > 0) {
+            try {
+              // Double-refund guard: the refund row is keyed by this reference.
+              const dupe = await fetch(
+                `${base}/rest/v1/wallet_ledger?reference=eq.${encodeURIComponent(ref)}&select=id&limit=1`,
+                { headers: hdr, cache: 'no-store' },
+              );
+              const dupeRows = dupe.ok ? await dupe.json().catch(() => []) : [];
+              if (!Array.isArray(dupeRows) || dupeRows.length === 0) {
+                if (isPanelOrder) {
+                  // Child panel: credit the panel's reseller wallet balance.
+                  const balRes = await fetch(
+                    `${base}/rest/v1/reseller_wallet?user_id=eq.${encodeURIComponent(walletUserId)}&select=balance&limit=1`,
+                    { headers: hdr, cache: 'no-store' },
+                  );
+                  if (balRes.ok) {
+                    const balRows = (await balRes.json()) as Array<{ balance?: number }>;
+                    const prev = Number(balRows?.[0]?.balance) || 0;
+                    const next = Math.round((prev + refundAmount) * 100) / 100;
+                    const up = await fetch(
+                      `${base}/rest/v1/reseller_wallet?user_id=eq.${encodeURIComponent(walletUserId)}`,
+                      {
+                        method: 'PATCH',
+                        headers: { ...hdr, Prefer: 'return=minimal' },
+                        body: JSON.stringify({ balance: next }),
+                        cache: 'no-store',
+                      },
+                    );
+                    if (up.ok) {
+                      await fetch(`${base}/rest/v1/wallet_ledger`, {
+                        method: 'POST',
+                        headers: { ...hdr, Prefer: 'return=minimal' },
+                        body: JSON.stringify({
+                          user_id: walletUserId,
+                          amount: refundAmount,
+                          kind: 'panel_boost_partial_refund',
+                          reference: ref,
+                          meta: {
+                            reference: ref,
+                            mode: 'reseller_wallet',
+                            type: 'boost',
+                            providerOrderId: effectiveJapId,
+                            remains: remainsCount,
+                          },
+                        }),
+                        cache: 'no-store',
+                      }).catch(() => null);
+                    }
+                  }
+                } else {
+                  // Retail: credit the customer's wallet.
+                  await fetch(`${base}/rest/v1/rpc/credit_wallet`, {
+                    method: 'POST',
+                    headers: hdr,
+                    body: JSON.stringify({
+                      p_user_id: walletUserId,
+                      p_amount: refundAmount,
+                      p_reference: ref,
+                      p_description: `Refund — Partial boost order #${effectiveJapId} · ${remainsCount.toLocaleString('en-NG')} not delivered`,
+                    }),
+                    cache: 'no-store',
+                  });
+                }
+              }
+            } catch (e) {
+              console.warn('[boost/status] partial refund failed:', e);
             }
-          } catch (e) {
-            console.warn('[boost/status] partial refund failed:', e);
           }
         }
       }
