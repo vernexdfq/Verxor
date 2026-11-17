@@ -171,36 +171,45 @@ type ListResponse<T> = {
   meta?: { current_page: number; per_page: number; last_page: number; total: number };
 };
 
-async function paginateListings(categoryId: number): Promise<AccsZoneListing[]> {
+async function paginateListings(
+  categoryId: number,
+  deadline: number,
+): Promise<{ listings: AccsZoneListing[]; partial: boolean }> {
   // Fetch a single listings page, backing off on the shared 30 req/min limit.
   async function fetchPage(page: number): Promise<ListResponse<AccsZoneListing[]>> {
     const path = `/listings?page=${page}&category_id=${categoryId}&include=description`;
-    for (let attempt = 0; attempt < 4; attempt += 1) {
+    for (let attempt = 0; attempt < 3; attempt += 1) {
       try {
         return await accsFetch<ListResponse<AccsZoneListing[]>>(path);
       } catch (err) {
         const retryAfter = (err as Error & { retryAfter?: number })?.retryAfter;
-        if (typeof retryAfter !== 'number' || attempt === 3) throw err;
-        await sleep((retryAfter + 1) * 1000);
+        if (typeof retryAfter !== 'number' || attempt === 2) throw err;
+        await sleep(Math.min(retryAfter + 1, 8) * 1000);
       }
     }
     throw new Error(`AccsZone listings page ${page} failed`);
   }
   const first = await fetchPage(1);
   const out: AccsZoneListing[] = Array.isArray(first.data) ? [...first.data] : [];
-  // Walk EVERY page — the full provider catalogue, not a sample.
+  // Walk EVERY page — the full provider catalogue, not a sample. If the shared
+  // provider bucket runs dry mid-walk we return what we already have instead
+  // of failing the whole catalog ("no account" bug).
   const last = first.meta?.last_page || 1;
   const rest: number[] = [];
   for (let p = 2; p <= last; p += 1) rest.push(p);
-  // Small parallel batches with pacing between them: quick, but gentle on the
-  // shared 30 req/min provider bucket; 429s are retried above with Retry-After.
   const BATCH = 3;
   for (let i = 0; i < rest.length; i += BATCH) {
-    const results = await Promise.all(rest.slice(i, i + BATCH).map(fetchPage));
-    for (const r of results) if (Array.isArray(r.data)) out.push(...r.data);
+    if (Date.now() > deadline) return { listings: out, partial: true };
+    const results = await Promise.allSettled(rest.slice(i, i + BATCH).map(fetchPage));
+    let failed = false;
+    for (const r of results) {
+      if (r.status === 'fulfilled' && Array.isArray(r.value.data)) out.push(...r.value.data);
+      if (r.status === 'rejected') failed = true;
+    }
+    if (failed) return { listings: out, partial: true };
     if (i + BATCH < rest.length) await sleep(1500);
   }
-  return out;
+  return { listings: out, partial: false };
 }
 
 async function fetchSubcategories(categoryId: number): Promise<AccsZoneSubcategory[]> {
@@ -599,6 +608,10 @@ async function buildPlatformCatalog(
     };
   }
 
+  // Serverless functions die around 60s — keep the walk inside a budget so a
+  // cold catalog always returns something (partial beats a 502 "no account").
+  const deadline = now + 42_000;
+
   const categoryId = await resolveCategoryIdForPlatform(platform);
   if (!categoryId) {
     return {
@@ -616,10 +629,18 @@ async function buildPlatformCatalog(
   }
 
   try {
-    const [subs, listings] = await Promise.all([
-      fetchSubcategories(categoryId),
-      paginateListings(categoryId),
-    ]);
+    // Subcategory failures never kill the catalog (types are re-derived from
+    // the listings themselves); the listings walk owns the deadline.
+    const subs = await fetchSubcategories(categoryId).catch(
+      () => [] as AccsZoneSubcategory[],
+    );
+    const { listings, partial } = await paginateListings(categoryId, deadline);
+    const warnings: string[] = [];
+    if (partial) {
+      warnings.push(
+        'Catalog loaded partially — the provider rate limit was hit. Prices shown are live; more listings appear as the provider bucket refills.',
+      );
+    }
 
     const offers = listings
       .map((l) => mapListing(l, platform, rate, markups))
@@ -682,8 +703,15 @@ async function buildPlatformCatalog(
       offers,
       total: listings.length,
       inStock: offers.length,
+      ...(warnings.length > 0 ? { warning: warnings.join(' ') } : {}),
     };
-    cache.set(cacheKey, { at: now, catalog });
+    if (partial) {
+      // Serve the partial catalog now, but let it go stale quickly (2 min)
+      // so the background revalidation fills in the remaining pages soon.
+      cache.set(cacheKey, { at: Date.now() - 8 * 60 * 1000, catalog });
+    } else {
+      cache.set(cacheKey, { at: now, catalog });
+    }
     return catalog;
   } catch (err) {
     const message = err instanceof Error ? err.message : `AccsZone ${platform} catalog failed`;
