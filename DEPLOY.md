@@ -46,3 +46,11 @@ Cloudflare DNS: CNAME `www` → `cname.vercel-dns.com` (DNS only first).
 https://YOUR-PROJECT.vercel.app/
 https://YOUR-PROJECT.vercel.app/api/health
 ```
+
+## Live Chat Assistant (Phase 1)
+
+- Floating chat widget (signed-in users only) with button-driven service flows.
+- Buy Data flow: network -> plan category -> plan -> phone -> confirm -> wallet purchase.
+- Env vars: MISTRAL_API_KEY (free-text Q&A fallback), GEMINI_API_KEY (Phase 2 shopping).
+- Supabase tables: chat_conversations, chat_messages (service-role only).
+- Requires chat_conversations.state jsonb column for flow persistence.
