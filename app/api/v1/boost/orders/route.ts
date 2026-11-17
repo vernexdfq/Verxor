@@ -43,12 +43,13 @@ type LedgerRow = {
   description?: string | null;
 };
 
-function mapStatus(raw: unknown): 'pending' | 'processing' | 'completed' | 'canceled' {
+function mapStatus(raw: unknown): 'pending' | 'processing' | 'partial' | 'completed' | 'canceled' {
   const s = String(raw || '').toLowerCase();
+  if (s.includes('partial')) return 'partial';
   if (s.includes('complete')) return 'completed';
   if (s.includes('cancel') || s.includes('refund')) return 'canceled';
   if (s.includes('pending')) return 'pending';
-  if (s.includes('progress') || s.includes('processing') || s.includes('partial')) return 'processing';
+  if (s.includes('progress') || s.includes('processing')) return 'processing';
   if (!s.trim()) return 'pending';
   return 'processing';
 }
