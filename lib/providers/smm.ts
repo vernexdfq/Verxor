@@ -80,6 +80,14 @@ export interface BoostCatalog {
 }
 
 export const SMM_EXCHANGE_RATE = 1380;
+
+// Shared audience pricing (admin-editable multipliers + daily naira rate).
+// Server-side only — smm.ts is never bundled into client code.
+import {
+  loadBoostMarkups,
+  loadBoostUsdRate,
+  calculateBoostPriceNgn,
+} from '@/lib/boost-markups';
 export const SMM_MAX_USD_CUTOFF = 10.0;
 
 /**
@@ -615,6 +623,9 @@ export async function fetchSmmCatalog(options?: { forceRefresh?: boolean }): Pro
     const services: BoostService[] = [];
     const platformsMap = new Map<string, BoostPlatform>();
 
+    // Admin-editable retail pricing (admin_settings boost_markups + usd_ngn_rate).
+    const [markups, usdRate] = await Promise.all([loadBoostMarkups(), loadBoostUsdRate()]);
+
     for (const item of rawList) {
       const wholesaleUsd = parseFloat(String(item.rate ?? '0'));
       // Filter rule: any service with wholesale rate > $10 must be excluded
@@ -628,7 +639,7 @@ export async function fetchSmmCatalog(options?: { forceRefresh?: boolean }): Pro
       const rawCategory = String(item.category || 'General').trim();
 
       const platformMeta = resolvePlatform(rawCategory, title);
-      const ratePer1000 = calculateSmmPriceNgn(wholesaleUsd);
+      const ratePer1000 = calculateBoostPriceNgn(wholesaleUsd, 'retail', markups, usdRate);
       const categoryId = slugify(rawCategory);
 
       const serviceObj: BoostService = {
@@ -692,7 +703,7 @@ export async function fetchSmmCatalog(options?: { forceRefresh?: boolean }): Pro
     const catalog: BoostCatalog = {
       ok: true,
       source: 'live',
-      rate: SMM_EXCHANGE_RATE,
+      rate: usdRate,
       updatedAt: new Date().toISOString(),
       totalPlatforms: platforms.length,
       totalServices: services.length,

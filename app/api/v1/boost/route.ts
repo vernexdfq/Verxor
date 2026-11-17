@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { SMM_MAX_USD_CUTOFF } from '@/lib/providers/smm';
 import {
-  calculateSmmPriceNgn,
-  calculateSmmPartnerPriceNgn,
-  getSmmMultiplier,
-  getSmmPartnerMultiplier,
-  SMM_MAX_USD_CUTOFF,
-} from '@/lib/providers/smm';
+  loadBoostMarkups,
+  loadBoostUsdRate,
+  boostMultiplier,
+  calculateBoostPriceNgn,
+  type BoostAudience,
+} from '@/lib/boost-markups';
 import { isSmmConfigured, smmAddOrder, smmFindService } from '@/lib/providers/smm-orders';
 import { sendBoostReceipt, sendPanelAdminOrderAlert } from '@/lib/email/receipts';
 import { supabaseConfigured } from '@/lib/supabase-admin';
@@ -425,12 +426,14 @@ export async function POST(req: NextRequest) {
   }
 
   const useReseller = Boolean(panel);
-  const rateNgn = useReseller
-    ? calculateSmmPartnerPriceNgn(service.wholesaleUsd)
-    : calculateSmmPriceNgn(service.wholesaleUsd);
-  const priceMult = useReseller
-    ? getSmmPartnerMultiplier(service.wholesaleUsd)
-    : getSmmMultiplier(service.wholesaleUsd);
+  // Audience pricing: retail customers, API users, child panels.
+  // Panel keys are child panels; API keys resolve to 'api' when the boost
+  // API goes live. Prices are ALWAYS recomputed server-side.
+  const audience: BoostAudience = useReseller ? 'child' : 'retail';
+  const markups = await loadBoostMarkups();
+  const usdRate = await loadBoostUsdRate();
+  const rateNgn = calculateBoostPriceNgn(service.wholesaleUsd, audience, markups, usdRate);
+  const priceMult = boostMultiplier(service.wholesaleUsd, audience, markups);
   const amount = Math.round((quantity / 1000) * rateNgn * 100) / 100;
   if (amount <= 0) {
     return NextResponse.json({ ok: false, error: 'Invalid order amount' }, { status: 400 });
