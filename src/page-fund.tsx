@@ -53,7 +53,6 @@ const BANK_PROVIDERS: FundingProvider[] = [
   { id: 'kolomoni', label: 'Kolomoni', kind: 'dynamic', feeLabel: '', hidden: true },
 ];
 
-const CRYPTO_RATE = 1600;
 const CRYPTO_PRESETS = [10, 20, 30, 50, 100];
 
 async function resolveAuthContext(session?: AuthSession | null) {
@@ -133,6 +132,8 @@ export function FundPage({ session }: FundPageProps) {
   const [amount, setAmount] = useState('');
   const [cryptoUsd, setCryptoUsd] = useState('10');
   const [cryptoError, setCryptoError] = useState('');
+  const [cryptoPreviewNgn, setCryptoPreviewNgn] = useState<number | null>(null);
+  const [cryptoQuoteLoading, setCryptoQuoteLoading] = useState(false);
   const [cryptoLoading, setCryptoLoading] = useState(false);
   const [liveAccount, setLiveAccount] = useState<LiveAccount | null>(null);
   const [now, setNow] = useState(() => Date.now());
@@ -147,16 +148,46 @@ export function FundPage({ session }: FundPageProps) {
     [activeId],
   );
 
-  const cryptoPreviewNgn = useMemo(() => {
-    const n = Number(String(cryptoUsd).replace(/[^0-9.]/g, ''));
-    if (!Number.isFinite(n) || n <= 0) return null;
-    return Math.round(n * CRYPTO_RATE);
-  }, [cryptoUsd]);
-
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(t);
   }, []);
+
+  // Fetch the preview from the server; the conversion rate never ships to the browser.
+  useEffect(() => {
+    if (method !== 'crypto') {
+      setCryptoPreviewNgn(null);
+      setCryptoQuoteLoading(false);
+      return;
+    }
+    const usd = Number(cryptoUsd);
+    if (!Number.isFinite(usd) || usd < 1 || usd > 100_000) {
+      setCryptoPreviewNgn(null);
+      setCryptoQuoteLoading(false);
+      return;
+    }
+    let stopped = false;
+    setCryptoQuoteLoading(true);
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/v1/funding/crypto?amountUsd=${encodeURIComponent(String(usd))}`, {
+          cache: 'no-store',
+        });
+        const data = (await res.json().catch(() => null)) as { ok?: boolean; creditNgn?: number } | null;
+        if (!stopped) {
+          setCryptoPreviewNgn(res.ok && data?.ok && Number.isFinite(data.creditNgn) ? Number(data.creditNgn) : null);
+        }
+      } catch {
+        if (!stopped) setCryptoPreviewNgn(null);
+      } finally {
+        if (!stopped) setCryptoQuoteLoading(false);
+      }
+    }, 250);
+    return () => {
+      stopped = true;
+      clearTimeout(timer);
+    };
+  }, [cryptoUsd, method]);
 
   // The 9PSB account is permanent: load it silently on open, no button needed.
   useEffect(() => {
@@ -352,8 +383,8 @@ export function FundPage({ session }: FundPageProps) {
   const startCrypto = async () => {
     if (cryptoLoading) return;
     const usd = Number(String(cryptoUsd).replace(/[^0-9.]/g, ''));
-    if (!Number.isFinite(usd) || usd < 1) {
-      setCryptoError('Enter at least $1');
+    if (!Number.isFinite(usd) || usd < 1 || usd > 100_000) {
+      setCryptoError('Enter an amount between $1 and $100,000');
       return;
     }
     setCryptoLoading(true);
@@ -474,19 +505,19 @@ export function FundPage({ session }: FundPageProps) {
           </div>
 
           <div className="fund-crypto-preview-card">
-            <div className="fund-crypto-preview-label">You'll receive</div>
+            <div className="fund-crypto-preview-label">Wallet credit after successful payment</div>
             <div className="fund-crypto-preview-amount">
-              ₦{(cryptoPreviewNgn ?? 0).toLocaleString()}
+              {cryptoQuoteLoading ? 'Calculating…' : cryptoPreviewNgn === null ? '—' : `₦${cryptoPreviewNgn.toLocaleString()}`}
             </div>
             <div className="fund-crypto-preview-sub">
-              ≈ ${Number(cryptoUsd) > 0 ? Number(cryptoUsd).toFixed(2) : '0.00'} added to your wallet
+              Pay ${Number(cryptoUsd) > 0 ? Number(cryptoUsd).toFixed(2) : '0.00'} in crypto at checkout
             </div>
           </div>
 
           <button
             type="button"
             className="fund-crypto-submit-btn"
-            disabled={cryptoLoading || !cryptoPreviewNgn || cryptoPreviewNgn <= 0}
+            disabled={cryptoLoading || cryptoQuoteLoading || !cryptoPreviewNgn || cryptoPreviewNgn <= 0}
             onClick={() => void startCrypto()}
           >
             {cryptoLoading ? (
@@ -506,8 +537,7 @@ export function FundPage({ session }: FundPageProps) {
           <div className="fund-crypto-footer-note">
             <Lock size={13} strokeWidth={2.2} />
             <span>
-              Crypto payments are processed securely by NowPayments. Network & provider fees are
-              handled on checkout.
+              Crypto payments are processed by NowPayments. Any network or provider fees shown at checkout are paid there; your displayed wallet credit is added after payment is confirmed.
             </span>
           </div>
         </section>

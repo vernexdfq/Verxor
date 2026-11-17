@@ -58,8 +58,8 @@ export async function POST(req: NextRequest) {
   console.info('[nowpayments] IPN', JSON.stringify(body).slice(0, 2000));
 
   const status = String(body.payment_status || body.status || '').toLowerCase();
-  const finished =
-    status === 'finished' || status === 'confirmed' || status === 'sending';
+  // Credit only on NOWPayments' final successful payment status.
+  const finished = status === 'finished';
 
   if (!finished) {
     return NextResponse.json({ status: 'ignored', payment_status: status });
@@ -98,25 +98,16 @@ export async function POST(req: NextRequest) {
     console.error('[nowpayments] lookup', e);
   }
 
-  if (!userId) {
-    console.error('[nowpayments] user not found', { orderId, paymentId });
-    return NextResponse.json({ status: 'user_not_found' });
-  }
-
-  if (!creditNgn || creditNgn <= 0) {
-    const rate = Number(process.env.CRYPTO_USD_TO_NGN) || 1600;
-    creditNgn = Math.round(priceAmount * rate * 100) / 100;
-  }
-
-  if (creditNgn <= 0) {
-    return NextResponse.json({ status: 'zero_credit' });
+  if (!userId || !creditNgn || creditNgn <= 0) {
+    console.error('[nowpayments] saved order missing or invalid', { orderId, paymentId });
+    return NextResponse.json({ error: 'Saved payment order not found' }, { status: 500 });
   }
 
   const base = (process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '')
     .replace(/\/rest\/v1\/?$/, '')
     .replace(/\/$/, '');
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-  const reference = `nowpayments:${paymentId || orderId}`;
+  const reference = `nowpayments:${orderId || paymentId}`;
 
   try {
     const rpc = await fetch(`${base}/rest/v1/rpc/credit_wallet`, {

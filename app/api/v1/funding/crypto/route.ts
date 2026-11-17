@@ -41,14 +41,14 @@ async function resolveUserId(req: NextRequest, body: { userId?: string }): Promi
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const amountUsd = Number(searchParams.get('amountUsd') || searchParams.get('usd') || 0);
-  const rate = usdToNgnRate();
-  const creditNgn = Math.round(amountUsd * rate * 100) / 100;
-  return NextResponse.json({
-    ok: true,
-    amountUsd,
-    creditNgn: amountUsd > 0 ? creditNgn : 0,
-    minUsd: 1,
-  });
+  if (!Number.isFinite(amountUsd) || amountUsd < 1 || amountUsd > 100_000) {
+    return NextResponse.json(
+      { ok: false, message: 'Enter an amount between $1 and $100,000.' },
+      { status: 400 },
+    );
+  }
+  const creditNgn = Math.round(amountUsd * usdToNgnRate() * 100) / 100;
+  return NextResponse.json({ ok: true, amountUsd, creditNgn, minUsd: 1 });
 }
 
 export async function POST(req: NextRequest) {
@@ -68,9 +68,9 @@ export async function POST(req: NextRequest) {
   }
 
   const amountUsd = Number(body.amountUsd);
-  if (!Number.isFinite(amountUsd) || amountUsd < 1) {
+  if (!Number.isFinite(amountUsd) || amountUsd < 1 || amountUsd > 100_000) {
     return NextResponse.json(
-      { ok: false, message: 'Enter at least $1 to fund with crypto.' },
+      { ok: false, message: 'Enter an amount between $1 and $100,000.' },
       { status: 400 },
     );
   }
@@ -147,29 +147,37 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  if (supabaseConfigured()) {
-    try {
-      await sbInsert('virtual_accounts', {
-        user_id: userId,
-        provider: 'nowpayments',
-        bank_code: 'crypto',
-        bank_name: 'NowPayments',
-        account_number: invoiceId || orderId,
-        account_name: 'Crypto',
-        account_type: 'crypto',
-        amount_ngn: creditNgn,
-        external_ref: orderId,
-        provider_customer_id: invoiceId || null,
-        raw: {
-          amount_usd: amountUsd,
-          rate_ngn_per_usd: rate,
-          credit_ngn: creditNgn,
-          invoice: raw,
-        },
-      });
-    } catch (e) {
-      console.error('[funding/crypto] save order', e);
-    }
+  if (!supabaseConfigured()) {
+    return NextResponse.json(
+      { ok: false, message: 'Crypto funding is temporarily unavailable. Please try again later.' },
+      { status: 503 },
+    );
+  }
+  try {
+    await sbInsert('virtual_accounts', {
+      user_id: userId,
+      provider: 'nowpayments',
+      bank_code: 'crypto',
+      bank_name: 'NowPayments',
+      account_number: invoiceId || orderId,
+      account_name: 'Crypto',
+      account_type: 'crypto',
+      amount_ngn: creditNgn,
+      external_ref: orderId,
+      provider_customer_id: invoiceId || null,
+      raw: {
+        amount_usd: amountUsd,
+        rate_ngn_per_usd: rate,
+        credit_ngn: creditNgn,
+        invoice: raw,
+      },
+    });
+  } catch (e) {
+    console.error('[funding/crypto] save order', e);
+    return NextResponse.json(
+      { ok: false, message: 'Could not safely prepare your crypto payment. Please try again.' },
+      { status: 503 },
+    );
   }
 
   return NextResponse.json({
