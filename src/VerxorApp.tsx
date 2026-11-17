@@ -29,6 +29,7 @@ import { SecurityPage } from './security-page';
 import { AdminPage } from './admin-page';
 import { EmailOtpPage } from './email-otp-page';
 import { AuthFlow, type AuthSession } from './auth/AuthFlow';
+import { ChatWidget } from './chat-widget';
 import { signOutAuth, supabaseAuthEnabled } from '../lib/supabase/auth';
 import {
   clearSessionUnlock,
@@ -523,6 +524,7 @@ export function VerxorApp() {
       onLogout={handleLogout}
     >
       {content}
+      <ChatWidget session={auth} />
     </AppShell>
   );
 }
