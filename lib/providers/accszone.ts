@@ -7,6 +7,13 @@
  * Catalogue rate limit: 30 req/min shared across categories + subcategories + listings.
  */
 
+import {
+  accountsRetailPriceNgn,
+  loadAccountsMarkups,
+  loadAccountsUsdRate,
+  type AccountsMarkups,
+} from '@/lib/accounts-pricing';
+
 export type AccsZoneListing = {
   id: number;
   title: string;
@@ -49,6 +56,8 @@ export type AccountOffer = {
   age: string;
   country: string;
   priceNgn: number;
+  /** Raw provider cost in USD (wholesale pricing basis). */
+  costUsd: number;
   stock: number;
   sold: number;
   instant: boolean;
@@ -327,7 +336,12 @@ function scrubProviderTraces(text: string): string {
   return s;
 }
 
-function mapListing(item: AccsZoneListing, platform: string, rate: number): AccountOffer {
+function mapListing(
+  item: AccsZoneListing,
+  platform: string,
+  rate: number,
+  markups: AccountsMarkups,
+): AccountOffer {
   const cost = Number(item.price) || 0;
   const meta = enrichFromTitle(item.title || '');
   const subtype = item.subcategory?.title || 'General';
@@ -351,7 +365,8 @@ function mapListing(item: AccsZoneListing, platform: string, rate: number): Acco
     format: item.format || 'login:password (see delivery note)',
     age: meta.age,
     country: meta.country,
-    priceNgn: retailPriceNgn(cost, rate),
+    priceNgn: accountsRetailPriceNgn(cost, markups, rate),
+    costUsd: cost,
     stock: Number(item.available_stock) || 0,
     sold: Number(item.sold) || 0,
     instant: meta.instant,
@@ -530,30 +545,34 @@ export async function fetchPlatformCatalog(
   platformInput: string,
   options?: { forceRefresh?: boolean },
 ): Promise<AccountsCatalog> {
-  const rate = exchangeRate();
+  const [markups, rate] = await Promise.all([loadAccountsMarkups(), loadAccountsUsdRate()]);
   const platform = normalizePlatform(platformInput);
-  const cacheKey = `${platform.toLowerCase()}:${rate}`;
+  const pricingKey = `${rate}|${markups.retail.join('/')}|${markups.wholesale.join('/')}|${markups.roundUpNgn}`;
+  const cacheKey = `${platform.toLowerCase()}:${pricingKey}`;
   const now = Date.now();
   const hit = cache.get(cacheKey);
   if (hit && !options?.forceRefresh) {
     const age = now - hit.at;
     if (age < CACHE_TTL_MS) return { ...hit.catalog, source: 'cached' };
     if (age < STALE_MAX_MS) {
-      void loadPlatformCatalog(platform, cacheKey, rate).catch(() => undefined);
+      void loadPlatformCatalog(platform, cacheKey, rate, markups).catch(() => undefined);
       return { ...hit.catalog, source: 'cached' };
     }
   }
-  return loadPlatformCatalog(platform, cacheKey, rate);
+  return loadPlatformCatalog(platform, cacheKey, rate, markups);
 }
 
 function loadPlatformCatalog(
   platform: string,
   cacheKey: string,
   rate: number,
+  markups: AccountsMarkups,
 ): Promise<AccountsCatalog> {
   const existing = inflight.get(cacheKey);
   if (existing) return existing;
-  const p = buildPlatformCatalog(platform, cacheKey, rate).finally(() => inflight.delete(cacheKey));
+  const p = buildPlatformCatalog(platform, cacheKey, rate, markups).finally(() =>
+    inflight.delete(cacheKey),
+  );
   inflight.set(cacheKey, p);
   return p;
 }
@@ -562,6 +581,7 @@ async function buildPlatformCatalog(
   platform: string,
   cacheKey: string,
   rate: number,
+  markups: AccountsMarkups,
 ): Promise<AccountsCatalog> {
   const now = Date.now();
   if (!apiKey()) {
@@ -602,7 +622,7 @@ async function buildPlatformCatalog(
     ]);
 
     const offers = listings
-      .map((l) => mapListing(l, platform, rate))
+      .map((l) => mapListing(l, platform, rate, markups))
       // Marketplace rule: gift cards are not sold on Verxor. Filter them out
       // everywhere so they can never surface via any platform chip.
       .filter((o) => o.stock > 0 && !/gift\s*card|gift\s*code|giftcode/i.test(o.title))

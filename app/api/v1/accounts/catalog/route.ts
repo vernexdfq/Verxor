@@ -4,6 +4,12 @@ import {
   fetchAccsZoneCategories,
   normalizePlatform,
 } from '@/lib/providers/accszone';
+import { resolvePanelClient } from '@/lib/panel-auth';
+import {
+  loadAccountsMarkups,
+  loadAccountsUsdRate,
+  wholesaleCostUnitNgn,
+} from '@/lib/accounts-pricing';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -115,12 +121,36 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    return NextResponse.json(catalog, {
-      status: 200,
-      headers: {
-        'Cache-Control': 'public, s-maxage=120, stale-while-revalidate=600',
+    // Child-panel / API keys see wholesale prices computed from the provider
+    // cost. Retail buyers see the live retail prices. costUsd (raw provider
+    // cost) is never exposed to any client.
+    const panel = await resolvePanelClient(req).catch(() => null);
+    if (panel) {
+      const [rate, markups] = await Promise.all([loadAccountsUsdRate(), loadAccountsMarkups()]);
+      const offers = catalog.offers.map((o) => ({
+        ...o,
+        costUsd: undefined,
+        priceNgn: wholesaleCostUnitNgn(o.costUsd, rate, markups) || o.priceNgn,
+      }));
+      return NextResponse.json(
+        { ...catalog, offers, audience: 'child' as const },
+        {
+          status: 200,
+          headers: { 'Cache-Control': 'no-store' },
+        },
+      );
+    }
+
+    const offers = catalog.offers.map((o) => ({ ...o, costUsd: undefined }));
+    return NextResponse.json(
+      { ...catalog, offers, audience: 'retail' as const },
+      {
+        status: 200,
+        headers: {
+          'Cache-Control': 'public, s-maxage=120, stale-while-revalidate=600',
+        },
       },
-    });
+    );
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Internal error while fetching accounts catalog';
     return NextResponse.json(

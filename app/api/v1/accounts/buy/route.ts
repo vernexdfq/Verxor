@@ -11,7 +11,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { fetchPlatformCatalog, purchaseListing, normalizePlatform } from '@/lib/providers/accszone';
 import { sbInsert, supabaseConfigured } from '@/lib/supabase-admin';
 import { resolvePanelClient, getPanelAdminEmail } from '@/lib/panel-auth';
-import { panelAllowsBuyLogs, accountsWholesaleUnitNgn } from '@/lib/panel-accounts';
+import { panelAllowsBuyLogs } from '@/lib/panel-accounts';
+import {
+  loadAccountsMarkups,
+  loadAccountsUsdRate,
+  wholesaleCostUnitNgn,
+} from '@/lib/accounts-pricing';
 import { sendPanelAdminOrderAlert } from '@/lib/email/receipts';
 
 export const dynamic = 'force-dynamic';
@@ -298,9 +303,9 @@ export async function POST(req: NextRequest) {
 
     // Pricing: retail users pay the live retail price; panels/API users pay the
     // tiered wholesale price computed server-side from the same live price.
-    const rate = Number(process.env.USD_NGN_RATE || 1380) || 1380;
+    const [rate, markups] = await Promise.all([loadAccountsUsdRate(), loadAccountsMarkups()]);
     const unitPrice = useReseller
-      ? accountsWholesaleUnitNgn(listing.priceNgn, rate)
+      ? wholesaleCostUnitNgn(listing.costUsd, rate, markups)
       : listing.priceNgn;
     const totalNgn = unitPrice * quantity;
     if (!Number.isSafeInteger(totalNgn) || totalNgn <= 0) return bad('Invalid order total', 400);
