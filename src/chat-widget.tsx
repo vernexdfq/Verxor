@@ -6,59 +6,40 @@ import type { AuthSession } from './auth/AuthFlow';
 import { loadSessionTokens } from './auth/session-unlock';
 import './chat-widget.css';
 
-type ChatAction = { flow?: string; step?: string; data?: Record<string, unknown> };
-type CardButton = { label: string; action: ChatAction };
-type Card = {
-  kind: 'card';
-  title?: string;
-  body?: string;
-  buttons?: CardButton[];
-  rows?: { label: string; sub?: string; action: ChatAction }[];
-};
-type ChatMsg = {
+type ChatButton = { label: string; payload: string };
+
+type ChatMessage = {
   id: string;
   role: 'user' | 'ai' | 'admin' | 'system';
   content: string;
-  actions?: Card | { kind?: string; buttons?: CardButton[] } | null;
-  created_at: string;
+  buttons?: ChatButton[];
+  at?: string;
 };
-type Pending = { flow: string; step: string; data: Record<string, unknown> } | null;
 
-const VISITOR_KEY_STORE = 'verxor-chat-visitor';
-const CONVO_KEY_STORE = 'verxor-chat-convo';
-
-function getVisitorKey(): string {
-  try {
-    let k = localStorage.getItem(VISITOR_KEY_STORE);
-    if (!k) {
-      k = 'v-' + Math.random().toString(36).slice(2) + Date.now().toString(36);
-      localStorage.setItem(VISITOR_KEY_STORE, k);
-    }
-    return k;
-  } catch {
-    return 'v-anon';
-  }
-}
-
-function looksLikePhone(t: string): boolean {
-  const digits = t.replace(/\D/g, '');
-  return digits.length >= 10 && digits.length <= 14 && /^[+\d][\d\s+-]*$/.test(t.trim());
-}
+const CONVO_KEY = 'verxor-chat-conversation-id';
 
 /**
- * Verxor live chat — the customer-side widget. Buttons run the deterministic
- * order flows (no LLM error possible in a checkout), typed text goes to the
- * backend which answers with Mistral when configured.
+ * Verxor assistant — floating chat widget. Buttons in AI cards carry payloads
+ * that drive the server-side flow engine; open_* payloads navigate the app.
  */
-export function ChatWidget({ session }: { session?: AuthSession | null }) {
+export function ChatWidget({
+  session,
+  onOpenFund,
+  onOpenService,
+}: {
+  session: AuthSession | null;
+  onOpenFund: () => void;
+  onOpenService: (id: string) => void;
+}) {
   const [open, setOpen] = useState(false);
-  const [messages, setMessages] = useState<ChatMsg[]>([]);
-  const [pending, setPending] = useState<Pending>(null);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [conversationId, setConversationId] = useState<string | null>(null);
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
   const [loaded, setLoaded] = useState(false);
-  const convoRef = useRef<string | null>(null);
-  const listRef = useRef<HTMLDivElement | null>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+  const sessionRef = useRef(session);
+  sessionRef.current = session;
 
   const headers = useCallback((): Record<string, string> => {
     const h: Record<string, string> = { 'Content-Type': 'application/json' };
@@ -67,218 +48,228 @@ export function ChatWidget({ session }: { session?: AuthSession | null }) {
     return h;
   }, []);
 
-  const refresh = useCallback(async () => {
-    const id = convoRef.current;
-    if (!id) return;
-    try {
-      const res = await fetch(`/api/chat?conversationId=${encodeURIComponent(id)}`, {
-        headers: headers(),
-        cache: 'no-store',
-      });
-      const data = await res.json().catch(() => ({}));
-      if (data?.ok && Array.isArray(data.messages)) {
-        setMessages(data.messages as ChatMsg[]);
-      }
-    } catch {
-      /* next poll will retry */
+  const navigate = useCallback((payload: string) => {
+    switch (payload) {
+      case 'open_fund':
+        onOpenFund();
+        return true;
+      case 'open_airtime':
+        onOpenService('airtime');
+        return true;
+      case 'open_vn':
+        onOpenService('virtual-numbers');
+        return true;
+      case 'open_email':
+        onOpenService('email-otp');
+        return true;
+      case 'open_logs':
+        onOpenService('accounts');
+        return true;
+      case 'open_boost':
+        onOpenService('boost');
+        return true;
+      default:
+        return false;
     }
-  }, [headers]);
+  }, [onOpenFund, onOpenService]);
 
-  const openChat = useCallback(async () => {
-    setOpen(true);
-    try {
-      convoRef.current = localStorage.getItem(CONVO_KEY_STORE);
-    } catch {
-      /* private mode */
-    }
-    if (!convoRef.current) {
+  const scrollDown = useCallback(() => {
+    requestAnimationFrame(() => {
+      const el = listRef.current;
+      if (el) el.scrollTop = el.scrollHeight;
+    });
+  }, []);
+
+  // Restore the last conversation once, when the widget first opens.
+  useEffect(() => {
+    if (!open || loaded || !sessionRef.current) return;
+    setLoaded(true);
+    void (async () => {
+      try {
+        const res = await fetch('/api/chat', { headers: headers(), cache: 'no-store' });
+        const data = await res.json().catch(() => ({}));
+        if (data?.ok && data.conversationId) {
+          setConversationId(data.conversationId);
+          try {
+            localStorage.setItem(CONVO_KEY, data.conversationId);
+          } catch { /* ignore */ }
+          const restored: ChatMessage[] = (data.messages || []).map(
+            (m: { id: string; role: string; content: string; actions?: { buttons?: ChatButton[] } }) => ({
+              id: m.id,
+              role: m.role as ChatMessage['role'],
+              content: m.content,
+              buttons: m.actions?.buttons || undefined,
+            }),
+          );
+          if (restored.length > 0) setMessages(restored);
+        }
+      } catch { /* offline */ }
+    })();
+  }, [open, loaded, headers]);
+
+  const send = useCallback(
+    async (opts: { text?: string; payload?: string; label?: string }) => {
+      if (busy) return;
+      const text = opts.text?.trim();
+      const payload = opts.payload?.trim();
+      if (!text && !payload) return;
       setBusy(true);
+      setMessages((prev) => [
+        ...prev,
+        { id: `local-${Date.now()}`, role: 'user', content: text || opts.label || payload || '' },
+      ]);
+      setInput('');
+      scrollDown();
       try {
         const res = await fetch('/api/chat', {
           method: 'POST',
           headers: headers(),
           body: JSON.stringify({
-            type: 'action',
-            action: { flow: 'welcome', step: 'start' },
-            visitorKey: getVisitorKey(),
-            firstName: session?.name?.split(' ')[0] || undefined,
+            conversationId: conversationId || undefined,
+            text: text || undefined,
+            payload: payload || undefined,
+            label: opts.label || undefined,
           }),
         });
         const data = await res.json().catch(() => ({}));
-        if (data?.ok && data.conversationId) {
-          convoRef.current = String(data.conversationId);
+        if (!res.ok || !data?.ok) {
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: `err-${Date.now()}`,
+              role: 'system',
+              content: data?.error || 'Chat is unavailable right now. Please try again.',
+            },
+          ]);
+          return;
+        }
+        if (data.conversationId) {
+          setConversationId(data.conversationId);
           try {
-            localStorage.setItem(CONVO_KEY_STORE, String(data.conversationId));
-          } catch {
-            /* ignore */
-          }
+            localStorage.setItem(CONVO_KEY, data.conversationId);
+          } catch { /* ignore */ }
         }
+        const incoming: ChatMessage[] = (data.messages || []).map(
+          (m: { id: string; role: string; content: string; actions?: { buttons?: ChatButton[] } }) => ({
+            id: m.id,
+            role: m.role as ChatMessage['role'],
+            content: m.content,
+            buttons: m.actions?.buttons || undefined,
+          }),
+        );
+        if (incoming.length > 0) setMessages((prev) => [...prev, ...incoming]);
+        if (payload) navigate(payload);
       } catch {
-        /* ignore */
+        setMessages((prev) => [
+          ...prev,
+          { id: `err-${Date.now()}`, role: 'system', content: 'Network error. Please try again.' },
+        ]);
       } finally {
         setBusy(false);
-      }
-    }
-    setLoaded(true);
-    void refresh();
-  }, [headers, refresh, session?.name]);
-
-  // Poll while open.
-  useEffect(() => {
-    if (!open) return;
-    const t = setInterval(() => {
-      void refresh();
-    }, 4000);
-    return () => clearInterval(t);
-  }, [open, refresh]);
-
-  // Autoscroll.
-  useEffect(() => {
-    const el = listRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
-  }, [messages, open]);
-
-  const send = useCallback(
-    async (payload: { type: 'text' | 'action'; text?: string; action?: ChatAction }) => {
-      setBusy(true);
-      const isPhoneReply =
-        payload.type === 'text' && pending?.step === 'phone' && looksLikePhone(payload.text || '');
-      const body = {
-        ...(payload.type === 'text' ? { type: 'text', text: payload.text } : { type: 'action', action: payload.action }),
-        ...(isPhoneReply
-          ? { type: 'action', action: { flow: pending?.flow, step: 'phone', data: { ...(pending?.data || {}), phone: payload.text } } }
-          : {}),
-        visitorKey: getVisitorKey(),
-        firstName: session?.name?.split(' ')[0] || undefined,
-      };
-      try {
-        const res = await fetch('/api/chat', {
-          method: 'POST',
-          headers: headers(),
-          body: JSON.stringify(body),
-        });
-        const data = await res.json().catch(() => ({}));
-        if (data?.ok) {
-          if (data.conversationId && data.conversationId !== convoRef.current) {
-            convoRef.current = String(data.conversationId);
-            try {
-              localStorage.setItem(CONVO_KEY_STORE, String(data.conversationId));
-            } catch {
-              /* ignore */
-            }
-          }
-          setPending((data.pending as Pending) || null);
-        }
-      } catch {
-        /* next poll will resync */
-      } finally {
-        setBusy(false);
-        void refresh();
+        scrollDown();
       }
     },
-    [headers, pending, refresh, session?.name],
+    [busy, conversationId, headers, navigate, scrollDown],
   );
 
-  const onSendClick = () => {
-    const text = input.trim();
-    if (!text || busy) return;
-    setInput('');
-    setMessages((prev) => [
-      ...prev,
-      { id: 'tmp-' + Date.now(), role: 'user', content: text, created_at: new Date().toISOString() },
-    ]);
-    void send({ type: 'text', text });
-  };
+  const startChat = useCallback(() => {
+    setOpen(true);
+    // First open: greet + menu.
+    setMessages((prev) => {
+      if (prev.length > 0) return prev;
+      return [
+        {
+          id: 'welcome',
+          role: 'ai',
+          content: `Hello${sessionRef.current?.name ? ` ${sessionRef.current.name}` : ''} 👋 I am your Verxor assistant. Buy data right here in chat, or jump to any service.`,
+          buttons: [
+            { label: '📱 Buy Data', payload: 'start_data' },
+            { label: '⚡ Buy Airtime', payload: 'open_airtime' },
+            { label: '🔢 Virtual Number', payload: 'open_vn' },
+            { label: '📧 Email OTP', payload: 'open_email' },
+            { label: '👥 Buy Logs', payload: 'open_logs' },
+            { label: '🚀 Boost', payload: 'open_boost' },
+          ],
+        },
+      ];
+    });
+    scrollDown();
+  }, [scrollDown]);
 
-  const onButtonClick = (btn: CardButton) => {
-    if (busy) return;
-    setMessages((prev) => [
-      ...prev,
-      { id: 'tmp-' + Date.now(), role: 'user', content: btn.label, created_at: new Date().toISOString() },
-    ]);
-    void send({ type: 'action', action: btn.action });
-  };
-
-  const renderCard = (m: ChatMsg) => {
-    const card = m.actions as Card | undefined;
-    if (!card) return null;
-    return (
-      <div className="vxchat-card">
-        {card.title ? <div className="vxchat-card-title">{card.title}</div> : null}
-        {card.body ? <div className="vxchat-card-body">{card.body}</div> : null}
-        {card.buttons?.length ? (
-          <div className="vxchat-card-buttons">
-            {card.buttons.map((b, i) => (
-              <button key={i} type="button" className="vxchat-btn primary" onClick={() => onButtonClick(b)}>
-                {b.label}
-              </button>
-            ))}
-          </div>
-        ) : null}
-        {card.rows?.length ? (
-          <div className="vxchat-card-rows">
-            {card.rows.map((r, i) => (
-              <button key={i} type="button" className="vxchat-row" onClick={() => onButtonClick({ label: r.label, action: r.action })}>
-                {r.label}
-              </button>
-            ))}
-          </div>
-        ) : null}
-      </div>
-    );
-  };
+  if (!session) return null;
 
   return (
     <>
       {!open ? (
-        <button type="button" className="vxchat-fab" onClick={() => void openChat()} aria-label="Open live chat">
-          <MessageCircle size={22} />
+        <button
+          type="button"
+          className="vxc-fab"
+          onClick={startChat}
+          aria-label="Open Verxor assistant"
+        >
+          <MessageCircle size={24} />
         </button>
-      ) : null}
-
-      {open ? (
-        <div className="vxchat-panel" role="dialog" aria-label="Verxor live chat">
-          <div className="vxchat-head">
-            <div className="vxchat-head-text">
-              <strong>Verxor Assistant</strong>
-              <span>Typically replies instantly · online 24/7</span>
+      ) : (
+        <div className="vxc-panel" role="dialog" aria-label="Verxor assistant">
+          <header className="vxc-head">
+            <div className="vxc-head-id">
+              <span className="vxc-avatar">V</span>
+              <div>
+                <strong>Verxor Assistant</strong>
+                <span className="vxc-status">
+                  <i /> Online 24/7
+                </span>
+              </div>
             </div>
-            <button type="button" className="vxchat-close" onClick={() => setOpen(false)} aria-label="Close chat">
-              <X size={16} />
+            <button type="button" className="vxc-close" onClick={() => setOpen(false)} aria-label="Close chat">
+              <X size={18} />
             </button>
+          </header>
+
+          <div className="vxc-list" ref={listRef}>
+            {messages.map((m) => (
+              <div key={m.id} className={`vxc-msg vxc-${m.role}`}>
+                <div className="vxc-bubble">{m.content}</div>
+                {m.buttons && m.buttons.length > 0 ? (
+                  <div className="vxc-buttons">
+                    {m.buttons.map((b, i) => (
+                      <button
+                        key={`${m.id}-b${i}`}
+                        type="button"
+                        className="vxc-btn"
+                        disabled={busy}
+                        onClick={() => void send({ payload: b.payload, label: b.label })}
+                      >
+                        {b.label}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            ))}
+            {busy ? <div className="vxc-typing">Assistant is typing…</div> : null}
           </div>
 
-          <div className="vxchat-list" ref={listRef}>
-            {messages.length === 0 && busy ? (
-              <div className="vxchat-hint">Connecting…</div>
-            ) : null}
-            {messages
-              .filter((m) => m.role !== 'system')
-              .map((m) => (
-                <div key={m.id} className={`vxchat-msg ${m.role === 'user' ? 'me' : 'them'}`}>
-                  {m.content ? <div className="vxchat-bubble">{m.content}</div> : null}
-                  {renderCard(m)}
-                </div>
-              ))}
-          </div>
-
-          <div className="vxchat-inputrow">
+          <form
+            className="vxc-input-row"
+            onSubmit={(e) => {
+              e.preventDefault();
+              void send({ text: input });
+            }}
+          >
             <input
-              className="vxchat-input"
               value={input}
-              placeholder={pending?.step === 'phone' ? 'Type the phone number…' : 'Type a message…'}
               onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') onSendClick();
-              }}
+              placeholder="Type a message…"
+              aria-label="Chat message"
               disabled={busy}
             />
-            <button type="button" className="vxchat-send" onClick={onSendClick} disabled={busy || !input.trim()} aria-label="Send">
+            <button type="submit" disabled={busy || !input.trim()} aria-label="Send">
               <Send size={16} />
             </button>
-          </div>
+          </form>
         </div>
-      ) : null}
+      )}
     </>
   );
 }

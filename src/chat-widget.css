@@ -1,214 +1,145 @@
-/* Verxor live chat widget */
-.vxchat-fab {
+/* Verxor assistant chat widget */
+.vxc-fab {
   position: fixed;
   right: 16px;
   bottom: 84px;
-  z-index: 90;
   width: 54px;
   height: 54px;
   border-radius: 50%;
   border: none;
-  cursor: pointer;
+  background: linear-gradient(135deg, #0b63e5, #0a4fc0);
+  color: #fff;
   display: grid;
   place-items: center;
-  color: #fff;
-  background: #0b63f6;
-  box-shadow: 0 10px 24px rgba(11, 99, 246, 0.4);
-  transition: transform 0.15s ease;
+  box-shadow: 0 8px 24px rgba(10, 79, 192, 0.35);
+  cursor: pointer;
+  z-index: 80;
 }
-.vxchat-fab:active {
-  transform: scale(0.94);
-}
+.vxc-fab:active { transform: scale(0.94); }
 
-.vxchat-panel {
+.vxc-panel {
   position: fixed;
-  right: 12px;
-  bottom: 78px;
-  z-index: 95;
-  width: min(380px, calc(100vw - 24px));
-  height: min(600px, calc(100dvh - 120px));
+  right: 10px;
+  bottom: 76px;
+  width: calc(100vw - 20px);
+  max-width: 380px;
+  max-height: min(72vh, 620px);
   display: flex;
   flex-direction: column;
   background: #f6f9ff;
-  border-radius: 16px;
+  border-radius: 18px;
   overflow: hidden;
-  box-shadow: 0 18px 48px rgba(15, 23, 42, 0.28);
-  border: 1px solid #e3ecff;
+  box-shadow: 0 18px 48px rgba(9, 30, 66, 0.28);
+  z-index: 90;
 }
 
-.vxchat-head {
+.vxc-head {
   display: flex;
   align-items: center;
-  gap: 10px;
+  justify-content: space-between;
   padding: 12px 14px;
-  background: #0b63f6;
+  background: linear-gradient(135deg, #0b63e5, #0a4fc0);
   color: #fff;
 }
-.vxchat-head-text {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  line-height: 1.25;
-}
-.vxchat-head-text strong {
-  font-size: 15px;
-}
-.vxchat-head-text span {
+.vxc-head-id { display: flex; align-items: center; gap: 10px; }
+.vxc-head-id strong { display: block; font-size: 15px; }
+.vxc-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   font-size: 11px;
   opacity: 0.85;
 }
-.vxchat-close {
-  background: rgba(255, 255, 255, 0.15);
-  border: none;
-  color: #fff;
-  width: 30px;
-  height: 30px;
-  border-radius: 8px;
-  cursor: pointer;
-  display: grid;
-  place-items: center;
+.vxc-status i {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: #4ade80; display: inline-block;
 }
+.vxc-avatar {
+  width: 34px; height: 34px; border-radius: 50%;
+  background: rgba(255, 255, 255, 0.18);
+  display: grid; place-items: center;
+  font-weight: 700; font-size: 15px;
+}
+.vxc-close {
+  border: none; background: transparent; color: #fff;
+  cursor: pointer; padding: 6px; border-radius: 8px;
+}
+.vxc-close:active { background: rgba(255, 255, 255, 0.15); }
 
-.vxchat-list {
+.vxc-list {
   flex: 1;
   overflow-y: auto;
-  padding: 12px;
+  padding: 14px 12px;
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
-.vxchat-hint {
-  text-align: center;
-  color: #64748b;
-  font-size: 12px;
-}
+.vxc-msg { display: flex; flex-direction: column; max-width: 86%; }
+.vxc-ai { align-self: flex-start; }
+.vxc-user { align-self: flex-end; align-items: flex-end; }
+.vxc-system { align-self: center; max-width: 100%; }
 
-.vxchat-msg {
-  display: flex;
-  flex-direction: column;
-  max-width: 88%;
-}
-.vxchat-msg.me {
-  align-self: flex-end;
-  align-items: flex-end;
-}
-.vxchat-msg.them {
-  align-self: flex-start;
-  align-items: flex-start;
-}
-
-.vxchat-bubble {
-  padding: 9px 12px;
+.vxc-bubble {
+  padding: 10px 13px;
   border-radius: 14px;
   font-size: 14px;
   line-height: 1.45;
   white-space: pre-wrap;
   word-break: break-word;
 }
-.vxchat-msg.me .vxchat-bubble {
-  background: #0b63f6;
-  color: #fff;
-  border-bottom-right-radius: 4px;
-}
-.vxchat-msg.them .vxchat-bubble {
-  background: #fff;
-  color: #0f172a;
-  border: 1px solid #e3ecff;
-  border-bottom-left-radius: 4px;
-}
+.vxc-ai .vxc-bubble { background: #fff; color: #0f172a; border: 1px solid #e3ecff; border-bottom-left-radius: 4px; }
+.vxc-user .vxc-bubble { background: #0b63e5; color: #fff; border-bottom-right-radius: 4px; }
+.vxc-system .vxc-bubble { background: #fdecec; color: #9f1239; font-size: 12.5px; text-align: center; }
 
-.vxchat-card {
-  background: #fff;
-  border: 1px solid #e3ecff;
-  border-radius: 14px;
-  padding: 12px;
-  width: 100%;
-  box-sizing: border-box;
-}
-.vxchat-card-title {
-  font-weight: 700;
-  font-size: 14px;
-  color: #0f172a;
-  margin-bottom: 4px;
-}
-.vxchat-card-body {
-  font-size: 13px;
-  color: #475569;
-  margin-bottom: 8px;
-  line-height: 1.5;
-}
-.vxchat-card-buttons {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-}
-.vxchat-btn {
-  border: none;
-  border-radius: 10px;
-  padding: 10px 8px;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-}
-.vxchat-btn.primary {
-  background: #0b63f6;
-  color: #fff;
-}
-.vxchat-btn.primary:active {
-  background: #0953d1;
-}
-.vxchat-card-rows {
+.vxc-buttons {
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
   gap: 6px;
-  max-height: 260px;
-  overflow-y: auto;
+  margin-top: 7px;
 }
-.vxchat-row {
-  border: 1px solid #dbe7ff;
-  background: #f2f7ff;
-  border-radius: 10px;
-  padding: 10px 12px;
+.vxc-btn {
+  border: 1px solid #0b63e5;
+  background: #fff;
+  color: #0b63e5;
   font-size: 13px;
   font-weight: 600;
-  color: #0b3fa0;
-  text-align: left;
+  padding: 7px 12px;
+  border-radius: 999px;
   cursor: pointer;
 }
-.vxchat-row:active {
-  background: #e3efff;
+.vxc-btn:active { background: #0b63e5; color: #fff; }
+.vxc-btn:disabled { opacity: 0.5; }
+
+.vxc-typing {
+  align-self: flex-start;
+  font-size: 12px;
+  color: #64748b;
+  padding: 4px 10px;
 }
 
-.vxchat-inputrow {
+.vxc-input-row {
   display: flex;
   gap: 8px;
   padding: 10px 12px;
-  background: #fff;
   border-top: 1px solid #e3ecff;
+  background: #fff;
 }
-.vxchat-input {
+.vxc-input-row input {
   flex: 1;
-  border: 1px solid #dbe7ff;
-  border-radius: 10px;
-  padding: 10px 12px;
+  border: 1px solid #dbe6fb;
+  border-radius: 999px;
+  padding: 10px 14px;
   font-size: 14px;
   outline: none;
-  min-width: 0;
 }
-.vxchat-input:focus {
-  border-color: #0b63f6;
-}
-.vxchat-send {
-  width: 42px;
-  height: 42px;
+.vxc-input-row input:focus { border-color: #0b63e5; }
+.vxc-input-row button {
+  width: 42px; height: 42px;
+  border-radius: 50%;
   border: none;
-  border-radius: 10px;
-  background: #0b63f6;
+  background: #0b63e5;
   color: #fff;
+  display: grid; place-items: center;
   cursor: pointer;
-  display: grid;
-  place-items: center;
 }
-.vxchat-send:disabled {
-  opacity: 0.5;
-}
+.vxc-input-row button:disabled { background: #b9d0f5; }

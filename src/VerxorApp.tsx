@@ -524,7 +524,11 @@ export function VerxorApp() {
       onLogout={handleLogout}
     >
       {content}
-      <ChatWidget session={auth} />
+      <ChatWidget
+        session={auth}
+        onOpenFund={() => navigatePage('fund')}
+        onOpenService={(id) => openService(id as ServiceView)}
+      />
     </AppShell>
   );
 }
