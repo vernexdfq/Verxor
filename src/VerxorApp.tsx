@@ -7,6 +7,7 @@ import { ServicePage, ServicesPage, type ServiceView } from './service-pages';
 import { RentalPage } from './rental-page';
 import { AccountsPage } from './product-pages';
 import { BoostPage } from './boost-page';
+import { BoostHistoryPage } from './boost-history-page';
 import { AirtimePage } from './airtime-page';
 import { DataPage } from './data-page';
 import { GiftCardPage } from './giftcard-page';
@@ -401,7 +402,21 @@ export function VerxorApp() {
   } else if (service === 'accounts') {
     content = <AccountsPage onBack={closeService} session={auth} />;
   } else if (service === 'boost') {
-    content = <BoostPage onBack={closeService} session={auth} onFund={() => navigatePage('fund')} />;
+    content = (
+      <BoostPage
+        onBack={closeService}
+        session={auth}
+        onFund={() => navigatePage('fund')}
+        onOpenHistory={() => openService('boost-orders')}
+      />
+    );
+  } else if (service === 'boost-orders') {
+    content = (
+      <BoostHistoryPage
+        onBack={() => openService('boost')}
+        onNewOrder={() => openService('boost')}
+      />
+    );
   } else if (service === 'email-otp') {
     content = (
       <EmailOtpPage

@@ -244,7 +244,7 @@ export function HistoryPage({ userId: userIdProp, openService, onOpenVnOrders, g
       return;
     }
     if (key === 'boost') {
-      openService?.('boost');
+      openService?.('boost-orders');
       return;
     }
     if (key === 'logs') {
