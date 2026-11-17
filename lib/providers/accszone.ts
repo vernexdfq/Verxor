@@ -24,9 +24,7 @@ type CountsEntry = { listings: number; stock: number; at: string };
 type CountsSnapshot = Record<string, CountsEntry>;
 const COUNTS_KEY = 'accounts_catalog_counts';
 const COUNTS_CACHE_TTL_MS = 60 * 1000;
-const COUNTS_WRITE_MIN_INTERVAL_MS = 15 * 1000;
 let countsCache: { at: number; value: CountsSnapshot } | null = null;
-let countsWriteAt = 0;
 
 function snapshotDb() {
   const base = (process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '')
@@ -80,9 +78,6 @@ export function liveCountsSnapshot(): CountsSnapshot {
 async function persistPlatformCounts(platform: string, listings: number, stock: number) {
   const db = snapshotDb();
   if (!db) return;
-  const now = Date.now();
-  if (now - countsWriteAt < COUNTS_WRITE_MIN_INTERVAL_MS) return;
-  countsWriteAt = now;
   try {
     const merged: CountsSnapshot = { ...(await loadCountsSnapshot()) };
     merged[platform] = { listings, stock, at: new Date().toISOString() };
