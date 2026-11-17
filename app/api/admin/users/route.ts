@@ -300,6 +300,7 @@ export async function POST(req: NextRequest) {
     service?: string;
     enabled?: boolean;
     unlockNote?: string;
+    name?: string;
   };
   try {
     body = await req.json();
