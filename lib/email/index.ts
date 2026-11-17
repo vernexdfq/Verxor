@@ -16,4 +16,10 @@ export {
   sendVirtualNumberDeliveredReceipt,
   sendBoostReceipt,
   sendWalletFundingReceipt,
+  sendPanelAdminOrderAlert,
 } from './receipts';
+export {
+  buildPanelAdminAlertHtml,
+  panelAdminAlertSubject,
+  type PanelAdminAlertOptions,
+} from './receipt-template';

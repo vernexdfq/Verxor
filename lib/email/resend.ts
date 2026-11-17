@@ -1,6 +1,6 @@
 /** Server-only Resend email client. Configure RESEND_API_KEY in the deployment environment. */
 export type SendEmailPayload = {
-  to: string;
+  to: string | string[];
   subject: string;
   html: string;
   text?: string;
@@ -17,9 +17,24 @@ export async function sendEmail(payload: SendEmailPayload): Promise<SendEmailRes
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) return { ok: false, error: 'RESEND_API_KEY is not configured' };
 
-  const to = payload.to.trim();
-  if (!EMAIL_RE.test(to)) return { ok: false, error: 'Invalid recipient email address' };
-  if (!payload.subject.trim() || payload.subject.length > 180) {
+  const rawList = Array.isArray(payload.to)
+    ? payload.to
+    : typeof payload.to === 'string'
+      ? payload.to.split(/[,;\n\r\t]+/)
+      : [];
+
+  const validRecipients = Array.from(
+    new Set(
+      rawList
+        .map((e) => (typeof e === 'string' ? e.trim().toLowerCase() : ''))
+        .filter((e) => EMAIL_RE.test(e)),
+    ),
+  );
+
+  if (validRecipients.length === 0) {
+    return { ok: false, error: 'Invalid recipient email address' };
+  }
+  if (!payload.subject?.trim() || payload.subject.length > 180) {
     return { ok: false, error: 'Invalid email subject' };
   }
   if (!payload.html || payload.html.length > 200_000) {
@@ -35,7 +50,7 @@ export async function sendEmail(payload: SendEmailPayload): Promise<SendEmailRes
       },
       body: JSON.stringify({
         from: process.env.RESEND_FROM_EMAIL || DEFAULT_FROM,
-        to: [to],
+        to: validRecipients,
         subject: payload.subject,
         html: payload.html,
         ...(payload.text ? { text: payload.text } : {}),

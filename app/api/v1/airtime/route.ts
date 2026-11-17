@@ -12,11 +12,12 @@ import {
   type Api247NetworkSlug,
 } from '@/lib/providers/api247';
 import { supabaseConfigured } from '@/lib/supabase-admin';
-import { sendAirtimeReceipt, sendDataReceipt } from '@/lib/email/receipts';
+import { sendAirtimeReceipt, sendDataReceipt, sendPanelAdminOrderAlert } from '@/lib/email/receipts';
 import {
   resolvePanelClient,
   panelAllowsAirtime,
   getPanelAdminEmail,
+  getPanelAdminEmails,
   panelAirtimeDebitAmount,
   panelAirtimeDiscountPct,
   PANEL_AIRTIME_DISCOUNT_PCT,
@@ -318,6 +319,35 @@ export async function POST(req: NextRequest) {
         }).then((mail) => {
           if (!mail.ok) console.warn('[email] Airtime receipt not sent:', mail.error);
         });
+      } else if (panel) {
+        try {
+          const adminEmails = await getPanelAdminEmails(panel);
+          const retailNgn = Number((body as any)?.retailPriceNgn ?? (body as any)?.customerPaidNgn ?? amount);
+          const customerLabel = ((body as any)?.customerName || (body as any)?.customerEmail || '').trim() || 'Child panel customer';
+
+          await sendPanelAdminOrderAlert(adminEmails, {
+            panelName: panel.name,
+            adminEmail: adminEmails,
+            customerName: customerLabel,
+            customerEmail: (body as any)?.customerEmail ? String((body as any).customerEmail).trim() : undefined,
+            service: `Airtime (${netLabel})`,
+            orderId: result.ref || debitRef,
+            wholesaleAmountNgn: debitAmount,
+            customerPaidNgn: retailNgn > debitAmount ? retailNgn : undefined,
+            details: [
+              { label: 'Customer', value: customerLabel },
+              { label: 'Network', value: netLabel },
+              { label: 'Mobile number', value: phone },
+              { label: 'Face amount', value: formatNaira(amount) },
+              { label: 'Wholesale discount', value: `${panelDiscountPct}% (Saved ${formatNaira(panelDiscountNgn)})` },
+            ],
+            date: new Date(),
+          }).then((mail) => {
+            if (!mail.ok) console.warn('[email] Airtime panel admin alert not sent:', mail.error);
+          });
+        } catch (err) {
+          console.warn('[email] Airtime panel admin alert dispatch failed:', err);
+        }
       }
       return NextResponse.json({
         ok: true,
@@ -363,6 +393,35 @@ export async function POST(req: NextRequest) {
         }).then((mail) => {
           if (!mail.ok) console.warn('[email] Airtime receipt not sent:', mail.error);
         });
+      } else if (panel) {
+        try {
+          const adminEmails = await getPanelAdminEmails(panel);
+          const retailNgn = Number((body as any)?.retailPriceNgn ?? (body as any)?.customerPaidNgn ?? amount);
+          const customerLabel = ((body as any)?.customerName || (body as any)?.customerEmail || '').trim() || 'Child panel customer';
+
+          await sendPanelAdminOrderAlert(adminEmails, {
+            panelName: panel.name,
+            adminEmail: adminEmails,
+            customerName: customerLabel,
+            customerEmail: (body as any)?.customerEmail ? String((body as any).customerEmail).trim() : undefined,
+            service: `Airtime (${netLabel})`,
+            orderId: result.ref || debitRef,
+            wholesaleAmountNgn: debitAmount,
+            customerPaidNgn: retailNgn > debitAmount ? retailNgn : undefined,
+            details: [
+              { label: 'Customer', value: customerLabel },
+              { label: 'Network', value: netLabel },
+              { label: 'Mobile number', value: phone },
+              { label: 'Face amount', value: formatNaira(amount) },
+              { label: 'Wholesale discount', value: `${panelDiscountPct}% (Saved ${formatNaira(panelDiscountNgn)})` },
+            ],
+            date: new Date(),
+          }).then((mail) => {
+            if (!mail.ok) console.warn('[email] Airtime panel admin alert not sent:', mail.error);
+          });
+        } catch (err) {
+          console.warn('[email] Airtime panel admin alert dispatch failed:', err);
+        }
       }
       return NextResponse.json({
         ok: true,

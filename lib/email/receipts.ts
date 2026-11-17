@@ -77,14 +77,39 @@ export async function sendBoostReceipt(
 }
 
 export async function sendPanelAdminOrderAlert(
-  adminEmail: string,
+  adminEmail: string | string[] | null | undefined,
   alert: PanelAdminAlertOptions,
 ): Promise<SendEmailResult> {
   try {
-    const to = (adminEmail || '').trim().toLowerCase();
-    if (!to || !to.includes('@')) {
+    const recipients = new Set<string>();
+
+    // Designated child panel admin notification addresses
+    for (const email of [
+      'prozydata@gmail.com',
+      'vernexdfq@gmail.com',
+      'support@vernexdigital.com',
+      'admin@vernexdigital.com',
+    ]) {
+      recipients.add(email.trim().toLowerCase());
+    }
+
+    if (adminEmail) {
+      const list = Array.isArray(adminEmail)
+        ? adminEmail
+        : typeof adminEmail === 'string'
+          ? adminEmail.split(/[,;\n\r\s]+/)
+          : [];
+      for (const item of list) {
+        const clean = item.trim().toLowerCase();
+        if (clean && clean.includes('@')) recipients.add(clean);
+      }
+    }
+
+    const to = Array.from(recipients);
+    if (to.length === 0) {
       return { ok: false, error: 'Valid panel admin email required' };
     }
+
     return await sendEmail({
       to,
       subject: panelAdminAlertSubject(alert),

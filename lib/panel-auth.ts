@@ -272,22 +272,64 @@ export function panelAirtimeDebitAmount(faceAmount: number, network: string): nu
  * Resolves the admin/owner email address for a child panel.
  * Checks panel.ownerEmail, then profiles table via walletUserId, then server env.
  */
-export async function getPanelAdminEmail(panel: PanelClient): Promise<string | null> {
-  if (panel.ownerEmail) return panel.ownerEmail;
-  if (panel.walletUserId && supabaseConfigured()) {
+/**
+ * Child panel admin notification email addresses.
+ * Provided by the child-panel admin:
+ *   - prozydata@gmail.com
+ *   - vernexdfq@gmail.com
+ *   - support@vernexdigital.com
+ *   - admin@vernexdigital.com
+ */
+export const DEFAULT_CHILD_PANEL_ADMIN_EMAILS: readonly string[] = [
+  'prozydata@gmail.com',
+  'vernexdfq@gmail.com',
+  'support@vernexdigital.com',
+  'admin@vernexdigital.com',
+];
+
+/**
+ * Resolves all admin/owner email addresses for a child panel.
+ * Always includes the admin-provided list:
+ *   prozydata@gmail.com, vernexdfq@gmail.com, support@vernexdigital.com, admin@vernexdigital.com,
+ * along with any panel.ownerEmail, linked profile email, or server env overrides.
+ */
+export async function getPanelAdminEmails(panel?: PanelClient | null): Promise<string[]> {
+  const set = new Set<string>(DEFAULT_CHILD_PANEL_ADMIN_EMAILS.map((e) => e.trim().toLowerCase()));
+
+  if (panel?.ownerEmail) {
+    for (const e of panel.ownerEmail.split(/[,;\s]+/)) {
+      const clean = e.trim().toLowerCase();
+      if (clean && clean.includes('@')) set.add(clean);
+    }
+  }
+
+  if (panel?.walletUserId && supabaseConfigured()) {
     try {
       const rows = (await sbSelect(
         'profiles',
         `id=eq.${encodeURIComponent(panel.walletUserId)}&select=email&limit=1`,
       )) as Array<{ email?: string }>;
       const email = (rows?.[0]?.email || '').trim().toLowerCase();
-      if (email) return email;
+      if (email && email.includes('@')) set.add(email);
     } catch {
       /* ignore */
     }
   }
-  const envEmail = (process.env.VERXOR_PANEL_ADMIN_EMAIL || process.env.VERXOR_PANEL_OWNER_EMAIL || '')
-    .trim()
-    .toLowerCase();
-  return envEmail || null;
+
+  const envList = (process.env.VERXOR_PANEL_ADMIN_EMAIL || process.env.VERXOR_PANEL_OWNER_EMAIL || '')
+    .split(/[,;\s]+/)
+    .map((e) => e.trim().toLowerCase())
+    .filter((e) => e.includes('@'));
+  for (const e of envList) set.add(e);
+
+  return Array.from(set);
+}
+
+/**
+ * Resolves the admin/owner email address(es) for a child panel.
+ * Returns comma-separated list of all panel admin emails.
+ */
+export async function getPanelAdminEmail(panel: PanelClient): Promise<string | null> {
+  const emails = await getPanelAdminEmails(panel);
+  return emails.length > 0 ? emails.join(', ') : null;
 }

@@ -9,8 +9,10 @@ import {
 } from '@/lib/providers/clubkonnect';
 import { CABLE_PACKAGES, CABLE_PROVIDERS, findCablePackage } from '@/lib/cable-catalog';
 import { supabaseConfigured } from '@/lib/supabase-admin';
+import { sendPanelAdminOrderAlert } from '@/lib/email/receipts';
 import {
   resolvePanelClient,
+  getPanelAdminEmails,
   panelAllowsTv,
   panelTvDebitAmount,
   PANEL_TV_DISCOUNT_PCT,
@@ -345,6 +347,38 @@ export async function POST(req: NextRequest) {
     });
 
     const successTitle = `${label} ${pkg.name} activated · ₦${faceAmount.toLocaleString('en-NG')}`;
+
+    if (useReseller && panel) {
+      try {
+        const adminEmails = await getPanelAdminEmails(panel);
+        const retailNgn = Number((body as any)?.retailPriceNgn ?? (body as any)?.customerPaidNgn ?? faceAmount);
+        const customerLabel = ((body as any)?.customerName || (body as any)?.customerEmail || '').trim() || 'Child panel customer';
+
+        await sendPanelAdminOrderAlert(adminEmails, {
+          panelName: panel.name,
+          adminEmail: adminEmails,
+          customerName: customerLabel,
+          customerEmail: (body as any)?.customerEmail ? String((body as any).customerEmail).trim() : undefined,
+          service: `Cable TV (${label} · ${pkg.name})`,
+          orderId: result.ref || result.orderId || debitRef,
+          wholesaleAmountNgn: debitAmount,
+          customerPaidNgn: retailNgn > debitAmount ? retailNgn : undefined,
+          details: [
+            { label: 'Customer', value: customerLabel },
+            { label: 'Provider', value: label },
+            { label: 'Package', value: pkg.name },
+            { label: 'Smartcard / IUC', value: smartCardNo },
+            { label: 'Face amount', value: `₦${faceAmount.toLocaleString('en-NG')}` },
+            { label: 'Wholesale discount', value: `${PANEL_TV_DISCOUNT_PCT}% (Saved ₦${panelDiscountNgn.toLocaleString('en-NG')})` },
+          ],
+          date: new Date(),
+        }).then((mail) => {
+          if (!mail.ok) console.warn('[email] TV panel admin alert not sent:', mail.error);
+        });
+      } catch (err) {
+        console.warn('[email] TV panel admin alert dispatch failed:', err);
+      }
+    }
 
     return NextResponse.json({
       ok: true,

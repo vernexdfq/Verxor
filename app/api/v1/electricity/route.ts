@@ -9,8 +9,10 @@ import {
   CK_DISCO_LABEL,
 } from '@/lib/providers/clubkonnect';
 import { supabaseConfigured } from '@/lib/supabase-admin';
+import { sendPanelAdminOrderAlert } from '@/lib/email/receipts';
 import {
   resolvePanelClient,
+  getPanelAdminEmails,
   panelAllowsElectricity,
   panelElectricityDebitAmount,
   PANEL_ELECTRICITY_DISCOUNT_PCT,
@@ -422,6 +424,39 @@ export async function POST(req: NextRequest) {
           ? `Token ready · ₦${faceAmount.toLocaleString('en-NG')} · ${discoLabel}`
           : `Prepaid order received · ₦${faceAmount.toLocaleString('en-NG')} · ${discoLabel}`
         : `Bill paid · ₦${faceAmount.toLocaleString('en-NG')} · ${discoLabel}`;
+
+    if (useReseller && panel) {
+      try {
+        const adminEmails = await getPanelAdminEmails(panel);
+        const retailNgn = Number((body as any)?.retailPriceNgn ?? (body as any)?.customerPaidNgn ?? faceAmount);
+        const customerLabel = ((body as any)?.customerName || (body as any)?.customerEmail || '').trim() || 'Child panel customer';
+
+        await sendPanelAdminOrderAlert(adminEmails, {
+          panelName: panel.name,
+          adminEmail: adminEmails,
+          customerName: customerLabel,
+          customerEmail: (body as any)?.customerEmail ? String((body as any).customerEmail).trim() : undefined,
+          service: `Electricity (${discoLabel} · ${meterType.toUpperCase()})`,
+          orderId: result.ref || result.orderId || debitRef,
+          wholesaleAmountNgn: debitAmount,
+          customerPaidNgn: retailNgn > debitAmount ? retailNgn : undefined,
+          details: [
+            { label: 'Customer', value: customerLabel },
+            { label: 'Provider', value: discoLabel },
+            { label: 'Meter No', value: meterNo },
+            { label: 'Meter Type', value: meterType.toUpperCase() },
+            ...(result.token ? [{ label: 'Token', value: result.token }] : []),
+            { label: 'Face amount', value: `₦${faceAmount.toLocaleString('en-NG')}` },
+            { label: 'Wholesale discount', value: `${PANEL_ELECTRICITY_DISCOUNT_PCT}% (Saved ₦${panelDiscountNgn.toLocaleString('en-NG')})` },
+          ],
+          date: new Date(),
+        }).then((mail) => {
+          if (!mail.ok) console.warn('[email] Electricity panel admin alert not sent:', mail.error);
+        });
+      } catch (err) {
+        console.warn('[email] Electricity panel admin alert dispatch failed:', err);
+      }
+    }
 
     return NextResponse.json({
       ok: true,

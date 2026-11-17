@@ -278,7 +278,7 @@ export function boostReceiptSubject(options: BoostReceiptOptions): string {
 
 export type PanelAdminAlertOptions = {
   panelName: string;
-  adminEmail: string;
+  adminEmail?: string | string[];
   customerName?: string;
   customerEmail?: string;
   service: string;
