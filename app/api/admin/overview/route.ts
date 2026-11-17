@@ -114,7 +114,7 @@ export async function GET(req: NextRequest) {
       const refund = rowIsRefund(r);
       if (refund) {
         bucket.refunds += 1;
-        bucket.net += Math.abs(value);
+        bucket.net -= Math.abs(value);
         continue;
       }
       if (value < 0) {

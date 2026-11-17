@@ -296,6 +296,18 @@ function UserManagement() {
   );
 }
 
+type OverviewDay = { date: string; orders: number; sales: number; net: number };
+type OverviewData = {
+  ok?: boolean;
+  todaySales?: number;
+  todayOrders?: number;
+  todayRefunds?: number;
+  todayNet?: number;
+  newUsers?: number;
+  days?: OverviewDay[];
+  services?: { name: string; orders: number; sales: number }[];
+};
+
 export function AdminPage({ onBack }: { onBack: () => void }) {
   const [unlocked, setUnlocked] = useState(false);
   const [password, setPassword] = useState('');
@@ -310,6 +322,33 @@ export function AdminPage({ onBack }: { onBack: () => void }) {
   const [rateEditing, setRateEditing] = useState(false);
   const [rateDraft, setRateDraft] = useState('1380');
   const [rateSaved, setRateSaved] = useState(false);
+
+  // Phase 2: live overview data from /api/admin/overview
+  const [ov, setOv] = useState<OverviewData | null>(null);
+  const [ovError, setOvError] = useState(false);
+
+  useEffect(() => {
+    if (!unlocked || section !== 'overview') return;
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const pw = sessionStorage.getItem(PASS_KEY) || '';
+        const res = await fetch('/api/admin/overview', {
+          headers: { 'x-admin-password': pw },
+          cache: 'no-store',
+        });
+        const data = (await res.json()) as OverviewData;
+        if (!cancelled) {
+          if (res.ok && data.ok) { setOv(data); setOvError(false); } else { setOvError(true); }
+        }
+      } catch {
+        if (!cancelled) setOvError(true);
+      }
+    };
+    load();
+    const t = window.setInterval(load, 60000);
+    return () => { cancelled = true; window.clearInterval(t); };
+  }, [unlocked, section]);
 
   useEffect(() => {
     try {
@@ -426,15 +465,15 @@ export function AdminPage({ onBack }: { onBack: () => void }) {
             {/* Today's profit hero */}
             <div className="vxa-hero">
               <span className="vxa-hero-label"><TrendingUp size={15} /> TODAY'S PROFIT</span>
-              <strong>{naira(0)}</strong>
-              <em>0 orders completed today · all services combined</em>
+              <strong>{naira(ov?.todayNet ?? 0)}</strong>
+              <em>{ov?.todayOrders ?? 0} orders completed today · {ov?.todayRefunds ?? 0} refunded · all services combined</em>
             </div>
 
             {/* Total transactions + today's rate */}
             <div className="vxa-duo">
               <div className="vxa-tile">
                 <span className="vxa-tile-label"><Wallet size={14} /> TOTAL TRANSACTIONS</span>
-                <strong>{naira(0)}</strong>
+                <strong>{naira(ov?.todaySales ?? 0)}</strong>
                 <p>Everything customers bought today</p>
               </div>
               <div className="vxa-tile">
@@ -476,27 +515,47 @@ export function AdminPage({ onBack }: { onBack: () => void }) {
                 <strong>Most-used services today</strong>
               </div>
               <p className="vxa-card-sub">The service customers use most today sits at the top — that's where the money is being made.</p>
-              <div className="vxa-empty">
-                <strong>No completed orders today yet.</strong>
-                <p>As customers buy, services appear here ranked by usage.</p>
-              </div>
+              {ov && ov.services && ov.services.length > 0 ? (
+                <ul className="vxa-days">
+                  {ov.services.map((s) => (
+                    <li key={s.name}>
+                      <div>
+                        <strong>{s.name}</strong>
+                        <span>{s.orders} order{s.orders === 1 ? '' : 's'} today</span>
+                      </div>
+                      <em>+{naira(s.sales)}</em>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <div className="vxa-empty">
+                  <strong>No completed orders today yet.</strong>
+                  <p>As customers buy, services appear here ranked by usage.</p>
+                </div>
+              )}
             </div>
 
             {/* Last 14 days */}
             <div className="vxa-card">
               <div className="vxa-card-head"><strong>Last 14 days</strong></div>
               <ul className="vxa-days">
-                {days.map((d) => (
-                  <li key={d.key} className={d.isToday ? 'today' : ''}>
+                {(ov?.days && ov.days.length ? ov.days : days.map((d) => ({ date: d.key, orders: 0, sales: 0, net: 0 }))).map((d, idx, arr) => (
+                  <li key={d.date} className={idx === arr.length - 1 ? 'today' : ''}>
                     <div>
-                      <strong>{d.label}</strong>
-                      <span>0 orders · {naira(0)} sales</span>
+                      <strong>{idx === arr.length - 1
+                        ? 'Today'
+                        : new Date(d.date + 'T12:00:00Z').toLocaleDateString('en-NG', { weekday: 'short', day: 'numeric', month: 'short' })}</strong>
+                      <span>{d.orders} order{d.orders === 1 ? '' : 's'} · {naira(d.sales)} sales</span>
                     </div>
-                    <em>+{naira(0)}</em>
+                    <em>+{naira(d.net)}</em>
                   </li>
                 ))}
               </ul>
-              <p className="vxa-note">Day rows fill from real orders once the Overview API is connected in Phase 2.</p>
+              <p className="vxa-note">
+                {ovError
+                  ? 'Could not load live data — reload or check the server logs.'
+                  : 'Live from your order ledger · refreshes every minute. Profit = customer sales minus refunds; exact per-service margins arrive with the pricing tables.'}
+              </p>
             </div>
           </section>
         )}
