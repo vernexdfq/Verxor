@@ -1,0 +1,429 @@
+.eotp-page {
+  padding: 0 0 32px;
+  max-width: 560px;
+  margin: 0 auto;
+}
+
+.eotp-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px 4px;
+}
+
+.eotp-back {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  display: grid;
+  place-items: center;
+  color: #0f172a;
+  cursor: pointer;
+}
+
+.eotp-header-text .eotp-eyebrow {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: #64748b;
+}
+
+.eotp-header-text h1 {
+  margin: 2px 0 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.eotp-tabs {
+  display: flex;
+  gap: 6px;
+  padding: 12px 16px 8px;
+}
+
+.eotp-tabs button {
+  flex: 1;
+  height: 40px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  color: #64748b;
+  cursor: pointer;
+}
+
+.eotp-tabs button.active {
+  background: #0f172a;
+  border-color: #0f172a;
+  color: #fff;
+}
+
+.eotp-search-section {
+  padding: 8px 16px 12px;
+}
+
+.eotp-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+  margin-bottom: 8px;
+}
+
+.eotp-search-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  background: #fff;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 0 12px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.eotp-search-wrap.focused {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+}
+
+.eotp-search-icon {
+  color: #94a3b8;
+  flex-shrink: 0;
+}
+
+.eotp-search-input {
+  flex: 1;
+  height: 48px;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 15px;
+  color: #0f172a;
+  padding: 0 10px;
+}
+
+.eotp-search-input::placeholder {
+  color: #94a3b8;
+}
+
+.eotp-clear {
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: #f1f5f9;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  color: #64748b;
+  cursor: pointer;
+}
+
+.eotp-suggestions {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 6px);
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.1);
+  z-index: 20;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.eotp-suggestion {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: none;
+  background: transparent;
+  border-radius: 10px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.eotp-suggestion:hover {
+  background: #f8fafc;
+}
+
+.eotp-suggestion-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: #f1f5f9;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.eotp-fallback-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: #e2e8f0;
+  display: grid;
+  place-items: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: #475569;
+}
+
+.eotp-suggestion-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.eotp-suggestion-text strong {
+  display: block;
+  font-size: 14px;
+  color: #0f172a;
+}
+
+.eotp-suggestion-text small {
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.eotp-chevron {
+  color: #cbd5e1;
+  flex-shrink: 0;
+}
+
+.eotp-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.eotp-chip {
+  height: 34px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+  cursor: pointer;
+}
+
+.eotp-chip:hover {
+  border-color: #94a3b8;
+  background: #f8fafc;
+}
+
+.eotp-domains {
+  padding: 4px 16px 16px;
+}
+
+.eotp-domains-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.eotp-selected {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.eotp-selected strong {
+  display: block;
+  font-size: 15px;
+  color: #0f172a;
+}
+
+.eotp-selected small {
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.eotp-refresh {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  display: grid;
+  place-items: center;
+  color: #64748b;
+  cursor: pointer;
+}
+
+.eotp-refresh:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.eotp-domain-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.eotp-domain-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 14px;
+  background: #fff;
+  border: 1px solid #e8eef5;
+  border-radius: 14px;
+}
+
+.eotp-domain-list li.sold-out {
+  opacity: 0.55;
+}
+
+.eotp-domain-main {
+  min-width: 0;
+}
+
+.eotp-domain-name {
+  display: block;
+  font-size: 14px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.eotp-domain-stock {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.eotp-domain-action {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.eotp-price {
+  font-size: 14px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.eotp-buy {
+  height: 34px;
+  padding: 0 16px;
+  border-radius: 10px;
+  border: none;
+  background: #0f172a;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.eotp-buy:disabled {
+  background: #cbd5e1;
+  cursor: not-allowed;
+}
+
+.eotp-state,
+.eotp-hint {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 40px 20px;
+  text-align: center;
+  color: #64748b;
+}
+
+.eotp-state.error {
+  color: #dc2626;
+}
+
+.eotp-retry {
+  margin-top: 4px;
+  height: 36px;
+  padding: 0 18px;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  font-weight: 600;
+  color: #0f172a;
+  cursor: pointer;
+}
+
+.eotp-my-emails {
+  padding: 16px;
+}
+
+.eotp-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 48px 20px;
+  background: #fff;
+  border: 1px solid #e8eef5;
+  border-radius: 16px;
+}
+
+.eotp-empty-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  background: #f1f5f9;
+  display: grid;
+  place-items: center;
+  color: #64748b;
+  margin-bottom: 12px;
+}
+
+.eotp-empty strong {
+  font-size: 16px;
+  color: #0f172a;
+}
+
+.eotp-empty p {
+  margin: 6px 0 16px;
+  font-size: 13px;
+  color: #64748b;
+  max-width: 260px;
+  line-height: 1.45;
+}
+
+.eotp-primary {
+  height: 42px;
+  padding: 0 22px;
+  border-radius: 12px;
+  border: none;
+  background: #0f172a;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.spin {
+  animation: eotp-spin 0.8s linear infinite;
+}
+
+@keyframes eotp-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
