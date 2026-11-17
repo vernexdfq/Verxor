@@ -52,8 +52,11 @@ export function ChatWidget({
     try {
       const { getSupabaseBrowser } = await import('../lib/supabase/client');
       const sb = getSupabaseBrowser();
-      const { data } = await sb?.auth.getSession();
-      const token = data?.session?.access_token || loadSessionTokens()?.access_token;
+      const res = (await sb?.auth.getSession()) as
+        | { data?: { session?: { access_token?: string } | null } }
+        | null
+        | undefined;
+      const token = res?.data?.session?.access_token || loadSessionTokens()?.access_token;
       if (token) h.Authorization = `Bearer ${token}`;
     } catch {
       const token = loadSessionTokens()?.access_token;
