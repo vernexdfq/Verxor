@@ -19,6 +19,7 @@ import {
   Pencil,
   Percent,
   Plug,
+  Rocket,
   Search,
   Shield,
   TrendingUp,
@@ -28,7 +29,7 @@ import {
 } from 'lucide-react';
 import './admin-page.css';
 
-type AdminSection = 'overview' | 'users' | 'pricing' | 'email-otp' | 'providers' | 'settings';
+type AdminSection = 'overview' | 'users' | 'pricing' | 'email-otp' | 'boost' | 'providers' | 'settings';
 
 type AdminUserTab = 'all' | 'customers' | 'api' | 'panels';
 
@@ -69,6 +70,7 @@ const NAV: { id: AdminSection; label: string; icon: typeof LayoutDashboard }[] =
   { id: 'users', label: 'Users', icon: Users },
   { id: 'pricing', label: 'Virtual Number', icon: Percent },
   { id: 'email-otp', label: 'Email OTP', icon: Mail },
+  { id: 'boost', label: 'Boost (SMM)', icon: Rocket },
   { id: 'providers', label: 'Providers', icon: Plug },
   { id: 'settings', label: 'Settings', icon: KeyRound },
 ];
@@ -79,6 +81,7 @@ const SECTION_META: Record<AdminSection, { title: string; sub: string }> = {
   users: { title: 'Users', sub: 'Accounts, wallets, bans and manual credits' },
   pricing: { title: 'Virtual Number pricing', sub: 'Markups for retail, API users and Child Panel' },
   'email-otp': { title: 'Email OTP pricing', sub: 'Flat USD markups for retail, API users and Child Panel' },
+  boost: { title: 'Boost pricing', sub: 'Per-tier multipliers for retail, API users and Child Panel' },
   providers: { title: 'Providers', sub: 'Upstream provider health and keys' },
   settings: { title: 'Settings', sub: 'Service switches and announcements' },
 };
@@ -750,6 +753,197 @@ function EmailOtpSection() {
   );
 }
 
+type BoostMarkupsData = {
+  ok?: boolean;
+  rate?: number;
+  retail?: number[];
+  api?: number[];
+  child?: number[];
+  error?: string;
+};
+
+const DEFAULT_BOOST_MARKUPS: Record<'retail' | 'api' | 'child', number[]> = {
+  retail: [4.0, 3.0, 2.0, 1.5],
+  api: [2.2, 1.8, 1.5, 1.25],
+  child: [1.6, 1.4, 1.25, 1.15],
+};
+
+const BOOST_TIERS: { label: string; hint: string }[] = [
+  { label: '≤ $0.50', hint: 'per 1,000 wholesale' },
+  { label: '$0.51 – $1.00', hint: 'per 1,000 wholesale' },
+  { label: '$1.01 – $2.00', hint: 'per 1,000 wholesale' },
+  { label: '> $2.00', hint: 'per 1,000 wholesale' },
+];
+
+const BOOST_AUDIENCES: { id: 'retail' | 'api' | 'child'; label: string; hint: string }[] = [
+  { id: 'retail', label: 'Retail', hint: 'Customers buying on verxor.com' },
+  { id: 'api', label: 'API users', hint: 'Users you toggled as API user' },
+  { id: 'child', label: 'Child Panel', hint: 'Child panels (vx_panel_* keys)' },
+];
+
+/** Same formula as the server: wholesale USD/1k × multiplier × rate. */
+function boostSample(costUsd: number, mult: number, rate: number) {
+  return Math.round(costUsd * mult * rate);
+}
+
+function BoostPricingSection() {
+  const [data, setData] = useState<BoostMarkupsData | null>(null);
+  const [loadError, setLoadError] = useState(false);
+  const [editing, setEditing] = useState<string | null>(null);
+  const [draft, setDraft] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState('');
+
+  const load = async () => {
+    try {
+      const res = await fetch('/api/admin/boost-pricing', { headers: adminHeaders(), cache: 'no-store' });
+      const d = (await res.json()) as BoostMarkupsData;
+      if (res.ok && d.ok) { setData(d); setLoadError(false); } else { setLoadError(true); }
+    } catch { setLoadError(true); }
+  };
+
+  useEffect(() => { void load(); }, []);
+
+  const tiers = (aud: 'retail' | 'api' | 'child'): number[] => {
+    const v = data?.[aud];
+    if (v && v.length === 4 && v.every((n) => Number(n) > 0)) return v;
+    return DEFAULT_BOOST_MARKUPS[aud];
+  };
+  const rate = data?.rate ?? 1380;
+
+  const save = async (aud: 'retail' | 'api' | 'child', tierIdx: number) => {
+    const v = Number(draft.replace(/[^0-9.]/g, ''));
+    if (!Number.isFinite(v) || v < 1 || v > 20) { setMsg('Enter a multiplier between 1.0 and 20'); return; }
+    const next = [...tiers(aud)];
+    next[tierIdx] = v;
+    setBusy(true);
+    setMsg('');
+    try {
+      const res = await fetch('/api/admin/boost-pricing', {
+        method: 'PUT',
+        headers: adminHeaders(),
+        body: JSON.stringify({ [aud]: next }),
+      });
+      const d = (await res.json()) as BoostMarkupsData;
+      if (!res.ok || !d.ok) { setMsg(d.error || 'Could not save'); return; }
+      setData(d);
+      setEditing(null);
+      setMsg('Saved — Boost prices update everywhere immediately');
+    } catch { setMsg('Network error'); } finally { setBusy(false); }
+  };
+
+  return (
+    <>
+      {msg ? <div className="vxa-action-msg">{msg}</div> : null}
+
+      {loadError ? (
+        <div className="vxa-empty tall">
+          <strong>Could not load Boost pricing settings</strong>
+          <p>Check that the server can reach the database, then reload.</p>
+        </div>
+      ) : (
+        <>
+          <div className="vxa-duo">
+            <div className="vxa-tile">
+              <span className="vxa-tile-label"><Percent size={14} /> GLOBAL NAIRA RATE</span>
+              <div className="vxa-rate-row">
+                <strong>₦{rate.toLocaleString('en-NG')}</strong>
+                <span className="vxa-rate-per">/ $1</span>
+              </div>
+              <p>Shared with Virtual Numbers and Email OTP — change it in the Overview daily rate. Applies to retail, API and Child Panel boost prices.</p>
+            </div>
+            <div className="vxa-tile">
+              <span className="vxa-tile-label"><Rocket size={14} /> HOW BOOST PRICING WORKS</span>
+              <p className="vxa-price-formula">
+                Price per 1,000 = wholesale USD cost × audience multiplier × the naira rate.
+                The wholesale tier is picked from the provider rate per service, and every
+                price is recomputed on the server at order time — the customer can never
+                send their own price.
+              </p>
+            </div>
+          </div>
+
+          {BOOST_AUDIENCES.map((a) => (
+            <div className="vxa-card" key={a.id}>
+              <div className="vxa-card-head"><strong>{a.label} multipliers</strong></div>
+              <p className="vxa-card-sub">{a.hint} · tap the pencil to change any tier multiplier.</p>
+              <div className="vxa-mu-list">
+                {BOOST_TIERS.map((t, i) => {
+                  const key = a.id + '-' + i;
+                  const m = tiers(a.id)[i];
+                  return (
+                    <div className="vxa-mu-row" key={key}>
+                      <strong className="t">Wholesale {t.label}</strong>
+                      <span className="h">{t.hint}</span>
+                      {editing === key ? (
+                        <div className="vxa-mu-edit">
+                          <input
+                            value={draft}
+                            inputMode="decimal"
+                            aria-label={'Edit ' + a.label + ' tier ' + (i + 1) + ' multiplier'}
+                            onChange={(e) => setDraft(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === 'Enter') void save(a.id, i); }}
+                          />
+                          <button type="button" disabled={busy} onClick={() => void save(a.id, i)}>Save</button>
+                          <button type="button" className="ghost" disabled={busy} onClick={() => setEditing(null)}>Cancel</button>
+                        </div>
+                      ) : (
+                        <div className="vxa-mu-val">
+                          <strong>{m}×</strong>
+                          <button
+                            type="button"
+                            className="vxa-mu-pencil"
+                            aria-label={'Edit ' + a.label + ' tier ' + (i + 1) + ' multiplier'}
+                            onClick={() => { setEditing(key); setDraft(String(m)); }}
+                          >
+                            <Pencil size={14} />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+
+          <div className="vxa-card">
+            <div className="vxa-card-head"><strong>Sample prices (per 1,000)</strong></div>
+            <div className="vxa-samp-table">
+              <div className="vxa-samp-head">
+                <span>Wholesale cost</span>
+                {BOOST_AUDIENCES.map((a) => <span key={a.id}>{a.label}</span>)}
+              </div>
+              {[0.25, 0.75, 1.5, 3.0].map((c) => (
+                <div className="vxa-samp-row" key={c}>
+                  <div className="vxa-price-tier">
+                    <strong>${c.toFixed(2)}</strong>
+                    <span>per 1,000</span>
+                  </div>
+                  {BOOST_AUDIENCES.map((a) => {
+                    const tierIdx = c <= 0.5 ? 0 : c <= 1 ? 1 : c <= 2 ? 2 : 3;
+                    return (
+                      <div className="vxa-samp-cell" key={a.id}>
+                        <em className="vxa-price-aud">{a.label}</em>
+                        <strong>{naira(boostSample(c, tiers(a.id)[tierIdx], rate))}</strong>
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+            <ul className="vxa-price-notes">
+              <li>Formula: wholesale USD/1k × multiplier × ₦{rate.toLocaleString('en-NG')} rate.</li>
+              <li>Retail 4.0 / 3.0 / 2.0 / 1.5 · API 2.2 / 1.8 / 1.5 / 1.25 · Child 1.6 / 1.4 / 1.25 / 1.15 are only defaults — the boxes above are the live values.</li>
+              <li>Partial orders and cancels refund only what the provider did not deliver, exactly like JustAnotherPanel.</li>
+            </ul>
+          </div>
+        </>
+      )}
+    </>
+  );
+}
+
 function VirtualNumberSection() {
   const [data, setData] = useState<VnPricingData | null>(null);
   const [loadError, setLoadError] = useState(false);
@@ -1212,6 +1406,12 @@ export function AdminPage({ onBack }: { onBack: () => void }) {
         {section === 'email-otp' && (
           <section className="vxa-body">
             <EmailOtpSection />
+          </section>
+        )}
+
+        {section === 'boost' && (
+          <section className="vxa-body">
+            <BoostPricingSection />
           </section>
         )}
 
