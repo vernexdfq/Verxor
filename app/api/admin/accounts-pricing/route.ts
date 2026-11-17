@@ -101,20 +101,21 @@ async function writeMarkups(next: AccountsMarkupsValue): Promise<boolean> {
   const hdr = dbHeaders();
   if (!base || !hdr) return false;
   const value = JSON.stringify(next);
-  const patched = await fetch(base + '/rest/v1/admin_settings?key=eq.accounts_markups', {
-    method: 'PATCH',
-    headers: hdr,
-    body: JSON.stringify({ value }),
-    cache: 'no-store',
-  });
-  if (patched.ok) return true;
+  // Upsert (PATCH alone is a silent no-op when the row does not exist yet).
   const inserted = await fetch(base + '/rest/v1/admin_settings', {
     method: 'POST',
     headers: { ...hdr, Prefer: 'resolution=merge-duplicates,return=minimal' },
     body: JSON.stringify({ key: 'accounts_markups', value }),
     cache: 'no-store',
   });
-  return inserted.ok;
+  if (inserted.ok) return true;
+  const patched = await fetch(base + '/rest/v1/admin_settings?key=eq.accounts_markups', {
+    method: 'PATCH',
+    headers: hdr,
+    body: JSON.stringify({ value }),
+    cache: 'no-store',
+  });
+  return patched.ok;
 }
 
 const bad = (msg: string) => NextResponse.json({ ok: false, error: msg }, { status: 400 });

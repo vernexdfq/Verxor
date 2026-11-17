@@ -24,7 +24,7 @@ type CountsEntry = { listings: number; stock: number; at: string };
 type CountsSnapshot = Record<string, CountsEntry>;
 const COUNTS_KEY = 'accounts_catalog_counts';
 const COUNTS_CACHE_TTL_MS = 60 * 1000;
-const COUNTS_WRITE_MIN_INTERVAL_MS = 60 * 1000;
+const COUNTS_WRITE_MIN_INTERVAL_MS = 15 * 1000;
 let countsCache: { at: number; value: CountsSnapshot } | null = null;
 let countsWriteAt = 0;
 
@@ -87,17 +87,18 @@ async function persistPlatformCounts(platform: string, listings: number, stock: 
     const merged: CountsSnapshot = { ...(await loadCountsSnapshot()) };
     merged[platform] = { listings, stock, at: new Date().toISOString() };
     const value = JSON.stringify(merged);
-    const patched = await fetch(`${db.base}/rest/v1/admin_settings?key=eq.${COUNTS_KEY}`, {
-      method: 'PATCH',
-      headers: db.headers,
-      body: JSON.stringify({ value }),
+    // Upsert (PATCH alone is a silent no-op when the row does not exist yet).
+    const posted = await fetch(`${db.base}/rest/v1/admin_settings`, {
+      method: 'POST',
+      headers: { ...db.headers, Prefer: 'resolution=merge-duplicates,return=minimal' },
+      body: JSON.stringify({ key: COUNTS_KEY, value }),
       cache: 'no-store',
     });
-    if (!patched.ok) {
-      await fetch(`${db.base}/rest/v1/admin_settings`, {
-        method: 'POST',
-        headers: { ...db.headers, Prefer: 'resolution=merge-duplicates,return=minimal' },
-        body: JSON.stringify({ key: COUNTS_KEY, value }),
+    if (!posted.ok) {
+      await fetch(`${db.base}/rest/v1/admin_settings?key=eq.${COUNTS_KEY}`, {
+        method: 'PATCH',
+        headers: db.headers,
+        body: JSON.stringify({ value }),
         cache: 'no-store',
       });
     }
