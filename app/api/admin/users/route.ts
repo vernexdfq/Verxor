@@ -341,6 +341,37 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
+    case 'panel-credit':
+    case 'panel-debit': {
+      // Moves the panel's reseller wallet directly (credit_reseller_wallet / debit_reseller_wallet).
+      const amount = Number(body.amount);
+      if (!Number.isFinite(amount) || amount <= 0) {
+        return NextResponse.json({ ok: false, error: 'Invalid amount' }, { status: 400 });
+      }
+      const rpc = action === 'panel-credit' ? 'credit_reseller_wallet' : 'debit_reseller_wallet';
+      const ref = `admin-panel-${action === 'panel-credit' ? 'credit' : 'debit'}-${userId.slice(0, 8)}-${Date.now()}`;
+      const res = await fetch(`${base}/rest/v1/rpc/${rpc}`, {
+        method: 'POST',
+        headers: hdr,
+        body: JSON.stringify({ p_user_id: userId, p_amount: amount, p_reference: ref }),
+        cache: 'no-store',
+      });
+      if (!res.ok) {
+        const t = await res.text().catch(() => '');
+        if (/INSUFFICIENT_BALANCE/i.test(t)) {
+          return NextResponse.json({ ok: false, error: 'Panel wallet has insufficient balance' }, { status: 400 });
+        }
+        console.error('[admin/users] panel wallet rpc', res.status, t.slice(0, 200));
+        return NextResponse.json({ ok: false, error: 'Panel wallet update failed' }, { status: 500 });
+      }
+      await audit(`panel_wallet_${action === 'panel-credit' ? 'credit' : 'debit'}`, {
+        userId,
+        amount,
+        reason: body.reason,
+      });
+      return NextResponse.json({ ok: true });
+    }
+
     case 'ban':
     case 'unban': {
       const list = await readBannedList();

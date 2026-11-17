@@ -107,7 +107,7 @@ function UserManagement() {
   const [tab, setTab] = useState<AdminUserTab>('all');
   const [query, setQuery] = useState('');
   const [users, setUsers] = useState<AdminUser[]>([]);
-  const [panels, setPanels] = useState<{ id: string; name: string; domain: string | null; suspended: boolean; userId: string | null }[]>([]);
+  const [panels, setPanels] = useState<{ id: string; name: string; domain: string | null; suspended: boolean; userId: string | null; balanceNgn?: number; markupPercent?: number }[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [selected, setSelected] = useState<AdminUser | null>(null);
@@ -120,6 +120,9 @@ function UserManagement() {
   const [phoneDraft, setPhoneDraft] = useState('');
   const [phoneEditing, setPhoneEditing] = useState(false);
   const [unlockNote, setUnlockNote] = useState('');
+  const [panelOpenId, setPanelOpenId] = useState<string | null>(null);
+  const [panelAmount, setPanelAmount] = useState('');
+  const [panelMode, setPanelMode] = useState<'credit' | 'debit'>('credit');
 
   const load = async () => {
     setLoading(true);
@@ -335,36 +338,36 @@ function UserManagement() {
               value={unlockNote} onChange={(e) => setUnlockNote(e.target.value)} />
             <p className="vxa-note">Locked endpoints reply to API users: "Service locked. Contact Verxor Admin on WhatsApp/Telegram to unlock wholesale access."</p>
           </div>
+        </div>
 
-          <div className="vxa-card">
-            <div className="vxa-card-head">
-              <Shield size={17} />
-              <strong>Shield Panel access</strong>
-              {selected.panel ? <span className="vxa-tag navy">Shield Panel</span> : <span className="vxa-tag grey">Standard customer</span>}
-            </div>
-            <p className="vxa-card-sub">
-              Upgrade a user to Shield Panel after they have paid for a panel and you have delivered it.
-              Upgraded users get Shield Panel prices on every service.
-            </p>
-            <ul className="vxa-matrix">
-              <li>
-                <div>
-                  <strong>Shield Panel</strong>
-                  <span>{selected.panel ? 'Upgraded — gets Shield Panel prices' : 'Not upgraded — standard customer prices'}</span>
-                </div>
-                <button type="button" disabled={busy}
-                  className={selected.panel ? 'vxa-switch on' : 'vxa-switch'}
-                  aria-pressed={Boolean(selected.panel)}
-                  aria-label="Toggle Shield Panel"
-                  onClick={() => act(
-                    { action: 'set-panel', userId: selected.id, enabled: !selected.panel },
-                    selected.panel ? 'Downgraded to standard customer' : 'Upgraded to Shield Panel',
-                  )}>
-                  <em />
-                </button>
-              </li>
-            </ul>
+        <div className="vxa-card">
+          <div className="vxa-card-head">
+            <Shield size={17} />
+            <strong>Child Panel access</strong>
+            {selected.panel ? <span className="vxa-tag navy">Child Panel</span> : <span className="vxa-tag grey">Standard customer</span>}
           </div>
+          <p className="vxa-card-sub">
+            Upgrade a user to Child Panel after they have paid for a panel and you have delivered it.
+            Upgraded users get Child Panel prices on every service.
+          </p>
+          <ul className="vxa-matrix">
+            <li>
+              <div>
+                <strong>Child Panel</strong>
+                <span>{selected.panel ? 'Upgraded — gets Child Panel prices' : 'Not upgraded — standard customer prices'}</span>
+              </div>
+              <button type="button" disabled={busy}
+                className={selected.panel ? 'vxa-switch on' : 'vxa-switch'}
+                aria-pressed={Boolean(selected.panel)}
+                aria-label="Toggle Child Panel"
+                onClick={() => act(
+                  { action: 'set-panel', userId: selected.id, enabled: !selected.panel },
+                  selected.panel ? 'Downgraded to standard customer' : 'Upgraded to Child Panel',
+                )}>
+                <em />
+              </button>
+            </li>
+          </ul>
         </div>
       </div>
     );
@@ -415,14 +418,45 @@ function UserManagement() {
           ) : (
             <ul className="vxa-user-list">
               {panels.map((p) => (
-                <li key={p.id} role="button" onClick={() => { const u = users.find((x) => x.id === p.userId); if (u) setSelected(u); }}>
+                <li key={p.id} onClick={() => { const u = users.find((x) => x.id === p.userId); if (u) setSelected(u); }}>
                   <div className="vxa-user-cell">
                     <strong>{p.name}</strong>
-                    <span>{p.domain || 'no domain'}</span>
+                    <span>{p.domain || 'no domain'} · markup {p.markupPercent ?? 15}%</span>
                   </div>
                   <div className="vxa-user-cell right">
+                    <strong>{naira(p.balanceNgn ?? 0)}</strong>
+                    <button type="button" className="vxa-rate-btn" aria-label={`Adjust ${p.name} wallet`}
+                      onClick={(e) => { e.stopPropagation(); setPanelOpenId(panelOpenId === p.id ? null : p.id); setPanelAmount(''); }}>
+                      <Pencil size={14} />
+                    </button>
                     {p.suspended ? <span className="vxa-tag banned">Suspended</span> : <span className="vxa-tag grey">Active</span>}
                   </div>
+                  {panelOpenId === p.id ? (
+                    <div className="vxa-panel-adjust" onClick={(e) => e.stopPropagation()}>
+                      <div className="vxa-adjust-toggle">
+                        <button type="button" className={panelMode === 'credit' ? 'active' : ''} onClick={() => setPanelMode('credit')}>+ Add money</button>
+                        <button type="button" className={panelMode === 'debit' ? 'active' : ''} onClick={() => setPanelMode('debit')}>− Remove money</button>
+                      </div>
+                      <input inputMode="decimal" placeholder="Amount" value={panelAmount}
+                        onChange={(e) => setPanelAmount(e.target.value)} aria-label="Panel amount" />
+                      <button type="button" className="vxa-adjust-go" disabled={busy}
+                        onClick={async () => {
+                          const amount = Number(panelAmount.replace(/[^0-9.]/g, ''));
+                          if (!Number.isFinite(amount) || amount <= 0 || !p.userId) {
+                            setMsg('Enter a valid amount (the panel must have a linked wallet)');
+                            return;
+                          }
+                          const ok = await act(
+                            { action: 'panel-' + panelMode, userId: p.userId, amount, reason: 'Panel wallet adjustment' },
+                            panelMode === 'credit' ? 'Panel wallet credited' : 'Panel wallet debited',
+                          );
+                          if (ok) { setPanelAmount(''); setPanelOpenId(null); }
+                        }}>
+                        {busy ? 'Working…' : panelMode === 'credit' ? 'Credit panel wallet' : 'Debit panel wallet'}
+                      </button>
+                      <p className="vxa-note">Directly moves this panel's reseller wallet · audit logged.</p>
+                    </div>
+                  ) : null}
                 </li>
               ))}
             </ul>

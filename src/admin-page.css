@@ -769,3 +769,16 @@
 }
 
 .vxa-tag.banned { background: #fee2e2; color: #b91c1c; }
+
+/* ---------- Panel wallet adjust ---------- */
+.vxa-user-list li { flex-wrap: wrap; }
+
+.vxa-panel-adjust {
+  flex-basis: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed #cbd5e1;
+}
