@@ -8,6 +8,7 @@ import { RentalPage } from './rental-page';
 import { AccountsPage } from './product-pages';
 import { BoostPage } from './boost-page';
 import { BoostHistoryPage } from './boost-history-page';
+import { EmailHistoryPage } from './email-history-page';
 import { AirtimePage } from './airtime-page';
 import { DataPage } from './data-page';
 import { GiftCardPage } from './giftcard-page';
@@ -415,6 +416,16 @@ export function VerxorApp() {
       <BoostHistoryPage
         onBack={() => openService('boost')}
         onNewOrder={() => openService('boost')}
+      />
+    );
+  } else if (service === 'account-orders') {
+    content = <AccountsPage onBack={closeService} session={auth} initialMyOrders />;
+  } else if (service === 'email-orders') {
+    content = (
+      <EmailHistoryPage
+        onBack={closeService}
+        session={auth}
+        onBuy={() => openService('email-otp')}
       />
     );
   } else if (service === 'email-otp') {

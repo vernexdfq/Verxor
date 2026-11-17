@@ -14,6 +14,100 @@ import {
   type AccountsMarkups,
 } from '@/lib/accounts-pricing';
 
+/**
+ * Catalog counts snapshot — persisted in admin_settings so platform chips can
+ * show "how many available" instantly for ALL platforms, without waiting for
+ * each platform's cold catalog walk. Each successful walk overwrites its
+ * platform's entry; stale entries stay until their platform reloads.
+ */
+type CountsEntry = { listings: number; stock: number; at: string };
+type CountsSnapshot = Record<string, CountsEntry>;
+const COUNTS_KEY = 'accounts_catalog_counts';
+const COUNTS_CACHE_TTL_MS = 60 * 1000;
+const COUNTS_WRITE_MIN_INTERVAL_MS = 60 * 1000;
+let countsCache: { at: number; value: CountsSnapshot } | null = null;
+let countsWriteAt = 0;
+
+function snapshotDb() {
+  const base = (process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '')
+    .replace(/\/rest\/v1\/?$/, '')
+    .replace(/\/$/, '');
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY;
+  if (!base || !key) return null;
+  return {
+    base,
+    headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+  };
+}
+
+export async function loadCountsSnapshot(): Promise<CountsSnapshot> {
+  if (countsCache && Date.now() - countsCache.at < COUNTS_CACHE_TTL_MS) return countsCache.value;
+  const db = snapshotDb();
+  if (!db) return {};
+  try {
+    const res = await fetch(
+      `${db.base}/rest/v1/admin_settings?key=eq.${COUNTS_KEY}&select=value&limit=1`,
+      { headers: db.headers, cache: 'no-store' },
+    );
+    if (!res.ok) return {};
+    const rows = (await res.json()) as Array<{ value?: string }>;
+    const parsed = rows?.[0]?.value ? (JSON.parse(rows[0].value) as CountsSnapshot) : {};
+    const value = parsed && typeof parsed === 'object' ? parsed : {};
+    countsCache = { at: Date.now(), value };
+    return value;
+  } catch {
+    return {};
+  }
+}
+
+/** Fresh per-platform counts from this instance's in-memory catalog cache. */
+export function liveCountsSnapshot(): CountsSnapshot {
+  const out: CountsSnapshot = {};
+  for (const entry of cache.values()) {
+    const c = entry.catalog;
+    if (c.ok && c.platform) {
+      out[c.platform] = {
+        listings: c.inStock,
+        stock: c.offers.reduce((sum, o) => sum + (o.stock || 0), 0),
+        at: c.updatedAt,
+      };
+    }
+  }
+  return out;
+}
+
+/** Fire-and-forget: merge this platform's counts into the snapshot row. */
+async function persistPlatformCounts(platform: string, listings: number, stock: number) {
+  const db = snapshotDb();
+  if (!db) return;
+  const now = Date.now();
+  if (now - countsWriteAt < COUNTS_WRITE_MIN_INTERVAL_MS) return;
+  countsWriteAt = now;
+  try {
+    const merged: CountsSnapshot = { ...(await loadCountsSnapshot()) };
+    merged[platform] = { listings, stock, at: new Date().toISOString() };
+    const value = JSON.stringify(merged);
+    const patched = await fetch(`${db.base}/rest/v1/admin_settings?key=eq.${COUNTS_KEY}`, {
+      method: 'PATCH',
+      headers: db.headers,
+      body: JSON.stringify({ value }),
+      cache: 'no-store',
+    });
+    if (!patched.ok) {
+      await fetch(`${db.base}/rest/v1/admin_settings`, {
+        method: 'POST',
+        headers: { ...db.headers, Prefer: 'resolution=merge-duplicates,return=minimal' },
+        body: JSON.stringify({ key: COUNTS_KEY, value }),
+        cache: 'no-store',
+      });
+    }
+    countsCache = { at: Date.now(), value: merged };
+  } catch {
+    /* best-effort */
+  }
+}
+
+
 export type AccsZoneListing = {
   id: number;
   title: string;
@@ -711,6 +805,13 @@ async function buildPlatformCatalog(
       cache.set(cacheKey, { at: Date.now() - 8 * 60 * 1000, catalog });
     } else {
       cache.set(cacheKey, { at: now, catalog });
+    }
+    if (!partial && offers.length > 0) {
+      void persistPlatformCounts(
+        platform,
+        offers.length,
+        offers.reduce((sum, o) => sum + (o.stock || 0), 0),
+      );
     }
     return catalog;
   } catch (err) {

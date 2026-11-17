@@ -64,6 +64,7 @@ export type ServiceView =
   | 'gift-card'
   | 'bet-wallet'
   | 'email-otp'
+  | 'email-orders'
   | 'telegram-premium';
 
 function ServiceLayout({

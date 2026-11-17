@@ -74,7 +74,7 @@ const HIST_BOXES: {
   { key: 'vn', title: 'Virtual Number History', sub: 'OTP numbers, orders and received codes', icon: Smartphone },
   { key: 'boost', title: 'Boost History', sub: 'Social boost orders and delivery status', icon: Rocket },
   { key: 'logs', title: 'Logs History', sub: 'Buy Logs orders and account credentials', icon: FileText },
-  { key: 'email', title: 'Email History', sub: 'Emails and OTPs received', icon: Mail, soon: true },
+  { key: 'email', title: 'Email History', sub: 'Emails and OTPs received', icon: Mail },
   { key: 'rent-sms', title: 'Rent SMS History', sub: 'SMS rental history', icon: PhoneCall, soon: true },
   { key: 'rent-sms-calls', title: 'Rent SMS/Calls History', sub: 'Calls made and active rental numbers', icon: PhoneForwarded, soon: true },
   { key: 'vtu', title: 'VTU History', sub: 'Airtime, data, cable, electricity, bet wallet, exam pins', icon: Receipt, soon: true },
@@ -248,7 +248,11 @@ export function HistoryPage({ userId: userIdProp, openService, onOpenVnOrders, g
       return;
     }
     if (key === 'logs') {
-      openService?.('accounts');
+      openService?.('account-orders');
+      return;
+    }
+    if (key === 'email') {
+      openService?.('email-orders');
       return;
     }
     if (key === 'deposit') {

@@ -522,14 +522,22 @@ function offerToProduct(o: {
   };
 }
 
-export function AccountsPage({ onBack, session }: { onBack: () => void; session?: AuthSession | null }) {
+export function AccountsPage({
+  onBack,
+  session,
+  initialMyOrders,
+}: {
+  onBack: () => void;
+  session?: AuthSession | null;
+  initialMyOrders?: boolean;
+}) {
   const walletBalance = session?.balanceNgn ?? 0;
   const [query, setQuery] = useState('');
   const [platform, setPlatform] = useState<string>('All');
   const [subtype, setSubtype] = useState<string | null>(null);
   const [subtypeOpen, setSubtypeOpen] = useState(false);
   const [selected, setSelected] = useState<AccountProduct | null>(null);
-  const [showMyLogs, setShowMyLogs] = useState(false);
+  const [showMyLogs, setShowMyLogs] = useState(Boolean(initialMyOrders));
   const [slide, setSlide] = useState(0);
   const [toast, setToast] = useState<string | null>(null);
   const mountedRef = useRef(true);
@@ -555,6 +563,29 @@ export function AccountsPage({ onBack, session }: { onBack: () => void; session?
   >({});
   const [loadingPlatforms, setLoadingPlatforms] = useState<Record<string, boolean>>({});
   const [errorByPlatform, setErrorByPlatform] = useState<Record<string, string | null>>({});
+  // Snapshot counts from the server — let every platform chip show its
+  // number instantly instead of only after its cold catalog load.
+  const [snapCounts, setSnapCounts] = useState<
+    Record<string, { listings: number; stock: number; at: string }>
+  >({});
+
+  useEffect(() => {
+    let alive = true;
+    void (async () => {
+      try {
+        const res = await fetch('/api/v1/accounts/counts', { cache: 'no-store' });
+        const data = await res.json().catch(() => ({}));
+        if (alive && data?.ok && data.counts && typeof data.counts === 'object') {
+          setSnapCounts(data.counts);
+        }
+      } catch {
+        /* chips fall back to live counts */
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   const loadPlatformStock = useCallback(async (p: string) => {
     if (!LIVE_PLATFORM_SET.has(p)) return;
@@ -846,7 +877,7 @@ export function AccountsPage({ onBack, session }: { onBack: () => void; session?
 
       <div className="accounts-chips" role="tablist" aria-label="Platforms">
         {PLATFORMS.map((p) => {
-          const count =
+          const liveCount =
             p === 'All'
               ? catalog.filter((prod) => prod.stock > 0).length
               : catalog.filter((prod) => {
@@ -854,6 +885,18 @@ export function AccountsPage({ onBack, session }: { onBack: () => void; session?
                   if (p === 'X / Twitter') return prod.platform === 'X' || prod.platform === 'X / Twitter';
                   return prod.platform === p;
                 }).length;
+          const snapCount =
+            p === 'All'
+              ? Object.values(snapCounts).reduce((sum, c) => sum + (c.listings || 0), 0)
+              : snapCounts[p]?.listings || 0;
+          const count =
+            p === 'All'
+              ? snapCount > 0
+                ? snapCount
+                : liveCount
+              : liveCount > 0
+                ? liveCount
+                : snapCount;
           return (
             <button
               key={p}
