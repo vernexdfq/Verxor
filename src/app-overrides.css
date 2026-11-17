@@ -505,3 +505,10 @@
 .vx-promo-card::after { z-index:1; }
 .vx-promo-copy,.vx-promo-glow { z-index:2; }
 .vx-promo-logo { z-index:3; }
+
+/* Email OTP page manages its own gutters — avoid double padding (32px edges) */
+.app-frame.deep-service .content:has(.eotp-page) {
+  padding-left: 0;
+  padding-right: 0;
+  padding-top: 0;
+}
