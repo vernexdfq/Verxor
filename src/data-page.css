@@ -101,9 +101,9 @@
 }
 
 .air-wallet-btn:hover {
-  background: #FAF5FF;
-  border-color: #D8B4FE;
-  color: #6D28D9;
+  background: #F0F5FF;
+  border-color: #B3C8FF;
+  color: #0040C8;
 }
 
 .air-wallet-btn:active {
@@ -122,7 +122,7 @@
   width: 17px;
   height: 17px;
   border-radius: 50%;
-  background: #7C3AED;
+  background: #0052FF;
   color: #FFFFFF;
   font-size: 11px;
   font-weight: 800;
@@ -152,8 +152,8 @@
   width: 38px;
   height: 38px;
   border-radius: 12px;
-  background: #F3E8FF;
-  color: #7C3AED;
+  background: #EEF4FF;
+  color: #0052FF;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -214,9 +214,9 @@
 }
 
 .air-net.selected {
-  background: #FAF5FF;
-  border-color: #8B5CF6;
-  box-shadow: 0 4px 14px rgba(139, 92, 246, 0.18);
+  background: #F0F5FF;
+  border-color: #2E6BFF;
+  box-shadow: 0 4px 14px rgba(46, 107, 255, 0.18);
 }
 
 .air-net-badge {
@@ -226,12 +226,12 @@
   width: 17px;
   height: 17px;
   border-radius: 50%;
-  background: #7C3AED;
+  background: #0052FF;
   color: #FFFFFF;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 1px 3px rgba(124, 58, 237, 0.35);
+  box-shadow: 0 1px 3px rgba(0, 82, 255, 0.35);
 }
 
 .air-net-logo-wrap {
@@ -331,19 +331,19 @@
 }
 
 .air-use-mine-pill {
-  background: #F3E8FF;
-  border-color: #E9D5FF;
-  color: #7C3AED;
+  background: #EEF4FF;
+  border-color: #D8E4FF;
+  color: #0052FF;
 }
 
 .air-use-mine-pill:hover {
-  background: #EDE9FE;
+  background: #E6EEFF;
   border-color: #DDD6FE;
-  color: #6D28D9;
+  color: #0040C8;
 }
 
 .air-use-mine-ico {
-  color: #7C3AED;
+  color: #0052FF;
 }
 
 .air-recent-pill:hover {
@@ -373,9 +373,9 @@
 }
 
 .air-input-wrap:focus-within {
-  border-color: #7C3AED;
+  border-color: #0052FF;
   background: #FFFFFF;
-  box-shadow: 0 0 0 3.5px rgba(124, 58, 237, 0.12);
+  box-shadow: 0 0 0 3.5px rgba(0, 82, 255, 0.12);
 }
 
 .air-input-wrap.is-error {
@@ -387,8 +387,8 @@
   width: 38px;
   height: 38px;
   border-radius: 12px;
-  background: #F3E8FF;
-  color: #7C3AED;
+  background: #EEF4FF;
+  color: #0052FF;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -470,9 +470,9 @@
 .air-chip {
   height: 40px;
   border-radius: 14px;
-  background: #F3E8FF;
-  color: #6D28D9;
-  border: 1px solid #E9D5FF;
+  background: #EEF4FF;
+  color: #0040C8;
+  border: 1px solid #D8E4FF;
   font-size: 13px;
   font-weight: 700;
   display: flex;
@@ -486,7 +486,7 @@
 }
 
 .air-chip:hover {
-  background: #EDE9FE;
+  background: #E6EEFF;
   border-color: #DDD6FE;
   transform: translateY(-1px);
 }
@@ -496,10 +496,10 @@
 }
 
 .air-chip.active {
-  background: #7C3AED;
+  background: #0052FF;
   color: #FFFFFF;
-  border-color: #7C3AED;
-  box-shadow: 0 4px 10px rgba(124, 58, 237, 0.25);
+  border-color: #0052FF;
+  box-shadow: 0 4px 10px rgba(0, 82, 255, 0.25);
 }
 
 /* ── Summary & Warning ── */
@@ -551,7 +551,7 @@
   padding: 0;
   font-size: 11.5px;
   font-weight: 700;
-  color: #7C3AED;
+  color: #0052FF;
   cursor: pointer;
   white-space: nowrap;
 }
@@ -565,7 +565,7 @@
   width: 100%;
   height: 52px;
   border-radius: 16px;
-  background: linear-gradient(135deg, #7C3AED 0%, #8B5CF6 100%);
+  background: linear-gradient(135deg, #0052FF 0%, #2E6BFF 100%);
   color: #FFFFFF;
   font-size: 15.5px;
   font-weight: 700;
@@ -575,7 +575,7 @@
   gap: 8px;
   border: none;
   cursor: pointer;
-  box-shadow: 0 4px 14px rgba(124, 58, 237, 0.28);
+  box-shadow: 0 4px 14px rgba(0, 82, 255, 0.28);
   transition: all 0.15s ease;
   font-family: inherit;
   margin-top: 4px;
@@ -584,7 +584,7 @@
 .air-cta:hover:not(:disabled) {
   filter: brightness(1.05);
   transform: translateY(-1px);
-  box-shadow: 0 6px 18px rgba(124, 58, 237, 0.35);
+  box-shadow: 0 6px 18px rgba(0, 82, 255, 0.35);
 }
 
 .air-cta:active:not(:disabled) {
@@ -754,7 +754,7 @@
 }
 
 .air-modal-item:hover {
-  background: #FAF5FF;
+  background: #F0F5FF;
   border-color: #DDD6FE;
 }
 
@@ -769,8 +769,8 @@
 }
 
 .air-modal-item-icon.account {
-  background: #F3E8FF;
-  color: #7C3AED;
+  background: #EEF4FF;
+  color: #0052FF;
 }
 
 .air-modal-item-icon.recent {
@@ -814,8 +814,8 @@
 }
 
 .air-tag.primary {
-  background: #F3E8FF;
-  color: #7C3AED;
+  background: #EEF4FF;
+  color: #0052FF;
 }
 
 .air-tag.net-mtn {
@@ -935,10 +935,10 @@
 }
 
 .data-tab.active {
-  background: #7C3AED;
-  border-color: #7C3AED;
+  background: #0052FF;
+  border-color: #0052FF;
   color: #FFFFFF;
-  box-shadow: 0 2px 8px rgba(124, 58, 237, 0.28);
+  box-shadow: 0 2px 8px rgba(0, 82, 255, 0.28);
 }
 
 .data-tab-icon {
@@ -997,9 +997,9 @@
 }
 
 .data-bundle-card.selected {
-  border-color: #7C3AED;
-  background: #FAF5FF;
-  box-shadow: 0 0 0 1px #7C3AED, 0 4px 12px rgba(124, 58, 237, 0.16);
+  border-color: #0052FF;
+  background: #F0F5FF;
+  box-shadow: 0 0 0 1px #0052FF, 0 4px 12px rgba(0, 82, 255, 0.16);
 }
 
 .data-bundle-check {
@@ -1009,7 +1009,7 @@
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  background: #7C3AED;
+  background: #0052FF;
   color: #FFFFFF;
   display: flex;
   align-items: center;
@@ -1040,7 +1040,7 @@
 }
 
 .data-bundle-card.selected .data-bundle-volume {
-  color: #6D28D9;
+  color: #0040C8;
 }
 
 .data-bundle-validity {
@@ -1074,10 +1074,10 @@
 }
 
 .data-bundle-card.selected .data-bundle-pay-pill {
-  background: #7C3AED;
-  border-color: #7C3AED;
+  background: #0052FF;
+  border-color: #0052FF;
   color: #FFFFFF;
-  box-shadow: 0 2px 6px rgba(124, 58, 237, 0.3);
+  box-shadow: 0 2px 6px rgba(0, 82, 255, 0.3);
 }
 
 /* Empty State */
@@ -1193,7 +1193,7 @@
 .data-confirm-amount {
   font-size: 18px;
   font-weight: 800;
-  color: #7C3AED;
+  color: #0052FF;
   letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
 }
@@ -1240,15 +1240,15 @@
 }
 
 .data-confirm-btn.pay {
-  background: #7C3AED;
+  background: #0052FF;
   color: #FFFFFF;
-  box-shadow: 0 4px 14px rgba(124, 58, 237, 0.35);
+  box-shadow: 0 4px 14px rgba(0, 82, 255, 0.35);
 }
 
 .data-confirm-btn.pay:hover:not(:disabled) {
-  background: #6D28D9;
+  background: #0040C8;
   transform: translateY(-1px);
-  box-shadow: 0 6px 18px rgba(124, 58, 237, 0.42);
+  box-shadow: 0 6px 18px rgba(0, 82, 255, 0.42);
 }
 
 .data-confirm-btn.pay:disabled {
