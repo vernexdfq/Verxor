@@ -74,6 +74,19 @@ function mapServices(raw: any[]): Service[] {
   }));
 }
 
+/**
+ * Identify the signed-in user on catalog calls so the server can price for the
+ * right audience (a user toggled as Child Panel sees child-panel prices).
+ */
+function catalogHeaders(): Record<string, string> {
+  try {
+    const uid = loadSessionProfile()?.userId || '';
+    return uid ? { 'x-vx-user': uid } : {};
+  } catch {
+    return {};
+  }
+}
+
 export function VirtualNumbersPage({
   onBack,
   onOpenNotifications: _onOpenNotifications,
@@ -316,7 +329,7 @@ export function VirtualNumbersPage({
     allPools.forEach((pool) => {
       const key = `verxor-vn-svc-v2-${pool.id}`;
       if (readCache<Service[]>(key, SVC_TTL_MS)) return;
-      void fetch(`/api/v1/catalog?mode=services&pool=${encodeURIComponent(pool.id)}`)
+      void fetch(`/api/v1/catalog?mode=services&pool=${encodeURIComponent(pool.id)}`, { headers: catalogHeaders() })
         .then((r) => r.json())
         .then((data) => {
           if (data.ok) writeCache(key, mapServices(data.services || []));
@@ -474,7 +487,7 @@ export function VirtualNumbersPage({
     const cacheKey = `verxor-vn-svc-v5-${pool.id}`;
     void (async () => {
       try {
-        const res = await fetch(`/api/v1/catalog?mode=services&pool=${encodeURIComponent(pool.id)}`);
+        const res = await fetch(`/api/v1/catalog?mode=services&pool=${encodeURIComponent(pool.id)}`, { headers: catalogHeaders() });
         if (!res.ok) return;
         const data = await res.json();
         if (data.ok && Array.isArray(data.services) && data.services.length > 0) {
@@ -507,7 +520,7 @@ export function VirtualNumbersPage({
         `&pool=${encodeURIComponent(pool.id)}` +
         `&service=${encodeURIComponent(service.id)}` +
         `&country=${encodeURIComponent(country.code)}`;
-      const res = await fetch(url);
+      const res = await fetch(url, { headers: catalogHeaders() });
       if (res.ok) {
         const data = await res.json();
         if (data.ok && Array.isArray(data.options) && data.options.length > 0) {
@@ -549,6 +562,7 @@ export function VirtualNumbersPage({
       try {
         const res = await fetch(
           `/api/v1/catalog?mode=countries&pool=${encodeURIComponent(selectedPool.id)}&service=${encodeURIComponent(service.id)}`,
+          { headers: catalogHeaders() },
         );
         const data = await res.json();
         if (data.ok && Array.isArray(data.countries) && data.countries.length > 0) {
@@ -987,6 +1001,7 @@ export function VirtualNumbersPage({
                     country: String(grizzlyCountry),
                     maxPriceUsd: option.priceUsd > 0 ? option.priceUsd : 0.5,
                     poolId: pool.id,
+                    optionId: option.id,
                     priceNgn: option.priceNgn,
                     userId: userId || undefined,
                   }),
