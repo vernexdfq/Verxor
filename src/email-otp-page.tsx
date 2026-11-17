@@ -3,7 +3,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowLeft,
+  Check,
   ChevronRight,
+  Copy,
   Globe,
   Inbox,
   Loader2,
@@ -49,7 +51,21 @@ type DomainRow = {
   priceNgn: number;
 };
 
+type OrderRow = {
+  id: string;
+  providerOrderId: string;
+  email: string;
+  site: string;
+  domain: string;
+  priceNgn: number;
+  status: string;
+  message?: string;
+  createdAt: string;
+};
+
 type Tab = 'buy' | 'my-emails';
+
+type Toast = { kind: 'ok' | 'error' | 'funds'; text: string } | null;
 
 function formatNgn(n: number) {
   return `₦${Math.round(n).toLocaleString('en-NG')}`;
@@ -73,6 +89,25 @@ export function EmailOtpPage({
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  const [orders, setOrders] = useState<OrderRow[]>([]);
+  const [ordersLoading, setOrdersLoading] = useState(false);
+  const [buyingDomain, setBuyingDomain] = useState<string | null>(null);
+  const [checkingId, setCheckingId] = useState<string | null>(null);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const [toast, setToast] = useState<Toast>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showToast = useCallback((t: Toast) => {
+    setToast(t);
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToast(null), 4500);
+  }, []);
+
+  const vxHeaders = useMemo<Record<string, string>>(() => {
+    return session?.userId ? { 'x-vx-user': session.userId } : {};
+  }, [session?.userId]);
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return POPULAR_PLATFORMS;
@@ -91,7 +126,7 @@ export function EmailOtpPage({
     try {
       const res = await fetch(`/api/v1/email-otp/quantity?site=${encodeURIComponent(site)}`, {
         cache: 'no-store',
-        headers: session?.userId ? { 'x-vx-user': session.userId } : undefined,
+        headers: vxHeaders,
       });
       const data = await res.json();
       if (!data.ok) {
@@ -104,7 +139,125 @@ export function EmailOtpPage({
     } finally {
       setLoading(false);
     }
-  }, [session?.userId]);
+  }, [vxHeaders]);
+
+  const fetchOrders = useCallback(async () => {
+    if (!session?.userId) return;
+    setOrdersLoading(true);
+    try {
+      const res = await fetch(
+        `/api/v1/email-otp/orders?userId=${encodeURIComponent(session.userId)}`,
+        { cache: 'no-store', headers: vxHeaders },
+      );
+      const data = await res.json();
+      if (data.ok && Array.isArray(data.orders)) {
+        setOrders(data.orders as OrderRow[]);
+      }
+    } catch {
+      /* silent */
+    } finally {
+      setOrdersLoading(false);
+    }
+  }, [session?.userId, vxHeaders]);
+
+  useEffect(() => {
+    if (tab === 'my-emails') void fetchOrders();
+  }, [tab, fetchOrders]);
+
+  const buyDomain = async (d: DomainRow) => {
+    if (!selected || !session?.userId) {
+      showToast({ kind: 'error', text: 'Sign in to purchase an email address.' });
+      return;
+    }
+    setBuyingDomain(d.domain);
+    try {
+      const res = await fetch('/api/v1/email-otp/order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...vxHeaders },
+        body: JSON.stringify({ site: selected.site, domain: d.domain, userId: session.userId }),
+      });
+      const data = await res.json().catch(() => ({ ok: false, error: 'Network error' }));
+      if (!res.ok || !data.ok) {
+        if (res.status === 402) {
+          showToast({ kind: 'funds', text: data.error || 'Insufficient wallet balance. Fund your wallet and try again.' });
+        } else {
+          showToast({ kind: 'error', text: data.error || 'Purchase failed. Try again.' });
+        }
+        return;
+      }
+      showToast({ kind: 'ok', text: `Purchased ${data.order.email} for ${formatNgn(data.order.priceNgn)}` });
+      setTab('my-emails');
+      await fetchOrders();
+    } catch {
+      showToast({ kind: 'error', text: 'Network error. Please try again.' });
+    } finally {
+      setBuyingDomain(null);
+    }
+  };
+
+  const checkInbox = async (o: OrderRow) => {
+    if (!session?.userId) return;
+    setCheckingId(o.id);
+    try {
+      const res = await fetch(
+        `/api/v1/email-otp/message?orderId=${encodeURIComponent(o.id)}&userId=${encodeURIComponent(session.userId)}`,
+        { cache: 'no-store', headers: vxHeaders },
+      );
+      const data = await res.json();
+      if (data.ok && data.status === 'received' && data.message) {
+        setOrders((prev) =>
+          prev.map((x) => (x.id === o.id ? { ...x, status: 'received', message: String(data.message) } : x)),
+        );
+        showToast({ kind: 'ok', text: 'Message received — check the order below.' });
+      } else if (data.ok && data.status === 'waiting') {
+        showToast({ kind: 'error', text: 'No message yet. Trigger the OTP on the platform, then check again.' });
+      } else {
+        showToast({ kind: 'error', text: data.error || 'Could not check the inbox.' });
+      }
+    } catch {
+      showToast({ kind: 'error', text: 'Network error.' });
+    } finally {
+      setCheckingId(null);
+    }
+  };
+
+  const cancelOrder = async (o: OrderRow) => {
+    if (!session?.userId) return;
+    setCancellingId(o.id);
+    try {
+      const res = await fetch('/api/v1/email-otp/cancel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...vxHeaders },
+        body: JSON.stringify({ orderId: o.id, userId: session.userId }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        showToast({ kind: 'error', text: data.error || 'Cancel failed.' });
+        return;
+      }
+      showToast({
+        kind: 'ok',
+        text: data.refunded
+          ? `Cancelled. ${formatNgn(data.priceNgn || o.priceNgn)} refunded to your wallet.`
+          : 'Cancelled. Refund processing.',
+      });
+      await fetchOrders();
+    } catch {
+      showToast({ kind: 'error', text: 'Network error.' });
+    } finally {
+      setCancellingId(null);
+    }
+  };
+
+  const copy = async (text: string, key: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedKey(key);
+      setTimeout(() => setCopiedKey((k) => (k === key ? null : k)), 1600);
+    } catch {
+      /* clipboard unavailable */
+    }
+  };
 
   const selectPlatform = (p: Platform) => {
     setSelected(p);
@@ -143,6 +296,12 @@ export function EmailOtpPage({
   const typedIsKnown = typed === '' || POPULAR_PLATFORMS.some(
     (p) => p.site.toLowerCase().includes(typed) || p.name.toLowerCase().includes(typed),
   );
+
+  const statusChip = (status: string) => {
+    if (status === 'received') return 'received';
+    if (status === 'cancelled') return 'cancelled';
+    return 'waiting';
+  };
 
   return (
     <div className="eotp-page">
@@ -312,15 +471,14 @@ export function EmailOtpPage({
                         <button
                           type="button"
                           className="eotp-buy"
-                          disabled={d.count === 0}
-                          onClick={() => {
-                            // Purchase flow comes next (wallet + order API)
-                            window.alert(
-                              `Buy @${d.domain} for ${formatNgn(d.priceNgn)} — purchase wiring next.`,
-                            );
-                          }}
+                          disabled={d.count === 0 || buyingDomain === d.domain}
+                          onClick={() => buyDomain(d)}
                         >
-                          Buy
+                          {buyingDomain === d.domain ? (
+                            <Loader2 size={14} className="spin" />
+                          ) : (
+                            'Buy'
+                          )}
                         </button>
                       </div>
                     </li>
@@ -332,18 +490,121 @@ export function EmailOtpPage({
         </>
       ) : (
         <section className="eotp-my-emails">
-          <div className="eotp-empty">
-            <div className="eotp-empty-icon">
-              <Inbox size={28} />
-            </div>
-            <strong>No emails yet</strong>
-            <p>Purchase an email address to get started. Your activations will appear here.</p>
-            <button type="button" className="eotp-primary" onClick={() => setTab('buy')}>
-              Buy an email
+          <div className="eotp-my-head">
+            <strong>Your email addresses</strong>
+            <button type="button" className="eotp-refresh" onClick={() => fetchOrders()} aria-label="Refresh">
+              <RefreshCw size={16} className={ordersLoading ? 'spin' : ''} />
             </button>
           </div>
+
+          {ordersLoading ? (
+            <div className="eotp-state">
+              <Loader2 size={22} className="spin" />
+              <p>Loading your emails…</p>
+            </div>
+          ) : orders.length === 0 ? (
+            <div className="eotp-empty">
+              <div className="eotp-empty-icon">
+                <Inbox size={28} />
+              </div>
+              <strong>No emails yet</strong>
+              <p>Purchase an email address to get started. Your activations will appear here.</p>
+              <button type="button" className="eotp-primary" onClick={() => setTab('buy')}>
+                Buy an email
+              </button>
+            </div>
+          ) : (
+            <ul className="eotp-order-list">
+              {orders.map((o) => (
+                <li key={o.id} className="eotp-order">
+                  <div className="eotp-order-top">
+                    <div className="eotp-order-email">
+                      <strong>{o.email}</strong>
+                      <button
+                        type="button"
+                        className="eotp-copy-btn"
+                        onClick={() => copy(o.email, 'email-' + o.id)}
+                        aria-label="Copy email"
+                      >
+                        {copiedKey === 'email-' + o.id ? <Check size={14} /> : <Copy size={14} />}
+                      </button>
+                    </div>
+                    <span className={`eotp-status ${statusChip(o.status)}`}>
+                      {o.status === 'received' ? 'Received' : o.status === 'cancelled' ? 'Cancelled' : 'Waiting'}
+                    </span>
+                  </div>
+                  <div className="eotp-order-meta">
+                    <span>{o.site}</span>
+                    <span>·</span>
+                    <span>{formatNgn(o.priceNgn)}</span>
+                  </div>
+
+                  {o.message ? (
+                    <div className="eotp-order-msg">
+                      <div className="eotp-order-msg-text">{o.message}</div>
+                      <button
+                        type="button"
+                        className="eotp-copy-btn"
+                        onClick={() => copy(o.message || '', 'msg-' + o.id)}
+                        aria-label="Copy message"
+                      >
+                        {copiedKey === 'msg-' + o.id ? <Check size={14} /> : <Copy size={14} />}
+                      </button>
+                    </div>
+                  ) : null}
+
+                  {o.status !== 'cancelled' ? (
+                    <div className="eotp-order-actions">
+                      <button
+                        type="button"
+                        className="eotp-secondary"
+                        disabled={checkingId === o.id}
+                        onClick={() => checkInbox(o)}
+                      >
+                        {checkingId === o.id ? <Loader2 size={14} className="spin" /> : <Mail size={14} />}
+                        <span>{o.message ? 'Refresh inbox' : 'Check inbox'}</span>
+                      </button>
+                      {o.status === 'waiting' ? (
+                        <button
+                          type="button"
+                          className="eotp-cancel-btn"
+                          disabled={cancellingId === o.id}
+                          onClick={() => cancelOrder(o)}
+                        >
+                          {cancellingId === o.id ? <Loader2 size={14} className="spin" /> : <X size={14} />}
+                          <span>Cancel & refund</span>
+                        </button>
+                      ) : null}
+                    </div>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          )}
         </section>
       )}
+
+      {toast ? (
+        <div className={`eotp-toast ${toast.kind}`}>
+          <span>{toast.text}</span>
+          {toast.kind === 'funds' && onFund ? (
+            <button
+              type="button"
+              className="eotp-toast-action"
+              onClick={() => {
+                setToast(null);
+                onFund();
+              }}
+            >
+              Fund Wallet
+            </button>
+          ) : (
+            <button type="button" className="eotp-toast-close" onClick={() => setToast(null)} aria-label="Dismiss">
+              <X size={14} />
+            </button>
+          )}
+        </div>
+      ) : null}
     </div>
   );
 }

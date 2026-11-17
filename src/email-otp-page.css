@@ -478,3 +478,246 @@
 }
 .eotp-page .vn-service-logo--compact { width: 22px; height: 22px; border-radius: 7px; }
 
+
+/* ── My Emails (purchased orders) ── */
+.eotp-my-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.eotp-my-head strong {
+  font-size: 15.5px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.eotp-order-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.eotp-order {
+  background: #fff;
+  border: 1px solid #e8eef5;
+  border-radius: 14px;
+  padding: 14px;
+}
+
+.eotp-order-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.eotp-order-email {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.eotp-order-email strong {
+  font-size: 14px;
+  font-weight: 800;
+  color: #0f172a;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.eotp-copy-btn {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fff;
+  color: #64748b;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.eotp-copy-btn:hover {
+  border-color: #0052ff;
+  color: #0052ff;
+}
+
+.eotp-status {
+  flex-shrink: 0;
+  height: 24px;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  display: inline-flex;
+  align-items: center;
+}
+
+.eotp-status.waiting {
+  background: rgba(0, 82, 255, 0.1);
+  color: #0052ff;
+}
+
+.eotp-status.received {
+  background: rgba(22, 163, 74, 0.12);
+  color: #15803d;
+}
+
+.eotp-status.cancelled {
+  background: #f1f5f9;
+  color: #94a3b8;
+}
+
+.eotp-order-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #94a3b8;
+}
+
+.eotp-order-msg {
+  margin-top: 10px;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  background: rgba(22, 163, 74, 0.08);
+  border: 1px solid rgba(22, 163, 74, 0.2);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+.eotp-order-msg-text {
+  flex: 1;
+  min-width: 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #166534;
+  word-break: break-word;
+  white-space: pre-wrap;
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+.eotp-order-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.eotp-secondary {
+  flex: 1;
+  height: 36px;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  color: #0f172a;
+  font-size: 12.5px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  cursor: pointer;
+}
+
+.eotp-secondary:hover:not(:disabled) {
+  border-color: #0052ff;
+  color: #0052ff;
+}
+
+.eotp-secondary:disabled,
+.eotp-cancel-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.eotp-cancel-btn {
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 10px;
+  border: 1px solid #fecaca;
+  background: #fff;
+  color: #dc2626;
+  font-size: 12.5px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  cursor: pointer;
+}
+
+.eotp-cancel-btn:hover:not(:disabled) {
+  background: #fef2f2;
+}
+
+/* ── Toast ── */
+.eotp-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 96px;
+  transform: translateX(-50%);
+  max-width: min(92vw, 420px);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 14px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+  background: #0f172a;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.3);
+  z-index: 60;
+}
+
+.eotp-toast.error {
+  background: #b91c1c;
+}
+
+.eotp-toast.funds {
+  background: #b45309;
+}
+
+.eotp-toast span {
+  flex: 1;
+  min-width: 0;
+}
+
+.eotp-toast-action {
+  flex-shrink: 0;
+  height: 30px;
+  padding: 0 12px;
+  border: none;
+  border-radius: 8px;
+  background: #fff;
+  color: #b45309;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.eotp-toast-close {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  color: #fff;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
