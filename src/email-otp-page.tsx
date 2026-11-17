@@ -105,7 +105,9 @@ export function EmailOtpPage({
   }, []);
 
   const vxHeaders = useMemo<Record<string, string>>(() => {
-    return session?.userId ? { 'x-vx-user': session.userId } : {};
+    const h: Record<string, string> = {};
+    if (session?.userId) h['x-vx-user'] = session.userId;
+    return h;
   }, [session?.userId]);
 
   const filtered = useMemo(() => {
