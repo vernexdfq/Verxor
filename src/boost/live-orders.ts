@@ -4,7 +4,7 @@
  */
 import { loadSessionProfile, loadSessionTokens } from '../auth/session-unlock';
 
-export type LiveOrderStatus = 'pending' | 'processing' | 'completed' | 'canceled';
+export type LiveOrderStatus = 'pending' | 'processing' | 'partial' | 'completed' | 'canceled';
 
 export function isJapOrderId(id: string): boolean {
   return /^\d+$/.test(String(id || '').trim());
@@ -14,7 +14,7 @@ export function mapJapStatus(raw: string | undefined): LiveOrderStatus {
   const s = String(raw || '').toLowerCase();
   if (s.includes('complete')) return 'completed';
   if (s.includes('cancel') || s.includes('refund')) return 'canceled';
-  if (s.includes('partial')) return 'processing';
+  if (s.includes('partial')) return 'partial';
   if (s.includes('pending')) return 'pending';
   if (s.includes('progress') || s.includes('processing')) return 'processing';
   return 'processing';

@@ -5,6 +5,7 @@ import {
   ArrowLeft,
   Check,
   ChevronDown,
+  ChevronRight,
   Copy,
   ExternalLink,
   Flame,
@@ -36,7 +37,7 @@ import {
 } from './boost/live-orders';
 import type { BoostPlatform, BoostService, BoostCategory, BoostCatalog } from '@/lib/providers/smm';
 
-export type OrderStatus = 'pending' | 'processing' | 'completed' | 'canceled';
+export type OrderStatus = 'pending' | 'processing' | 'partial' | 'completed' | 'canceled';
 
 export interface BoostOrder {
   id: string;
@@ -223,10 +224,12 @@ export function BoostPage({
   onBack,
   session,
   onFund,
+  onOpenHistory,
 }: {
   onBack: () => void;
   session?: AuthSession | null;
   onFund?: () => void;
+  onOpenHistory?: () => void;
 }) {
   const walletBalance = session?.balanceNgn ?? 0;
 
@@ -249,7 +252,6 @@ export function BoostPage({
 
   // Orders and toast state
   const [orders, setOrders] = useState<BoostOrder[]>([]);
-  const [orderFilter, setOrderFilter] = useState<'all' | 'pending' | 'processing' | 'completed'>('all');
   const [submitting, setSubmitting] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
@@ -573,7 +575,11 @@ export function BoostPage({
       }
     } catch {}
     const live = current.filter(
-      (o) => isJapOrderId(String(o.id)) && o.status !== 'completed' && o.status !== 'canceled',
+      (o) =>
+        isJapOrderId(String(o.id)) &&
+        o.status !== 'completed' &&
+        o.status !== 'canceled' &&
+        o.status !== 'partial',
     );
     if (!live.length) return;
     const updated = current.map((o) => ({ ...o }));
@@ -683,10 +689,12 @@ export function BoostPage({
   const selectedCategoryLabel =
     platformCategories.find((c) => c.id === catFilter)?.label ?? 'All Services';
 
-  const filteredOrders = useMemo(() => {
-    if (orderFilter === 'all') return orders;
-    return orders.filter((o) => o.status === orderFilter);
-  }, [orders, orderFilter]);
+  // Show only the two most recent orders here; the full list lives in Boost History.
+  const recentOrders = useMemo(() => {
+    return [...orders]
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .slice(0, 2);
+  }, [orders]);
 
   return (
     <div className="boost-page">
@@ -729,7 +737,7 @@ export function BoostPage({
       <section className="boost-card" aria-label="Boost configuration">
         {loading ? (
           <div style={{ padding: '36px 16px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '10px', color: '#64748B' }}>
-            <Loader2 size={28} className="spin" style={{ color: '#7C3AED' }} />
+            <Loader2 size={28} className="spin" style={{ color: '#2563EB' }} />
             <span style={{ fontSize: '13px', fontWeight: 600 }}>Loading live services catalog…</span>
           </div>
         ) : (
@@ -911,23 +919,14 @@ export function BoostPage({
             <span>Refresh</span>
           </button>
         </div>
-        {orders.length > 0 && (
-          <div className="boost-orders-tabs">
-            {(['all', 'pending', 'processing', 'completed'] as const).map((f) => (
-              <button key={f} type="button" className={orderFilter === f ? 'boost-orders-tab active' : 'boost-orders-tab'} onClick={() => setOrderFilter(f)}>
-                {f === 'all' ? 'All' : f.charAt(0).toUpperCase() + f.slice(1)}
-              </button>
-            ))}
-          </div>
-        )}
         <div className="boost-orders-list">
-          {filteredOrders.length === 0 ? (
+          {recentOrders.length === 0 ? (
             <div className="boost-orders-empty">
               <Inbox size={28} />
               <p>No orders yet. Place your first boost above.</p>
             </div>
           ) : (
-            filteredOrders.map((o) => (
+            recentOrders.map((o) => (
               <div key={o.id} className="boost-order-item">
                 <div className="boost-order-top">
                   <div className="boost-order-service">
@@ -982,6 +981,12 @@ export function BoostPage({
             ))
           )}
         </div>
+        {orders.length > recentOrders.length && onOpenHistory && (
+          <button type="button" className="boost-view-all" onClick={onOpenHistory}>
+            <span>View all orders ({orders.length})</span>
+            <ChevronRight size={13} className="boost-view-all-chevron" />
+          </button>
+        )}
       </section>
 
       {activeSheet && (
