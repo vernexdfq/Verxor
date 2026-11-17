@@ -42,21 +42,18 @@ const API_SERVICES: { id: string; label: string; on: boolean }[] = [
   { id: 'telegram-premium', label: 'Telegram Premium', on: false },
 ];
 
-/**
- * Phase 1 preview user. Clearly marked as preview; Phase 2 replaces this
- * whole list with live data from the profiles / api_keys / child_panels tables.
- */
-const PREVIEW_USER = {
-  id: 'preview-1',
-  name: 'Preview User',
-  contact: '0801 234 5678',
-  email: 'preview@verxor.com',
-  joined: 'Nov 2026',
-  balance: 12500,
-  apiKey: true,
-  panel: false,
-  banned: false,
-  services: API_SERVICES,
+type AdminUserService = { enabled: boolean; note: string | null };
+type AdminUser = {
+  id: string;
+  email: string;
+  phone: string;
+  name: string;
+  joined: string;
+  balanceNgn: number;
+  apiKey: boolean;
+  panel: { id: string; name: string; domain: string | null; suspended: boolean } | null;
+  banned: boolean;
+  services: Record<string, AdminUserService>;
 };
 
 const SESSION_KEY = 'verxor-admin-ok';
@@ -88,54 +85,155 @@ function lastNDays(n: number) {
   return out;
 }
 
+function adminHeaders(): Record<string, string> {
+  let pw = '';
+  try { pw = sessionStorage.getItem(PASS_KEY) || ''; } catch { /* ignore */ }
+  return { 'x-admin-password': pw, 'Content-Type': 'application/json' };
+}
+
+function serviceEnabled(u: AdminUser, id: string): boolean {
+  const override = u.services[id];
+  if (override) return override.enabled;
+  return API_SERVICES.find((s) => s.id === id)?.on ?? false;
+}
+
+function displayName(u: AdminUser): string {
+  const label = (u.name || u.email || u.phone || u.id).trim();
+  return label.length > 22 ? label.slice(0, 20) + '…' : label;
+}
+
 function UserManagement() {
   const [tab, setTab] = useState<AdminUserTab>('all');
   const [query, setQuery] = useState('');
-  const [selected, setSelected] = useState<typeof PREVIEW_USER | null>(null);
+  const [users, setUsers] = useState<AdminUser[]>([]);
+  const [panels, setPanels] = useState<{ id: string; name: string; domain: string | null; suspended: boolean; userId: string | null }[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [selected, setSelected] = useState<AdminUser | null>(null);
+  const [msg, setMsg] = useState('');
+  const [busy, setBusy] = useState(false);
 
   const [adjustMode, setAdjustMode] = useState<'credit' | 'debit'>('credit');
   const [adjustAmount, setAdjustAmount] = useState('');
   const [adjustReason, setAdjustReason] = useState('');
   const [phoneDraft, setPhoneDraft] = useState('');
   const [phoneEditing, setPhoneEditing] = useState(false);
-  const [services, setServices] = useState(API_SERVICES);
   const [unlockNote, setUnlockNote] = useState('');
-  const [banned, setBanned] = useState(false);
 
-  const comingSoon = () =>
-    window.alert('Phase 2: this action connects to the live database.');
+  const load = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/admin/users', { headers: adminHeaders(), cache: 'no-store' });
+      const data = (await res.json()) as { ok?: boolean; users?: AdminUser[]; panels?: typeof panels; error?: string };
+      if (res.ok && data.ok && Array.isArray(data.users)) {
+        setUsers(data.users);
+        setPanels(data.panels || []);
+        setLoadError(false);
+      } else {
+        setLoadError(true);
+      }
+    } catch {
+      setLoadError(true);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void load();
+  }, []);
+
+  useEffect(() => {
+    if (!selected) return;
+    const fresh = users.find((u) => u.id === selected.id);
+    if (fresh && fresh !== selected) setSelected(fresh);
+  }, [users, selected]);
+
+  const act = async (payload: Record<string, unknown>, okMsg: string): Promise<boolean> => {
+    setBusy(true);
+    setMsg('');
+    try {
+      const res = await fetch('/api/admin/users', {
+        method: 'POST',
+        headers: adminHeaders(),
+        body: JSON.stringify(payload),
+      });
+      const data = (await res.json()) as { ok?: boolean; error?: string };
+      if (!res.ok || !data.ok) {
+        setMsg(data.error || 'Action failed');
+        return false;
+      }
+      setMsg(okMsg);
+      await load();
+      return true;
+    } catch {
+      setMsg('Network error');
+      return false;
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const filtered = users.filter((u) => {
+    if (tab === 'customers' && (u.panel || u.apiKey)) return false;
+    if (tab === 'api' && !u.apiKey) return false;
+    if (tab === 'panels' && !u.panel) return false;
+    const q = query.trim().toLowerCase();
+    if (!q) return true;
+    return (
+      u.name.toLowerCase().includes(q) ||
+      u.email.toLowerCase().includes(q) ||
+      u.phone.toLowerCase().includes(q) ||
+      u.id.toLowerCase().includes(q)
+    );
+  });
 
   if (selected) {
+    const submitAdjust = async () => {
+      const amount = Number(adjustAmount.replace(/[^0-9.]/g, ''));
+      if (!Number.isFinite(amount) || amount <= 0) { setMsg('Enter a valid amount'); return; }
+      const ok = await act(
+        { action: adjustMode, userId: selected.id, amount, reason: adjustReason },
+        adjustMode === 'credit' ? 'Wallet credited' : 'Wallet debited',
+      );
+      if (ok) setAdjustAmount('');
+    };
+
     return (
       <div className="vxa-user-detail">
-        <button type="button" className="vxa-back" onClick={() => setSelected(null)}>
+        <button type="button" className="vxa-back" onClick={() => { setSelected(null); setMsg(''); }}>
           <ArrowLeft size={16} /> Back to users
         </button>
+        {msg ? <div className="vxa-action-msg">{msg}</div> : null}
 
-        {/* Header */}
         <div className="vxa-user-head">
-          <div className="vxa-user-avatar">{selected.name.slice(0, 1).toUpperCase()}</div>
+          <div className="vxa-user-avatar">{displayName(selected).slice(0, 1).toUpperCase()}</div>
           <div className="vxa-user-id">
-            <h2>{selected.name} <span className="vxa-tag preview">PREVIEW</span></h2>
-            <p>{selected.contact} · {selected.email} · Joined {selected.joined}</p>
+            <h2>{displayName(selected)}</h2>
+            <p>{selected.phone || 'no phone'} · {selected.email || 'no email'}</p>
             <div className="vxa-user-tags">
               {selected.apiKey ? <span className="vxa-tag blue">API Developer</span> : null}
               {selected.panel ? <span className="vxa-tag navy">Child Panel</span> : null}
               <span className="vxa-tag grey">Customer</span>
+              {selected.banned ? <span className="vxa-tag banned">Frozen</span> : null}
             </div>
           </div>
           <div className="vxa-user-head-right">
-            <button type="button" className={banned ? 'vxa-ban-btn banned' : 'vxa-ban-btn'} onClick={() => { setBanned(!banned); comingSoon(); }}>
-              <Ban size={15} /> {banned ? 'Frozen — tap to restore' : 'Ban / Freeze'}
+            <button type="button" disabled={busy}
+              className={selected.banned ? 'vxa-ban-btn banned' : 'vxa-ban-btn'}
+              onClick={() => act(
+                { action: selected.banned ? 'unban' : 'ban', userId: selected.id },
+                selected.banned ? 'User restored' : 'User frozen',
+              )}>
+              <Ban size={15} /> {selected.banned ? 'Frozen — tap to restore' : 'Ban / Freeze'}
             </button>
           </div>
         </div>
 
         <div className="vxa-duo">
-          {/* Wallet */}
           <div className="vxa-tile">
             <span className="vxa-tile-label"><Wallet size={14} /> WALLET BALANCE</span>
-            <strong>{naira(selected.balance)}</strong>
+            <strong>{naira(selected.balanceNgn)}</strong>
             <div className="vxa-adjust">
               <div className="vxa-adjust-toggle">
                 <button type="button" className={adjustMode === 'credit' ? 'active' : ''} onClick={() => setAdjustMode('credit')}>+ Add money</button>
@@ -148,16 +246,15 @@ function UserManagement() {
                   <button type="button" key={v} onClick={() => setAdjustAmount(String(v))}>₦{v.toLocaleString('en-NG')}</button>
                 ))}
               </div>
-              <input placeholder="Reason (optional)" value={adjustReason}
+              <input placeholder="Reason (recommended)" value={adjustReason}
                 onChange={(e) => setAdjustReason(e.target.value)} aria-label="Reason" />
-              <button type="button" className="vxa-adjust-go" onClick={comingSoon}>
-                {adjustMode === 'credit' ? 'Credit wallet' : 'Debit wallet'}
+              <button type="button" className="vxa-adjust-go" disabled={busy} onClick={submitAdjust}>
+                {busy ? 'Working…' : adjustMode === 'credit' ? 'Credit wallet' : 'Debit wallet'}
               </button>
-              <p className="vxa-note">Every adjustment is written to the admin audit log in Phase 2.</p>
+              <p className="vxa-note">Every adjustment is written to the admin audit log.</p>
             </div>
           </div>
 
-          {/* Contact + transactions */}
           <div className="vxa-tile">
             <span className="vxa-tile-label"><Pencil size={14} /> PHONE NUMBER</span>
             {phoneEditing ? (
@@ -166,7 +263,14 @@ function UserManagement() {
                   <input value={phoneDraft} onChange={(e) => setPhoneDraft(e.target.value)} aria-label="Phone number" />
                 </div>
                 <div className="vxa-rate-actions">
-                  <button type="button" className="vxa-rate-save" onClick={() => { setPhoneEditing(false); comingSoon(); }}>
+                  <button type="button" className="vxa-rate-save" disabled={busy}
+                    onClick={async () => {
+                      const ok = await act(
+                        { action: 'set-phone', userId: selected.id, phone: phoneDraft },
+                        'Phone number updated',
+                      );
+                      if (ok) setPhoneEditing(false);
+                    }}>
                     <Check size={14} /> Save
                   </button>
                   <button type="button" className="vxa-rate-cancel" onClick={() => setPhoneEditing(false)}>
@@ -176,53 +280,53 @@ function UserManagement() {
               </div>
             ) : (
               <div className="vxa-rate-row">
-                <strong style={{ fontSize: 19 }}>{selected.contact}</strong>
+                <strong style={{ fontSize: 19 }}>{selected.phone || '—'}</strong>
                 <button type="button" className="vxa-rate-btn" aria-label="Edit phone"
-                  onClick={() => { setPhoneDraft(selected.contact); setPhoneEditing(true); }}>
+                  onClick={() => { setPhoneDraft(selected.phone); setPhoneEditing(true); }}>
                   <Pencil size={14} />
                 </button>
               </div>
             )}
             <p className="vxa-tile-sep">RECENT TRANSACTIONS</p>
             <div className="vxa-empty small">
-              <strong>No transactions yet.</strong>
-              <p>Real orders and funding records appear here in Phase 2.</p>
+              <strong>Per-user transactions land here next.</strong>
+              <p>Wallet ledger rows for this user join this card in the next build.</p>
             </div>
           </div>
         </div>
 
-        {/* API permission matrix */}
         <div className="vxa-card">
           <div className="vxa-card-head">
             <KeyRound size={17} />
             <strong>API service access</strong>
-            {selected.apiKey ? <span className="vxa-tag blue">API Developer</span> : <span className="vxa-tag grey">No API key</span>}
+            {selected.apiKey ? <span className="vxa-tag blue">API Developer</span> : <span className="vxa-tag grey">No overrides yet</span>}
           </div>
           <p className="vxa-card-sub">
             Virtual Numbers, Email OTP, Boost and VTU are on by default for every API user.
             Locked services stay off until you verify the user (CAC or personal trust) and toggle them on.
           </p>
           <ul className="vxa-matrix">
-            {services.map((s) => (
-              <li key={s.id}>
-                <div>
-                  <strong>{s.label}</strong>
-                  <span>{s.on ? 'Unlocked' : 'Locked — contact admin to unlock'}</span>
-                </div>
-                <button type="button"
-                  className={s.on ? 'vxa-switch on' : 'vxa-switch'}
-                  aria-pressed={s.on}
-                  aria-label={`Toggle ${s.label}`}
-                  onClick={() => {
-                    setServices((prev) =>
-                      prev.map((x) => (x.id === s.id ? { ...x, on: !x.on } : x)),
-                    );
-                    if (!s.on) window.alert("Phase 2: unlock saves to the database with your note and opens this service for the user's API key.");
-                  }}>
-                  <em />
-                </button>
-              </li>
-            ))}
+            {API_SERVICES.map((s) => {
+              const on = serviceEnabled(selected, s.id);
+              return (
+                <li key={s.id}>
+                  <div>
+                    <strong>{s.label}</strong>
+                    <span>{on ? 'Unlocked' : 'Locked — contact admin to unlock'}</span>
+                  </div>
+                  <button type="button" disabled={busy}
+                    className={on ? 'vxa-switch on' : 'vxa-switch'}
+                    aria-pressed={on}
+                    aria-label={`Toggle ${s.label}`}
+                    onClick={() => act(
+                      { action: 'set-service', userId: selected.id, service: s.id, enabled: !on, unlockNote },
+                      !on ? 'Service unlocked' : 'Service locked',
+                    )}>
+                    <em />
+                  </button>
+                </li>
+              );
+            })}
           </ul>
           <div className="vxa-unlock-note">
             <label>Unlock note (why this user was approved)</label>
@@ -237,6 +341,7 @@ function UserManagement() {
 
   return (
     <>
+      {msg ? <div className="vxa-action-msg">{msg}</div> : null}
       <div className="vxa-users-toolbar">
         <div className="vxa-tabs">
           {([
@@ -247,49 +352,80 @@ function UserManagement() {
           ] as [AdminUserTab, string][]).map(([id, label]) => (
             <button type="button" key={id} className={tab === id ? 'active' : ''} onClick={() => setTab(id)}>
               {label}
-              {id === 'panels' ? <em className="vxa-tab-count">0</em> : null}
+              {id === 'panels' ? <em className="vxa-tab-count">{panels.length}</em> : null}
             </button>
           ))}
         </div>
         <div className="vxa-search">
           <Search size={16} />
-          <input placeholder="Search name, phone, email or reference" value={query}
+          <input placeholder="Search name, phone, email" value={query}
             onChange={(e) => setQuery(e.target.value)} aria-label="Search users" />
         </div>
       </div>
 
-      {tab === 'panels' ? (
+      {loadError ? (
+        <div className="vxa-empty">
+          <strong>Could not load users.</strong>
+          <p>Check that ADMIN_PASSWORD is set and the database is reachable, then reload.</p>
+        </div>
+      ) : loading ? (
+        <div className="vxa-card"><p className="vxa-note">Loading users…</p></div>
+      ) : tab === 'panels' ? (
         <div className="vxa-card">
           <div className="vxa-card-head"><strong>Child Panels Monitor</strong></div>
           <p className="vxa-card-sub">
-            Connected panels with custom domain, today's API volume, last activity and a Suspend / Activate kill-switch.
-            A user becomes a panel only after paying for the panel and you deliver it, then you upgrade them here.
+            A user becomes a panel only after paying for the panel and you delivering it, then upgrading them here.
           </p>
-          <div className="vxa-empty">
-            <strong>No child panels yet.</strong>
-            <p>When you deliver a panel and upgrade the user, it appears here with its domain, spend and kill-switch.</p>
-          </div>
+          {panels.length === 0 ? (
+            <div className="vxa-empty">
+              <strong>No child panels yet.</strong>
+              <p>When you deliver a panel and upgrade the user, it appears here with its domain, spend and kill-switch.</p>
+            </div>
+          ) : (
+            <ul className="vxa-user-list">
+              {panels.map((p) => (
+                <li key={p.id} role="button" onClick={() => { const u = users.find((x) => x.id === p.userId); if (u) setSelected(u); }}>
+                  <div className="vxa-user-cell">
+                    <strong>{p.name}</strong>
+                    <span>{p.domain || 'no domain'}</span>
+                  </div>
+                  <div className="vxa-user-cell right">
+                    {p.suspended ? <span className="vxa-tag banned">Suspended</span> : <span className="vxa-tag grey">Active</span>}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       ) : (
         <div className="vxa-card">
-          <div className="vxa-card-head"><strong>Users</strong></div>
-          <ul className="vxa-user-list">
-            <li onClick={() => setSelected(PREVIEW_USER)} role="button">
-              <div className="vxa-user-avatar small">P</div>
-              <div className="vxa-user-cell">
-                <strong>Preview User <span className="vxa-tag preview">PREVIEW</span></strong>
-                <span>0801 234 5678 · preview@verxor.com</span>
-              </div>
-              <div className="vxa-user-cell right">
-                <strong>{naira(PREVIEW_USER.balance)}</strong>
-                <span className="vxa-tag blue">API Developer</span>
-              </div>
-            </li>
-          </ul>
-          <p className="vxa-note">
-            This preview row lets you see the user detail design. Phase 2 replaces it with the live user list
-            (customers, API developers and panels) from the database.
-          </p>
+          <div className="vxa-card-head"><strong>Users ({filtered.length})</strong></div>
+          {filtered.length === 0 ? (
+            <div className="vxa-empty">
+              <strong>No users match.</strong>
+              <p>Try a different tab or clear the search.</p>
+            </div>
+          ) : (
+            <ul className="vxa-user-list">
+              {filtered.map((u) => (
+                <li key={u.id} role="button" onClick={() => { setSelected(u); setMsg(''); }}>
+                  <div className="vxa-user-avatar small">{displayName(u).slice(0, 1).toUpperCase()}</div>
+                  <div className="vxa-user-cell">
+                    <strong>{displayName(u)}{u.banned ? <span className="vxa-tag banned">Frozen</span> : null}</strong>
+                    <span>{u.phone || 'no phone'} · {u.email || 'no email'}</span>
+                  </div>
+                  <div className="vxa-user-cell right">
+                    <strong>{naira(u.balanceNgn)}</strong>
+                    <span>
+                      {u.panel ? <span className="vxa-tag navy">Panel</span> : null}
+                      {u.apiKey ? <span className="vxa-tag blue">API</span> : null}
+                      {!u.panel && !u.apiKey ? <span className="vxa-tag grey">Customer</span> : null}
+                    </span>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       )}
     </>
@@ -353,21 +489,58 @@ export function AdminPage({ onBack }: { onBack: () => void }) {
   useEffect(() => {
     try {
       if (sessionStorage.getItem(SESSION_KEY) === '1') setUnlocked(true);
-      const savedRate = Number(localStorage.getItem(RATE_KEY) || '');
-      if (Number.isFinite(savedRate) && savedRate > 0) setRate(savedRate);
     } catch { /* ignore */ }
   }, []);
 
-  const saveRate = () => {
+  // Load the live USD→NGN rate from admin_settings (falls back to local cache).
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const pw = sessionStorage.getItem(PASS_KEY) || '';
+        const res = await fetch('/api/admin/rate', { headers: { 'x-admin-password': pw }, cache: 'no-store' });
+        const data = (await res.json()) as { ok?: boolean; rate?: number };
+        if (!cancelled && res.ok && data.ok && Number(data.rate) > 0) {
+          setRate(Number(data.rate));
+          setRateDraft(String(Number(data.rate)));
+        } else {
+          const savedRate = Number(localStorage.getItem(RATE_KEY) || '');
+          if (Number.isFinite(savedRate) && savedRate > 0) setRate(savedRate);
+        }
+      } catch {
+        const savedRate = Number(localStorage.getItem(RATE_KEY) || '');
+        if (Number.isFinite(savedRate) && savedRate > 0) setRate(savedRate);
+      }
+    };
+    void load();
+    return () => { cancelled = true; };
+  }, []);
+
+  const saveRate = async () => {
     const v = Number(rateDraft.replace(/[^0-9.]/g, ''));
     if (!Number.isFinite(v) || v <= 0) return;
-    setRate(v);
     setRateEditing(false);
     setRateSaved(true);
     try {
       localStorage.setItem(RATE_KEY, String(v));
-      window.setTimeout(() => setRateSaved(false), 2000);
     } catch { /* ignore */ }
+    try {
+      const pw = sessionStorage.getItem(PASS_KEY) || '';
+      const res = await fetch('/api/admin/rate', {
+        method: 'PUT',
+        headers: { 'x-admin-password': pw, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rate: v }),
+      });
+      const data = (await res.json()) as { ok?: boolean; rate?: number };
+      if (res.ok && data.ok) {
+        setRate(v);
+        window.setTimeout(() => setRateSaved(false), 2000);
+      } else {
+        setRateSaved(false);
+      }
+    } catch {
+      setRateSaved(false);
+    }
   };
 
   const handleLogin = async (e: FormEvent) => {

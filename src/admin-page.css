@@ -756,3 +756,16 @@
   .vxa-user-head-right { width: 100%; }
   .vxa-ban-btn { width: 100%; justify-content: center; }
 }
+
+/* ---------- Users live ---------- */
+.vxa-action-msg {
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: #eff6ff;
+  border: 1px solid #bfd3ff;
+  color: #0040c8;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.vxa-tag.banned { background: #fee2e2; color: #b91c1c; }
