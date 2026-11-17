@@ -68,6 +68,16 @@ export async function PUT(req: NextRequest) {
     console.error('[admin/rate] patch failed', res.status, raw.slice(0, 200));
     return NextResponse.json({ ok: false, error: 'Could not save the rate' }, { status: 500 });
   }
+  // Keep the virtual-number pricing rate in sync so there is exactly ONE
+  // daily rate for the whole platform (admin_settings + vn_pricing_settings).
+  try {
+    await fetch(`${base}/rest/v1/vn_pricing_settings`, {
+      method: 'PATCH',
+      headers: { ...hdr, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+      body: JSON.stringify({ base_naira_rate: rate, updated_at: new Date().toISOString() }),
+      cache: 'no-store',
+    });
+  } catch { /* best effort — table may not exist yet */ }
   try {
     await fetch(`${base}/rest/v1/admin_audit_log`, {
       method: 'POST',

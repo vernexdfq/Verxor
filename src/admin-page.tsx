@@ -498,6 +498,171 @@ function UserManagement() {
   );
 }
 
+type VnMults = { economy: number; standard: number; fast: number; premium: number };
+type VnPricingData = { ok?: boolean; rate?: number; retail?: VnMults; api?: VnMults; panel?: VnMults; error?: string };
+
+const VN_TIERS: { id: keyof VnMults; label: string; band: string; sampleUsd: number }[] = [
+  { id: 'economy', label: 'Economy', band: 'under $0.50', sampleUsd: 0.25 },
+  { id: 'standard', label: 'Standard', band: '$0.50 to $1.00', sampleUsd: 0.75 },
+  { id: 'fast', label: 'Fast', band: '$1.01 to $2.00', sampleUsd: 1.5 },
+  { id: 'premium', label: 'Premium', band: 'above $2.00', sampleUsd: 3 },
+];
+const VN_AUDIENCES: { id: 'retail' | 'api' | 'panel'; label: string; hint: string }[] = [
+  { id: 'retail', label: 'Retail', hint: 'Customers buying on verxor.com' },
+  { id: 'api', label: 'API users', hint: 'Customers calling our API with a user API key' },
+  { id: 'panel', label: 'Child Panel', hint: 'Child panels + users you toggled Child Panel' },
+];
+const DEFAULT_VN_MULTS: Record<'retail' | 'api' | 'panel', VnMults> = {
+  retail: { economy: 5, standard: 4, fast: 3, premium: 2 },
+  api: { economy: 2, standard: 1.6, fast: 1.4, premium: 1.25 },
+  panel: { economy: 1.5, standard: 1.3, fast: 1.2, premium: 1.15 },
+};
+
+function PricingSection() {
+  const [data, setData] = useState<VnPricingData | null>(null);
+  const [loadError, setLoadError] = useState(false);
+  const [editing, setEditing] = useState<string | null>(null);
+  const [draft, setDraft] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState('');
+
+  const load = async () => {
+    try {
+      const res = await fetch('/api/admin/vn-pricing', { headers: adminHeaders(), cache: 'no-store' });
+      const d = (await res.json()) as VnPricingData;
+      if (res.ok && d.ok) { setData(d); setLoadError(false); } else { setLoadError(true); }
+    } catch { setLoadError(true); }
+  };
+
+  useEffect(() => { void load(); }, []);
+
+  const mults = (aud: 'retail' | 'api' | 'panel'): VnMults => data?.[aud] || DEFAULT_VN_MULTS[aud];
+  const rate = data?.rate ?? 1380;
+
+  const example = (aud: 'retail' | 'api' | 'panel', tier: keyof VnMults, costUsd: number) =>
+    Math.ceil(costUsd * rate * mults(aud)[tier]);
+
+  const save = async (aud: 'retail' | 'api' | 'panel', tier: keyof VnMults) => {
+    const v = Number(draft.replace(/[^0-9.]/g, ''));
+    if (!Number.isFinite(v) || v < 1 || v > 50) { setMsg('Enter a multiplier between 1 and 50'); return; }
+    setBusy(true);
+    setMsg('');
+    try {
+      const next: VnMults = { ...mults(aud), [tier]: v };
+      const res = await fetch('/api/admin/vn-pricing', {
+        method: 'PUT',
+        headers: adminHeaders(),
+        body: JSON.stringify({ [aud]: next }),
+      });
+      const d = (await res.json()) as VnPricingData;
+      if (!res.ok || !d.ok) { setMsg(d.error || 'Could not save'); return; }
+      setData(d);
+      setEditing(null);
+      setMsg('Saved — prices change everywhere immediately');
+    } catch { setMsg('Network error'); } finally { setBusy(false); }
+  };
+
+  return (
+    <>
+      {msg ? <div className="vxa-action-msg">{msg}</div> : null}
+
+      <div className="vxa-duo">
+        <div className="vxa-tile">
+          <span className="vxa-tile-label"><Percent size={14} /> GLOBAL NAIRA RATE</span>
+          <div className="vxa-rate-row">
+            <strong>₦{rate.toLocaleString('en-NG')}</strong>
+            <span className="vxa-rate-per">/ $1</span>
+          </div>
+          <p>Same rate as the Overview tile — edit it there. Applies to retail, API and Child Panel prices.</p>
+        </div>
+        <div className="vxa-tile">
+          <span className="vxa-tile-label"><TrendingUp size={14} /> HOW PRICING WORKS</span>
+          <p className="vxa-price-formula">
+            Price = Provider USD cost × Naira rate × multiplier.
+            The tier is picked by the cost range, never by the customer.
+            The server recomputes every charge, so nobody can send a fake price.
+          </p>
+        </div>
+      </div>
+
+      {loadError ? (
+        <div className="vxa-empty">
+          <strong>Could not load pricing.</strong>
+          <p>Run supabase/vn-pricing-tiers.sql in the Supabase SQL Editor, then reload.</p>
+        </div>
+      ) : (
+        <div className="vxa-card">
+          <div className="vxa-card-head"><strong>Virtual Number multipliers</strong></div>
+          <p className="vxa-card-sub">
+            What each audience pays on top of the provider cost. Tap a pencil to change a multiplier.
+          </p>
+          <div className="vxa-price-table">
+            <div className="vxa-price-head">
+              <span>Tier</span>
+              <span>Provider cost</span>
+              {VN_AUDIENCES.map((a) => <span key={a.id}>{a.label}</span>)}
+            </div>
+            {VN_TIERS.map((t) => (
+              <div className="vxa-price-row" key={t.id}>
+                <div className="vxa-price-tier">
+                  <strong>{t.label}</strong>
+                  <span>{t.band}</span>
+                </div>
+                <div className="vxa-price-band">
+                  <span>sample ${t.sampleUsd.toFixed(2)}</span>
+                  <small>{naira(example('retail', t.id, t.sampleUsd))} retail</small>
+                </div>
+                {VN_AUDIENCES.map((a) => {
+                  const key = a.id + '-' + t.id;
+                  const val = mults(a.id)[t.id];
+                  return (
+                    <div className="vxa-price-cell" key={a.id}>
+                      {editing === key ? (
+                        <div className="vxa-rate-edit slim">
+                          <div className="vxa-rate-row">
+                            <input inputMode="decimal" value={draft} autoFocus aria-label={a.label + ' ' + t.label + ' multiplier'}
+                              onChange={(e) => setDraft(e.target.value)} />
+                            <span className="vxa-rate-per">×</span>
+                          </div>
+                          <div className="vxa-rate-actions">
+                            <button type="button" className="vxa-rate-save" disabled={busy} onClick={() => save(a.id, t.id)}>
+                              <Check size={14} /> Save
+                            </button>
+                            <button type="button" className="vxa-rate-cancel" onClick={() => setEditing(null)}>
+                              <X size={14} /> Cancel
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="vxa-rate-row">
+                          <strong>{val}×</strong>
+                          <button type="button" className="vxa-rate-btn" aria-label={'Edit ' + a.label + ' ' + t.label + ' multiplier'}
+                            onClick={() => { setDraft(String(val)); setEditing(key); }}>
+                            <Pencil size={14} />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
+          <ul className="vxa-price-notes">
+            {VN_AUDIENCES.map((a) => (
+              <li key={a.id}><strong>{a.label}:</strong> {a.hint}</li>
+            ))}
+          </ul>
+          <p className="vxa-note">
+            Changes are audit logged and apply instantly — the buy endpoint always recomputes the charge
+            from the provider cost, the naira rate and these multipliers.
+          </p>
+        </div>
+      )}
+    </>
+  );
+}
+
 type OverviewDay = { date: string; orders: number; sales: number; net: number };
 type OverviewData = {
   ok?: boolean;
@@ -807,10 +972,7 @@ export function AdminPage({ onBack }: { onBack: () => void }) {
 
         {section === 'pricing' && (
           <section className="vxa-body">
-            <div className="vxa-empty tall">
-              <strong>Pricing</strong>
-              <p>Rate cards, markups and child-panel pricing land here in Phase 2, stored in the database so changes apply instantly platform-wide.</p>
-            </div>
+            <PricingSection />
           </section>
         )}
 
