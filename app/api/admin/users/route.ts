@@ -264,10 +264,32 @@ export async function GET(req: NextRequest) {
     });
   }
 
+  // Deduplicate: the same panel can appear in api_clients (live key) and
+  // child_panels (registry row created by the upgrade toggle), linked to the
+  // same wallet user. Fold registry info into the api_clients entry so each
+  // real panel shows exactly once.
+  const deduped: Record<string, unknown>[] = [];
+  const seenWallet = new Set<string>();
+  for (const raw of Array.from(merged.values())) {
+    const effWallet = (raw.walletUserId as string | null) ?? (raw.userId as string | null) ?? null;
+    if (!effWallet || !seenWallet.has(effWallet)) {
+      if (effWallet) seenWallet.add(effWallet);
+      deduped.push(raw);
+      continue;
+    }
+    const prev = deduped.find((x) =>
+      ((x.walletUserId as string | null) ?? (x.userId as string | null)) === effWallet);
+    if (prev) {
+      if (!prev.domain && raw.domain) prev.domain = raw.domain;
+      prev.suspended = Boolean(prev.suspended) || Boolean(raw.suspended);
+      if (!prev.userId) prev.userId = raw.userId;
+    }
+  }
+
   return NextResponse.json({
     ok: true,
     users,
-    panels: Array.from(merged.values()).map((p) => ({
+    panels: deduped.map((p) => ({
       id: String(p.id || ''),
       name: String(p.name || 'Child Panel'),
       domain: (p.domain as string | null) ?? null,
@@ -350,24 +372,75 @@ export async function POST(req: NextRequest) {
       }
       const rpc = action === 'panel-credit' ? 'credit_reseller_wallet' : 'debit_reseller_wallet';
       const ref = `admin-panel-${action === 'panel-credit' ? 'credit' : 'debit'}-${userId.slice(0, 8)}-${Date.now()}`;
+      let success = false;
+      let insufficient = false;
+      let via = 'rpc';
       const res = await fetch(`${base}/rest/v1/rpc/${rpc}`, {
         method: 'POST',
         headers: hdr,
         body: JSON.stringify({ p_user_id: userId, p_amount: amount, p_reference: ref }),
         cache: 'no-store',
       });
-      if (!res.ok) {
+      if (res.ok) {
+        success = true;
+      } else {
         const t = await res.text().catch(() => '');
         if (/INSUFFICIENT_BALANCE/i.test(t)) {
-          return NextResponse.json({ ok: false, error: 'Panel wallet has insufficient balance' }, { status: 400 });
+          insufficient = true;
         }
-        console.error('[admin/users] panel wallet rpc', res.status, t.slice(0, 200));
+      }
+
+      // Fallback: the reseller RPCs may not exist yet (or use different
+      // signatures). Move the reseller_wallet row directly so the admin
+      // control always works. GET already proves the table has
+      // user_id + balance columns.
+      if (!success && !insufficient) {
+        via = 'direct';
+        const get = await fetch(
+          `${base}/rest/v1/reseller_wallet?user_id=eq.${encodeURIComponent(userId)}&select=user_id,balance&limit=1`,
+          { headers: hdr, cache: 'no-store' },
+        );
+        if (get.ok) {
+          const rows = (await get.json()) as Array<{ user_id?: string; balance?: number }>;
+          const current = Number(rows[0]?.balance ?? 0) || 0;
+          const next = action === 'panel-credit' ? current + amount : current - amount;
+          if (rows.length === 0 && action === 'panel-credit') {
+            const ins = await fetch(`${base}/rest/v1/reseller_wallet`, {
+              method: 'POST',
+              headers: { ...hdr, Prefer: 'return=minimal' },
+              body: JSON.stringify({ user_id: userId, balance: amount }),
+              cache: 'no-store',
+            });
+            success = ins.ok;
+          } else if (action === 'panel-debit' && next < 0) {
+            insufficient = true;
+          } else {
+            const upd = await fetch(
+              `${base}/rest/v1/reseller_wallet?user_id=eq.${encodeURIComponent(userId)}`,
+              {
+                method: 'PATCH',
+                headers: { ...hdr, Prefer: 'return=minimal' },
+                body: JSON.stringify({ balance: next }),
+                cache: 'no-store',
+              },
+            );
+            success = upd.ok;
+          }
+        }
+      }
+
+      if (insufficient) {
+        return NextResponse.json({ ok: false, error: 'Panel wallet has insufficient balance' }, { status: 400 });
+      }
+      if (!success) {
+        console.error('[admin/users] panel wallet update failed for', userId);
         return NextResponse.json({ ok: false, error: 'Panel wallet update failed' }, { status: 500 });
       }
       await audit(`panel_wallet_${action === 'panel-credit' ? 'credit' : 'debit'}`, {
         userId,
         amount,
         reason: body.reason,
+        meta: { via, panelRef: ref },
       });
       return NextResponse.json({ ok: true });
     }

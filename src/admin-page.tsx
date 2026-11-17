@@ -375,7 +375,7 @@ function UserManagement() {
 
   return (
     <>
-      {msg ? <div className="vxa-action-msg">{msg}</div> : null}
+      {msg && tab !== 'panels' ? <div className="vxa-action-msg">{msg}</div> : null}
       <div className="vxa-users-toolbar">
         <div className="vxa-tabs">
           {([
@@ -407,6 +407,7 @@ function UserManagement() {
       ) : tab === 'panels' ? (
         <div className="vxa-card">
           <div className="vxa-card-head"><strong>Child Panels Monitor</strong></div>
+          {msg ? <div className="vxa-action-msg">{msg}</div> : null}
           <p className="vxa-card-sub">
             A user becomes a panel only after paying for the panel and you delivering it, then upgrading them here.
           </p>
