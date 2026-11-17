@@ -12,6 +12,7 @@ import {
   Wallet,
   Timer,
   Bitcoin,
+  Lock,
 } from 'lucide-react';
 import { formatHomeBalance } from './lib/wallet-ui';
 import type { AuthSession } from './auth/AuthFlow';
@@ -53,6 +54,7 @@ const BANK_PROVIDERS: FundingProvider[] = [
 ];
 
 const CRYPTO_RATE = 1600;
+const CRYPTO_PRESETS = [10, 20, 30, 50, 100];
 
 async function resolveAuthContext(session?: AuthSession | null) {
   const profile = loadSessionProfile();
@@ -129,7 +131,7 @@ export function FundPage({ session }: FundPageProps) {
   const [generating, setGenerating] = useState(false);
   const [genError, setGenError] = useState('');
   const [amount, setAmount] = useState('');
-  const [cryptoUsd, setCryptoUsd] = useState('');
+  const [cryptoUsd, setCryptoUsd] = useState('10');
   const [cryptoError, setCryptoError] = useState('');
   const [cryptoLoading, setCryptoLoading] = useState(false);
   const [liveAccount, setLiveAccount] = useState<LiveAccount | null>(null);
@@ -437,63 +439,77 @@ export function FundPage({ session }: FundPageProps) {
       </div>
 
       {method === 'crypto' ? (
-        <section className="fund-empty-va" aria-label="Crypto funding">
-          <div className="fund-empty-icon">
-            <Bitcoin size={28} strokeWidth={1.8} />
+        <section className="fund-crypto-card" aria-label="Crypto funding">
+          <div className="fund-crypto-head">
+            <span className="fund-crypto-title">Amount to add</span>
+            <span className="fund-crypto-min">Minimum $1</span>
           </div>
-          <strong>Fund with crypto</strong>
-          <p>
-            Enter the USD amount. You choose the coin on NowPayments checkout. Rate:{' '}
-            <strong>$1 = ₦{CRYPTO_RATE.toLocaleString()}</strong>. Gateway fees are paid by you.
-          </p>
 
-          <label
-            className="fund-amount-label"
-            style={{ display: 'block', width: '100%', marginBottom: 10, textAlign: 'left' }}
-          >
-            <span style={{ fontSize: 12, fontWeight: 600, color: '#64748B' }}>AMOUNT (USD)</span>
+          <div className="fund-crypto-input-wrap">
+            <span className="fund-crypto-curr">$</span>
             <input
               type="number"
               min={1}
-              step={0.01}
+              step="any"
               value={cryptoUsd}
               onChange={(e) => setCryptoUsd(e.target.value)}
-              placeholder="e.g. 10"
-              style={{
-                width: '100%',
-                marginTop: 6,
-                padding: '12px 14px',
-                borderRadius: 12,
-                border: '1px solid #E2E8F0',
-                fontSize: 16,
-                fontWeight: 600,
-              }}
+              placeholder="10"
+              className="fund-crypto-input"
+              aria-label="Amount in USD"
             />
-          </label>
+            <span className="fund-crypto-badge">USD</span>
+          </div>
 
-          {cryptoPreviewNgn != null ? (
-            <p style={{ margin: '0 0 12px', fontSize: 13, color: '#334155', fontWeight: 600 }}>
-              Wallet credit ≈ ₦{cryptoPreviewNgn.toLocaleString()}
-            </p>
-          ) : null}
+          <div className="fund-crypto-presets" role="group" aria-label="Quick amounts">
+            {CRYPTO_PRESETS.map((preset) => (
+              <button
+                key={preset}
+                type="button"
+                className={`fund-crypto-pill ${Number(cryptoUsd) === preset ? 'active' : ''}`}
+                onClick={() => setCryptoUsd(String(preset))}
+              >
+                ${preset}
+              </button>
+            ))}
+          </div>
+
+          <div className="fund-crypto-preview-card">
+            <div className="fund-crypto-preview-label">You'll receive</div>
+            <div className="fund-crypto-preview-amount">
+              ₦{(cryptoPreviewNgn ?? 0).toLocaleString()}
+            </div>
+            <div className="fund-crypto-preview-sub">
+              ≈ ${Number(cryptoUsd) > 0 ? Number(cryptoUsd).toFixed(2) : '0.00'} added to your wallet
+            </div>
+          </div>
 
           <button
             type="button"
-            className="fund-generate fund-generate--ready"
-            disabled={cryptoLoading}
+            className="fund-crypto-submit-btn"
+            disabled={cryptoLoading || !cryptoPreviewNgn || cryptoPreviewNgn <= 0}
             onClick={() => void startCrypto()}
           >
             {cryptoLoading ? (
               <>
-                <Loader2 size={18} className="fund-spin" /> Opening checkout...
+                <Loader2 size={18} className="fund-spin" /> Connecting to checkout...
               </>
             ) : (
               <>
-                <Bitcoin size={18} strokeWidth={2.2} /> Continue to NowPayments
+                <Bitcoin size={18} strokeWidth={2.2} />{' '}
+                {Number(cryptoUsd) > 0 ? `Continue to pay $${cryptoUsd}` : 'Continue with Crypto'}
               </>
             )}
           </button>
+
           {cryptoError ? <p className="fund-gen-error">{cryptoError}</p> : null}
+
+          <div className="fund-crypto-footer-note">
+            <Lock size={13} strokeWidth={2.2} />
+            <span>
+              Crypto payments are processed securely by NowPayments. Network & provider fees are
+              handled on checkout.
+            </span>
+          </div>
         </section>
       ) : (
         <section className="fund-transfer" aria-label="Fund via bank transfer">

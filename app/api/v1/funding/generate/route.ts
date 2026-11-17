@@ -434,9 +434,8 @@ async function createPayvesselStatic9psb(opts: {
     res = await fetch(`${payvesselBase()}/pms/api/external/request/customerReservedAccount/`, {
       method: 'POST',
       headers: {
-        'api-key': apiKey,
-        // PayVessel docs require the secret as "Bearer <secret>" in api-secret
-        'api-secret': secret.startsWith('Bearer ') ? secret : `Bearer ${secret}`,
+        'api-key': apiKey.trim(),
+        'api-secret': secret.replace(/^Bearer\s+/i, '').trim(),
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(payload),
@@ -590,7 +589,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, account: result.account });
   }
 
-  if (providerId === 'opay' || providerId === 'palmpay') {
+  if (
+    providerId === 'opay' ||
+    providerId === 'palmpay' ||
+    providerId === 'safehaven' ||
+    providerId === 'kolomoni'
+  ) {
     const amount = Math.round(Number(body.amountNgn ?? body.amount));
     if (!Number.isFinite(amount) || amount < MIN_AMOUNT_NGN) {
       return NextResponse.json(
@@ -633,7 +637,7 @@ export async function POST(req: NextRequest) {
   }
 
   return NextResponse.json(
-    { ok: false, message: 'Unknown funding provider. Use opay, palmpay, or 9psb.' },
+    { ok: false, message: 'Unknown funding provider. Use opay, palmpay, 9psb, safehaven, or kolomoni.' },
     { status: 400 },
   );
 }

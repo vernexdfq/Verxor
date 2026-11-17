@@ -38,6 +38,19 @@ async function resolveUserId(req: NextRequest, body: { userId?: string }): Promi
   return userId || null;
 }
 
+export async function GET(req: NextRequest) {
+  const { searchParams } = new URL(req.url);
+  const amountUsd = Number(searchParams.get('amountUsd') || searchParams.get('usd') || 0);
+  const rate = usdToNgnRate();
+  const creditNgn = Math.round(amountUsd * rate * 100) / 100;
+  return NextResponse.json({
+    ok: true,
+    amountUsd,
+    creditNgn: amountUsd > 0 ? creditNgn : 0,
+    minUsd: 1,
+  });
+}
+
 export async function POST(req: NextRequest) {
   const apiKey = process.env.NOWPAYMENTS_API_KEY;
   if (!apiKey) {
@@ -166,7 +179,6 @@ export async function POST(req: NextRequest) {
     orderId,
     amountUsd,
     creditNgn,
-    rateNgnPerUsd: rate,
-    feeNote: 'NowPayments fees are paid by you on checkout',
+    feeNote: 'NowPayments network and gateway fees are paid on checkout',
   });
 }

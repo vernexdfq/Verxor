@@ -459,3 +459,215 @@
   font-weight: 600;
   color: #64748b;
 }
+
+/* Crypto Funding Card (Fintech Grade 1) */
+.fund-crypto-card {
+  display: flex;
+  flex-direction: column;
+  padding: 22px 18px;
+  border-radius: 20px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.04);
+  gap: 16px;
+}
+
+.fund-crypto-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.fund-crypto-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #334155;
+  letter-spacing: -0.01em;
+}
+
+.fund-crypto-min {
+  font-size: 12px;
+  font-weight: 600;
+  color: #94a3b8;
+}
+
+.fund-crypto-input-wrap {
+  display: flex;
+  align-items: center;
+  position: relative;
+  background: #f8fafc;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 8px 14px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.fund-crypto-input-wrap:focus-within {
+  border-color: var(--primary, #0052ff);
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(0, 82, 255, 0.12);
+}
+
+.fund-crypto-curr {
+  font-size: 28px;
+  font-weight: 800;
+  color: #0f172a;
+  margin-right: 6px;
+  line-height: 1;
+}
+
+.fund-crypto-input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  font-size: 28px;
+  font-weight: 800;
+  color: #0f172a;
+  outline: none;
+  width: 100%;
+  padding: 4px 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.fund-crypto-badge {
+  background: #eff6ff;
+  color: var(--primary, #0052ff);
+  font-size: 11px;
+  font-weight: 800;
+  padding: 4px 10px;
+  border-radius: 999px;
+  letter-spacing: 0.04em;
+  margin-left: 8px;
+  border: 1px solid #dbeafe;
+}
+
+/* Presets row */
+.fund-crypto-presets {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  scrollbar-width: none;
+}
+
+.fund-crypto-presets::-webkit-scrollbar {
+  display: none;
+}
+
+.fund-crypto-pill {
+  flex: 1;
+  min-width: 54px;
+  padding: 10px 12px;
+  border-radius: 999px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  color: #1e293b;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.15s ease;
+}
+
+.fund-crypto-pill:hover {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+}
+
+.fund-crypto-pill.active {
+  background: var(--primary, #0052ff);
+  border-color: var(--primary, #0052ff);
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(0, 82, 255, 0.25);
+}
+
+/* Gradient Preview Card (matching reference) */
+.fund-crypto-preview-card {
+  border-radius: 18px;
+  background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 50%, #3b82f6 100%);
+  color: #ffffff;
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  box-shadow: 0 8px 20px -4px rgba(37, 99, 235, 0.35);
+  position: relative;
+  overflow: hidden;
+}
+
+.fund-crypto-preview-card::after {
+  content: '';
+  position: absolute;
+  top: -30%;
+  right: -20%;
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
+  pointer-events: none;
+}
+
+.fund-crypto-preview-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.85);
+  letter-spacing: -0.01em;
+}
+
+.fund-crypto-preview-amount {
+  font-size: 30px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  color: #ffffff;
+  font-variant-numeric: tabular-nums;
+}
+
+.fund-crypto-preview-sub {
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.8);
+  margin-top: 2px;
+}
+
+.fund-crypto-submit-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 15px 20px;
+  border-radius: 16px;
+  background: var(--primary, #0052ff);
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  box-shadow: 0 4px 12px rgba(0, 82, 255, 0.2);
+}
+
+.fund-crypto-submit-btn:hover:not(:disabled) {
+  background: #0041cc;
+  transform: translateY(-1px);
+}
+
+.fund-crypto-submit-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.fund-crypto-footer-note {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  text-align: center;
+  font-size: 11px;
+  color: #64748b;
+  line-height: 1.4;
+  padding: 2px 4px 0;
+}
