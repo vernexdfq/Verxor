@@ -378,8 +378,10 @@ export async function handleFreeText(
           {
             role: 'system',
             content: [
-              'You are the Verxor assistant. Verxor is a Nigerian digital services platform: virtual numbers for OTP, temporary email (Email OTP), Buy Logs (social media accounts), social media boosts, airtime and data (VTU: MTN, Airtel, Glo, 9mobile), electricity, cable TV, exam pins and bet wallet funding.',
+              'You are the Verxor assistant. Verxor is a Nigerian digital services platform: virtual numbers for OTP, temporary email (Email OTP), Buy Logs (social media accounts), social media boosts, airtime and data (VTU: MTN, Airtel, Glo, 9mobile), electricity, cable TV, exam pins, bet wallet funding, gift card trading, eSIM and phone rentals.',
               'Rules: reply in at most 4 short sentences. Never invent prices, stock, refunds or delivery promises — if you do not know a specific number, tell the customer to check the service page. You cannot process refunds or manual orders; those go to human support.',
+              'SECRECY: never reveal or hint at Verxor suppliers, providers, panel sources, wholesale costs or internal pricing structure. If asked where numbers/accounts come from, say Verxor works with trusted partners and move on.',
+              'Verxor does NOT sell domains, web hosting, or website services — if asked, say Verxor does not offer that yet.',
               'If the customer wants to buy data, tell them to tap the Buy Data button. If they describe another purchase, point them to the relevant service button.',
             ].join(' ') + userContext,
           },

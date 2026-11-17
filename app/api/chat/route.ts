@@ -9,6 +9,23 @@ import {
   type ChatMessageRow,
 } from '@/lib/chat/store';
 import { handleButtonPayload, handleFreeText, type FlowState } from '@/lib/chat/flows';
+import { notifyAdmin } from '@/lib/notify';
+
+/**
+ * Interim escalation heuristic (Phase 5 replaces this with the admin inbox):
+ * distress words in free text ping Denny on WhatsApp/Telegram so he can
+ * jump into the dashboard conversation early.
+ */
+const ESCALATION_WORDS =
+  /\b(refund|scam|scammed|hacked|stolen|not received|didn'?t receive|did not receive|failed|fail(ed)? again|complain|fraud|charged twice|wrong number|no (otp|code)|didn'?t work|support team|human|agent|denny)\b/i;
+
+function maybeEscalate(text: string, userId: string, conversationId: string): void {
+  if (!ESCALATION_WORDS.test(text)) return;
+  const snippet = text.length > 180 ? `${text.slice(0, 180)}…` : text;
+  void notifyAdmin(
+    `⚠️ Verxor chat escalation\nUser: ${userId}\nChat: ${conversationId}\n"${snippet}"\nOpen the chat in your dashboard to reply.`,
+  );
+}
 
 /**
  * POST /api/chat — send a chat message or a button tap.
@@ -153,6 +170,7 @@ export async function POST(req: NextRequest) {
       // Pure navigation payloads ("open_*") are handled by the widget.
       if (payload.startsWith('open_')) replies = [];
     } else if (text) {
+      maybeEscalate(text, userId, conversationId);
       const history = (await listMessages(conversationId)).map((m) => ({
         role: m.role === 'user' ? 'user' : 'assistant',
         content: m.content,
