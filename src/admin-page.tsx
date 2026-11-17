@@ -64,7 +64,7 @@ const RATE_KEY = 'verxor-admin-rate';
 const NAV: { id: AdminSection; label: string; icon: typeof LayoutDashboard }[] = [
   { id: 'overview', label: 'Overview', icon: LayoutDashboard },
   { id: 'users', label: 'Users', icon: Users },
-  { id: 'pricing', label: 'Pricing', icon: Percent },
+  { id: 'pricing', label: 'Virtual Number', icon: Percent },
   { id: 'providers', label: 'Providers', icon: Plug },
   { id: 'settings', label: 'Settings', icon: KeyRound },
 ];
@@ -518,7 +518,7 @@ const DEFAULT_VN_MULTS: Record<'retail' | 'api' | 'panel', VnMults> = {
   panel: { economy: 1.5, standard: 1.3, fast: 1.2, premium: 1.15 },
 };
 
-function PricingSection() {
+function VirtualNumberSection() {
   const [data, setData] = useState<VnPricingData | null>(null);
   const [loadError, setLoadError] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
@@ -587,7 +587,7 @@ function PricingSection() {
 
       {loadError ? (
         <div className="vxa-empty">
-          <strong>Could not load pricing.</strong>
+          <strong>Could not load Virtual Number pricing.</strong>
           <p>Run supabase/vn-pricing-tiers.sql in the Supabase SQL Editor, then reload.</p>
         </div>
       ) : (
@@ -972,7 +972,7 @@ export function AdminPage({ onBack }: { onBack: () => void }) {
 
         {section === 'pricing' && (
           <section className="vxa-body">
-            <PricingSection />
+            <VirtualNumberSection />
           </section>
         )}
 
