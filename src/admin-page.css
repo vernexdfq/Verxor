@@ -925,3 +925,83 @@
   color: var(--soft);
   width: 100%;
 }
+
+/* ── Email OTP pricing section ── */
+.vxa-mu-list { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+.vxa-mu-row {
+  display: grid;
+  grid-template-columns: 1fr 1.6fr auto;
+  gap: 10px;
+  align-items: center;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: #fff;
+}
+.vxa-mu-row strong.t { font-size: 14px; }
+.vxa-mu-row span.h { font-size: 11.5px; color: #64748b; }
+.vxa-mu-val { display: flex; align-items: center; gap: 8px; }
+.vxa-mu-val strong { font-size: 15px; }
+.vxa-mu-pencil {
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: #fff;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  cursor: pointer;
+}
+.vxa-mu-pencil:hover { border-color: var(--blue); color: var(--blue); }
+.vxa-mu-edit { display: flex; gap: 6px; }
+.vxa-mu-edit input {
+  width: 90px;
+  height: 34px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  padding: 0 10px;
+  font: inherit;
+}
+.vxa-mu-edit button {
+  height: 34px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 9px;
+  background: var(--blue);
+  color: #fff;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.vxa-mu-edit button.ghost { background: #fff; color: var(--muted); border: 1px solid var(--border); }
+.vxa-samp-table { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+.vxa-samp-head,
+.vxa-samp-row {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr 1fr 1fr;
+  gap: 8px;
+  align-items: center;
+}
+.vxa-samp-head span {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #64748b;
+  text-transform: uppercase;
+}
+.vxa-samp-row {
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 10px;
+  background: #fff;
+}
+.vxa-samp-cell { display: flex; flex-direction: column; gap: 2px; }
+.vxa-samp-cell strong { font-size: 14px; }
+@media (max-width: 780px) {
+  .vxa-samp-head { display: none; }
+  .vxa-samp-row { grid-template-columns: 1fr 1fr; }
+  .vxa-price-tier { grid-column: 1 / -1; }
+  .vxa-mu-row { grid-template-columns: 1fr auto; }
+  .vxa-mu-row span.h { grid-column: 1 / -1; }
+}

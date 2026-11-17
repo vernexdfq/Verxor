@@ -14,6 +14,7 @@ import {
   KeyRound,
   LayoutDashboard,
   Lock,
+  Mail,
   Menu,
   Pencil,
   Percent,
@@ -27,7 +28,7 @@ import {
 } from 'lucide-react';
 import './admin-page.css';
 
-type AdminSection = 'overview' | 'users' | 'pricing' | 'providers' | 'settings';
+type AdminSection = 'overview' | 'users' | 'pricing' | 'email-otp' | 'providers' | 'settings';
 
 type AdminUserTab = 'all' | 'customers' | 'api' | 'panels';
 
@@ -67,6 +68,7 @@ const NAV: { id: AdminSection; label: string; icon: typeof LayoutDashboard }[] =
   { id: 'overview', label: 'Overview', icon: LayoutDashboard },
   { id: 'users', label: 'Users', icon: Users },
   { id: 'pricing', label: 'Virtual Number', icon: Percent },
+  { id: 'email-otp', label: 'Email OTP', icon: Mail },
   { id: 'providers', label: 'Providers', icon: Plug },
   { id: 'settings', label: 'Settings', icon: KeyRound },
 ];
@@ -76,6 +78,7 @@ const SECTION_META: Record<AdminSection, { title: string; sub: string }> = {
   overview: { title: 'Daily earnings', sub: 'Your gain for today, updated live' },
   users: { title: 'Users', sub: 'Accounts, wallets, bans and manual credits' },
   pricing: { title: 'Virtual Number pricing', sub: 'Markups for retail, API users and Child Panel' },
+  'email-otp': { title: 'Email OTP pricing', sub: 'Flat USD markups for retail, API users and Child Panel' },
   providers: { title: 'Providers', sub: 'Upstream provider health and keys' },
   settings: { title: 'Settings', sub: 'Service switches and announcements' },
 };
@@ -583,6 +586,170 @@ const DEFAULT_VN_MULTS: Record<'retail' | 'api' | 'panel', VnMults> = {
   panel: { economy: 1.5, standard: 1.3, fast: 1.2, premium: 1.15 },
 };
 
+type EmailOtpMarkupsData = { ok?: boolean; rate?: number; retail?: number; api?: number; panel?: number; error?: string };
+const DEFAULT_EMAIL_OTP_MARKUPS: Record<'retail' | 'api' | 'panel', number> = { retail: 0.25, api: 0.18, panel: 0.12 };
+const EMAIL_OTP_AUDIENCES: { id: 'retail' | 'api' | 'panel'; label: string; hint: string }[] = [
+  { id: 'retail', label: 'Retail', hint: 'Customers buying on verxor.com' },
+  { id: 'api', label: 'API users', hint: 'Users you toggled as API user' },
+  { id: 'panel', label: 'Child Panel', hint: 'Child panels + users you toggled Child Panel' },
+];
+
+/** Same rounding rule as the server: (cost + markup) x rate, 450-500 band snaps to 500. */
+function emailOtpSample(costUsd: number, markup: number, rate: number) {
+  const ngn = Math.round((costUsd + markup) * rate);
+  if (ngn > 450 && ngn <= 500) return 500;
+  return ngn;
+}
+
+function EmailOtpSection() {
+  const [data, setData] = useState<EmailOtpMarkupsData | null>(null);
+  const [loadError, setLoadError] = useState(false);
+  const [editing, setEditing] = useState<string | null>(null);
+  const [draft, setDraft] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState('');
+
+  const load = async () => {
+    try {
+      const res = await fetch('/api/admin/email-otp-pricing', { headers: adminHeaders(), cache: 'no-store' });
+      const d = (await res.json()) as EmailOtpMarkupsData;
+      if (res.ok && d.ok) { setData(d); setLoadError(false); } else { setLoadError(true); }
+    } catch { setLoadError(true); }
+  };
+
+  useEffect(() => { void load(); }, []);
+
+  const markups = (aud: 'retail' | 'api' | 'panel'): number =>
+    (data && data[aud] && data[aud]! > 0 ? data[aud]! : DEFAULT_EMAIL_OTP_MARKUPS[aud]);
+  const rate = data?.rate ?? 1380;
+
+  const save = async (aud: 'retail' | 'api' | 'panel') => {
+    const v = Number(draft.replace(/[^0-9.]/g, ''));
+    if (!Number.isFinite(v) || v < 0.01 || v > 5) { setMsg('Enter a markup between $0.01 and $5.00'); return; }
+    setBusy(true);
+    setMsg('');
+    try {
+      const res = await fetch('/api/admin/email-otp-pricing', {
+        method: 'PUT',
+        headers: adminHeaders(),
+        body: JSON.stringify({ [aud]: v }),
+      });
+      const d = (await res.json()) as EmailOtpMarkupsData;
+      if (!res.ok || !d.ok) { setMsg(d.error || 'Could not save'); return; }
+      setData(d);
+      setEditing(null);
+      setMsg('Saved — Email OTP prices update everywhere immediately');
+    } catch { setMsg('Network error'); } finally { setBusy(false); }
+  };
+
+  return (
+    <>
+      {msg ? <div className="vxa-action-msg">{msg}</div> : null}
+
+      {loadError ? (
+        <div className="vxa-empty tall">
+          <strong>Could not load Email OTP settings</strong>
+          <p>Check that the server can reach the database, then reload.</p>
+        </div>
+      ) : (
+        <>
+          <div className="vxa-duo">
+            <div className="vxa-tile">
+              <span className="vxa-tile-label"><Percent size={14} /> GLOBAL NAIRA RATE</span>
+              <div className="vxa-rate-row">
+                <strong>₦{rate.toLocaleString('en-NG')}</strong>
+                <span className="vxa-rate-per">/ $1</span>
+              </div>
+              <p>Shared with Virtual Numbers — change it in the Overview daily rate. Applies to retail, API and Child Panel prices.</p>
+            </div>
+            <div className="vxa-tile">
+              <span className="vxa-tile-label"><Mail size={14} /> HOW EMAIL PRICING WORKS</span>
+              <p className="vxa-price-formula">
+                Price = (provider cost + flat markup) × the naira rate, rounded.
+                Prices above ₦450 up to ₦500 snap to ₦500 — anything above ₦500 keeps its real price.
+                Every price is recomputed on the server per request.
+              </p>
+            </div>
+          </div>
+
+          <div className="vxa-card">
+            <div className="vxa-card-head"><strong>Flat markups (USD added to provider cost)</strong></div>
+            <p className="vxa-card-sub">
+              Tap the pencil to change a markup. Save once and every email price updates instantly,
+              for the site and the API.
+            </p>
+            <div className="vxa-mu-list">
+              {EMAIL_OTP_AUDIENCES.map((a) => {
+                const m = markups(a.id);
+                return (
+                  <div className="vxa-mu-row" key={a.id}>
+                    <strong className="t">{a.label}</strong>
+                    <span className="h">{a.hint}</span>
+                    {editing === a.id ? (
+                      <div className="vxa-mu-edit">
+                        <input
+                          value={draft}
+                          inputMode="decimal"
+                          aria-label={'Edit ' + a.label + ' markup'}
+                          onChange={(e) => setDraft(e.target.value)}
+                          onKeyDown={(e) => { if (e.key === 'Enter') void save(a.id); }}
+                        />
+                        <button type="button" disabled={busy} onClick={() => void save(a.id)}>Save</button>
+                        <button type="button" className="ghost" disabled={busy} onClick={() => setEditing(null)}>Cancel</button>
+                      </div>
+                    ) : (
+                      <div className="vxa-mu-val">
+                        <strong>${m.toFixed(2)}</strong>
+                        <button
+                          type="button"
+                          className="vxa-mu-pencil"
+                          aria-label={'Edit ' + a.label + ' markup'}
+                          onClick={() => { setEditing(a.id); setDraft(String(m)); }}
+                        >
+                          <Pencil size={14} />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="vxa-card">
+            <div className="vxa-card-head"><strong>Sample prices</strong></div>
+            <div className="vxa-samp-table">
+              <div className="vxa-samp-head">
+                <span>Provider cost</span>
+                {EMAIL_OTP_AUDIENCES.map((a) => <span key={a.id}>{a.label}</span>)}
+              </div>
+              {[0.0015, 0.01, 0.04, 0.1, 0.6].map((c) => (
+                <div className="vxa-samp-row" key={c}>
+                  <div className="vxa-price-tier">
+                    <strong>${c < 0.01 ? c : c.toFixed(2)}</strong>
+                    <span>per email</span>
+                  </div>
+                  {EMAIL_OTP_AUDIENCES.map((a) => (
+                    <div className="vxa-samp-cell" key={a.id}>
+                      <em className="vxa-price-aud">{a.label}</em>
+                      <strong>{naira(emailOtpSample(c, markups(a.id), rate))}</strong>
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+            <ul className="vxa-price-notes">
+              <li>Formula: (provider cost + markup) × ₦{rate.toLocaleString('en-NG')} rate, rounded.</li>
+              <li>Prices between ₦450 and ₦500 snap to ₦500. Above ₦500 the real price stays — no ceiling.</li>
+              <li>Retail $0.25 · API users $0.18 · Child Panel $0.12 are only defaults — the boxes above are the live values.</li>
+            </ul>
+          </div>
+        </>
+      )}
+    </>
+  );
+}
+
 function VirtualNumberSection() {
   const [data, setData] = useState<VnPricingData | null>(null);
   const [loadError, setLoadError] = useState(false);
@@ -1039,6 +1206,12 @@ export function AdminPage({ onBack }: { onBack: () => void }) {
         {section === 'pricing' && (
           <section className="vxa-body">
             <VirtualNumberSection />
+          </section>
+        )}
+
+        {section === 'email-otp' && (
+          <section className="vxa-body">
+            <EmailOtpSection />
           </section>
         )}
 

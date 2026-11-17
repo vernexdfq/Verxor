@@ -12,6 +12,7 @@ import {
   X,
 } from 'lucide-react';
 import type { AuthSession } from './auth/AuthFlow';
+import { ServiceLogo } from './virtual-numbers-components';
 import './email-otp-page.css';
 
 // Popular platforms for autocomplete (AnyMessage accepts any site)
@@ -51,29 +52,6 @@ function formatNgn(n: number) {
   return `₦${Math.round(n).toLocaleString('en-NG')}`;
 }
 
-function PlatformIcon({ logoId, name }: { logoId?: string; name: string }) {
-  // Reuse virtual-numbers brand assets when available
-  if (logoId) {
-    return (
-      <img
-        src={`/brand/services/${logoId}.svg`}
-        alt=""
-        width={28}
-        height={28}
-        onError={(e) => {
-          (e.target as HTMLImageElement).style.display = 'none';
-        }}
-        style={{ borderRadius: 8 }}
-      />
-    );
-  }
-  return (
-    <span className="eotp-fallback-icon" aria-hidden>
-      {name.slice(0, 1).toUpperCase()}
-    </span>
-  );
-}
-
 export function EmailOtpPage({
   onBack,
   session,
@@ -110,6 +88,7 @@ export function EmailOtpPage({
     try {
       const res = await fetch(`/api/v1/email-otp/quantity?site=${encodeURIComponent(site)}`, {
         cache: 'no-store',
+        headers: session?.userId ? { 'x-vx-user': session.userId } : undefined,
       });
       const data = await res.json();
       if (!data.ok) {
@@ -225,7 +204,7 @@ export function EmailOtpPage({
                         onClick={() => selectPlatform(p)}
                       >
                         <span className="eotp-suggestion-icon">
-                          <PlatformIcon logoId={p.logoId} name={p.name} />
+                          <ServiceLogo id={p.logoId || p.id} name={p.name} />
                         </span>
                         <span className="eotp-suggestion-text">
                           <strong>{p.name}</strong>
@@ -248,7 +227,8 @@ export function EmailOtpPage({
                     className="eotp-chip"
                     onClick={() => selectPlatform(p)}
                   >
-                    {p.name}
+                    <ServiceLogo id={p.logoId || p.id} name={p.name} compact />
+                    <span>{p.name}</span>
                   </button>
                 ))}
               </div>
@@ -259,7 +239,7 @@ export function EmailOtpPage({
             <section className="eotp-domains">
               <div className="eotp-domains-head">
                 <div className="eotp-selected">
-                  <PlatformIcon logoId={selected.logoId} name={selected.name} />
+                  <ServiceLogo id={selected.logoId || selected.id} name={selected.name} />
                   <div>
                     <strong>{selected.name}</strong>
                     <small>{selected.site}</small>

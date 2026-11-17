@@ -131,16 +131,20 @@ export async function reorderEmail(opts: {
 
 const DEFAULT_RATE = 1380;
 const DEFAULT_FLAT_MARKUP_USD = 0.25;
-const ROUND_UP_THRESHOLD = 450;
-const HARD_CEILING = 500;
 
-export function emailOtpPriceNgn(providerCostUsd: number): number {
-  const rate = Number(process.env.USD_NGN_RATE) || DEFAULT_RATE;
-  const flat = Number(process.env.EMAIL_OTP_FLAT_MARKUP_USD) || DEFAULT_FLAT_MARKUP_USD;
-  const usd = providerCostUsd + flat;
-  let ngn = Math.round(usd * rate);
-  if (ngn > ROUND_UP_THRESHOLD) ngn = HARD_CEILING;
-  if (ngn > HARD_CEILING) ngn = HARD_CEILING;
+/**
+ * (provider cost + flat markup) x rate, rounded.
+ * Owner rule: prices above 450 up to 500 snap to 500.
+ * Above 500 the real price stays — NO hard ceiling anymore.
+ * Live requests pass markup + rate from lib/email-otp-pricing.
+ */
+export function emailOtpPriceNgn(
+  providerCostUsd: number,
+  markupUsd = Number(process.env.EMAIL_OTP_FLAT_MARKUP_USD) || DEFAULT_FLAT_MARKUP_USD,
+  rate = Number(process.env.USD_NGN_RATE) || DEFAULT_RATE,
+): number {
+  const ngn = Math.round((providerCostUsd + markupUsd) * rate);
+  if (ngn > 450 && ngn <= 500) return 500;
   return ngn;
 }
 
@@ -152,12 +156,15 @@ export type PricedDomain = {
 };
 
 /** Normalize quantity response into customer-facing priced list (stock > 0 first). */
-export function priceDomains(raw: Record<string, DomainStock>): PricedDomain[] {
+export function priceDomains(
+  raw: Record<string, DomainStock>,
+  opts?: { markup?: number; rate?: number },
+): PricedDomain[] {
   const list: PricedDomain[] = Object.entries(raw).map(([domain, row]) => ({
     domain,
     count: Number(row.count) || 0,
     costUsd: Number(row.price) || 0,
-    priceNgn: emailOtpPriceNgn(Number(row.price) || 0),
+    priceNgn: emailOtpPriceNgn(Number(row.price) || 0, opts?.markup, opts?.rate),
   }));
 
   // In-stock first, then cheapest

@@ -427,3 +427,42 @@
     transform: rotate(360deg);
   }
 }
+
+/* ── Verxor brand refresh (blue #0052ff, VN-style logos) ── */
+.eotp-tabs button.active {
+  background: #0052ff;
+  border-color: #0052ff;
+  box-shadow: 0 6px 16px rgba(0, 82, 255, 0.25);
+}
+.eotp-search-wrap.focused {
+  border-color: #0052ff;
+  box-shadow: 0 0 0 3px rgba(0, 82, 255, 0.12);
+}
+.eotp-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+.eotp-chip:hover {
+  border-color: #0052ff;
+  color: #0052ff;
+  background: rgba(0, 82, 255, 0.04);
+}
+.eotp-buy { background: #0052ff; }
+.eotp-buy:hover:not(:disabled) { background: #0040c8; }
+.eotp-primary { background: #0052ff; }
+.eotp-suggestion:hover { background: rgba(0, 82, 255, 0.05); }
+
+/* ServiceLogo base (same component as Virtual Numbers) */
+.vn-service-logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+.vn-service-logo img { width: 55%; height: 55%; object-fit: contain; }
+.vn-service-logo--compact { width: 22px; height: 22px; border-radius: 7px; }
