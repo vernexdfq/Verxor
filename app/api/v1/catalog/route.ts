@@ -1,16 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sbSelect, supabaseConfigured } from '@/lib/supabase-admin';
+import { loadVnPricing, resolveVnAudience, multipliersFor } from '@/lib/vn-pricing';
 
 export const dynamic = 'force-dynamic';
 
-const RETAIL_MULT: Record<string, number> = {
-  economy: 5.0,
-  standard: 4.0,
-  fast: 3.0,
-  premium: 2.0,
-};
-
-const DEFAULT_RATE = 1380;
 
 const ISO_TO_GRIZZLY: Record<string, string[]> = {
   US: ['187', '12'],
@@ -352,32 +345,6 @@ const MASTER_SERVICES_FALLBACK: Array<{
   { id: 'ot', code: 'ot', name: 'Other', display_name: 'Any Other Service', is_popular: false },
 ];
 
-type PricingSettings = {
-  base_naira_rate?: number;
-  retail_economy?: number;
-  retail_standard?: number;
-  retail_fast?: number;
-  retail_premium?: number;
-};
-
-async function loadSettings(): Promise<{ rate: number; mult: Record<string, number> }> {
-  try {
-    const rows = (await sbSelect('vn_pricing_settings', 'select=*&limit=1')) as PricingSettings[];
-    const s = rows?.[0];
-    if (!s) return { rate: DEFAULT_RATE, mult: RETAIL_MULT };
-    return {
-      rate: Number(s.base_naira_rate) || DEFAULT_RATE,
-      mult: {
-        economy: Number(s.retail_economy) || RETAIL_MULT.economy,
-        standard: Number(s.retail_standard) || RETAIL_MULT.standard,
-        fast: Number(s.retail_fast) || RETAIL_MULT.fast,
-        premium: Number(s.retail_premium) || RETAIL_MULT.premium,
-      },
-    };
-  } catch {
-    return { rate: DEFAULT_RATE, mult: RETAIL_MULT };
-  }
-}
 
 function sellNgn(costUsd: number, tier: string, rate: number, mult: Record<string, number>) {
   const m = mult[tier] ?? 2;
@@ -454,7 +421,13 @@ export async function GET(req: NextRequest) {
   const q = (req.nextUrl.searchParams.get('q') || '').trim().toLowerCase();
 
   try {
-    const { rate, mult } = await loadSettings();
+    // Audience-aware pricing: public calls get retail prices; child-panel keys
+    // and users toggled as Child Panel get panel prices; user API keys (vx_api_*)
+    // get API prices. Never cache audience-specific prices in the CDN.
+    const pricing = await loadVnPricing();
+    const audience = await resolveVnAudience(req);
+    const rate = pricing.rate;
+    const mult = multipliersFor(audience, pricing);
 
     if (mode === 'services') {
       const tier = poolId ? poolTier(poolId) : 'economy';
@@ -505,7 +478,7 @@ export async function GET(req: NextRequest) {
         rate,
         services: list,
       });
-      res.headers.set('Cache-Control', 'public, s-maxage=86400, stale-while-revalidate=86400');
+      res.headers.set('Cache-Control', audience === 'retail' ? 'public, s-maxage=86400, stale-while-revalidate=86400' : 'no-store');
       return res;
     }
 
@@ -581,7 +554,7 @@ export async function GET(req: NextRequest) {
         count: list.length,
         countries: list,
       });
-      res.headers.set('Cache-Control', 'public, s-maxage=3600, stale-while-revalidate=7200');
+      res.headers.set('Cache-Control', audience === 'retail' ? 'public, s-maxage=3600, stale-while-revalidate=7200' : 'no-store');
       return res;
     }
 
@@ -658,7 +631,7 @@ export async function GET(req: NextRequest) {
         count: unique.length,
         options: unique.map((o, i) => ({ ...o, label: `Route ${i + 1}`, provider: '' })),
       });
-      res.headers.set('Cache-Control', 'public, s-maxage=30, stale-while-revalidate=60');
+      res.headers.set('Cache-Control', audience === 'retail' ? 'public, s-maxage=30, stale-while-revalidate=60' : 'no-store');
       return res;
     }
 

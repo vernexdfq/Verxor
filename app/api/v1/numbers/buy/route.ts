@@ -3,6 +3,7 @@ import { grizzly } from '@/lib/providers';
 import { sbInsert, supabaseConfigured } from '@/lib/supabase-admin';
 import { resolvePanelClient, panelAllowsVirtualNumbers, getPanelAdminEmail } from '@/lib/panel-auth';
 import { sendVirtualNumberReceipt, sendPanelAdminOrderAlert } from '@/lib/email/receipts';
+import { computeVnCharge, isChildPanelUser, apiKeyFromRequest, type VnAudience } from '@/lib/vn-pricing';
 
 export const dynamic = 'force-dynamic';
 
@@ -229,6 +230,7 @@ export async function POST(req: NextRequest) {
     country?: string;
     maxPriceUsd?: number;
     poolId?: string;
+    optionId?: string;
     priceNgn?: number;
     userId?: string;
     customerName?: string;
@@ -246,7 +248,9 @@ export async function POST(req: NextRequest) {
   const country = String(body.country || '').trim();
   const maxPriceUsd = Number(body.maxPriceUsd);
   const poolId = (body.poolId || '').toLowerCase();
-  const priceNgn = Number(body.priceNgn) || 0;
+  // NOTE: body.priceNgn is intentionally IGNORED — the charge is computed
+  // server-side from the option's real provider cost. Nobody can bypass the
+  // tier multipliers by calling this endpoint directly.
 
   if (!service || !country) {
     return NextResponse.json(
@@ -290,6 +294,24 @@ export async function POST(req: NextRequest) {
       { status: 402 },
     );
   }
+
+  // Server-side pricing enforcement:
+  //  - child-panel key          -> panel multipliers
+  //  - user toggled Child Panel -> panel multipliers (admin toggle)
+  //  - user API key (vx_api_*)  -> api multipliers
+  //  - everyone else           -> retail multipliers
+  let audience: VnAudience = 'retail';
+  if (panel) audience = 'panel';
+  else if (userId && (await isChildPanelUser(userId))) audience = 'panel';
+  else if (apiKeyFromRequest(req).startsWith('vx_api_')) audience = 'api';
+
+  const computed = await computeVnCharge({
+    costUsd: maxPriceUsd,
+    optionId: body.optionId || null,
+    poolId: poolId || null,
+    audience,
+  });
+  const priceNgn = computed.charge;
 
   const useReseller = Boolean(panel);
   const debitRef = `vn-buy-${panel ? `panel-${panel.id}` : userId}-${Date.now()}`;
@@ -347,7 +369,7 @@ export async function POST(req: NextRequest) {
               phone_number: phone,
               service_code: service,
               country_code: country,
-              cost_usd: maxPriceUsd,
+              cost_usd: computed.costUsd,
               charged_ngn: priceNgn,
               status: 'waiting',
             })
