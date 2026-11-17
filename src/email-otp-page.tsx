@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowLeft,
   ChevronRight,
+  Globe,
   Inbox,
   Loader2,
   Mail,
@@ -15,7 +16,7 @@ import type { AuthSession } from './auth/AuthFlow';
 import { ServiceLogo } from './virtual-numbers-components';
 import './email-otp-page.css';
 
-// Popular platforms for autocomplete (AnyMessage accepts any site)
+// Platform catalog for autocomplete (AnyMessage accepts any site)
 const POPULAR_PLATFORMS: { id: string; name: string; site: string; logoId?: string }[] = [
   { id: 'instagram', name: 'Instagram', site: 'instagram.com', logoId: 'instagram' },
   { id: 'google', name: 'Google / Gmail', site: 'google.com', logoId: 'google' },
@@ -38,6 +39,8 @@ const POPULAR_PLATFORMS: { id: string; name: string; site: string; logoId?: stri
   { id: 'steam', name: 'Steam', site: 'steamcommunity.com', logoId: 'steam' },
   { id: 'paypal', name: 'PayPal', site: 'paypal.com', logoId: 'paypal' },
 ];
+
+type Platform = (typeof POPULAR_PLATFORMS)[0];
 
 type DomainRow = {
   domain: string;
@@ -64,21 +67,21 @@ export function EmailOtpPage({
   const [tab, setTab] = useState<Tab>('buy');
   const [query, setQuery] = useState('');
   const [focused, setFocused] = useState(false);
-  const [selected, setSelected] = useState<(typeof POPULAR_PLATFORMS)[0] | null>(null);
+  const [selected, setSelected] = useState<Platform | null>(null);
   const [domains, setDomains] = useState<DomainRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const suggestions = useMemo(() => {
+  const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return POPULAR_PLATFORMS.slice(0, 8);
+    if (!q) return POPULAR_PLATFORMS;
     return POPULAR_PLATFORMS.filter(
       (p) =>
         p.name.toLowerCase().includes(q) ||
         p.site.toLowerCase().includes(q) ||
         p.id.includes(q),
-    ).slice(0, 10);
+    );
   }, [query]);
 
   const loadDomains = useCallback(async (site: string) => {
@@ -101,13 +104,20 @@ export function EmailOtpPage({
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [session?.userId]);
 
-  const selectPlatform = (p: (typeof POPULAR_PLATFORMS)[0]) => {
+  const selectPlatform = (p: Platform) => {
     setSelected(p);
     setQuery(p.name);
     setFocused(false);
     void loadDomains(p.site);
+  };
+
+  const searchCustomSite = () => {
+    const q = query.trim().toLowerCase().replace(/[^a-z0-9.-]/g, '');
+    if (!q) return;
+    const site = q.includes('.') ? q : `${q}.com`;
+    selectPlatform({ id: 'custom', name: site, site });
   };
 
   const clearSelection = () => {
@@ -127,6 +137,12 @@ export function EmailOtpPage({
     document.addEventListener('click', onDoc);
     return () => document.removeEventListener('click', onDoc);
   }, []);
+
+  const showList = focused && !selected;
+  const typed = query.trim().toLowerCase();
+  const typedIsKnown = typed === '' || POPULAR_PLATFORMS.some(
+    (p) => p.site.toLowerCase().includes(typed) || p.name.toLowerCase().includes(typed),
+  );
 
   return (
     <div className="eotp-page">
@@ -165,15 +181,15 @@ export function EmailOtpPage({
         <>
           <section className="eotp-search-section">
             <label className="eotp-label" htmlFor="eotp-search">
-              Search platform
+              Select platform
             </label>
-            <div className={`eotp-search-wrap${focused ? ' focused' : ''}`}>
-              <Search size={18} className="eotp-search-icon" />
+            <div className={`eotp-search-wrap${focused && !selected ? ' focused' : ''}`}>
+              <Search size={19} className="eotp-search-icon" />
               <input
                 id="eotp-search"
                 ref={inputRef}
                 className="eotp-search-input"
-                placeholder="e.g. Instagram, Google, TikTok…"
+                placeholder={selected ? selected.name : 'Search platform, e.g. Instagram…'}
                 value={query}
                 autoComplete="off"
                 onChange={(e) => {
@@ -194,44 +210,50 @@ export function EmailOtpPage({
                 </button>
               ) : null}
 
-              {focused && suggestions.length > 0 ? (
-                <ul className="eotp-suggestions" role="listbox">
-                  {suggestions.map((p) => (
-                    <li key={p.id}>
-                      <button
-                        type="button"
-                        className="eotp-suggestion"
-                        onClick={() => selectPlatform(p)}
-                      >
-                        <span className="eotp-suggestion-icon">
-                          <ServiceLogo id={p.logoId || p.id} name={p.name} />
-                        </span>
-                        <span className="eotp-suggestion-text">
-                          <strong>{p.name}</strong>
-                          <small>{p.site}</small>
-                        </span>
-                        <ChevronRight size={16} className="eotp-chevron" />
-                      </button>
-                    </li>
-                  ))}
-                </ul>
+              {showList ? (
+                <div className="eotp-listbox" role="listbox">
+                  {filtered.length > 0 ? (
+                    <ul className="eotp-suggestions">
+                      {filtered.map((p) => (
+                        <li key={p.id}>
+                          <button
+                            type="button"
+                            className="eotp-suggestion"
+                            onClick={() => selectPlatform(p)}
+                          >
+                            <span className="eotp-suggestion-icon">
+                              <ServiceLogo id={p.logoId || p.id} name={p.name} />
+                            </span>
+                            <span className="eotp-suggestion-text">
+                              <strong>{p.name}</strong>
+                              <small>{p.site}</small>
+                            </span>
+                            <ChevronRight size={16} className="eotp-chevron" />
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="eotp-listbox-empty">No matching platform</p>
+                  )}
+                  {!typedIsKnown ? (
+                    <button type="button" className="eotp-suggestion eotp-suggestion-custom" onClick={searchCustomSite}>
+                      <span className="eotp-suggestion-icon">
+                        <Globe size={18} />
+                      </span>
+                      <span className="eotp-suggestion-text">
+                        <strong>Search “{query.trim()}”</strong>
+                        <small>Look up any website domain</small>
+                      </span>
+                      <ChevronRight size={16} className="eotp-chevron" />
+                    </button>
+                  ) : null}
+                </div>
               ) : null}
             </div>
 
-            {!selected && !query ? (
-              <div className="eotp-chips">
-                {POPULAR_PLATFORMS.slice(0, 8).map((p) => (
-                  <button
-                    key={p.id}
-                    type="button"
-                    className="eotp-chip"
-                    onClick={() => selectPlatform(p)}
-                  >
-                    <ServiceLogo id={p.logoId || p.id} name={p.name} compact />
-                    <span>{p.name}</span>
-                  </button>
-                ))}
-              </div>
+            {!selected && !focused ? (
+              <p className="eotp-search-note">Tap the search bar to pick a platform</p>
             ) : null}
           </section>
 
@@ -279,7 +301,7 @@ export function EmailOtpPage({
                     <li key={d.domain} className={d.count === 0 ? 'sold-out' : ''}>
                       <div className="eotp-domain-main">
                         <span className="eotp-domain-name">@{d.domain}</span>
-                        <span className="eotp-domain-stock">
+                        <span className={d.count > 0 ? 'eotp-domain-stock in-stock' : 'eotp-domain-stock'}>
                           {d.count > 0
                             ? `${d.count.toLocaleString()} available`
                             : 'Out of stock'}
@@ -306,12 +328,7 @@ export function EmailOtpPage({
                 </ul>
               )}
             </section>
-          ) : (
-            <div className="eotp-hint">
-              <Mail size={20} />
-              <p>Search or pick a platform to see available email domains and prices.</p>
-            </div>
-          )}
+          ) : null}
         </>
       ) : (
         <section className="eotp-my-emails">
@@ -322,7 +339,7 @@ export function EmailOtpPage({
             <strong>No emails yet</strong>
             <p>Purchase an email address to get started. Your activations will appear here.</p>
             <button type="button" className="eotp-primary" onClick={() => setTab('buy')}>
-              Search platform
+              Buy an email
             </button>
           </div>
         </section>
