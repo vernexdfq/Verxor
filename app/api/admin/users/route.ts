@@ -231,7 +231,17 @@ export async function GET(req: NextRequest) {
     });
   }
 
-  if (envPanelKey && !merged.has('env-panel')) {
+  // Skip the env panel when the same panel already exists in api_clients
+  // (matched by linked wallet or name) — it would otherwise show twice.
+  const envDuplicate = apiClients.some((c) => {
+    const meta = (c.meta || {}) as Record<string, unknown>;
+    const cWallet = typeof meta.wallet_user_id === 'string' ? meta.wallet_user_id :
+      typeof meta.walletUserId === 'string' ? meta.walletUserId : '';
+    const cName = String(c.name || '').toLowerCase();
+    return (envWalletId && cWallet === envWalletId) || (cName && cName === envPanelName.toLowerCase());
+  });
+
+  if (envPanelKey && !envDuplicate && !merged.has('env-panel')) {
     put('env-panel', {
       id: 'env-panel',
       name: envPanelName,
@@ -357,6 +367,41 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ ok: false, error: 'Could not update the phone number' }, { status: 500 });
       }
       await audit('set_phone', { userId, reason: phone });
+      return NextResponse.json({ ok: true });
+    }
+
+    case 'set-panel': {
+      const enabled = Boolean(body.enabled);
+      const panelId = `panel-${userId}`;
+      if (enabled) {
+        const res = await fetch(`${base}/rest/v1/child_panels`, {
+          method: 'POST',
+          headers: { ...hdr, Prefer: 'resolution=merge-duplicates,return=minimal' },
+          body: JSON.stringify({
+            id: panelId,
+            user_id: userId,
+            name: String(body.name || 'Shield Panel'),
+            suspended: false,
+            updated_at: new Date().toISOString(),
+          }),
+          cache: 'no-store',
+        });
+        if (!res.ok) {
+          const t = await res.text().catch(() => '');
+          console.error('[admin/users] set-panel upsert', res.status, t.slice(0, 200));
+          return NextResponse.json({ ok: false, error: 'Could not upgrade the user' }, { status: 500 });
+        }
+        await audit('shield_panel_upgrade', { userId });
+        return NextResponse.json({ ok: true });
+      }
+      const del = await fetch(
+        `${base}/rest/v1/child_panels?id=eq.${encodeURIComponent(panelId)}`,
+        { method: 'DELETE', headers: hdr, cache: 'no-store' },
+      );
+      if (!del.ok) {
+        return NextResponse.json({ ok: false, error: 'Could not downgrade the user' }, { status: 500 });
+      }
+      await audit('shield_panel_downgrade', { userId });
       return NextResponse.json({ ok: true });
     }
 

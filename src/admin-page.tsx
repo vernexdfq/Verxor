@@ -19,6 +19,7 @@ import {
   Percent,
   Plug,
   Search,
+  Shield,
   TrendingUp,
   Users,
   Wallet,
@@ -246,7 +247,7 @@ function UserManagement() {
                   <button type="button" key={v} onClick={() => setAdjustAmount(String(v))}>₦{v.toLocaleString('en-NG')}</button>
                 ))}
               </div>
-              <input placeholder="Reason (recommended)" value={adjustReason}
+              <input placeholder="Reason (optional)" value={adjustReason}
                 onChange={(e) => setAdjustReason(e.target.value)} aria-label="Reason" />
               <button type="button" className="vxa-adjust-go" disabled={busy} onClick={submitAdjust}>
                 {busy ? 'Working…' : adjustMode === 'credit' ? 'Credit wallet' : 'Debit wallet'}
@@ -312,7 +313,7 @@ function UserManagement() {
                 <li key={s.id}>
                   <div>
                     <strong>{s.label}</strong>
-                    <span>{on ? 'Unlocked' : 'Locked — contact admin to unlock'}</span>
+                    <span>{on ? 'Unlocked' : 'Locked — tap the switch to unlock'}</span>
                   </div>
                   <button type="button" disabled={busy}
                     className={on ? 'vxa-switch on' : 'vxa-switch'}
@@ -332,7 +333,37 @@ function UserManagement() {
             <label>Unlock note (why this user was approved)</label>
             <input placeholder="e.g. CAC verified, registered business / known in person"
               value={unlockNote} onChange={(e) => setUnlockNote(e.target.value)} />
-            <p className="vxa-note">Locked endpoints reply: "Service locked. Contact Verxor Admin on WhatsApp/Telegram to unlock wholesale access."</p>
+            <p className="vxa-note">Locked endpoints reply to API users: "Service locked. Contact Verxor Admin on WhatsApp/Telegram to unlock wholesale access."</p>
+          </div>
+
+          <div className="vxa-card">
+            <div className="vxa-card-head">
+              <Shield size={17} />
+              <strong>Shield Panel access</strong>
+              {selected.panel ? <span className="vxa-tag navy">Shield Panel</span> : <span className="vxa-tag grey">Standard customer</span>}
+            </div>
+            <p className="vxa-card-sub">
+              Upgrade a user to Shield Panel after they have paid for a panel and you have delivered it.
+              Upgraded users get Shield Panel prices on every service.
+            </p>
+            <ul className="vxa-matrix">
+              <li>
+                <div>
+                  <strong>Shield Panel</strong>
+                  <span>{selected.panel ? 'Upgraded — gets Shield Panel prices' : 'Not upgraded — standard customer prices'}</span>
+                </div>
+                <button type="button" disabled={busy}
+                  className={selected.panel ? 'vxa-switch on' : 'vxa-switch'}
+                  aria-pressed={Boolean(selected.panel)}
+                  aria-label="Toggle Shield Panel"
+                  onClick={() => act(
+                    { action: 'set-panel', userId: selected.id, enabled: !selected.panel },
+                    selected.panel ? 'Downgraded to standard customer' : 'Upgraded to Shield Panel',
+                  )}>
+                  <em />
+                </button>
+              </li>
+            </ul>
           </div>
         </div>
       </div>
