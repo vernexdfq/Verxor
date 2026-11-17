@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { MessageCircle, Send, X } from 'lucide-react';
+import { Maximize2, MessageCircle, Minimize2, Send, X } from 'lucide-react';
 import type { AuthSession } from './auth/AuthFlow';
 import { loadSessionTokens } from './auth/session-unlock';
 import './chat-widget.css';
@@ -37,14 +37,28 @@ export function ChatWidget({
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  const [full, setFull] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
   const sessionRef = useRef(session);
   sessionRef.current = session;
 
-  const headers = useCallback((): Record<string, string> => {
+  /**
+   * Fresh auth header. Supabase access tokens expire after ~1h; the stored
+   * copy can be stale, so ask the browser client first (it refreshes the
+   * session automatically) and fall back to the stored token.
+   */
+  const authHeaders = useCallback(async (): Promise<Record<string, string>> => {
     const h: Record<string, string> = { 'Content-Type': 'application/json' };
-    const token = loadSessionTokens()?.access_token;
-    if (token) h.Authorization = `Bearer ${token}`;
+    try {
+      const { getSupabaseBrowser } = await import('../lib/supabase/client');
+      const sb = getSupabaseBrowser();
+      const { data } = await sb?.auth.getSession();
+      const token = data?.session?.access_token || loadSessionTokens()?.access_token;
+      if (token) h.Authorization = `Bearer ${token}`;
+    } catch {
+      const token = loadSessionTokens()?.access_token;
+      if (token) h.Authorization = `Bearer ${token}`;
+    }
     return h;
   }, []);
 
@@ -68,6 +82,9 @@ export function ChatWidget({
       case 'open_boost':
         onOpenService('boost');
         return true;
+      case 'open_support':
+        onOpenService('support-center');
+        return true;
       default:
         return false;
     }
@@ -86,7 +103,7 @@ export function ChatWidget({
     setLoaded(true);
     void (async () => {
       try {
-        const res = await fetch('/api/chat', { headers: headers(), cache: 'no-store' });
+        const res = await fetch('/api/chat', { headers: await authHeaders(), cache: 'no-store' });
         const data = await res.json().catch(() => ({}));
         if (data?.ok && data.conversationId) {
           setConversationId(data.conversationId);
@@ -105,7 +122,7 @@ export function ChatWidget({
         }
       } catch { /* offline */ }
     })();
-  }, [open, loaded, headers]);
+  }, [open, loaded, authHeaders]);
 
   const send = useCallback(
     async (opts: { text?: string; payload?: string; label?: string }) => {
@@ -123,7 +140,7 @@ export function ChatWidget({
       try {
         const res = await fetch('/api/chat', {
           method: 'POST',
-          headers: headers(),
+          headers: await authHeaders(),
           body: JSON.stringify({
             conversationId: conversationId || undefined,
             text: text || undefined,
@@ -169,7 +186,7 @@ export function ChatWidget({
         scrollDown();
       }
     },
-    [busy, conversationId, headers, navigate, scrollDown],
+    [busy, conversationId, authHeaders, navigate, scrollDown],
   );
 
   const startChat = useCallback(() => {
@@ -181,7 +198,7 @@ export function ChatWidget({
         {
           id: 'welcome',
           role: 'ai',
-          content: `Hello${sessionRef.current?.name ? ` ${sessionRef.current.name}` : ''} 👋 I am your Verxor assistant. Buy data right here in chat, or jump to any service.`,
+          content: `Hello${sessionRef.current?.name ? ` ${sessionRef.current.name}` : ''} 👋 I am your Verxor assistant. Jump to any service, buy right here in chat, or get support from me.`,
           buttons: [
             { label: '📱 Buy Data', payload: 'start_data' },
             { label: '⚡ Buy Airtime', payload: 'open_airtime' },
@@ -189,6 +206,7 @@ export function ChatWidget({
             { label: '📧 Email OTP', payload: 'open_email' },
             { label: '👥 Buy Logs', payload: 'open_logs' },
             { label: '🚀 Boost', payload: 'open_boost' },
+            { label: '💬 Get Support', payload: 'open_support' },
           ],
         },
       ];
@@ -210,7 +228,7 @@ export function ChatWidget({
           <MessageCircle size={24} />
         </button>
       ) : (
-        <div className="vxc-panel" role="dialog" aria-label="Verxor assistant">
+        <div className={`vxc-panel${full ? ' vxc-full' : ''}`} role="dialog" aria-label="Verxor assistant">
           <header className="vxc-head">
             <div className="vxc-head-id">
               <span className="vxc-avatar">V</span>
@@ -221,9 +239,19 @@ export function ChatWidget({
                 </span>
               </div>
             </div>
-            <button type="button" className="vxc-close" onClick={() => setOpen(false)} aria-label="Close chat">
-              <X size={18} />
-            </button>
+            <div className="vxc-head-actions">
+              <button
+                type="button"
+                className="vxc-close"
+                onClick={() => setFull((v) => !v)}
+                aria-label={full ? 'Exit full page' : 'Open full page'}
+              >
+                {full ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
+              </button>
+              <button type="button" className="vxc-close" onClick={() => setOpen(false)} aria-label="Close chat">
+                <X size={18} />
+              </button>
+            </div>
           </header>
 
           <div className="vxc-list" ref={listRef}>

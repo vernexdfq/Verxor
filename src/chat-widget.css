@@ -143,3 +143,24 @@
   cursor: pointer;
 }
 .vxc-input-row button:disabled { background: #b9d0f5; }
+
+/* Full-page chat mode (the expand button in the header). */
+.vxc-head-actions { display: flex; align-items: center; gap: 6px; }
+.vxc-panel.vxc-full {
+  position: fixed;
+  inset: 0;
+  max-width: none;
+  width: 100%;
+  height: 100dvh;
+  border-radius: 0;
+  z-index: 95;
+}
+@media (min-width: 720px) {
+  .vxc-panel.vxc-full {
+    left: 50%;
+    transform: translateX(-50%);
+    width: min(720px, 100vw);
+    border-left: 1px solid rgba(15, 23, 42, 0.08);
+    border-right: 1px solid rgba(15, 23, 42, 0.08);
+  }
+}

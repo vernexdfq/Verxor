@@ -92,6 +92,7 @@ export const MENU_BUTTONS: ChatButton[] = [
   { label: '📧 Email OTP', payload: 'open_email' },
   { label: '👥 Buy Logs', payload: 'open_logs' },
   { label: '🚀 Boost', payload: 'open_boost' },
+  { label: '💬 Get Support', payload: 'open_support' },
 ];
 
 export function cancelButtons(): ChatButton[] {
@@ -306,7 +307,14 @@ export async function handleFreeText(
   conversationId: string,
   state: FlowState,
   text: string,
-  opts: { history: { role: string; content: string }[] },
+  opts: {
+    history: { role: string; content: string }[];
+    user?: {
+      name?: string | null;
+      email?: string | null;
+      balanceNgn?: number | null;
+    } | null;
+  },
 ): Promise<ChatMessageRow[]> {
   const lower = text.toLowerCase().trim();
 
@@ -331,7 +339,7 @@ export async function handleFreeText(
   if (/^(hi|hello|hey|good (morning|afternoon|evening))\b/.test(lower)) {
     return reply(
       conversationId,
-      'Hello 👋 I am the Verxor assistant. I can sell you data right here in chat, or take you to any service. What would you like?',
+      'Hello 👋 I am the Verxor assistant. Jump to any service, buy right here in chat, or get support from me. What would you like?',
       MENU_BUTTONS,
     );
   }
@@ -345,6 +353,18 @@ export async function handleFreeText(
       MENU_BUTTONS,
     );
   }
+  // Personalised context: the signed-in customer's own profile + wallet.
+  const userBits: string[] = [];
+  if (opts.user?.name) userBits.push(`Name: ${opts.user.name}.`);
+  if (opts.user?.email) userBits.push(`Account email: ${opts.user.email}.`);
+  if (typeof opts.user?.balanceNgn === 'number') {
+    userBits.push(`Wallet balance: ${naira(opts.user.balanceNgn)}.`);
+  }
+  const userContext = userBits.length
+    ? ` The customer you are chatting with is signed in. Their own details: ${userBits.join(
+        ' ',
+      )} You may use these when relevant (e.g. if they ask their balance, tell them). Never mention other customers or reveal data that is not theirs. If a purchase costs more than their balance, suggest the Fund Wallet option.`
+    : '';
   try {
     const res = await fetch('https://api.mistral.ai/v1/chat/completions', {
       method: 'POST',
@@ -361,7 +381,7 @@ export async function handleFreeText(
               'You are the Verxor assistant. Verxor is a Nigerian digital services platform: virtual numbers for OTP, temporary email (Email OTP), Buy Logs (social media accounts), social media boosts, airtime and data (VTU: MTN, Airtel, Glo, 9mobile), electricity, cable TV, exam pins and bet wallet funding.',
               'Rules: reply in at most 4 short sentences. Never invent prices, stock, refunds or delivery promises — if you do not know a specific number, tell the customer to check the service page. You cannot process refunds or manual orders; those go to human support.',
               'If the customer wants to buy data, tell them to tap the Buy Data button. If they describe another purchase, point them to the relevant service button.',
-            ].join(' '),
+            ].join(' ') + userContext,
           },
           ...(opts.history || []).slice(-10),
           { role: 'user', content: text },

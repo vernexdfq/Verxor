@@ -45,18 +45,32 @@ async function resolveUserId(req: NextRequest): Promise<string | null> {
   }
 }
 
-async function resolveProfileEmail(req: NextRequest, userId: string): Promise<string | null> {
+async function resolveProfile(req: NextRequest, userId: string): Promise<{
+  email?: string | null;
+  fullName?: string | null;
+  balanceNgn?: number | null;
+} | null> {
   const base = supabaseBase();
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY;
   if (!base || !key) return null;
   try {
     const res = await fetch(
-      `${base}/rest/v1/profiles?id=eq.${encodeURIComponent(userId)}&select=email&limit=1`,
+      `${base}/rest/v1/profiles?id=eq.${encodeURIComponent(userId)}&select=email,full_name,balance_ngn&limit=1`,
       { headers: { apikey: key, Authorization: `Bearer ${key}` }, cache: 'no-store' },
     );
     if (!res.ok) return null;
-    const rows = (await res.json()) as { email?: string }[];
-    return rows?.[0]?.email || null;
+    const rows = (await res.json()) as {
+      email?: string;
+      full_name?: string | null;
+      balance_ngn?: number | null;
+    }[];
+    const r = rows?.[0];
+    if (!r) return null;
+    return {
+      email: r.email || null,
+      fullName: r.full_name || null,
+      balanceNgn: typeof r.balance_ngn === 'number' ? r.balance_ngn : null,
+    };
   } catch {
     return null;
   }
@@ -127,7 +141,8 @@ export async function POST(req: NextRequest) {
 
   try {
     if (payload) {
-      const email = await resolveProfileEmail(req, userId);
+      const profile = await resolveProfile(req, userId);
+      const email = profile?.email ?? null;
       replies = await handleButtonPayload(conversationId, state, payload, {
         purchaseOrigin: new URL(req.url).origin,
         authHeader: req.headers.get('authorization'),
@@ -143,7 +158,15 @@ export async function POST(req: NextRequest) {
         content: m.content,
       }));
       history.pop(); // the just-appended message is re-sent below
-      replies = await handleFreeText(conversationId, state, text, { history });
+      const profile = await resolveProfile(req, userId);
+      replies = await handleFreeText(conversationId, state, text, {
+        history,
+        user: {
+          name: profile?.fullName ?? null,
+          email: profile?.email ?? null,
+          balanceNgn: profile?.balanceNgn ?? null,
+        },
+      });
     }
   } catch {
     replies = [];
