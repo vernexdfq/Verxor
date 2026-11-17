@@ -11,6 +11,7 @@ import {
   BarChart3,
   Ban,
   Check,
+  FileText,
   KeyRound,
   LayoutDashboard,
   Lock,
@@ -29,7 +30,7 @@ import {
 } from 'lucide-react';
 import './admin-page.css';
 
-type AdminSection = 'overview' | 'users' | 'pricing' | 'email-otp' | 'boost' | 'providers' | 'settings';
+type AdminSection = 'overview' | 'users' | 'pricing' | 'email-otp' | 'boost' | 'accounts' | 'providers' | 'settings';
 
 type AdminUserTab = 'all' | 'customers' | 'api' | 'panels';
 
@@ -71,6 +72,7 @@ const NAV: { id: AdminSection; label: string; icon: typeof LayoutDashboard }[] =
   { id: 'pricing', label: 'Virtual Number', icon: Percent },
   { id: 'email-otp', label: 'Email OTP', icon: Mail },
   { id: 'boost', label: 'Boost (SMM)', icon: Rocket },
+  { id: 'accounts', label: 'Buy Logs', icon: FileText },
   { id: 'providers', label: 'Providers', icon: Plug },
   { id: 'settings', label: 'Settings', icon: KeyRound },
 ];
@@ -82,6 +84,7 @@ const SECTION_META: Record<AdminSection, { title: string; sub: string }> = {
   pricing: { title: 'Virtual Number pricing', sub: 'Markups for retail, API users and Child Panel' },
   'email-otp': { title: 'Email OTP pricing', sub: 'Flat USD markups for retail, API users and Child Panel' },
   boost: { title: 'Boost pricing', sub: 'Per-tier multipliers for retail, API users and Child Panel' },
+  accounts: { title: 'Buy Logs pricing', sub: 'Account multipliers for Retail and API / Child Panel' },
   providers: { title: 'Providers', sub: 'Upstream provider health and keys' },
   settings: { title: 'Settings', sub: 'Service switches and announcements' },
 };
@@ -944,6 +947,252 @@ function BoostPricingSection() {
   );
 }
 
+type AccountsMarkupsData = {
+  ok?: boolean;
+  rate?: number;
+  retail?: number[];
+  wholesale?: number[];
+  roundUpNgn?: number;
+  error?: string;
+};
+
+const DEFAULT_ACCOUNTS_MARKUPS_UI = { retail: [3.0, 2.0, 1.4], wholesale: [1.5, 1.25, 1.15] };
+
+const ACCOUNTS_TIERS: { label: string; hint: string }[] = [
+  { label: '$0.01 – $1.00', hint: 'provider cost per account' },
+  { label: '$1.01 – $10.00', hint: 'provider cost per account' },
+  { label: '> $10.00', hint: 'provider cost per account' },
+];
+
+/** Same formulas as the server: retail rounds up to roundUpNgn, wholesale is whole naira. */
+function accountsRetailSample(costUsd: number, mult: number, rate: number, roundUp: number) {
+  const raw = costUsd * mult * rate;
+  const step = Number.isFinite(roundUp) && roundUp > 1 ? Math.round(roundUp) : 1;
+  return Math.ceil(raw / step) * step;
+}
+
+function AccountsPricingSection() {
+  const [data, setData] = useState<AccountsMarkupsData | null>(null);
+  const [loadError, setLoadError] = useState(false);
+  const [editing, setEditing] = useState<string | null>(null);
+  const [draft, setDraft] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState('');
+
+  const load = async () => {
+    try {
+      const res = await fetch('/api/admin/accounts-pricing', { headers: adminHeaders(), cache: 'no-store' });
+      const d = (await res.json()) as AccountsMarkupsData;
+      if (res.ok && d.ok) { setData(d); setLoadError(false); } else { setLoadError(true); }
+    } catch { setLoadError(true); }
+  };
+
+  useEffect(() => { void load(); }, []);
+
+  const group = (g: 'retail' | 'wholesale'): number[] => {
+    const v = data?.[g];
+    if (v && v.length === 3 && v.every((n) => Number(n) > 0)) return v;
+    return DEFAULT_ACCOUNTS_MARKUPS_UI[g];
+  };
+  const rate = data?.rate ?? 1380;
+  const roundUp = data?.roundUpNgn ?? 50;
+
+  const saveTiers = async (g: 'retail' | 'wholesale', tierIdx: number) => {
+    const v = Number(draft.replace(/[^0-9.]/g, ''));
+    if (!Number.isFinite(v) || v < 1 || v > 20) { setMsg('Enter a multiplier between 1.0 and 20'); return; }
+    const next = [...group(g)];
+    next[tierIdx] = v;
+    setBusy(true);
+    setMsg('');
+    try {
+      const res = await fetch('/api/admin/accounts-pricing', {
+        method: 'PUT',
+        headers: adminHeaders(),
+        body: JSON.stringify({ [g]: next }),
+      });
+      const d = (await res.json()) as AccountsMarkupsData;
+      if (!res.ok || !d.ok) { setMsg(d.error || 'Could not save'); return; }
+      setData(d);
+      setEditing(null);
+      setMsg('Saved — Buy Logs prices update everywhere immediately');
+    } catch { setMsg('Network error'); } finally { setBusy(false); }
+  };
+
+  const saveRoundUp = async () => {
+    const v = Number(draft.replace(/[^0-9]/g, ''));
+    if (!Number.isInteger(v) || v < 1 || v > 1000) { setMsg('Round-up must be a whole number between 1 and 1000 (e.g. 50)'); return; }
+    setBusy(true);
+    setMsg('');
+    try {
+      const res = await fetch('/api/admin/accounts-pricing', {
+        method: 'PUT',
+        headers: adminHeaders(),
+        body: JSON.stringify({ roundUpNgn: v }),
+      });
+      const d = (await res.json()) as AccountsMarkupsData;
+      if (!res.ok || !d.ok) { setMsg(d.error || 'Could not save'); return; }
+      setData(d);
+      setEditing(null);
+      setMsg('Saved — retail prices now round up to the nearest ₦' + v);
+    } catch { setMsg('Network error'); } finally { setBusy(false); }
+  };
+
+  const groups: { id: 'retail' | 'wholesale'; label: string; hint: string }[] = [
+    { id: 'retail', label: 'Retail', hint: 'Customers buying on verxor.com — naira price rounds up' },
+    { id: 'wholesale', label: 'API users & Child Panel', hint: 'vx_panel_* keys and API users — whole naira' },
+  ];
+
+  return (
+    <>
+      {msg ? <div className="vxa-action-msg">{msg}</div> : null}
+
+      {loadError ? (
+        <div className="vxa-empty tall">
+          <strong>Could not load Buy Logs pricing settings</strong>
+          <p>Check that the server can reach the database, then reload.</p>
+        </div>
+      ) : (
+        <>
+          <div className="vxa-duo">
+            <div className="vxa-tile">
+              <span className="vxa-tile-label"><Percent size={14} /> GLOBAL NAIRA RATE</span>
+              <div className="vxa-rate-row">
+                <strong>₦{rate.toLocaleString('en-NG')}</strong>
+                <span className="vxa-rate-per">/ $1</span>
+              </div>
+              <p>Shared with all services — change it in the Overview daily rate. Applies to both Retail and API / Child Panel account prices.</p>
+            </div>
+            <div className="vxa-tile">
+              <span className="vxa-tile-label"><FileText size={14} /> HOW BUY LOGS PRICING WORKS</span>
+              <p className="vxa-price-formula">
+                Retail price = provider USD cost × retail multiplier × rate, then rounded up to the
+                nearest ₦{roundUp}. API and Child Panel price = provider USD cost × wholesale
+                multiplier × rate, whole naira. Everything is recomputed on the server at order
+                time — the customer can never send their own price.
+              </p>
+            </div>
+          </div>
+
+          {groups.map((g) => (
+            <div className="vxa-card" key={g.id}>
+              <div className="vxa-card-head"><strong>{g.label} multipliers</strong></div>
+              <p className="vxa-card-sub">{g.hint} · tap the pencil to change any tier multiplier.</p>
+              <div className="vxa-mu-list">
+                {ACCOUNTS_TIERS.map((t, i) => {
+                  const key = g.id + '-' + i;
+                  const m = group(g.id)[i];
+                  return (
+                    <div className="vxa-mu-row" key={key}>
+                      <strong className="t">{t.label}</strong>
+                      <span className="h">{t.hint}</span>
+                      {editing === key ? (
+                        <div className="vxa-mu-edit">
+                          <input
+                            value={draft}
+                            inputMode="decimal"
+                            aria-label={'Edit ' + g.label + ' tier ' + (i + 1) + ' multiplier'}
+                            onChange={(e) => setDraft(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === 'Enter') void saveTiers(g.id, i); }}
+                          />
+                          <button type="button" disabled={busy} onClick={() => void saveTiers(g.id, i)}>Save</button>
+                          <button type="button" className="ghost" disabled={busy} onClick={() => setEditing(null)}>Cancel</button>
+                        </div>
+                      ) : (
+                        <div className="vxa-mu-val">
+                          <strong>{m}×</strong>
+                          <button
+                            type="button"
+                            className="vxa-mu-pencil"
+                            aria-label={'Edit ' + g.label + ' tier ' + (i + 1) + ' multiplier'}
+                            onClick={() => { setEditing(key); setDraft(String(m)); }}
+                          >
+                            <Pencil size={14} />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+
+          <div className="vxa-card">
+            <div className="vxa-card-head"><strong>Retail rounding rule</strong></div>
+            <p className="vxa-card-sub">Retail naira prices round UP to the nearest this many naira. Wholesale is not rounded.</p>
+            <div className="vxa-mu-list">
+              <div className="vxa-mu-row">
+                <strong className="t">Round up to nearest</strong>
+                <span className="h">e.g. 50 → a ₦1,656 account sells at ₦1,700</span>
+                {editing === 'roundUp' ? (
+                  <div className="vxa-mu-edit">
+                    <input
+                      value={draft}
+                      inputMode="numeric"
+                      aria-label="Edit retail round-up naira step"
+                      onChange={(e) => setDraft(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') void saveRoundUp(); }}
+                    />
+                    <button type="button" disabled={busy} onClick={() => void saveRoundUp()}>Save</button>
+                    <button type="button" className="ghost" disabled={busy} onClick={() => setEditing(null)}>Cancel</button>
+                  </div>
+                ) : (
+                  <div className="vxa-mu-val">
+                    <strong>₦{roundUp}</strong>
+                    <button
+                      type="button"
+                      className="vxa-mu-pencil"
+                      aria-label="Edit retail round-up naira step"
+                      onClick={() => { setEditing('roundUp'); setDraft(String(roundUp)); }}
+                    >
+                      <Pencil size={14} />
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="vxa-card">
+            <div className="vxa-card-head"><strong>Sample prices</strong></div>
+            <div className="vxa-samp-table">
+              <div className="vxa-samp-head">
+                <span>Provider cost</span>
+                <span>Retail</span>
+                <span>API / Child Panel</span>
+              </div>
+              {[0.4, 2.21, 100].map((c) => {
+                const tierIdx = c <= 1 ? 0 : c <= 10 ? 1 : 2;
+                return (
+                  <div className="vxa-samp-row" key={c}>
+                    <div className="vxa-price-tier">
+                      <strong>${c.toFixed(2)}</strong>
+                      <span>per account</span>
+                    </div>
+                    <div className="vxa-samp-cell">
+                      <em className="vxa-price-aud">Retail</em>
+                      <strong>{naira(accountsRetailSample(c, group('retail')[tierIdx], rate, roundUp))}</strong>
+                    </div>
+                    <div className="vxa-samp-cell">
+                      <em className="vxa-price-aud">Wholesale</em>
+                      <strong>{naira(Math.round(c * group('wholesale')[tierIdx] * rate))}</strong>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <ul className="vxa-price-notes">
+              <li>Formula: provider USD cost × multiplier × ₦{rate.toLocaleString('en-NG')} rate.</li>
+              <li>Retail 3.0 / 2.0 / 1.4 · API &amp; Child Panel 1.5 / 1.25 / 1.15 are only defaults — the boxes above are the live values.</li>
+              <li>Examples from your sheet: a $0.40 Facebook account sells retail at ₦{accountsRetailSample(0.4, group('retail')[0], rate, roundUp).toLocaleString('en-NG')} and wholesale at ${(0.4 * group('wholesale')[0]).toFixed(2)} (₦{Math.round(0.4 * group('wholesale')[0] * rate).toLocaleString('en-NG')}).</li>
+            </ul>
+          </div>
+        </>
+      )}
+    </>
+  );
+}
+
 function VirtualNumberSection() {
   const [data, setData] = useState<VnPricingData | null>(null);
   const [loadError, setLoadError] = useState(false);
@@ -1412,6 +1661,12 @@ export function AdminPage({ onBack }: { onBack: () => void }) {
         {section === 'boost' && (
           <section className="vxa-body">
             <BoostPricingSection />
+          </section>
+        )}
+
+        {section === 'accounts' && (
+          <section className="vxa-body">
+            <AccountsPricingSection />
           </section>
         )}
 
