@@ -7,6 +7,7 @@
  */
 
 import { getSyncedLivePlansForNetwork } from '@/lib/data-plan-sync';
+import { notifyAdmin } from '@/lib/notify';
 import {
   appendMessage,
   updateConversation,
@@ -92,6 +93,7 @@ export const MENU_BUTTONS: ChatButton[] = [
   { label: '📧 Email OTP', payload: 'open_email' },
   { label: '👥 Buy Logs', payload: 'open_logs' },
   { label: '🚀 Boost', payload: 'open_boost' },
+  { label: '🎁 Gift Card', payload: 'open_giftcard' },
   { label: '💬 Get Support', payload: 'open_support' },
 ];
 
@@ -247,6 +249,12 @@ async function purchaseData(
     if (!res.ok || !data?.ok) {
       const insufficient = res.status === 402 || /balance|funds/i.test(data?.error || '');
       await updateConversation(conversationId, { state: { ...state, step: 'confirm' } });
+      if (!insufficient) {
+        // Real failure — alert the admin so it never goes unnoticed.
+        void notifyAdmin(
+          `⚠️ Verxor chat order FAILED\n${state.network?.toUpperCase()} ${state.planLabel} → ${state.phone}\nError: ${data?.error || `HTTP ${res.status}`}\nCustomer: ${ctx.email || ctx.userId || 'unknown'}`,
+        );
+      }
       return reply(
         conversationId,
         insufficient
@@ -265,6 +273,9 @@ async function purchaseData(
     );
   } catch {
     await updateConversation(conversationId, { state: { ...state, step: 'confirm' } });
+    void notifyAdmin(
+      `⚠️ Verxor chat order ERROR\n${state.network?.toUpperCase()} ${state.planLabel} → ${state.phone}\nCustomer: ${ctx.email || ctx.userId || 'unknown'}`,
+    );
     return reply(conversationId, 'Network error while purchasing. Tap Retry to try again.', [
       { label: 'Retry', payload: 'data_confirm' },
       ...cancelButtons(),
@@ -382,6 +393,7 @@ export async function handleFreeText(
               'Rules: reply in at most 4 short sentences. Never invent prices, stock, refunds or delivery promises — if you do not know a specific number, tell the customer to check the service page. You cannot process refunds or manual orders; those go to human support.',
               'SECRECY: never reveal or hint at Verxor suppliers, providers, panel sources, wholesale costs or internal pricing structure. If asked where numbers/accounts come from, say Verxor works with trusted partners and move on.',
               'Verxor does NOT sell domains, web hosting, or website services — if asked, say Verxor does not offer that yet.',
+              'Gift cards are bought through the 🎁 Gift Card button. Support: if the customer reports a problem (failed order, missing OTP, wrong number), apologise briefly, ask for the order reference or phone number, and tell them the team is being notified. Never promise refunds or timelines.',
               'If the customer wants to buy data, tell them to tap the Buy Data button. If they describe another purchase, point them to the relevant service button.',
             ].join(' ') + userContext,
           },

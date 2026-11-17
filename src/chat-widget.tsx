@@ -85,6 +85,9 @@ export function ChatWidget({
       case 'open_boost':
         onOpenService('boost');
         return true;
+      case 'open_giftcard':
+        onOpenService('gift-card');
+        return true;
       case 'open_support':
         onOpenService('support-center');
         return true;
@@ -209,6 +212,7 @@ export function ChatWidget({
             { label: '📧 Email OTP', payload: 'open_email' },
             { label: '👥 Buy Logs', payload: 'open_logs' },
             { label: '🚀 Boost', payload: 'open_boost' },
+            { label: '🎁 Gift Card', payload: 'open_giftcard' },
             { label: '💬 Get Support', payload: 'open_support' },
           ],
         },

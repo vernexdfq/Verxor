@@ -186,8 +186,11 @@ export async function POST(req: NextRequest) {
         },
       });
     }
-  } catch {
+  } catch (err) {
     replies = [];
+    void notifyAdmin(
+      `⚠️ Verxor chat route error\nConversation: ${conversationId}\n${err instanceof Error ? err.message.slice(0, 300) : 'unknown error'}`,
+    );
   }
 
   return NextResponse.json({
