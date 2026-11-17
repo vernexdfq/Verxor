@@ -914,3 +914,14 @@
   .vxa-ban-btn, .vxa-freeze-btn { width: 100%; justify-content: center; }
   .vxa-user-cell.mid { display: none; }
 }
+
+/* ── Audience label inside each multiplier cell ── */
+.vxa-price-aud {
+  font-style: normal;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--soft);
+  width: 100%;
+}

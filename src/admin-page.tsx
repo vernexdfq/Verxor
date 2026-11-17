@@ -71,6 +71,15 @@ const NAV: { id: AdminSection; label: string; icon: typeof LayoutDashboard }[] =
   { id: 'settings', label: 'Settings', icon: KeyRound },
 ];
 
+/** Per-section header — only the Overview page is "Daily earnings". */
+const SECTION_META: Record<AdminSection, { title: string; sub: string }> = {
+  overview: { title: 'Daily earnings', sub: 'Your gain for today, updated live' },
+  users: { title: 'Users', sub: 'Accounts, wallets, bans and manual credits' },
+  pricing: { title: 'Virtual Number pricing', sub: 'Markups for retail, API users and Child Panel' },
+  providers: { title: 'Providers', sub: 'Upstream provider health and keys' },
+  settings: { title: 'Settings', sub: 'Service switches and announcements' },
+};
+
 function naira(n: number) {
   return '₦' + n.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
@@ -691,6 +700,7 @@ function VirtualNumberSection() {
                         </div>
                       ) : (
                         <div className="vxa-rate-row">
+                          <em className="vxa-price-aud">{a.label}</em>
                           <strong>{val}×</strong>
                           <button type="button" className="vxa-rate-btn" aria-label={'Edit ' + a.label + ' ' + t.label + ' multiplier'}
                             onClick={() => { setDraft(String(val)); setEditing(key); }}>
@@ -915,8 +925,8 @@ export function AdminPage({ onBack }: { onBack: () => void }) {
             <Menu size={20} />
           </button>
           <div>
-            <h1>Daily earnings</h1>
-            <p>Your gain for today, updated live</p>
+            <h1>{SECTION_META[section].title}</h1>
+            <p>{SECTION_META[section].sub}</p>
           </div>
         </header>
 
