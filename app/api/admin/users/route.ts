@@ -412,7 +412,7 @@ export async function POST(req: NextRequest) {
           body: JSON.stringify({
             id: panelId,
             user_id: userId,
-            name: String(body.name || 'Shield Panel'),
+            name: String(body.name || 'Child Panel'),
             suspended: false,
             updated_at: new Date().toISOString(),
           }),
@@ -423,7 +423,7 @@ export async function POST(req: NextRequest) {
           console.error('[admin/users] set-panel upsert', res.status, t.slice(0, 200));
           return NextResponse.json({ ok: false, error: 'Could not upgrade the user' }, { status: 500 });
         }
-        await audit('shield_panel_upgrade', { userId });
+        await audit('child_panel_upgrade', { userId });
         return NextResponse.json({ ok: true });
       }
       const del = await fetch(
@@ -433,7 +433,7 @@ export async function POST(req: NextRequest) {
       if (!del.ok) {
         return NextResponse.json({ ok: false, error: 'Could not downgrade the user' }, { status: 500 });
       }
-      await audit('shield_panel_downgrade', { userId });
+      await audit('child_panel_downgrade', { userId });
       return NextResponse.json({ ok: true });
     }
 
