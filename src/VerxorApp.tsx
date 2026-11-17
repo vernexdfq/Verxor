@@ -25,6 +25,7 @@ import { FaqPage } from './faq-page';
 import { SupportCenterPage } from './support-center-page';
 import { SecurityPage } from './security-page';
 import { AdminPage } from './admin-page';
+import { EmailOtpPage } from './email-otp-page';
 import { AuthFlow, type AuthSession } from './auth/AuthFlow';
 import { signOutAuth, supabaseAuthEnabled } from '../lib/supabase/auth';
 import {
@@ -401,6 +402,14 @@ export function VerxorApp() {
     content = <AccountsPage onBack={closeService} session={auth} />;
   } else if (service === 'boost') {
     content = <BoostPage onBack={closeService} session={auth} onFund={() => navigatePage('fund')} />;
+  } else if (service === 'email-otp') {
+    content = (
+      <EmailOtpPage
+        onBack={closeService}
+        session={auth}
+        onFund={() => navigatePage('fund')}
+      />
+    );
   } else if (service === 'airtime') {
     content = <AirtimePage onBack={closeService} session={auth} onFund={() => navigatePage('fund')} />;
   } else if (service === 'data') {
