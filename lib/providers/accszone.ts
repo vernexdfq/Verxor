@@ -92,8 +92,8 @@ export type AccountsCatalog = {
 
 const DEFAULT_BASE = 'https://accszone.com/api/v1';
 const DEFAULT_RATE = 1380;
-const CACHE_TTL_MS = 2 * 60 * 1000;
-const STALE_MAX_MS = 60 * 60 * 1000;
+const CACHE_TTL_MS = 10 * 60 * 1000;
+const STALE_MAX_MS = 2 * 60 * 60 * 1000;
 
 /**
  * Catalogue endpoints (categories, subcategories, listings) share a single

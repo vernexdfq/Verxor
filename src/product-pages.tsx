@@ -533,6 +533,9 @@ export function AccountsPage({ onBack, session }: { onBack: () => void; session?
   const [slide, setSlide] = useState(0);
   const [toast, setToast] = useState<string | null>(null);
   const mountedRef = useRef(true);
+  const queueRef = useRef<string[]>([]);
+  const pumpingRef = useRef(false);
+  const pendingSetRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     mountedRef.current = true;
@@ -580,6 +583,14 @@ export function AccountsPage({ onBack, session }: { onBack: () => void; session?
       /* ignore */
     }
 
+    // Fresh local cache (≤15 min): paint from it and skip the network entirely.
+    // Stale cache paints instantly above, then we re-fetch in the background.
+    if (hadFreshCache) {
+      setLoadingPlatforms((prev) => ({ ...prev, [p]: false }));
+      setErrorByPlatform((prev) => ({ ...prev, [p]: null }));
+      return;
+    }
+
     if (!hadFreshCache) {
       setLoadingPlatforms((prev) => ({ ...prev, [p]: true }));
     }
@@ -609,7 +620,7 @@ export function AccountsPage({ onBack, session }: { onBack: () => void; session?
     }
 
     let lastErr = `Could not load live ${p} stock`;
-    for (let attempt = 0; attempt < 2; attempt += 1) {
+    for (let attempt = 0; attempt < 3; attempt += 1) {
       if (!mountedRef.current) return;
       try {
         const data = await fetchOnce();
@@ -643,12 +654,55 @@ export function AccountsPage({ onBack, session }: { onBack: () => void; session?
     setLoadingPlatforms((prev) => ({ ...prev, [p]: false }));
   }, []);
 
-  // Auto-load live stock for every platform on mount.
-  useEffect(() => {
-    for (const p of LIVE_PLATFORMS) {
-      void loadPlatformStock(p);
-    }
+  // Sequential load queue: one platform at a time, current tab first.
+  // Hitting all 43 platforms at once was stampeding the shared AccsZone
+  // 30 req/min bucket, causing slow loads and "no account" errors.
+  const pumpQueue = useCallback(() => {
+    if (pumpingRef.current || !mountedRef.current) return;
+    const next = queueRef.current.shift();
+    if (!next) return;
+    pumpingRef.current = true;
+    void loadPlatformStock(next).finally(() => {
+      pendingSetRef.current.delete(next);
+      pumpingRef.current = false;
+      setTimeout(() => {
+        if (mountedRef.current) pumpQueue();
+      }, 400);
+    });
   }, [loadPlatformStock]);
+
+  const requestPlatform = useCallback(
+    (p: string, front = false) => {
+      if (!LIVE_PLATFORM_SET.has(p)) return;
+      if (pendingSetRef.current.has(p)) {
+        if (front) {
+          const idx = queueRef.current.indexOf(p);
+          if (idx >= 0) queueRef.current.splice(idx, 1);
+          queueRef.current.unshift(p);
+        }
+        return;
+      }
+      if (front) queueRef.current.unshift(p);
+      else queueRef.current.push(p);
+      pendingSetRef.current.add(p);
+      pumpQueue();
+    },
+    [pumpQueue],
+  );
+
+  // Load the default tab first, then warm the remaining platforms in the
+  // background one at a time.
+  useEffect(() => {
+    requestPlatform('Facebook', true);
+    for (const p of LIVE_PLATFORMS) {
+      if (p !== 'Facebook') requestPlatform(p);
+    }
+  }, [requestPlatform]);
+
+  // Tapping a platform chip loads that platform immediately (jumps the queue).
+  useEffect(() => {
+    if (LIVE_PLATFORM_SET.has(platform)) requestPlatform(platform, true);
+  }, [platform, requestPlatform]);
 
   useEffect(() => {
     if (selected || showMyLogs) return;
