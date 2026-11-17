@@ -125,11 +125,13 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: false, error: 'DB not configured' }, { status: 503 });
   }
 
-  const [profilesRes, walletsRes, accessRes, panelsRes, banned] = await Promise.all([
+  const [profilesRes, walletsRes, accessRes, panelsRes, apiClientsRes, resellerRes, banned] = await Promise.all([
     fetch(`${base}/rest/v1/profiles?select=id,email,full_name,phone,created_at&order=created_at.desc&limit=1000`, { headers: hdr, cache: 'no-store' }),
     fetch(`${base}/rest/v1/wallets?select=user_id,balance_ngn&limit=1000`, { headers: hdr, cache: 'no-store' }),
     fetch(`${base}/rest/v1/service_access?select=user_id,service,enabled,unlock_note&limit=5000`, { headers: hdr, cache: 'no-store' }),
     fetch(`${base}/rest/v1/child_panels?select=id,user_id,name,domain,suspended&limit=500`, { headers: hdr, cache: 'no-store' }),
+    fetch(`${base}/rest/v1/api_clients?select=id,name,is_active,markup_percent,meta&limit=500`, { headers: hdr, cache: 'no-store' }),
+    fetch(`${base}/rest/v1/reseller_wallet?select=user_id,balance&limit=1000`, { headers: hdr, cache: 'no-store' }),
     readBannedList(),
   ]);
 
@@ -185,15 +187,86 @@ export async function GET(req: NextRequest) {
     };
   });
 
+  // Panels: merge child_panels (registry) with api_clients (live keys) + env panel.
+  const apiClients = apiClientsRes.ok
+    ? ((await apiClientsRes.json()) as Array<{
+        id?: string;
+        name?: string;
+        is_active?: boolean;
+        markup_percent?: number;
+        meta?: Record<string, unknown> | null;
+      }>)
+    : [];
+  const resellerBalances = resellerRes.ok
+    ? ((await resellerRes.json()) as Array<{ user_id?: string; balance?: number }>)
+    : [];
+  const resellerMap = new Map<string, number>();
+  for (const w of resellerBalances) {
+    if (w.user_id) resellerMap.set(w.user_id, Number(w.balance) || 0);
+  }
+
+  const envPanelKey = (process.env.VERXOR_PANEL_API_KEY || '').trim();
+  const envPanelName = (process.env.VERXOR_PANEL_NAME || 'Env Child Panel').trim();
+  const envWalletId = (process.env.VERXOR_PANEL_WALLET_USER_ID || '').trim();
+
+  const merged = new Map<string, Record<string, unknown>>();
+  const put = (id: string, data: Record<string, unknown>) => {
+    merged.set(id, { ...(merged.get(id) || {}), ...data });
+  };
+
+  for (const c of apiClients) {
+    const meta = (c.meta || {}) as Record<string, unknown>;
+    const walletUserId =
+      typeof meta.wallet_user_id === 'string' ? meta.wallet_user_id :
+      typeof meta.walletUserId === 'string' ? meta.walletUserId : null;
+    put(c.id || '', {
+      id: c.id || '',
+      name: c.name || 'Child Panel',
+      source: 'api_clients',
+      active: Boolean(c.is_active),
+      suspended: !c.is_active,
+      markupPercent: Number(c.markup_percent ?? 15) || 15,
+      walletUserId,
+      balanceNgn: walletUserId ? resellerMap.get(walletUserId) ?? 0 : 0,
+    });
+  }
+
+  if (envPanelKey && !merged.has('env-panel')) {
+    put('env-panel', {
+      id: 'env-panel',
+      name: envPanelName,
+      source: 'env',
+      active: true,
+      suspended: false,
+      markupPercent: Number(process.env.VERXOR_PANEL_MARKUP_PCT || 15) || 15,
+      walletUserId: envWalletId || null,
+      balanceNgn: envWalletId ? resellerMap.get(envWalletId) ?? 0 : 0,
+    });
+  }
+
+  for (const p of panels) {
+    put(p.id || '', {
+      id: p.id || '',
+      name: p.name || merged.get(p.id || '')?.name || 'Child Panel',
+      domain: p.domain ?? null,
+      suspended: merged.get(p.id || '')?.suspended ?? Boolean(p.suspended),
+      userId: p.user_id ?? null,
+    });
+  }
+
   return NextResponse.json({
     ok: true,
     users,
-    panels: panels.map((p) => ({
-      id: p.id || '',
-      name: p.name || '',
-      domain: p.domain ?? null,
+    panels: Array.from(merged.values()).map((p) => ({
+      id: String(p.id || ''),
+      name: String(p.name || 'Child Panel'),
+      domain: (p.domain as string | null) ?? null,
       suspended: Boolean(p.suspended),
-      userId: p.user_id ?? null,
+      userId: (p.walletUserId as string | null) ?? (p.userId as string | null) ?? null,
+      active: p.active !== false,
+      source: String(p.source || 'child_panels'),
+      markupPercent: Number(p.markupPercent ?? 15) || 15,
+      balanceNgn: Number(p.balanceNgn ?? 0),
     })),
   });
 }
