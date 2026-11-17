@@ -3,7 +3,7 @@ import { grizzly } from '@/lib/providers';
 import { sbInsert, supabaseConfigured } from '@/lib/supabase-admin';
 import { resolvePanelClient, panelAllowsVirtualNumbers, getPanelAdminEmail } from '@/lib/panel-auth';
 import { sendVirtualNumberReceipt, sendPanelAdminOrderAlert } from '@/lib/email/receipts';
-import { computeVnCharge, isChildPanelUser, apiKeyFromRequest, type VnAudience } from '@/lib/vn-pricing';
+import { computeVnCharge, isChildPanelUser, isApiUser, apiKeyFromRequest, type VnAudience } from '@/lib/vn-pricing';
 
 export const dynamic = 'force-dynamic';
 
@@ -298,11 +298,13 @@ export async function POST(req: NextRequest) {
   // Server-side pricing enforcement:
   //  - child-panel key          -> panel multipliers
   //  - user toggled Child Panel -> panel multipliers (admin toggle)
+  //  - user toggled API User    -> api multipliers (admin toggle)
   //  - user API key (vx_api_*)  -> api multipliers
   //  - everyone else           -> retail multipliers
   let audience: VnAudience = 'retail';
   if (panel) audience = 'panel';
   else if (userId && (await isChildPanelUser(userId))) audience = 'panel';
+  else if (userId && (await isApiUser(userId))) audience = 'api';
   else if (apiKeyFromRequest(req).startsWith('vx_api_')) audience = 'api';
 
   const computed = await computeVnCharge({

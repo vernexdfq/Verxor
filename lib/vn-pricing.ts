@@ -144,10 +144,29 @@ export function apiKeyFromRequest(req: Request): string {
 }
 
 /**
+ * True when the admin has toggled this user as an API user
+ * (admin_settings key 'api_users' — a JSON array of user ids).
+ */
+export async function isApiUser(userId: string): Promise<boolean> {
+  if (!userId || !supabaseConfigured()) return false;
+  try {
+    const rows = (await sbSelect(
+      'admin_settings',
+      'key=eq.api_users&select=value&limit=1',
+    )) as Array<{ value?: string }>;
+    const parsed = JSON.parse(rows?.[0]?.value || '[]');
+    return Array.isArray(parsed) && parsed.map(String).includes(userId);
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Resolve the pricing audience for a request.
  *  - vx_panel_* key -> panel prices
  *  - vx_api_* key    -> api prices (user API keys, issued later)
  *  - x-vx-user header with a child_panels row -> panel prices
+ *  - x-vx-user header toggled as API user   -> api prices
  *  - otherwise -> retail prices
  */
 export async function resolveVnAudience(req: Request): Promise<VnAudience> {
@@ -156,6 +175,7 @@ export async function resolveVnAudience(req: Request): Promise<VnAudience> {
   if (key.startsWith('vx_api_')) return 'api';
   const uid = (req.headers.get('x-vx-user') || '').trim();
   if (uid && (await isChildPanelUser(uid))) return 'panel';
+  if (uid && (await isApiUser(uid))) return 'api';
   return 'retail';
 }
 

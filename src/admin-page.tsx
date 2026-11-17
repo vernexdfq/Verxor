@@ -54,6 +54,8 @@ type AdminUser = {
   apiKey: boolean;
   panel: { id: string; name: string; domain: string | null; suspended: boolean } | null;
   banned: boolean;
+  frozen: boolean;
+  apiUser: boolean;
   services: Record<string, AdminUserService>;
 };
 
@@ -123,6 +125,7 @@ function UserManagement() {
   const [panelOpenId, setPanelOpenId] = useState<string | null>(null);
   const [panelAmount, setPanelAmount] = useState('');
   const [panelMode, setPanelMode] = useState<'credit' | 'debit'>('credit');
+  const [txOpen, setTxOpen] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -216,10 +219,11 @@ function UserManagement() {
             <h2>{displayName(selected)}</h2>
             <p>{selected.phone || 'no phone'} · {selected.email || 'no email'}</p>
             <div className="vxa-user-tags">
-              {selected.apiKey ? <span className="vxa-tag blue">API Developer</span> : null}
+              {selected.apiKey || selected.apiUser ? <span className="vxa-tag blue">API Developer</span> : null}
               {selected.panel ? <span className="vxa-tag navy">Child Panel</span> : null}
               <span className="vxa-tag grey">Customer</span>
-              {selected.banned ? <span className="vxa-tag banned">Frozen</span> : null}
+              {selected.banned ? <span className="vxa-tag banned">Banned</span> : null}
+              {selected.frozen ? <span className="vxa-tag frozen">Frozen</span> : null}
             </div>
           </div>
           <div className="vxa-user-head-right">
@@ -227,9 +231,17 @@ function UserManagement() {
               className={selected.banned ? 'vxa-ban-btn banned' : 'vxa-ban-btn'}
               onClick={() => act(
                 { action: selected.banned ? 'unban' : 'ban', userId: selected.id },
-                selected.banned ? 'User restored' : 'User frozen',
+                selected.banned ? 'User unbanned' : 'User banned',
               )}>
-              <Ban size={15} /> {selected.banned ? 'Frozen — tap to restore' : 'Ban / Freeze'}
+              <Ban size={15} /> {selected.banned ? 'Unban' : 'Ban'}
+            </button>
+            <button type="button" disabled={busy}
+              className={selected.frozen ? 'vxa-freeze-btn frozen' : 'vxa-freeze-btn'}
+              onClick={() => act(
+                { action: selected.frozen ? 'unfreeze' : 'freeze', userId: selected.id },
+                selected.frozen ? 'User unfrozen' : 'User frozen',
+              )}>
+              <Lock size={15} /> {selected.frozen ? 'Unfreeze' : 'Freeze'}
             </button>
           </div>
         </div>
@@ -291,10 +303,18 @@ function UserManagement() {
                 </button>
               </div>
             )}
-            <p className="vxa-tile-sep">RECENT TRANSACTIONS</p>
-            <div className="vxa-empty small">
-              <strong>Per-user transactions land here next.</strong>
-              <p>Wallet ledger rows for this user join this card in the next build.</p>
+            <div className="vxa-tx-peek">
+              <button type="button" className="vxa-tx-chip" aria-expanded={txOpen}
+                onClick={() => setTxOpen(!txOpen)}>
+                <Wallet size={13} /> Transactions
+                <em>{txOpen ? 'Hide' : 'View'}</em>
+              </button>
+              {txOpen ? (
+                <div className="vxa-empty small">
+                  <strong>Per-user transactions land here next.</strong>
+                  <p>Wallet ledger rows for this user join this card in the next build.</p>
+                </div>
+              ) : null}
             </div>
           </div>
         </div>
@@ -338,6 +358,37 @@ function UserManagement() {
               value={unlockNote} onChange={(e) => setUnlockNote(e.target.value)} />
             <p className="vxa-note">Locked endpoints reply to API users: "Service locked. Contact Verxor Admin on WhatsApp/Telegram to unlock wholesale access."</p>
           </div>
+        </div>
+
+        <div className="vxa-card">
+          <div className="vxa-card-head">
+            <KeyRound size={17} />
+            <strong>API user access</strong>
+            {selected.apiUser ? <span className="vxa-tag blue">API User</span> : <span className="vxa-tag grey">Retail customer</span>}
+          </div>
+          <p className="vxa-card-sub">
+            Upgrade a customer to API user after they pay for API access.
+            Upgraded accounts see API prices on every service, on the site and through the API.
+            Turn it off anytime to send them back to retail prices.
+          </p>
+          <ul className="vxa-matrix">
+            <li>
+              <div>
+                <strong>API User</strong>
+                <span>{selected.apiUser ? 'Upgraded — gets API prices everywhere' : 'Not upgraded — retail prices'}</span>
+              </div>
+              <button type="button" disabled={busy}
+                className={selected.apiUser ? 'vxa-switch on' : 'vxa-switch'}
+                aria-pressed={selected.apiUser}
+                aria-label="Toggle API user"
+                onClick={() => act(
+                  { action: 'set-api-user', userId: selected.id, enabled: !selected.apiUser },
+                  selected.apiUser ? 'Downgraded to retail prices' : 'Upgraded to API user prices',
+                )}>
+                <em />
+              </button>
+            </li>
+          </ul>
         </div>
 
         <div className="vxa-card">
@@ -477,15 +528,20 @@ function UserManagement() {
                 <li key={u.id} role="button" onClick={() => { setSelected(u); setMsg(''); }}>
                   <div className="vxa-user-avatar small">{displayName(u).slice(0, 1).toUpperCase()}</div>
                   <div className="vxa-user-cell">
-                    <strong>{displayName(u)}{u.banned ? <span className="vxa-tag banned">Frozen</span> : null}</strong>
-                    <span>{u.phone || 'no phone'} · {u.email || 'no email'}</span>
+                    <strong>{displayName(u)}</strong>
+                    <span>{u.email || u.phone || 'no contact'}</span>
+                  </div>
+                  <div className="vxa-user-cell mid">
+                    <span>{u.joined || '—'}</span>
                   </div>
                   <div className="vxa-user-cell right">
-                    <strong>{naira(u.balanceNgn)}</strong>
+                    <span className="vxa-user-balance">{naira(u.balanceNgn)}</span>
                     <span>
+                      {u.banned ? <span className="vxa-tag banned">Banned</span> : null}
+                      {u.frozen ? <span className="vxa-tag frozen">Frozen</span> : null}
                       {u.panel ? <span className="vxa-tag navy">Panel</span> : null}
-                      {u.apiKey ? <span className="vxa-tag blue">API</span> : null}
-                      {!u.panel && !u.apiKey ? <span className="vxa-tag grey">Customer</span> : null}
+                      {u.apiUser || u.apiKey ? <span className="vxa-tag blue">API</span> : null}
+                      {!u.panel && !u.apiUser && !u.apiKey ? <span className="vxa-tag grey">Customer</span> : null}
                     </span>
                   </div>
                 </li>

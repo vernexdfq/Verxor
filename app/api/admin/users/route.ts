@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 
 /**
  * GET  /api/admin/users — list users with wallet, API/panel flags, bans, service overrides.
- * POST /api/admin/users — actions: credit | debit | ban | unban | set-phone | set-service
+ * POST /api/admin/users — actions: credit | debit | ban | unban | freeze | unfreeze |
+ *                          set-phone | set-service | set-panel | set-api-user |
+ *                          panel-credit | panel-debit
  * Auth: x-admin-password header must match ADMIN_PASSWORD.
  */
 export const dynamic = 'force-dynamic';
@@ -74,13 +76,13 @@ async function audit(action: string, opts: { userId?: string; amount?: number; r
   }
 }
 
-async function readBannedList(): Promise<string[]> {
+async function readUserList(key: string): Promise<string[]> {
   const base = supabaseBase();
   const hdr = dbHeaders();
   if (!base || !hdr) return [];
   try {
     const res = await fetch(
-      `${base}/rest/v1/admin_settings?key=eq.banned_users&select=value&limit=1`,
+      `${base}/rest/v1/admin_settings?key=eq.${key}&select=value&limit=1`,
       { headers: hdr, cache: 'no-store' },
     );
     if (!res.ok) return [];
@@ -92,11 +94,11 @@ async function readBannedList(): Promise<string[]> {
   }
 }
 
-async function writeBannedList(list: string[]): Promise<boolean> {
+async function writeUserList(key: string, list: string[]): Promise<boolean> {
   const base = supabaseBase();
   const hdr = dbHeaders();
   if (!base || !hdr) return false;
-  const res = await fetch(`${base}/rest/v1/admin_settings?key=eq.banned_users`, {
+  const res = await fetch(`${base}/rest/v1/admin_settings?key=eq.${key}`, {
     method: 'PATCH',
     headers: { ...hdr, Prefer: 'return=minimal' },
     body: JSON.stringify({ value: JSON.stringify(list), updated_at: new Date().toISOString() }),
@@ -107,7 +109,7 @@ async function writeBannedList(list: string[]): Promise<boolean> {
     const ins = await fetch(`${base}/rest/v1/admin_settings`, {
       method: 'POST',
       headers: { ...hdr, Prefer: 'resolution=ignore-duplicates,return=minimal' },
-      body: JSON.stringify({ key: 'banned_users', value: JSON.stringify(list) }),
+      body: JSON.stringify({ key, value: JSON.stringify(list) }),
       cache: 'no-store',
     });
     return ins.ok;
@@ -125,14 +127,16 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: false, error: 'DB not configured' }, { status: 503 });
   }
 
-  const [profilesRes, walletsRes, accessRes, panelsRes, apiClientsRes, resellerRes, banned] = await Promise.all([
+  const [profilesRes, walletsRes, accessRes, panelsRes, apiClientsRes, resellerRes, banned, frozen, apiUsers] = await Promise.all([
     fetch(`${base}/rest/v1/profiles?select=id,email,full_name,phone,created_at&order=created_at.desc&limit=1000`, { headers: hdr, cache: 'no-store' }),
     fetch(`${base}/rest/v1/wallets?select=user_id,balance_ngn&limit=1000`, { headers: hdr, cache: 'no-store' }),
     fetch(`${base}/rest/v1/service_access?select=user_id,service,enabled,unlock_note&limit=5000`, { headers: hdr, cache: 'no-store' }),
     fetch(`${base}/rest/v1/child_panels?select=id,user_id,name,domain,suspended&limit=500`, { headers: hdr, cache: 'no-store' }),
     fetch(`${base}/rest/v1/api_clients?select=id,name,is_active,markup_percent,meta&limit=500`, { headers: hdr, cache: 'no-store' }),
     fetch(`${base}/rest/v1/reseller_wallet?select=user_id,balance&limit=1000`, { headers: hdr, cache: 'no-store' }),
-    readBannedList(),
+    readUserList('banned_users'),
+    readUserList('frozen_users'),
+    readUserList('api_users'),
   ]);
 
   if (!profilesRes.ok) {
@@ -147,6 +151,8 @@ export async function GET(req: NextRequest) {
   const access = accessRes.ok ? ((await accessRes.json()) as ServiceAccessRow[]) : [];
   const panels = panelsRes.ok ? ((await panelsRes.json()) as PanelRow[]) : [];
   const bannedSet = new Set(banned);
+  const frozenSet = new Set(frozen);
+  const apiSet = new Set(apiUsers);
 
   const walletMap = new Map<string, number>();
   for (const w of wallets) {
@@ -178,7 +184,9 @@ export async function GET(req: NextRequest) {
       joined: p.created_at ? p.created_at.slice(0, 10) : '',
       balanceNgn: walletMap.get(p.id || '') ?? 0,
       // A user counts as an API developer once any service override exists.
-      apiKey: Object.keys(services).length > 0,
+      apiKey: apiSet.has(p.id || '') || Object.keys(services).length > 0,
+      apiUser: apiSet.has(p.id || ''),
+      frozen: frozenSet.has(p.id || ''),
       panel: panel
         ? { id: panel.id || '', name: panel.name || '', domain: panel.domain ?? null, suspended: Boolean(panel.suspended) }
         : null,
@@ -447,13 +455,37 @@ export async function POST(req: NextRequest) {
 
     case 'ban':
     case 'unban': {
-      const list = await readBannedList();
+      const list = await readUserList('banned_users');
       const set = new Set(list);
       if (action === 'ban') set.add(userId);
       else set.delete(userId);
-      const ok = await writeBannedList(Array.from(set));
+      const ok = await writeUserList('banned_users', Array.from(set));
       if (!ok) return NextResponse.json({ ok: false, error: 'Could not update ban list' }, { status: 500 });
       await audit(action, { userId, reason: body.reason });
+      return NextResponse.json({ ok: true });
+    }
+
+    case 'freeze':
+    case 'unfreeze': {
+      const list = await readUserList('frozen_users');
+      const set = new Set(list);
+      if (action === 'freeze') set.add(userId);
+      else set.delete(userId);
+      const ok = await writeUserList('frozen_users', Array.from(set));
+      if (!ok) return NextResponse.json({ ok: false, error: 'Could not update freeze list' }, { status: 500 });
+      await audit(action, { userId, reason: body.reason });
+      return NextResponse.json({ ok: true });
+    }
+
+    case 'set-api-user': {
+      const enabled = Boolean(body.enabled);
+      const list = await readUserList('api_users');
+      const set = new Set(list);
+      if (enabled) set.add(userId);
+      else set.delete(userId);
+      const ok = await writeUserList('api_users', Array.from(set));
+      if (!ok) return NextResponse.json({ ok: false, error: 'Could not update API user flag' }, { status: 500 });
+      await audit(enabled ? 'api_user_enable' : 'api_user_disable', { userId });
       return NextResponse.json({ ok: true });
     }
 

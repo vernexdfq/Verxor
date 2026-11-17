@@ -857,3 +857,60 @@
   }
   .vxa-price-tier { grid-column: 1 / -1; }
 }
+
+
+/* ── Simpler, lighter user list (vernexdigital style) ── */
+.vxa-user-avatar { border-radius: 999px; }
+.vxa-user-avatar.small { width: 36px; height: 36px; font-size: 14px; }
+.vxa-user-list li { background: var(--surface); border-color: #eef2f7; padding: 10px 12px; }
+.vxa-user-cell strong { font-weight: 600; font-size: 13.5px; }
+.vxa-user-cell span { font-size: 12px; color: var(--soft); }
+.vxa-user-cell.mid { margin-left: auto; }
+.vxa-user-cell.right { margin-left: 14px; }
+.vxa-user-balance { font-size: 13px; color: #334155; font-weight: 600; }
+
+/* ── Ban / Freeze split buttons ── */
+.vxa-user-head-right { display: grid; grid-template-columns: auto auto; gap: 8px; justify-content: end; }
+.vxa-freeze-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 10px 14px;
+  border: 1px solid #fde68a;
+  border-radius: 10px;
+  background: #fffbeb;
+  color: #b45309;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.vxa-freeze-btn.frozen { background: #b45309; border-color: #b45309; color: #fff; }
+.vxa-freeze-btn:hover { border-color: #fbbf24; }
+.vxa-tag.frozen { background: #fef3c7; color: #b45309; }
+
+/* ── Collapsible transactions chip ── */
+.vxa-tx-peek { margin-top: 14px; }
+.vxa-tx-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: #f8fafc;
+  color: #475569;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.vxa-tx-chip:hover { border-color: var(--blue); color: var(--blue); }
+.vxa-tx-chip em { font-style: normal; font-size: 11px; color: var(--soft); }
+
+@media (max-width: 760px) {
+  .vxa-user-head-right { width: 100%; }
+  .vxa-ban-btn, .vxa-freeze-btn { width: 100%; justify-content: center; }
+  .vxa-user-cell.mid { display: none; }
+}
