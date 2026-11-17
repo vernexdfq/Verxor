@@ -1,12 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 /**
- * GET  /api/admin/users — live user list (profiles + wallets + access + panels).
- * POST /api/admin/users — admin actions: credit/debit wallet, set-phone,
- *       set-service (unlock matrix), ban/unban. Every action is audit-logged.
- * Auth: x-admin-password must match ADMIN_PASSWORD.
+ * GET  /api/admin/users — list users with wallet, API/panel flags, bans, service overrides.
+ * POST /api/admin/users — actions: credit | debit | ban | unban | set-phone | set-service
+ * Auth: x-admin-password header must match ADMIN_PASSWORD.
  */
 export const dynamic = 'force-dynamic';
+
+type ProfileRow = {
+  id?: string;
+  email?: string;
+  full_name?: string | null;
+  phone?: string | null;
+  created_at?: string;
+};
+
+type ServiceAccessRow = {
+  user_id: string;
+  service: string;
+  enabled: boolean;
+  unlock_note?: string | null;
+};
+
+type PanelRow = {
+  id?: string;
+  user_id?: string | null;
+  name?: string;
+  domain?: string | null;
+  suspended?: boolean;
+};
 
 function supabaseBase() {
   return (process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '')
@@ -14,151 +36,177 @@ function supabaseBase() {
     .replace(/\/$/, '');
 }
 
-function adminAuthed(req: NextRequest): boolean {
+function dbHeaders() {
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!serviceKey) return null;
+  return {
+    apikey: serviceKey,
+    Authorization: `Bearer ${serviceKey}`,
+    'Content-Type': 'application/json',
+  };
+}
+
+function authorized(req: NextRequest): boolean {
   const pw = req.headers.get('x-admin-password') || '';
   const expected = process.env.ADMIN_PASSWORD || '';
   return Boolean(expected) && pw === expected;
 }
 
-async function audit(
-  action: string,
-  userId?: string,
-  amountNgn?: number,
-  reason?: string,
-  meta?: Record<string, unknown>,
-) {
+async function audit(action: string, opts: { userId?: string; amount?: number; reason?: string; meta?: Record<string, unknown> }) {
   const base = supabaseBase();
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!base || !serviceKey) return;
-  await fetch(`${base}/rest/v1/admin_audit_log`, {
-    method: 'POST',
-    headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
-    body: JSON.stringify({
-      action,
-      user_id: userId || null,
-      amount_ngn: amountNgn ?? null,
-      reason: reason || null,
-      meta: meta || {},
-    }),
-  }).catch(() => null);
+  const hdr = dbHeaders();
+  if (!base || !hdr) return;
+  try {
+    await fetch(`${base}/rest/v1/admin_audit_log`, {
+      method: 'POST',
+      headers: hdr,
+      body: JSON.stringify({
+        action,
+        user_id: opts.userId ?? null,
+        amount_ngn: opts.amount ?? null,
+        reason: opts.reason ?? null,
+        meta: opts.meta ?? {},
+      }),
+      cache: 'no-store',
+    });
+  } catch {
+    /* best effort */
+  }
+}
+
+async function readBannedList(): Promise<string[]> {
+  const base = supabaseBase();
+  const hdr = dbHeaders();
+  if (!base || !hdr) return [];
+  try {
+    const res = await fetch(
+      `${base}/rest/v1/admin_settings?key=eq.banned_users&select=value&limit=1`,
+      { headers: hdr, cache: 'no-store' },
+    );
+    if (!res.ok) return [];
+    const rows = (await res.json()) as Array<{ value?: string }>;
+    const parsed = JSON.parse(rows[0]?.value || '[]');
+    return Array.isArray(parsed) ? parsed.map(String) : [];
+  } catch {
+    return [];
+  }
+}
+
+async function writeBannedList(list: string[]): Promise<boolean> {
+  const base = supabaseBase();
+  const hdr = dbHeaders();
+  if (!base || !hdr) return false;
+  const res = await fetch(`${base}/rest/v1/admin_settings?key=eq.banned_users`, {
+    method: 'PATCH',
+    headers: { ...hdr, Prefer: 'return=minimal' },
+    body: JSON.stringify({ value: JSON.stringify(list), updated_at: new Date().toISOString() }),
+    cache: 'no-store',
+  });
+  if (!res.ok && res.status === 404) {
+    // Row missing — insert it.
+    const ins = await fetch(`${base}/rest/v1/admin_settings`, {
+      method: 'POST',
+      headers: { ...hdr, Prefer: 'resolution=ignore-duplicates,return=minimal' },
+      body: JSON.stringify({ key: 'banned_users', value: JSON.stringify(list) }),
+      cache: 'no-store',
+    });
+    return ins.ok;
+  }
+  return res.ok;
 }
 
 export async function GET(req: NextRequest) {
-  if (!adminAuthed(req)) return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
+  if (!authorized(req)) {
+    return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
+  }
   const base = supabaseBase();
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!base || !serviceKey) return NextResponse.json({ ok: false, error: 'DB not configured' }, { status: 503 });
-  const hdr = { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` };
-
-  let profileRows: Array<Record<string, unknown>> = [];
-  for (const sel of ['id,email,phone,name,created_at', 'id,email,phone,created_at', 'id,email,phone']) {
-    const res = await fetch(
-      `${base}/rest/v1/profiles?select=${sel}&limit=500`,
-      { headers: hdr, cache: 'no-store' },
-    );
-    if (res.ok) {
-      profileRows = (await res.json()) as Array<Record<string, unknown>>;
-      break;
-    }
-  }
-  if (!profileRows.length) {
-    return NextResponse.json({ ok: false, error: 'Could not read profiles' }, { status: 500 });
+  const hdr = dbHeaders();
+  if (!base || !hdr) {
+    return NextResponse.json({ ok: false, error: 'DB not configured' }, { status: 503 });
   }
 
-  const walletsRes = await fetch(
-    `${base}/rest/v1/wallets?select=user_id,balance_ngn&limit=1000`,
-    { headers: hdr, cache: 'no-store' },
-  );
-  const walletRows = walletsRes.ok
+  const [profilesRes, walletsRes, accessRes, panelsRes, banned] = await Promise.all([
+    fetch(`${base}/rest/v1/profiles?select=id,email,full_name,phone,created_at&order=created_at.desc&limit=1000`, { headers: hdr, cache: 'no-store' }),
+    fetch(`${base}/rest/v1/wallets?select=user_id,balance_ngn&limit=1000`, { headers: hdr, cache: 'no-store' }),
+    fetch(`${base}/rest/v1/service_access?select=user_id,service,enabled,unlock_note&limit=5000`, { headers: hdr, cache: 'no-store' }),
+    fetch(`${base}/rest/v1/child_panels?select=id,user_id,name,domain,suspended&limit=500`, { headers: hdr, cache: 'no-store' }),
+    readBannedList(),
+  ]);
+
+  if (!profilesRes.ok) {
+    console.error('[admin/users] profiles', profilesRes.status);
+    return NextResponse.json({ ok: false, error: 'Could not load profiles' }, { status: 500 });
+  }
+
+  const profiles = (await profilesRes.json()) as ProfileRow[];
+  const wallets = walletsRes.ok
     ? ((await walletsRes.json()) as Array<{ user_id?: string; balance_ngn?: number }>)
     : [];
-  const balanceByUser = new Map<string, number>();
-  for (const w of walletRows) {
-    if (w.user_id) balanceByUser.set(w.user_id, Number(w.balance_ngn) || 0);
+  const access = accessRes.ok ? ((await accessRes.json()) as ServiceAccessRow[]) : [];
+  const panels = panelsRes.ok ? ((await panelsRes.json()) as PanelRow[]) : [];
+  const bannedSet = new Set(banned);
+
+  const walletMap = new Map<string, number>();
+  for (const w of wallets) {
+    if (w.user_id) walletMap.set(w.user_id, Number(w.balance_ngn) || 0);
   }
 
-  const accessRes = await fetch(
-    `${base}/rest/v1/service_access?select=*&limit=2000`,
-    { headers: hdr, cache: 'no-store' },
-  );
-  const accessRows = accessRes.ok
-    ? ((await accessRes.json()) as Array<{ user_id?: string; service?: string; enabled?: boolean; unlock_note?: string | null }>)
-    : [];
-  const accessByUser = new Map<string, Map<string, { enabled: boolean; note: string | null }>>();
-  for (const a of accessRows) {
-    if (!a.user_id || !a.service) continue;
-    const m = accessByUser.get(a.user_id) || new Map<string, { enabled: boolean; note: string | null }>();
-    m.set(a.service, { enabled: Boolean(a.enabled), note: a.unlock_note || null });
-    accessByUser.set(a.user_id, m);
+  const accessMap = new Map<string, Record<string, { enabled: boolean; note: string | null }>>();
+  for (const a of access) {
+    if (!accessMap.has(a.user_id)) accessMap.set(a.user_id, {});
+    accessMap.get(a.user_id)![a.service] = {
+      enabled: Boolean(a.enabled),
+      note: a.unlock_note ?? null,
+    };
   }
 
-  const panelsRes = await fetch(
-    `${base}/rest/v1/child_panels?select=*&limit=200`,
-    { headers: hdr, cache: 'no-store' },
-  );
-  const panelRows = panelsRes.ok
-    ? ((await panelsRes.json()) as Array<{ id?: string; user_id?: string | null; name?: string; domain?: string | null; suspended?: boolean }>)
-    : [];
-  const panelByUser = new Map<string, { id: string; name: string; domain: string | null; suspended: boolean }>();
-  for (const p of panelRows) {
-    if (p.user_id && p.id) {
-      panelByUser.set(p.user_id, { id: p.id, name: p.name || 'Panel', domain: p.domain || null, suspended: Boolean(p.suspended) });
-    }
+  const panelMap = new Map<string, PanelRow>();
+  for (const p of panels) {
+    if (p.user_id) panelMap.set(p.user_id, p);
   }
 
-  const bannedRes = await fetch(
-    `${base}/rest/v1/admin_settings?key=eq.banned_users&select=value&limit=1`,
-    { headers: hdr, cache: 'no-store' },
-  );
-  let bannedIds: string[] = [];
-  if (bannedRes.ok) {
-    const rows = (await bannedRes.json()) as Array<{ value?: string }>;
-    try {
-      const parsed = JSON.parse(rows[0]?.value || '[]');
-      if (Array.isArray(parsed)) bannedIds = parsed.filter((x): x is string => typeof x === 'string');
-    } catch { /* empty */ }
-  }
-
-  const users = profileRows.map((p) => {
-    const id = String(p.id || '');
-    const svcMap = accessByUser.get(id);
-    const services: Record<string, { enabled: boolean; note: string | null }> = {};
-    if (svcMap) {
-      for (const [sid, info] of svcMap) services[sid] = info;
-    }
+  const users = profiles.map((p) => {
+    const services = accessMap.get(p.id || '') || {};
+    const panel = panelMap.get(p.id || '') || null;
     return {
-      id,
-      email: String(p.email || ''),
-      phone: String(p.phone || ''),
-      name: typeof p.name === 'string' ? p.name : '',
-      joined: typeof p.created_at === 'string' ? p.created_at : '',
-      balanceNgn: balanceByUser.get(id) ?? 0,
-      apiKey: Boolean(svcMap && svcMap.size > 0),
-      panel: panelByUser.get(id) || null,
-      banned: bannedIds.includes(id),
+      id: p.id || '',
+      email: p.email || '',
+      phone: p.phone || '',
+      name: p.full_name || '',
+      joined: p.created_at ? p.created_at.slice(0, 10) : '',
+      balanceNgn: walletMap.get(p.id || '') ?? 0,
+      // A user counts as an API developer once any service override exists.
+      apiKey: Object.keys(services).length > 0,
+      panel: panel
+        ? { id: panel.id || '', name: panel.name || '', domain: panel.domain ?? null, suspended: Boolean(panel.suspended) }
+        : null,
+      banned: bannedSet.has(p.id || ''),
       services,
     };
   });
 
-  const panels = panelRows
-    .filter((p) => p.id)
-    .map((p) => ({
-      id: String(p.id),
-      name: p.name || 'Panel',
-      domain: p.domain || null,
+  return NextResponse.json({
+    ok: true,
+    users,
+    panels: panels.map((p) => ({
+      id: p.id || '',
+      name: p.name || '',
+      domain: p.domain ?? null,
       suspended: Boolean(p.suspended),
-      userId: p.user_id || null,
-    }));
-
-  return NextResponse.json({ ok: true, users, panels });
+      userId: p.user_id ?? null,
+    })),
+  });
 }
 
 export async function POST(req: NextRequest) {
-  if (!adminAuthed(req)) return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
+  if (!authorized(req)) {
+    return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
+  }
   const base = supabaseBase();
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!base || !serviceKey) return NextResponse.json({ ok: false, error: 'DB not configured' }, { status: 503 });
-  const hdr = { apikey: serviceKey, Authorization: `Bearer ${serviceKey}`, 'Content-Type': 'application/json' };
+  const hdr = dbHeaders();
+  if (!base || !hdr) {
+    return NextResponse.json({ ok: false, error: 'DB not configured' }, { status: 503 });
+  }
 
   let body: {
     action?: string;
@@ -169,7 +217,6 @@ export async function POST(req: NextRequest) {
     service?: string;
     enabled?: boolean;
     unlockNote?: string;
-    banned?: boolean;
   };
   try {
     body = await req.json();
@@ -177,105 +224,101 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: 'Invalid JSON' }, { status: 400 });
   }
 
-  const userId = String(body.userId || '').trim();
-  if (!userId) return NextResponse.json({ ok: false, error: 'userId required' }, { status: 400 });
+  const action = String(body.action || '');
+  const userId = String(body.userId || '');
+  if (!action || !userId) {
+    return NextResponse.json({ ok: false, error: 'Missing action or userId' }, { status: 400 });
+  }
 
-  if (body.action === 'credit' || body.action === 'debit') {
-    const amount = Number(body.amount);
-    if (!Number.isFinite(amount) || amount <= 0) {
-      return NextResponse.json({ ok: false, error: 'Amount must be positive' }, { status: 400 });
-    }
-    const rpc = body.action === 'credit' ? 'credit_wallet' : 'debit_wallet';
-    const ref = `admin-${body.action}-${Date.now()}`;
-    const desc = `Admin ${body.action} — ${body.reason || 'no reason given'}`;
-    const res = await fetch(`${base}/rest/v1/rpc/${rpc}`, {
-      method: 'POST',
-      headers: hdr,
-      body: JSON.stringify({ p_user_id: userId, p_amount: amount, p_reference: ref, p_description: desc }),
-    });
-    if (!res.ok) {
-      const t = await res.text().catch(() => '');
-      if (/INSUFFICIENT_BALANCE/i.test(t)) {
-        return NextResponse.json({ ok: false, error: 'User has insufficient balance for that debit' }, { status: 402 });
+  switch (action) {
+    case 'credit':
+    case 'debit': {
+      const amount = Number(body.amount);
+      if (!Number.isFinite(amount) || amount <= 0) {
+        return NextResponse.json({ ok: false, error: 'Invalid amount' }, { status: 400 });
       }
-      return NextResponse.json({ ok: false, error: `Wallet ${body.action} failed` }, { status: 500 });
-    }
-    await audit(`wallet_${body.action}`, userId, amount, body.reason, { ref });
-    return NextResponse.json({ ok: true });
-  }
-
-  if (body.action === 'set-phone') {
-    const phone = String(body.phone || '').trim();
-    if (!phone) return NextResponse.json({ ok: false, error: 'Phone required' }, { status: 400 });
-    const res = await fetch(`${base}/rest/v1/profiles?id=eq.${encodeURIComponent(userId)}`, {
-      method: 'PATCH',
-      headers: { ...hdr, Prefer: 'return=minimal' },
-      body: JSON.stringify({ phone }),
-    });
-    if (!res.ok) return NextResponse.json({ ok: false, error: 'Could not update phone' }, { status: 500 });
-    await audit('phone_update', userId, undefined, undefined, { phone });
-    return NextResponse.json({ ok: true });
-  }
-
-  if (body.action === 'set-service') {
-    const service = String(body.service || '').trim();
-    if (!service) return NextResponse.json({ ok: false, error: 'Service required' }, { status: 400 });
-    const res = await fetch(`${base}/rest/v1/service_access`, {
-      method: 'POST',
-      headers: { ...hdr, Prefer: 'resolution=merge-duplicates,return=minimal' },
-      body: JSON.stringify({
-        user_id: userId,
-        service,
-        enabled: Boolean(body.enabled),
-        unlock_note: body.unlockNote || null,
-        updated_at: new Date().toISOString(),
-      }),
-    });
-    if (!res.ok) return NextResponse.json({ ok: false, error: 'Could not save service access' }, { status: 500 });
-    await audit(body.enabled ? 'service_unlock' : 'service_lock', userId, undefined, body.unlockNote, { service });
-    return NextResponse.json({ ok: true });
-  }
-
-  if (body.action === 'ban' || body.action === 'unban') {
-    // Ensure the banned_users settings row exists before patching it.
-    const ensure = await fetch(
-      `${base}/rest/v1/admin_settings`,
-      {
+      const ref = `admin-${action}-${userId.slice(0, 8)}-${Date.now()}`;
+      const desc = `Admin ${action} — ${String(body.reason || 'no reason given')}`;
+      const res = await fetch(`${base}/rest/v1/rpc/${action === 'credit' ? 'credit_wallet' : 'debit_wallet'}`, {
         method: 'POST',
-        headers: { ...hdr, Prefer: 'resolution=ignore-duplicates,return=minimal' },
-        body: JSON.stringify({ key: 'banned_users', value: '[]' }),
-      },
-    );
-    void ensure;
+        headers: hdr,
+        body: JSON.stringify({ p_user_id: userId, p_amount: amount, p_reference: ref, p_description: desc }),
+        cache: 'no-store',
+      });
+      if (!res.ok) {
+        const t = await res.text().catch(() => '');
+        if (/INSUFFICIENT_BALANCE/i.test(t)) {
+          return NextResponse.json({ ok: false, error: 'User has insufficient balance' }, { status: 400 });
+        }
+        console.error('[admin/users] wallet rpc', res.status, t.slice(0, 200));
+        return NextResponse.json({ ok: false, error: 'Wallet update failed' }, { status: 500 });
+      }
+      await audit(`wallet_${action}`, { userId, amount, reason: body.reason });
+      return NextResponse.json({ ok: true });
+    }
 
-    const bannedRes = await fetch(
-      `${base}/rest/v1/admin_settings?key=eq.banned_users&select=value&limit=1`,
-      { headers: hdr, cache: 'no-store' },
-    );
-    let ids: string[] = [];
-    if (bannedRes.ok) {
-      const rows = (await bannedRes.json()) as Array<{ value?: string }>;
-      try {
-        const parsed = JSON.parse(rows[0]?.value || '[]');
-        if (Array.isArray(parsed)) ids = parsed.filter((x): x is string => typeof x === 'string');
-      } catch { /* empty */ }
+    case 'ban':
+    case 'unban': {
+      const list = await readBannedList();
+      const set = new Set(list);
+      if (action === 'ban') set.add(userId);
+      else set.delete(userId);
+      const ok = await writeBannedList(Array.from(set));
+      if (!ok) return NextResponse.json({ ok: false, error: 'Could not update ban list' }, { status: 500 });
+      await audit(action, { userId, reason: body.reason });
+      return NextResponse.json({ ok: true });
     }
-    if (body.action === 'ban') {
-      if (!ids.includes(userId)) ids.push(userId);
-    } else {
-      ids = ids.filter((x) => x !== userId);
+
+    case 'set-phone': {
+      const phone = String(body.phone || '').trim();
+      if (phone.replace(/\D/g, '').length < 8) {
+        return NextResponse.json({ ok: false, error: 'Invalid phone number' }, { status: 400 });
+      }
+      const res = await fetch(`${base}/rest/v1/profiles?id=eq.${encodeURIComponent(userId)}`, {
+        method: 'PATCH',
+        headers: { ...hdr, Prefer: 'return=minimal' },
+        body: JSON.stringify({ phone, updated_at: new Date().toISOString() }),
+        cache: 'no-store',
+      });
+      if (!res.ok) {
+        return NextResponse.json({ ok: false, error: 'Could not update the phone number' }, { status: 500 });
+      }
+      await audit('set_phone', { userId, reason: phone });
+      return NextResponse.json({ ok: true });
     }
-    const up = await fetch(`${base}/rest/v1/admin_settings?key=eq.banned_users`, {
-      method: 'PATCH',
-      headers: { ...hdr, Prefer: 'return=minimal' },
-      body: JSON.stringify({ value: JSON.stringify(ids), updated_at: new Date().toISOString() }),
-    });
-    if (!up.ok) {
-      return NextResponse.json({ ok: false, error: 'Could not save ban state' }, { status: 500 });
+
+    case 'set-service': {
+      const service = String(body.service || '');
+      if (!service) {
+        return NextResponse.json({ ok: false, error: 'Missing service' }, { status: 400 });
+      }
+      const enabled = Boolean(body.enabled);
+      const res = await fetch(`${base}/rest/v1/service_access`, {
+        method: 'POST',
+        headers: { ...hdr, Prefer: 'resolution=merge-duplicates,return=minimal' },
+        body: JSON.stringify({
+          user_id: userId,
+          service,
+          enabled,
+          unlock_note: body.unlockNote ? String(body.unlockNote) : null,
+          updated_at: new Date().toISOString(),
+        }),
+        cache: 'no-store',
+      });
+      if (!res.ok) {
+        const t = await res.text().catch(() => '');
+        console.error('[admin/users] set-service', res.status, t.slice(0, 200));
+        return NextResponse.json({ ok: false, error: 'Could not update the service' }, { status: 500 });
+      }
+      await audit(enabled ? 'service_unlock' : 'service_lock', {
+        userId,
+        reason: body.unlockNote,
+        meta: { service },
+      });
+      return NextResponse.json({ ok: true });
     }
-    await audit(body.action, userId, undefined, body.reason, {});
-    return NextResponse.json({ ok: true, banned: body.action === 'ban' });
+
+    default:
+      return NextResponse.json({ ok: false, error: 'Unknown action' }, { status: 400 });
   }
-
-  return NextResponse.json({ ok: false, error: 'Unknown action' }, { status: 400 });
 }

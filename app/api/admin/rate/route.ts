@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 /**
- * GET/PUT /api/admin/rate — USD→NGN daily rate stored in admin_settings.
- * Auth: x-admin-password must match ADMIN_PASSWORD.
- * admin_settings.value is a text column, so values are stored as plain strings.
+ * GET/PUT /api/admin/rate — USD→NGR rate stored in admin_settings (value is text).
+ * Same logic as /api/admin/settings/rate; this is the path the admin UI calls.
  */
 export const dynamic = 'force-dynamic';
 
@@ -13,64 +12,69 @@ function supabaseBase() {
     .replace(/\/$/, '');
 }
 
-function adminAuthed(req: NextRequest): boolean {
+function dbHeaders() {
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  return serviceKey ? { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` } : null;
+}
+
+function authorized(req: NextRequest): boolean {
   const pw = req.headers.get('x-admin-password') || '';
   const expected = process.env.ADMIN_PASSWORD || '';
   return Boolean(expected) && pw === expected;
 }
 
-async function audit(action: string, meta: Record<string, unknown>) {
-  const base = supabaseBase();
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!base || !serviceKey) return;
-  await fetch(`${base}/rest/v1/admin_audit_log`, {
-    method: 'POST',
-    headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
-    body: JSON.stringify({ action, meta }),
-  }).catch(() => null);
-}
-
 export async function GET(req: NextRequest) {
-  if (!adminAuthed(req)) return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
+  if (!authorized(req)) return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
   const base = supabaseBase();
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!base || !serviceKey) return NextResponse.json({ ok: false, error: 'DB not configured' }, { status: 503 });
-  const res = await fetch(
-    `${base}/rest/v1/admin_settings?key=eq.usd_ngn_rate&select=value&limit=1`,
-    { headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` }, cache: 'no-store' },
-  );
-  if (!res.ok) return NextResponse.json({ ok: false, error: 'Could not read rate' }, { status: 500 });
-  const rows = (await res.json()) as Array<{ value?: string }>;
-  const rate = Number(rows[0]?.value);
-  return NextResponse.json({ ok: true, rate: Number.isFinite(rate) && rate > 0 ? rate : 1380 });
+  const hdr = dbHeaders();
+  if (!base || !hdr) return NextResponse.json({ ok: false, error: 'DB not configured' }, { status: 503 });
+  try {
+    const res = await fetch(`${base}/rest/v1/admin_settings?key=eq.usd_ngn_rate&select=value&limit=1`, {
+      headers: hdr, cache: 'no-store',
+    });
+    if (!res.ok) return NextResponse.json({ ok: false, error: 'Rate not found' }, { status: 404 });
+    const rows = (await res.json()) as Array<{ value?: string | number }>;
+    const rate = Number(rows[0]?.value);
+    if (!Number.isFinite(rate) || rate <= 0) return NextResponse.json({ ok: false, error: 'Invalid rate value' }, { status: 500 });
+    return NextResponse.json({ ok: true, rate });
+  } catch {
+    return NextResponse.json({ ok: false, error: 'Network error' }, { status: 500 });
+  }
 }
 
 export async function PUT(req: NextRequest) {
-  if (!adminAuthed(req)) return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
+  if (!authorized(req)) return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
   const base = supabaseBase();
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!base || !serviceKey) return NextResponse.json({ ok: false, error: 'DB not configured' }, { status: 503 });
-
-  let rate = 0;
+  const hdr = dbHeaders();
+  if (!base || !hdr) return NextResponse.json({ ok: false, error: 'DB not configured' }, { status: 503 });
+  let body: { rate?: number | string };
   try {
-    const body = (await req.json()) as { rate?: number | string };
-    rate = Number(body.rate);
+    body = await req.json();
   } catch {
     return NextResponse.json({ ok: false, error: 'Invalid JSON' }, { status: 400 });
   }
-  if (!Number.isFinite(rate) || rate <= 0 || rate > 100000) {
-    return NextResponse.json({ ok: false, error: 'Rate must be a positive number' }, { status: 400 });
+  const rate = Number(body.rate);
+  if (!Number.isFinite(rate) || rate <= 0) {
+    return NextResponse.json({ ok: false, error: 'Invalid rate' }, { status: 400 });
   }
-
-  const hdr = { apikey: serviceKey, Authorization: `Bearer ${serviceKey}`, 'Content-Type': 'application/json' };
-  const up = await fetch(`${base}/rest/v1/admin_settings?key=eq.usd_ngn_rate`, {
+  const res = await fetch(`${base}/rest/v1/admin_settings?key=eq.usd_ngn_rate`, {
     method: 'PATCH',
-    headers: { ...hdr, Prefer: 'return=minimal' },
+    headers: { ...hdr, 'Content-Type': 'application/json', Prefer: 'return=representation' },
     body: JSON.stringify({ value: String(rate), updated_at: new Date().toISOString() }),
+    cache: 'no-store',
   });
-  if (!up.ok) {
-    return NextResponse.json({ ok: false, error: 'Could not save rate' }, { status: 500 });
+  if (!res.ok) {
+    const raw = await res.text().catch(() => '');
+    console.error('[admin/rate] patch failed', res.status, raw.slice(0, 200));
+    return NextResponse.json({ ok: false, error: 'Could not save the rate' }, { status: 500 });
   }
-  await audit('rate_update', { rate });
+  try {
+    await fetch(`${base}/rest/v1/admin_audit_log`, {
+      method: 'POST',
+      headers: { ...hdr, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'rate_update', amount_ngn: rate, meta: { setting: 'usd_ngn_rate' } }),
+      cache: 'no-store',
+    });
+  } catch { /* best effort */ }
   return NextResponse.json({ ok: true, rate });
 }
