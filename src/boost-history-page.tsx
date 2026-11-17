@@ -247,7 +247,7 @@ export function BoostHistoryPage({
         return;
       }
       try {
-        const result = await cancelBoostOrder({ orderId: order.id, amount: order.amount });
+        const result = await cancelBoostOrder({ orderId: order.id, amount: order.amount, quantity: order.quantity });
         if (!result.ok) {
           showToast(result.error);
           return;

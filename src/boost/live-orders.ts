@@ -83,6 +83,7 @@ export async function placeBoostOrder(input: {
 export async function cancelBoostOrder(input: {
   orderId: string;
   amount: number;
+  quantity?: number;
 }): Promise<{ ok: true; message?: string } | { ok: false; error: string }> {
   const { headers, userId } = await authHeaders();
   const res = await fetch('/api/v1/boost/cancel', {
@@ -91,6 +92,7 @@ export async function cancelBoostOrder(input: {
     body: JSON.stringify({
       orderId: input.orderId,
       amount: input.amount,
+      quantity: input.quantity,
       userId: userId || undefined,
     }),
   });

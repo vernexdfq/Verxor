@@ -103,6 +103,7 @@ export async function POST(req: NextRequest) {
   let body: {
     orderId?: string | number;
     amount?: number;
+    quantity?: number;
     userId?: string;
     walletMode?: string;
   };
@@ -172,31 +173,57 @@ export async function POST(req: NextRequest) {
     }
 
     const amount = Number(body.amount);
+    const quantity = Number(body.quantity);
+
+    // Provider-exact refund: JAP charges only for what was delivered, so we
+    // refund only the undelivered part. After the cancel is accepted, the
+    // status endpoint reports `remains` = quantity not delivered.
+    let refundAmount = amount;
+    let remains: number | null = null;
+    try {
+      const st2 = await smmGetStatus(orderId);
+      const rawRemains = String(st2.remains ?? '').trim();
+      const r = Number(rawRemains);
+      if (rawRemains !== '' && Number.isFinite(r) && r >= 0) remains = r;
+    } catch {
+      // status unavailable — fall back to full refund below
+    }
+    if (remains != null && Number.isFinite(quantity) && quantity > 0) {
+      const undelivered = Math.min(Math.max(remains, 0), quantity);
+      refundAmount = Math.round(amount * (undelivered / quantity) * 100) / 100;
+    }
+
     let refunded = false;
-    if (supabaseConfigured() && userId && Number.isFinite(amount) && amount > 0) {
+    if (supabaseConfigured() && userId && Number.isFinite(refundAmount) && refundAmount > 0) {
       const ref = `boost-cancel-${orderId}-${Date.now()}`;
       if (useReseller) {
-        await creditResellerWallet(userId, amount, ref);
+        await creditResellerWallet(userId, refundAmount, ref);
       } else {
         await creditRetailWallet(
           userId,
-          amount,
+          refundAmount,
           ref,
-          `Refund — Cancelled boost order #${orderId} · ₦${amount.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+          `Refund — Cancelled boost order #${orderId} · ₦${refundAmount.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
         );
       }
       refunded = true;
     }
 
+    const fmt = (n: number) =>
+      n.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     return NextResponse.json({
       ok: true,
       orderId: String(orderId),
       cancelled: true,
       refunded,
+      refundAmount: Number.isFinite(refundAmount) ? refundAmount : undefined,
+      remains: remains != null ? remains : undefined,
       walletMode: useReseller ? 'reseller_wallet' : 'retail',
       panel: panel ? { id: panel.id, name: panel.name } : null,
       message: refunded
-        ? `Order #${orderId} cancelled and ₦${amount.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} refunded`
+        ? remains != null && refundAmount < amount
+          ? `Order #${orderId} cancelled · delivered part kept · ₦${fmt(refundAmount)} refunded to your wallet`
+          : `Order #${orderId} cancelled and ₦${fmt(refundAmount)} refunded`
         : `Order #${orderId} cancel requested with provider`,
     });
   } catch (e) {

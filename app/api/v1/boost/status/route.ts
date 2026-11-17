@@ -145,6 +145,63 @@ async function handle(
       }
     }
 
+    // Provider says "Partial": JAP refunds the undelivered part of the charge
+    // to our provider balance. We mirror that to the customer — the undelivered
+    // remainder of their payment goes back to their wallet, exactly proportional
+    // to what the provider reports as not delivered (remains).
+    if (normalizedStatus.includes('partial')) {
+      const targetUserId = await resolveUserId(req, extra?.userId);
+      const qty = Number(extra?.quantity);
+      const amountNgn = Number(extra?.amountNgn);
+      const rawRemains = String(st.remains ?? '').trim();
+      const remainsCount = Number(rawRemains);
+      if (
+        targetUserId &&
+        Number.isFinite(qty) &&
+        qty > 0 &&
+        Number.isFinite(amountNgn) &&
+        amountNgn > 0 &&
+        rawRemains !== '' &&
+        Number.isFinite(remainsCount) &&
+        remainsCount > 0 &&
+        base &&
+        serviceKey
+      ) {
+        const refundAmount =
+          Math.round(amountNgn * (Math.min(remainsCount, qty) / qty) * 100) / 100;
+        const ref = `boost-partial-refund-${effectiveJapId}`;
+        if (refundAmount > 0) {
+          try {
+            const hdr = {
+              apikey: serviceKey,
+              Authorization: `Bearer ${serviceKey}`,
+              'Content-Type': 'application/json',
+            };
+            const dupe = await fetch(
+              `${base}/rest/v1/wallet_ledger?reference=eq.${encodeURIComponent(ref)}&user_id=eq.${encodeURIComponent(targetUserId)}&select=id&limit=1`,
+              { headers: hdr, cache: 'no-store' },
+            );
+            const rows = dupe.ok ? await dupe.json().catch(() => []) : [];
+            if (!Array.isArray(rows) || rows.length === 0) {
+              await fetch(`${base}/rest/v1/rpc/credit_wallet`, {
+                method: 'POST',
+                headers: hdr,
+                body: JSON.stringify({
+                  p_user_id: targetUserId,
+                  p_amount: refundAmount,
+                  p_reference: ref,
+                  p_description: `Refund — Partial boost order #${effectiveJapId} · ${remainsCount.toLocaleString('en-NG')} not delivered`,
+                }),
+                cache: 'no-store',
+              });
+            }
+          } catch (e) {
+            console.warn('[boost/status] partial refund failed:', e);
+          }
+        }
+      }
+    }
+
     let notified = false;
     if (isCompleted && extra?.notifyCompleted) {
       const targetUserId = await resolveUserId(req, extra.userId);
