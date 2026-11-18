@@ -18,6 +18,13 @@ type HubTab = 'numbers' | 'call' | 'messages' | 'history';
 
 type NumberType = 'local' | 'toll-free' | 'mobile';
 
+type HubNumber = {
+  id: string;
+  e164: string;
+  friendly: string;
+  country: string;
+};
+
 const TABS: { id: HubTab; label: string; icon: typeof Phone }[] = [
   { id: 'numbers', label: 'My Numbers', icon: Phone },
   { id: 'call', label: 'Make a Call', icon: PhoneCall },
@@ -36,15 +43,17 @@ const COUNTRIES = [
   { code: 'SE', name: 'Sweden', flag: '🇸🇪' },
 ];
 
-const NUMBER_TYPES: { id: NumberType; label: string }[] = [
-  { id: 'local', label: 'Local' },
-  { id: 'toll-free', label: 'Toll-Free' },
-  { id: 'mobile', label: 'Mobile' },
+const NUMBER_TYPES: { id: NumberType; label: string; hint: string }[] = [
+  { id: 'local', label: 'Local', hint: 'City / area code numbers' },
+  { id: 'toll-free', label: 'Toll-Free', hint: '800 / freephone style' },
+  { id: 'mobile', label: 'Mobile', hint: 'Mobile range where available' },
 ];
 
 export function CommunicationHubPage({ onBack }: { onBack: () => void }) {
   const [tab, setTab] = useState<HubTab>('numbers');
   const [getOpen, setGetOpen] = useState(false);
+  const [numberPickerOpen, setNumberPickerOpen] = useState(false);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [country, setCountry] = useState(COUNTRIES[0]);
   const [numberType, setNumberType] = useState<NumberType>('local');
   const [countryPicker, setCountryPicker] = useState(false);
@@ -52,23 +61,33 @@ export function CommunicationHubPage({ onBack }: { onBack: () => void }) {
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
 
-  // Placeholder — real numbers will come from SignalWire later
-  const myNumbers: never[] = [];
+  // Placeholder — real numbers will come from SignalWire / our API later
+  const myNumbers: HubNumber[] = [];
 
-  const priceHint = useMemo(() => {
-    // Placeholder pricing display until live SignalWire rates are wired
-    return '$6.99/month · Voice & SMS included · 30-day billing';
-  }, []);
+  const selected = useMemo(
+    () => myNumbers.find((n) => n.id === selectedId) ?? null,
+    [myNumbers, selectedId],
+  );
+
+  const priceHint = useMemo(
+    () => '$6.99/month · Voice & SMS included · 30-day billing',
+    [],
+  );
 
   const openGetNumber = () => {
     setSearchError(null);
+    setNumberPickerOpen(false);
     setGetOpen(true);
+  };
+
+  /** Opens list of already-rented numbers only — never the purchase sheet */
+  const openNumberPicker = () => {
+    setNumberPickerOpen(true);
   };
 
   const handleSearch = () => {
     setSearching(true);
     setSearchError(null);
-    // UI-only for now — SignalWire search will replace this
     window.setTimeout(() => {
       setSearching(false);
       setSearchError(
@@ -76,6 +95,9 @@ export function CommunicationHubPage({ onBack }: { onBack: () => void }) {
       );
     }, 900);
   };
+
+  const selectLabel = selected?.friendly ?? 'Select your number…';
+  const selectHistoryLabel = selected?.friendly ?? 'Select a number…';
 
   return (
     <div className="chub">
@@ -113,6 +135,7 @@ export function CommunicationHubPage({ onBack }: { onBack: () => void }) {
               <div>
                 <p className="chub-eyebrow">YOUR LINES</p>
                 <h2>My Numbers</h2>
+                <p className="chub-count">{myNumbers.length} numbers</p>
               </div>
               <button type="button" className="chub-get-btn" onClick={openGetNumber}>
                 <Plus size={16} strokeWidth={2.5} /> Get a Number
@@ -130,13 +153,33 @@ export function CommunicationHubPage({ onBack }: { onBack: () => void }) {
                   Get your first number
                 </button>
               </div>
-            ) : null}
+            ) : (
+              <ul className="chub-number-list">
+                {myNumbers.map((n) => (
+                  <li key={n.id}>
+                    <button
+                      type="button"
+                      className={selectedId === n.id ? 'chub-number-card active' : 'chub-number-card'}
+                      onClick={() => setSelectedId(n.id)}
+                    >
+                      <span className="chub-number-icon">
+                        <Phone size={18} />
+                      </span>
+                      <span className="chub-number-copy">
+                        <strong>{n.friendly}</strong>
+                        <small>{n.country}</small>
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
           </section>
         )}
 
         {tab === 'call' && (
           <section className="chub-panel" aria-label="Make a Call">
-            <div className="chub-panel-head">
+            <div className="chub-panel-head single">
               <div>
                 <p className="chub-eyebrow">VOICE</p>
                 <h2>Make a Call</h2>
@@ -145,17 +188,21 @@ export function CommunicationHubPage({ onBack }: { onBack: () => void }) {
 
             <div className="chub-form-card">
               <label className="chub-label">CALL FROM</label>
-              <button type="button" className="chub-select" onClick={openGetNumber}>
-                <span>Select your number…</span>
+              <button type="button" className="chub-select" onClick={openNumberPicker}>
+                <span className={selected ? '' : 'chub-placeholder'}>{selectLabel}</span>
                 <ChevronDown size={16} />
               </button>
-              <p className="chub-hint">
-                You need a <button type="button" className="chub-link" onClick={openGetNumber}>communication number</button> first.
-              </p>
+              {myNumbers.length === 0 ? (
+                <p className="chub-hint">
+                  You need a{' '}
+                  <button type="button" className="chub-link" onClick={openGetNumber}>
+                    communication number
+                  </button>{' '}
+                  first.
+                </p>
+              ) : null}
 
-              <label className="chub-label" style={{ marginTop: 16 }}>
-                CALL TO
-              </label>
+              <label className="chub-label chub-label-spaced">CALL TO</label>
               <input
                 className="chub-input"
                 type="tel"
@@ -168,7 +215,7 @@ export function CommunicationHubPage({ onBack }: { onBack: () => void }) {
                 <strong>$0.10 per minute</strong>
               </div>
 
-              <button type="button" className="chub-call-btn" disabled>
+              <button type="button" className="chub-call-btn" disabled={!selected}>
                 <PhoneCall size={18} /> Call
               </button>
             </div>
@@ -177,7 +224,7 @@ export function CommunicationHubPage({ onBack }: { onBack: () => void }) {
 
         {tab === 'messages' && (
           <section className="chub-panel" aria-label="Messages">
-            <div className="chub-panel-head">
+            <div className="chub-panel-head single">
               <div>
                 <p className="chub-eyebrow">INBOX</p>
                 <h2>Messages</h2>
@@ -186,11 +233,11 @@ export function CommunicationHubPage({ onBack }: { onBack: () => void }) {
 
             <div className="chub-form-card">
               <label className="chub-label">NUMBER</label>
-              <button type="button" className="chub-select" onClick={openGetNumber}>
-                <span>Select your number…</span>
+              <button type="button" className="chub-select" onClick={openNumberPicker}>
+                <span className={selected ? '' : 'chub-placeholder'}>{selectLabel}</span>
                 <ChevronDown size={16} />
               </button>
-              <button type="button" className="chub-secondary" disabled>
+              <button type="button" className="chub-secondary" disabled={!selected}>
                 <Plus size={16} /> New Message
               </button>
             </div>
@@ -200,14 +247,18 @@ export function CommunicationHubPage({ onBack }: { onBack: () => void }) {
                 <MessageSquare size={26} strokeWidth={1.7} />
               </div>
               <strong>No conversations yet</strong>
-              <p>Select one of your numbers to see conversations.</p>
+              <p>
+                {selected
+                  ? 'Messages for this number will appear here.'
+                  : 'Select one of your numbers to see conversations.'}
+              </p>
             </div>
           </section>
         )}
 
         {tab === 'history' && (
           <section className="chub-panel" aria-label="Call History">
-            <div className="chub-panel-head">
+            <div className="chub-panel-head single">
               <div>
                 <p className="chub-eyebrow">RECENT</p>
                 <h2>Call History</h2>
@@ -216,8 +267,8 @@ export function CommunicationHubPage({ onBack }: { onBack: () => void }) {
 
             <div className="chub-form-card">
               <label className="chub-label">NUMBER</label>
-              <button type="button" className="chub-select" onClick={openGetNumber}>
-                <span>Select a number…</span>
+              <button type="button" className="chub-select" onClick={openNumberPicker}>
+                <span className={selected ? '' : 'chub-placeholder'}>{selectHistoryLabel}</span>
                 <ChevronDown size={16} />
               </button>
             </div>
@@ -227,13 +278,80 @@ export function CommunicationHubPage({ onBack }: { onBack: () => void }) {
                 <PhoneForwarded size={26} strokeWidth={1.7} />
               </div>
               <strong>No call history</strong>
-              <p>Select a number to view call history.</p>
+              <p>
+                {selected
+                  ? 'Outbound and inbound calls for this number will show here.'
+                  : 'Select a number to view call history.'}
+              </p>
             </div>
           </section>
         )}
       </main>
 
-      {/* Get a Phone Number sheet */}
+      {/* Rented-number picker — NOT the purchase sheet */}
+      {numberPickerOpen && (
+        <div className="chub-sheet-backdrop" onClick={() => setNumberPickerOpen(false)}>
+          <div
+            className="chub-sheet list"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="chub-pick-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="chub-sheet-head">
+              <h3 id="chub-pick-title">Select number</h3>
+              <button
+                type="button"
+                className="chub-sheet-close"
+                onClick={() => setNumberPickerOpen(false)}
+                aria-label="Close"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {myNumbers.length === 0 ? (
+              <div className="chub-picker-empty">
+                <strong>No rented numbers</strong>
+                <p>Rent a number first, then it will appear here for calls and SMS.</p>
+                <button
+                  type="button"
+                  className="chub-primary full"
+                  onClick={() => {
+                    setNumberPickerOpen(false);
+                    openGetNumber();
+                  }}
+                >
+                  <Plus size={16} /> Get a Number
+                </button>
+              </div>
+            ) : (
+              <ul className="chub-list">
+                {myNumbers.map((n) => (
+                  <li key={n.id}>
+                    <button
+                      type="button"
+                      className={selectedId === n.id ? 'chub-list-item active' : 'chub-list-item'}
+                      onClick={() => {
+                        setSelectedId(n.id);
+                        setNumberPickerOpen(false);
+                      }}
+                    >
+                      <span>
+                        <strong style={{ display: 'block' }}>{n.friendly}</strong>
+                        <small style={{ color: '#64748B' }}>{n.country}</small>
+                      </span>
+                      {selectedId === n.id ? <span className="chub-check">✓</span> : null}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Get a Phone Number sheet — purchase only */}
       {getOpen && (
         <div className="chub-sheet-backdrop" onClick={() => setGetOpen(false)}>
           <div
@@ -245,28 +363,37 @@ export function CommunicationHubPage({ onBack }: { onBack: () => void }) {
           >
             <div className="chub-sheet-head">
               <h3 id="chub-get-title">Get a Phone Number</h3>
-              <button type="button" className="chub-sheet-close" onClick={() => setGetOpen(false)} aria-label="Close">
+              <button
+                type="button"
+                className="chub-sheet-close"
+                onClick={() => setGetOpen(false)}
+                aria-label="Close"
+              >
                 <X size={18} />
               </button>
             </div>
 
-            <div className="chub-sheet-grid">
-              <div>
-                <label className="chub-label">COUNTRY</label>
-                <button type="button" className="chub-select" onClick={() => setCountryPicker(true)}>
-                  <span>
-                    {country.flag} {country.name}
+            <div className="chub-field">
+              <label className="chub-label">COUNTRY</label>
+              <button type="button" className="chub-select" onClick={() => setCountryPicker(true)}>
+                <span>
+                  {country.flag} {country.name}
+                </span>
+                <ChevronDown size={16} />
+              </button>
+            </div>
+
+            <div className="chub-field">
+              <label className="chub-label">NUMBER TYPE</label>
+              <button type="button" className="chub-select" onClick={() => setTypePicker(true)}>
+                <span>
+                  {NUMBER_TYPES.find((t) => t.id === numberType)?.label}
+                  <span className="chub-select-hint">
+                    {' · '}{NUMBER_TYPES.find((t) => t.id === numberType)?.hint}
                   </span>
-                  <ChevronDown size={16} />
-                </button>
-              </div>
-              <div>
-                <label className="chub-label">TYPE</label>
-                <button type="button" className="chub-select" onClick={() => setTypePicker(true)}>
-                  <span>{NUMBER_TYPES.find((t) => t.id === numberType)?.label}</span>
-                  <ChevronDown size={16} />
-                </button>
-              </div>
+                </span>
+                <ChevronDown size={16} />
+              </button>
             </div>
 
             <div className="chub-price-banner">{priceHint}</div>
@@ -291,13 +418,17 @@ export function CommunicationHubPage({ onBack }: { onBack: () => void }) {
         </div>
       )}
 
-      {/* Country picker */}
       {countryPicker && (
         <div className="chub-sheet-backdrop" onClick={() => setCountryPicker(false)}>
           <div className="chub-sheet list" onClick={(e) => e.stopPropagation()}>
             <div className="chub-sheet-head">
               <h3>Select country</h3>
-              <button type="button" className="chub-sheet-close" onClick={() => setCountryPicker(false)} aria-label="Close">
+              <button
+                type="button"
+                className="chub-sheet-close"
+                onClick={() => setCountryPicker(false)}
+                aria-label="Close"
+              >
                 <X size={18} />
               </button>
             </div>
@@ -324,13 +455,17 @@ export function CommunicationHubPage({ onBack }: { onBack: () => void }) {
         </div>
       )}
 
-      {/* Type picker */}
       {typePicker && (
         <div className="chub-sheet-backdrop" onClick={() => setTypePicker(false)}>
           <div className="chub-sheet list" onClick={(e) => e.stopPropagation()}>
             <div className="chub-sheet-head">
               <h3>Number type</h3>
-              <button type="button" className="chub-sheet-close" onClick={() => setTypePicker(false)} aria-label="Close">
+              <button
+                type="button"
+                className="chub-sheet-close"
+                onClick={() => setTypePicker(false)}
+                aria-label="Close"
+              >
                 <X size={18} />
               </button>
             </div>
@@ -345,7 +480,10 @@ export function CommunicationHubPage({ onBack }: { onBack: () => void }) {
                       setTypePicker(false);
                     }}
                   >
-                    <span>{t.label}</span>
+                    <span>
+                      <strong style={{ display: 'block' }}>{t.label}</strong>
+                      <small style={{ color: '#64748B' }}>{t.hint}</small>
+                    </span>
                     {numberType === t.id ? <span className="chub-check">✓</span> : null}
                   </button>
                 </li>
