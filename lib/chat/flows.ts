@@ -26,7 +26,13 @@ export type DataFlowState = {
   phone?: string;
 };
 
-export type FlowState = DataFlowState | null;
+export type TicketFlowState = {
+  flow: 'ticket';
+  step: 'subject' | 'body';
+  subject?: string;
+};
+
+export type FlowState = DataFlowState | TicketFlowState | null;
 
 const NETWORKS: { id: string; label: string }[] = [
   { id: 'mtn', label: 'MTN' },
@@ -86,15 +92,22 @@ async function reply(
   return msg ? [msg] : [];
 }
 
+/** The three things the assistant can do. */
 export const MENU_BUTTONS: ChatButton[] = [
-  { label: '📱 Buy Data', payload: 'start_data' },
-  { label: '⚡ Buy Airtime', payload: 'open_airtime' },
+  { label: '💬 Get Support', payload: 'get_support' },
+  { label: '🎫 Open Ticket', payload: 'open_ticket' },
+  { label: '🛒 Buy Service', payload: 'buy_service' },
+];
+
+/** Every service, shown after "Buy Service". */
+export const SERVICE_MENU: ChatButton[] = [
+  { label: '📱 Data', payload: 'start_data' },
+  { label: '⚡ Airtime', payload: 'open_airtime' },
   { label: '🔢 Virtual Number', payload: 'open_vn' },
   { label: '📧 Email OTP', payload: 'open_email' },
   { label: '👥 Buy Logs', payload: 'open_logs' },
   { label: '🚀 Boost', payload: 'open_boost' },
   { label: '🎁 Gift Card', payload: 'open_giftcard' },
-  { label: '💬 Get Support', payload: 'open_support' },
 ];
 
 export function cancelButtons(): ChatButton[] {
@@ -123,7 +136,32 @@ export async function handleButtonPayload(
 
   if (payload === 'cancel_flow') {
     await updateConversation(conversationId, { state: null });
-    return reply(conversationId, 'No problem — order cancelled. What next?', MENU_BUTTONS);
+    return reply(conversationId, 'No problem — cancelled. What next?', MENU_BUTTONS);
+  }
+
+  if (payload === 'get_support') {
+    await updateConversation(conversationId, { state: null });
+    return reply(
+      conversationId,
+      'Tell me what is going on — a failed order, OTP not arriving, being stuck mid-purchase, anything. I will help you sort it out, and I will bring in a human if needed.',
+      [...cancelButtons(), { label: '🛒 Buy Service', payload: 'buy_service' }],
+    );
+  }
+
+  if (payload === 'buy_service') {
+    await updateConversation(conversationId, { state: null });
+    return reply(conversationId, 'Which service do you want?', [...SERVICE_MENU, ...cancelButtons()]);
+  }
+
+  if (payload === 'open_ticket') {
+    await updateConversation(conversationId, {
+      state: { flow: 'ticket', step: 'subject' },
+    });
+    return reply(
+      conversationId,
+      'Opening a ticket for you. What is the subject? (one short line, e.g. "Data order not delivered")',
+      cancelButtons(),
+    );
   }
 
   // --- data flow: network → category → plans → phone → confirm
@@ -493,6 +531,31 @@ export async function handleFreeText(
 ): Promise<ChatMessageRow[]> {
   const lower = text.toLowerCase().trim();
 
+  // Ticket flow: subject → body → submit.
+  if (state?.flow === 'ticket' && state.step === 'subject') {
+    const subject = text.trim().slice(0, 80);
+    await updateConversation(conversationId, {
+      state: { flow: 'ticket', step: 'body', subject },
+    });
+    return reply(
+      conversationId,
+      `Subject: "${subject}". Now describe the problem in detail (order reference, phone number, what happened):`,
+      cancelButtons(),
+    );
+  }
+  if (state?.flow === 'ticket' && state.step === 'body' && state.subject) {
+    const body = text.trim().slice(0, 1500);
+    await updateConversation(conversationId, { state: null, subject: state.subject, status: 'waiting_admin' });
+    void notifyAdmin(
+      `🎫 NEW TICKET\nSubject: ${state.subject}\nCustomer: ${opts.user?.email || opts.user?.name || 'unknown'}\n\n${body}`,
+    );
+    return reply(
+      conversationId,
+      '🎫 Ticket received — our team has been notified and will get back to you here. You can keep chatting with me while you wait.',
+      MENU_BUTTONS,
+    );
+  }
+
   // Active data flow expecting a phone number?
   if (state?.flow === 'data' && state.step === 'phone') {
     return handleDataPhoneInput(conversationId, state, text);
@@ -519,6 +582,26 @@ export async function handleFreeText(
       conversationId,
       'Hello 👋 I am the Verxor assistant. Jump to any service, buy right here in chat, or get support from me. What would you like?',
       MENU_BUTTONS,
+    );
+  }
+
+  // Support detection — a customer describing a problem escalates to Denny.
+  if (
+    /\b(fail|failed|error|stuck|problem|issue|not work\w*|not deliver\w*|refund|wrong number|missing|didn'?t|did not)\b/.test(
+      lower,
+    )
+  ) {
+    await updateConversation(conversationId, { status: 'waiting_admin' });
+    void notifyAdmin(
+      `🆘 Customer needs help\nCustomer: ${opts.user?.email || opts.user?.name || 'unknown'}\nMessage: "${text.slice(0, 300)}"\nReply from Telegram to answer them (or use /pending).`,
+    );
+    return reply(
+      conversationId,
+      'I am sorry about that — I have flagged this to our team right away and they will reply here shortly. If you have an order reference or the phone number involved, send it now so we can trace it faster.',
+      [
+        { label: '🎫 Open Ticket', payload: 'open_ticket' },
+        { label: '🛒 Buy Service', payload: 'buy_service' },
+      ],
     );
   }
 

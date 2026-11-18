@@ -212,16 +212,11 @@ export function ChatWidget({
         {
           id: 'welcome',
           role: 'ai',
-          content: `Hello${sessionRef.current?.name ? ` ${sessionRef.current.name}` : ''} 👋 I am your Verxor assistant. Jump to any service, buy right here in chat, or get support from me.`,
+          content: `Hello${sessionRef.current?.name ? ` ${sessionRef.current.name}` : ''} 👋 I am your Verxor assistant. What would you like to do today?`,
           buttons: [
-            { label: '📱 Buy Data', payload: 'start_data' },
-            { label: '⚡ Buy Airtime', payload: 'open_airtime' },
-            { label: '🔢 Virtual Number', payload: 'open_vn' },
-            { label: '📧 Email OTP', payload: 'open_email' },
-            { label: '👥 Buy Logs', payload: 'open_logs' },
-            { label: '🚀 Boost', payload: 'open_boost' },
-            { label: '🎁 Gift Card', payload: 'open_giftcard' },
-            { label: '💬 Get Support', payload: 'open_support' },
+            { label: '💬 Get Support', payload: 'get_support' },
+            { label: '🎫 Open Ticket', payload: 'open_ticket' },
+            { label: '🛒 Buy Service', payload: 'buy_service' },
           ],
         },
       ];
