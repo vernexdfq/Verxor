@@ -767,3 +767,164 @@
     font-size: 22px;
   }
 }
+
+
+/* ============================================================
+   Premium split-screen auth experience — shared by sign in/up
+   ============================================================ */
+.auth-root {
+  position: relative;
+  isolation: isolate;
+  min-height: 100dvh;
+  justify-content: flex-end;
+  align-items: center;
+  padding: 40px clamp(28px, 7vw, 112px) 40px 48px;
+  overflow: hidden;
+  background: #f7f9fc;
+}
+.auth-visual {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: calc(100% - 500px);
+  min-width: 48%;
+  overflow: hidden;
+  background: #0b1d43;
+}
+.auth-visual-image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  filter: saturate(.82);
+}
+.auth-visual-shade {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, rgba(5, 19, 48, .72) 0%, rgba(8, 31, 72, .42) 56%, rgba(8, 31, 72, .12) 100%),
+    linear-gradient(0deg, rgba(5, 19, 48, .36), transparent 58%);
+}
+.auth-visual-copy {
+  position: absolute;
+  left: clamp(34px, 6vw, 88px);
+  bottom: clamp(48px, 9vh, 100px);
+  max-width: 560px;
+  color: #fff;
+}
+.auth-visual-kicker {
+  display: inline-block;
+  margin-bottom: 20px;
+  color: rgba(255,255,255,.82);
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: .18em;
+}
+.auth-visual-copy p {
+  margin: 0;
+  font-size: clamp(34px, 4.3vw, 58px);
+  line-height: 1.08;
+  font-weight: 750;
+  letter-spacing: -.045em;
+}
+.auth-visual-caption {
+  display: block;
+  margin-top: 18px;
+  color: rgba(255,255,255,.78);
+  font-size: 14px;
+  letter-spacing: .01em;
+}
+.auth-body {
+  position: relative;
+  z-index: 2;
+  width: min(100%, 448px);
+  max-width: 448px;
+  padding: 38px 36px 34px;
+  border: 1px solid rgba(226,232,240,.92);
+  border-radius: 18px;
+  box-shadow: 0 24px 70px -34px rgba(15, 35, 75, .32), 0 3px 12px rgba(15, 35, 75, .05);
+}
+.auth-body--signin { max-width: 448px; }
+.auth-brand { margin-bottom: 30px; gap: 10px; }
+.auth-brand-logo { width: 34px; height: 34px; }
+.auth-brand-name { font-size: 21px; font-weight: 760; letter-spacing: -.035em; }
+.auth-title { margin-bottom: 24px; font-size: 29px; line-height: 1.12; letter-spacing: -.04em; }
+.auth-field { margin-bottom: 16px; }
+.auth-input-wrap {
+  min-height: 52px;
+  border-radius: 9px;
+  background: #f6f8fc;
+  border-color: #e1e7f0;
+  padding: 0 15px;
+}
+.auth-input-wrap input { padding: 14px 0; font-size: 14px; }
+.auth-btn {
+  min-height: 52px;
+  border-radius: 9px;
+  background: #0754dc;
+  font-size: 15px;
+  font-weight: 680;
+  box-shadow: 0 5px 12px rgba(7,84,220,.15);
+}
+.auth-btn:hover:not(:disabled) { background: #0647bd; }
+.auth-remember { margin: 5px 0 20px; }
+.auth-or { margin: 22px 0 16px; }
+.auth-google-btn {
+  min-height: 49px;
+  border-radius: 9px;
+  border-color: #dce3ed;
+  font-weight: 620;
+}
+.auth-footer-link { margin-top: 20px; font-size: 13px; }
+.auth-footer-link button { font-size: 13px; }
+.auth-body--center { background: #fff; }
+
+/* Keep the same photographic identity on compact screens without crowding forms. */
+@media (max-width: 760px) {
+  .auth-root {
+    display: flex;
+    min-height: 100svh;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 0 14px 30px;
+    overflow: visible;
+    background: #f5f7fb;
+  }
+  .auth-visual {
+    position: absolute;
+    inset: 0 0 auto;
+    width: 100%;
+    min-width: 0;
+    height: 290px;
+  }
+  .auth-visual-image { object-position: center 42%; }
+  .auth-visual-shade {
+    background: linear-gradient(180deg, rgba(5,19,48,.18), rgba(5,19,48,.55));
+  }
+  .auth-visual-copy {
+    left: 24px;
+    bottom: 68px;
+    max-width: 300px;
+  }
+  .auth-visual-kicker { margin-bottom: 10px; font-size: 9px; }
+  .auth-visual-copy p { font-size: 27px; }
+  .auth-visual-caption { margin-top: 8px; font-size: 12px; }
+  .auth-body {
+    width: 100%;
+    max-width: 480px;
+    margin: 218px auto 0;
+    padding: 28px 22px 25px;
+    border-radius: 15px;
+    box-shadow: 0 18px 48px -28px rgba(15,35,75,.34), 0 2px 8px rgba(15,35,75,.06);
+  }
+  .auth-body--signin { max-width: 480px; }
+  .auth-brand { margin-bottom: 24px; }
+  .auth-title { font-size: 25px; margin-bottom: 20px; }
+  .auth-field { margin-bottom: 14px; }
+  .auth-body--center { margin-top: 218px; }
+}
+@media (max-width: 380px) {
+  .auth-root { padding-inline: 10px; }
+  .auth-body { padding-inline: 18px; }
+  .auth-visual-copy p { font-size: 24px; }
+}

@@ -216,6 +216,24 @@ function BrandMark() {
   );
 }
 
+function AuthVisual() {
+  return (
+    <aside className="auth-visual" aria-hidden="true">
+      <img
+        className="auth-visual-image"
+        src="https://images.unsplash.com/photo-1512941937669-90a1b58e7e9?auto=format&fit=crop&w=1800&q=88"
+        alt=""
+      />
+      <div className="auth-visual-shade" />
+      <div className="auth-visual-copy">
+        <span className="auth-visual-kicker">VERXOR · ONE SECURE WORKSPACE</span>
+        <p>Everything you need.<br />Connected in one place.</p>
+        <span className="auth-visual-caption">Digital services, made simple.</span>
+      </div>
+    </aside>
+  );
+}
+
 function GoogleG() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -696,6 +714,7 @@ export function AuthFlow({
   if (step === 'boot') {
     return (
       <div className="auth-root">
+        <AuthVisual />
         <div className="auth-body auth-body--center">
           <BrandMark />
         </div>
@@ -706,6 +725,7 @@ export function AuthFlow({
   if (step === 'forgot') {
     return (
       <div className="auth-root">
+        <AuthVisual />
         <div className="auth-body">
           <BrandMark />
           <h1 className="auth-title">Reset password</h1>
@@ -780,6 +800,7 @@ export function AuthFlow({
   if (step === 'signup') {
     return (
       <div className="auth-root">
+        <AuthVisual />
         <div className="auth-body">
           <BrandMark />
           <h1 className="auth-title">Create your account</h1>
@@ -877,6 +898,7 @@ export function AuthFlow({
   // ---- signin: one identifier field (email or phone), then password ----
   return (
     <div className="auth-root">
+      <AuthVisual />
       <div className="auth-body auth-body--signin">
         <BrandMark />
         <h1 className="auth-title">Sign in</h1>
