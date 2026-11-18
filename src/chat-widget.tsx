@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Maximize2, MessageCircle, Minimize2, Send, X } from 'lucide-react';
 import type { AuthSession } from './auth/AuthFlow';
-import { loadSessionTokens } from './auth/session-unlock';
+import { loadSessionProfile, loadSessionTokens } from './auth/session-unlock';
 import './chat-widget.css';
 
 type ChatButton = { label: string; payload: string };
@@ -43,15 +43,23 @@ export function ChatWidget({
   sessionRef.current = session;
 
   /**
-   * Fresh auth header. Supabase access tokens expire after ~1h; the stored
-   * copy can be stale, so ask the browser client first (it refreshes the
-   * session automatically) and fall back to the stored token.
+   * Fresh auth headers. Supabase access tokens expire after ~1h; the stored
+   * copy can be stale. getUser() validates with the server and triggers the
+   * client's automatic token refresh, then getSession() returns the fresh
+   * token. As a soft-session fallback (same pattern as the wallet endpoint)
+   * we always attach the profile userId via x-vx-user.
    */
   const authHeaders = useCallback(async (): Promise<Record<string, string>> => {
     const h: Record<string, string> = { 'Content-Type': 'application/json' };
+    const userId = loadSessionProfile()?.userId;
+    if (userId) h['x-vx-user'] = userId;
     try {
       const { getSupabaseBrowser } = await import('../lib/supabase/client');
       const sb = getSupabaseBrowser();
+      if (sb) {
+        // Server-side check — refreshes an expired token when needed.
+        await sb.auth.getUser().catch(() => undefined);
+      }
       const res = (await sb?.auth.getSession()) as
         | { data?: { session?: { access_token?: string } | null } }
         | null

@@ -45,21 +45,45 @@ function supabaseBase() {
 async function resolveUserId(req: NextRequest): Promise<string | null> {
   const auth = req.headers.get('authorization') || '';
   const token = auth.startsWith('Bearer ') ? auth.slice(7).trim() : '';
-  if (!token || token.startsWith('vx_panel_')) return null;
   const base = supabaseBase();
   const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
-  if (!base || !anon) return null;
-  try {
-    const res = await fetch(`${base}/auth/v1/user`, {
-      headers: { apikey: anon, Authorization: `Bearer ${token}` },
-      cache: 'no-store',
-    });
-    if (!res.ok) return null;
-    const u = (await res.json()) as { id?: string };
-    return u.id || null;
-  } catch {
-    return null;
+  if (token && !token.startsWith('vx_panel_') && token.startsWith('eyJ')) {
+    if (!base || !anon) return null;
+    try {
+      const res = await fetch(`${base}/auth/v1/user`, {
+        headers: { apikey: anon, Authorization: `Bearer ${token}` },
+        cache: 'no-store',
+      });
+      if (res.ok) {
+        const u = (await res.json()) as { id?: string };
+        if (u.id) return u.id;
+      }
+    } catch {
+      /* fall through to soft session */
+    }
   }
+  // Soft-session fallback (same trust model as /api/v1/wallet/balance and
+  // /api/v1/email-otp/orders): the profile userId is trusted when the JWT
+  // cannot be validated, e.g. the browser's stored token expired.
+  const vxUser = (req.headers.get('x-vx-user') || '').trim();
+  if (vxUser && base) {
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY;
+    if (key) {
+      try {
+        const res = await fetch(
+          `${base}/rest/v1/profiles?id=eq.${encodeURIComponent(vxUser)}&select=id&limit=1`,
+          { headers: { apikey: key, Authorization: `Bearer ${key}` }, cache: 'no-store' },
+        );
+        if (res.ok) {
+          const rows = (await res.json()) as { id?: string }[];
+          if (rows?.[0]?.id) return rows[0].id;
+        }
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+  return null;
 }
 
 async function resolveProfile(req: NextRequest, userId: string): Promise<{
