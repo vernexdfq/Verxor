@@ -8,6 +8,7 @@
 
 import { getSyncedLivePlansForNetwork } from '@/lib/data-plan-sync';
 import { notifyAdmin } from '@/lib/notify';
+import { getUserOrdersSummary } from '@/lib/support-summary';
 import {
   appendMessage,
   updateConversation,
@@ -523,6 +524,7 @@ export async function handleFreeText(
   opts: {
     history: { role: string; content: string }[];
     user?: {
+      userId?: string | null;
       name?: string | null;
       email?: string | null;
       balanceNgn?: number | null;
@@ -581,6 +583,23 @@ export async function handleFreeText(
     return reply(
       conversationId,
       'Hello 👋 I am the Verxor assistant. Jump to any service, buy right here in chat, or get support from me. What would you like?',
+      MENU_BUTTONS,
+    );
+  }
+
+  // Phase 3 support tool — real order status from the database.
+  if (/\b(my orders?|order status|orders? status|where.?s my order|track|order history|recent orders?)\b/.test(lower)) {
+    const summary = opts.user?.userId ? await getUserOrdersSummary(opts.user.userId) : null;
+    if (summary) {
+      return reply(
+        conversationId,
+        `Here are your most recent orders:\n\n${summary}\n\nTap a service below or ask me anything about them.`,
+        MENU_BUTTONS,
+      );
+    }
+    return reply(
+      conversationId,
+      'I could not find any recent orders on your account. If you just placed one, give it a minute and check again. Anything else I can do?',
       MENU_BUTTONS,
     );
   }

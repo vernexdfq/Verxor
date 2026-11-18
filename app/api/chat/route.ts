@@ -206,6 +206,7 @@ export async function POST(req: NextRequest) {
       replies = await handleFreeText(conversationId, state, text, {
         history,
         user: {
+          userId,
           name: profile?.fullName ?? null,
           email: profile?.email ?? null,
           balanceNgn: profile?.balanceNgn ?? null,
