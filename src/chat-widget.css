@@ -195,3 +195,39 @@
 }
 .dark .vxc-input-row input:focus { border-color: #3b82f6; }
 .dark .vxc-typing { color: #94a3b8; }
+
+
+/* attach / mic buttons in the input row */
+.vxc-input-row .vxc-attach {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.vxc-input-row .vxc-attach:hover:not(:disabled) {
+  background: rgba(15, 23, 42, 0.08);
+  color: #0f172a;
+}
+
+.vxc-input-row .vxc-attach.listening {
+  color: #dc2626;
+  background: rgba(220, 38, 38, 0.12);
+}
+
+.dark .vxc-input-row .vxc-attach {
+  color: #94a3b8;
+}
+
+.dark .vxc-input-row .vxc-attach:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.08);
+  color: #f1f5f9;
+}

@@ -12,12 +12,16 @@ import { getUserOrdersSummary } from '@/lib/support-summary';
 import {
   appendMessage,
   assignTicketId,
+  deleteSignupDraft,
   findConversationByTicket,
   generateTicketId,
   getConversation,
+  loadSignupDraft,
+  saveSignupDraft,
   updateConversation,
   type ChatButton,
   type ChatMessageRow,
+  type SignupDraft,
 } from '@/lib/chat/store';
 
 export type DataFlowState = {
@@ -37,7 +41,12 @@ export type TicketFlowState = {
   subject?: string;
 };
 
-export type FlowState = DataFlowState | TicketFlowState | null;
+export type SignupFlowState = {
+  flow: 'signup';
+  step: 'name' | 'email' | 'phone' | 'pin' | 'password' | 'referrer';
+};
+
+export type FlowState = DataFlowState | TicketFlowState | SignupFlowState | null;
 
 const NETWORKS: { id: string; label: string }[] = [
   { id: 'mtn', label: 'MTN' },
@@ -173,6 +182,37 @@ export async function handleButtonPayload(
     );
   }
 
+  // --- chat account creation (mostly for signed-out visitors) ---
+  if (payload === 'create_account') {
+    if (ctx.userId) {
+      return reply(
+        conversationId,
+        'You already have an account 😊 You are signed in. What would you like to do?',
+        MENU_BUTTONS,
+      );
+    }
+    await deleteSignupDraft(conversationId);
+    await updateConversation(conversationId, {
+      state: { flow: 'signup', step: 'name' },
+      subject: 'Account created via chat',
+    });
+    return reply(
+      conversationId,
+      'Let us set up your free Verxor account right here. What is your full name (first and last)?',
+      cancelButtons(),
+    );
+  }
+
+  if (payload === 'signup_skip_ref') {
+    // No referrer — go straight to creating the account.
+    const draft = await loadSignupDraft(conversationId);
+    if (draft?.password) {
+      return createChatAccount(conversationId, draft, ctx.purchaseOrigin, null);
+    }
+    await updateConversation(conversationId, { state: null });
+    return reply(conversationId, 'Let us start over — what would you like to do?', MENU_BUTTONS);
+  }
+
   // --- data flow: network → category → plans → phone → confirm
   if (payload === 'start_data') {
     await updateConversation(conversationId, {
@@ -271,6 +311,18 @@ async function purchaseData(
   state: DataFlowState,
   ctx: { purchaseOrigin: string; authHeader: string | null; userId?: string | null; email?: string | null; contact?: string | null },
 ): Promise<ChatMessageRow[]> {
+  // Visitors cannot buy — no wallet. Point them at account creation.
+  if (!ctx.userId) {
+    await updateConversation(conversationId, { state: { ...state, step: 'confirm' } });
+    return reply(
+      conversationId,
+      'You need a free Verxor account to buy — it unlocks your wallet and order history. Create one right here in chat or sign in.',
+      [
+        { label: '👤 Create Account', payload: 'create_account' },
+        { label: '🔑 Sign In', payload: 'open_signin' },
+      ],
+    );
+  }
   try {
     const res = await fetch(`${ctx.purchaseOrigin}/api/v1/data`, {
       method: 'POST',
@@ -531,6 +583,7 @@ export async function handleFreeText(
   text: string,
   opts: {
     history: { role: string; content: string }[];
+    chatOrigin?: string;
     user?: {
       userId?: string | null;
       name?: string | null;
@@ -566,6 +619,81 @@ export async function handleFreeText(
       `🎫 Ticket received! Your ticket ID is ${ticketId} — keep it safe and quote it any time to check the status. Our team has been notified and will get back to you here. You can keep chatting with me while you wait.`,
       MENU_BUTTONS,
     );
+  }
+
+  // Chat account creation — collect one field per message (PIN and password
+  // are masked in the transcript by the route; live only in the temp draft).
+  if (state?.flow === 'signup') {
+    if (state.step === 'name') {
+      const name = text.trim().replace(/\s+/g, ' ');
+      if (name.split(' ').length < 2 || name.length < 3) {
+        return reply(conversationId, 'Enter your full name (first and last), e.g. "Ada Obi":', cancelButtons());
+      }
+      await saveSignupDraft(conversationId, { name });
+      await updateConversation(conversationId, { state: { flow: 'signup', step: 'email' } });
+      return reply(conversationId, `Nice to meet you, ${name.split(' ')[0]}! What is your email address?`, cancelButtons());
+    }
+    if (state.step === 'email') {
+      const email = text.trim().toLowerCase();
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        return reply(conversationId, 'That does not look like a valid email address. Try again:', cancelButtons());
+      }
+      await saveSignupDraft(conversationId, { email });
+      await updateConversation(conversationId, { state: { flow: 'signup', step: 'phone' } });
+      return reply(conversationId, 'What is your phone number? (11 digits, e.g. 08031234567)', cancelButtons());
+    }
+    if (state.step === 'phone') {
+      const digits = text.replace(/\D/g, '');
+      if (digits.length !== 11 || !digits.startsWith('0')) {
+        return reply(conversationId, 'Enter a valid Nigerian number — 11 digits like 08031234567:', cancelButtons());
+      }
+      await saveSignupDraft(conversationId, { phone: digits });
+      await updateConversation(conversationId, { state: { flow: 'signup', step: 'pin' } });
+      return reply(
+        conversationId,
+        'Now create a 4-digit PIN for transactions (send it here — it will be masked in the chat).',
+        cancelButtons(),
+      );
+    }
+    if (state.step === 'pin') {
+      if (!/^\d{4}$/.test(text.trim())) {
+        return reply(conversationId, 'The PIN must be exactly 4 digits (e.g. 4821). Try again:', cancelButtons());
+      }
+      await saveSignupDraft(conversationId, { pin: text.trim() });
+      await updateConversation(conversationId, { state: { flow: 'signup', step: 'password' } });
+      return reply(
+        conversationId,
+        'And a login password: at least 6 characters with an uppercase letter, a lowercase letter and a number (it will be masked here).',
+        cancelButtons(),
+      );
+    }
+    if (state.step === 'password') {
+      const pass = text;
+      if (pass.length < 6 || !/[A-Z]/.test(pass) || !/[a-z]/.test(pass) || !/\d/.test(pass)) {
+        return reply(
+          conversationId,
+          'That password is too weak — at least 6 characters with an uppercase letter, a lowercase letter and a number. Try again:',
+          cancelButtons(),
+        );
+      }
+      await saveSignupDraft(conversationId, { password: pass });
+      await updateConversation(conversationId, { state: { flow: 'signup', step: 'referrer' } });
+      return reply(
+        conversationId,
+        'Almost done! If someone referred you to Verxor, send their name or code now — otherwise tap Skip.',
+        [...cancelButtons(), { label: 'Skip', payload: 'signup_skip_ref' }],
+      );
+    }
+    if (state.step === 'referrer') {
+      const draft = await loadSignupDraft(conversationId);
+      if (!draft?.password) {
+        await updateConversation(conversationId, { state: null });
+        return reply(conversationId, 'Sorry, that signup expired. Tap Create Account to start again.', [
+          { label: '👤 Create Account', payload: 'create_account' },
+        ]);
+      }
+      return createChatAccount(conversationId, draft, opts.chatOrigin || '', text.trim().slice(0, 60) || null);
+    }
   }
 
   // Ticket status lookup — "ticket status", "my ticket", or a VX-1234 reference.
@@ -741,5 +869,80 @@ export async function handleFreeText(
       'I could not answer that just now. Tap a service below or try again in a moment.',
       MENU_BUTTONS,
     );
+  }
+}
+
+
+/**
+ * Create the account from the collected chat-signup draft by calling the
+ * normal /api/auth/register backend (same validation, PIN hashing and wallet
+ * row creation as the sign-up page). Secrets never live in the conversation.
+ */
+async function createChatAccount(
+  conversationId: string,
+  draft: SignupDraft,
+  origin: string,
+  referrer: string | null,
+): Promise<ChatMessageRow[]> {
+  if (!origin) {
+    await updateConversation(conversationId, { state: { flow: 'signup', step: 'referrer' } });
+    return reply(conversationId, 'Something went wrong on our side. Tap Skip to retry the final step.', [
+      { label: 'Skip', payload: 'signup_skip_ref' },
+    ]);
+  }
+  try {
+    const res = await fetch(`${origin}/api/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        fullName: draft.name,
+        email: draft.email,
+        phone: draft.phone,
+        pin: draft.pin,
+        password: draft.password,
+        referrer,
+      }),
+      cache: 'no-store',
+    });
+    const body = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
+    if (!res.ok || !body?.ok) {
+      const exists = res.status === 409 || /already exists/i.test(body?.error || '');
+      await updateConversation(conversationId, { state: null });
+      await deleteSignupDraft(conversationId);
+      if (exists) {
+        return reply(
+          conversationId,
+          'An account already exists with that email or phone number. Sign in instead, or start again with different details.',
+          [
+            { label: '🔑 Sign In', payload: 'open_signin' },
+            { label: '👤 Try Again', payload: 'create_account' },
+          ],
+        );
+      }
+      return reply(
+        conversationId,
+        body?.error || 'I could not create the account just now. Tap Try Again in a moment.',
+        [{ label: 'Try Again', payload: 'create_account' }, ...cancelButtons()],
+      );
+    }
+    await updateConversation(conversationId, { state: null, subject: 'Account created via chat' });
+    await deleteSignupDraft(conversationId);
+    void notifyAdmin(
+      `👤 New account created via chat\nName: ${draft.name}\nEmail: ${draft.email}\nPhone: ${draft.phone}${referrer ? `\nReferrer: ${referrer}` : ''}`,
+    );
+    return reply(
+      conversationId,
+      `🎉 Your free Verxor account is ready, ${draft.name?.split(' ')[0] || 'friend'}! Sign in with your email and password to start using your wallet. I will be right here in the app whenever you need me.`,
+      [
+        { label: '🔑 Sign In Now', payload: 'open_signin' },
+        { label: '🛒 Buy Service', payload: 'buy_service' },
+      ],
+    );
+  } catch {
+    await updateConversation(conversationId, { state: { flow: 'signup', step: 'referrer' } });
+    return reply(conversationId, 'Network error while creating your account. Tap Retry in a moment.', [
+      { label: 'Retry', payload: 'signup_skip_ref' },
+      ...cancelButtons(),
+    ]);
   }
 }

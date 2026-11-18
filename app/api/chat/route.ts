@@ -5,13 +5,15 @@ import {
   createConversation,
   getConversation,
   getLatestConversationForUser,
+  getLatestConversationForVisitor,
   lastDbError,
   listMessages,
   updateConversation,
+  type ChatConversationRow,
   type ChatMessageRow,
 } from '@/lib/chat/store';
 import { handleButtonPayload, handleFreeText, type FlowState } from '@/lib/chat/flows';
-import { notifyAdmin } from '@/lib/notify';
+import { notifyAdmin, sendTelegramPhoto } from '@/lib/notify';
 
 /**
  * Interim escalation heuristic (Phase 5 replaces this with the admin inbox):
@@ -131,16 +133,35 @@ async function resolveProfile(req: NextRequest, userId: string): Promise<{
   }
 }
 
+/** Visitor key for signed-out chat (generated client-side, sent as a header). */
+function visitorKeyOf(req: NextRequest): string {
+  return (req.headers.get('x-vx-visitor') || '').trim().slice(0, 64);
+}
+
+/** Does this conversation belong to the requesting user / visitor? */
+function ownsConversation(
+  conversation: ChatConversationRow | null,
+  userId: string | null,
+  visitorKey: string,
+): conversation is ChatConversationRow {
+  if (!conversation) return false;
+  if (conversation.user_id && conversation.user_id === userId) return true;
+  return !conversation.user_id && Boolean(visitorKey) && conversation.visitor_key === visitorKey;
+}
+
 export async function GET(req: NextRequest) {
   const userId = await resolveUserId(req);
-  if (!userId) {
+  const visitorKey = visitorKeyOf(req);
+  if (!userId && !visitorKey) {
     return NextResponse.json({ ok: false, error: 'Sign in required' }, { status: 401 });
   }
   const requested = req.nextUrl.searchParams.get('conversationId');
   const conversation = requested
     ? await getConversation(requested)
-    : await getLatestConversationForUser(userId);
-  if (!conversation || conversation.user_id !== userId) {
+    : userId
+      ? await getLatestConversationForUser(userId)
+      : await getLatestConversationForVisitor(visitorKey);
+  if (!ownsConversation(conversation, userId, visitorKey)) {
     return NextResponse.json({ ok: true, conversationId: null, messages: [] });
   }
   if (isStale(conversation.updated_at)) {
@@ -154,7 +175,8 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const userId = await resolveUserId(req);
-  if (!userId) {
+  const visitorKey = visitorKeyOf(req);
+  if (!userId && !visitorKey) {
     return NextResponse.json({ ok: false, error: 'Sign in required' }, { status: 401 });
   }
   if (!chatDbConfigured()) {
@@ -166,10 +188,16 @@ export async function POST(req: NextRequest) {
     text?: string;
     payload?: string;
     label?: string;
+    image?: string;
   };
   const text = (body.text || '').trim();
   const payload = (body.payload || '').trim();
-  if (!text && !payload) {
+  const imageData =
+    /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(body.image || '') &&
+    (body.image || '').length < 2500000
+      ? (body.image as string)
+      : '';
+  if (!text && !payload && !imageData) {
     return NextResponse.json({ ok: false, error: 'Empty message' }, { status: 400 });
   }
 
@@ -177,10 +205,12 @@ export async function POST(req: NextRequest) {
   let conversation = null as Awaited<ReturnType<typeof getConversation>>;
   if (body.conversationId) {
     conversation = await getConversation(body.conversationId);
-    if (conversation && conversation.user_id !== userId) conversation = null;
+    if (!ownsConversation(conversation, userId, visitorKey)) conversation = null;
   }
   if (!conversation) {
-    conversation = await getLatestConversationForUser(userId);
+    conversation = userId
+      ? await getLatestConversationForUser(userId)
+      : await getLatestConversationForVisitor(visitorKey);
   }
   if (conversation && isStale(conversation.updated_at)) {
     // 24h auto-close: archive the old chat and start a fresh one below.
@@ -190,6 +220,7 @@ export async function POST(req: NextRequest) {
   if (!conversation) {
     conversation = await createConversation({
       userId,
+      visitorKey: userId ? null : visitorKey,
       subject: text ? text.slice(0, 60) : null,
     });
   }
@@ -199,19 +230,27 @@ export async function POST(req: NextRequest) {
   }
   const conversationId = conversation.id;
 
-  // The customer's tap / text is stored too.
+  // The customer's tap / text is stored too. PINs and passwords typed during
+  // the chat-signup flow are masked so the secret never lands in the transcript.
+  const priorState = (conversation.state || null) as FlowState;
+  const isSecretStep =
+    priorState?.flow === 'signup' && (priorState.step === 'pin' || priorState.step === 'password');
   const userMsg = await appendMessage({
     conversationId,
     role: 'user',
-    content: text || body.label || payload,
+    content: isSecretStep
+      ? '••••••'
+      : imageData
+        ? `📷 Photo${text ? ` — ${text}` : ''}`
+        : (text || body.label || payload),
   });
 
-  const state = (conversation.state || null) as FlowState;
+  const state = priorState;
   let replies: ChatMessageRow[] = [];
 
   try {
     if (payload) {
-      const profile = await resolveProfile(req, userId);
+      const profile = userId ? await resolveProfile(req, userId) : null;
       const email = profile?.email ?? null;
       replies = await handleButtonPayload(conversationId, state, payload, {
         purchaseOrigin: new URL(req.url).origin,
@@ -222,23 +261,43 @@ export async function POST(req: NextRequest) {
       });
       // Pure navigation payloads ("open_*") are handled by the widget.
       if (payload.startsWith('open_')) replies = [];
-    } else if (text) {
-      maybeEscalate(text, userId, conversationId);
-      const history = (await listMessages(conversationId)).map((m) => ({
-        role: m.role === 'user' ? 'user' : 'assistant',
-        content: m.content,
-      }));
-      history.pop(); // the just-appended message is re-sent below
-      const profile = await resolveProfile(req, userId);
-      replies = await handleFreeText(conversationId, state, text, {
-        history,
-        user: {
-          userId,
-          name: profile?.fullName ?? null,
-          email: profile?.email ?? null,
-          balanceNgn: profile?.balanceNgn ?? null,
-        },
-      });
+    } else if (text || imageData) {
+      if (imageData) {
+        void sendTelegramPhoto(
+          imageData,
+          `📷 Verxor chat photo${conversation.subject ? `\nSubject: ${conversation.subject}` : ''}\nCustomer: ${userId || 'visitor'}${text ? `\n"${text.slice(0, 200)}"` : ''}`,
+        );
+      }
+      if (!text) {
+        const ack = await appendMessage({
+          conversationId,
+          role: 'ai',
+          content: '📷 Photo received — our team can see it now. Tell me what it shows so I can help you faster.',
+          buttons: [
+            { label: '💬 Get Support', payload: 'get_support' },
+            { label: '🎫 Open Ticket', payload: 'open_ticket' },
+          ],
+        });
+        replies = ack ? [ack] : [];
+      } else {
+        maybeEscalate(text, userId || 'visitor', conversationId);
+        const history = (await listMessages(conversationId)).map((m) => ({
+          role: m.role === 'user' ? 'user' : 'assistant',
+          content: m.content,
+        }));
+        history.pop(); // the just-appended message is re-sent below
+        const profile = userId ? await resolveProfile(req, userId) : null;
+        replies = await handleFreeText(conversationId, state, text, {
+          history,
+          chatOrigin: new URL(req.url).origin,
+          user: {
+            userId,
+            name: profile?.fullName ?? null,
+            email: profile?.email ?? null,
+            balanceNgn: profile?.balanceNgn ?? null,
+          },
+        });
+      }
     }
   } catch (err) {
     replies = [];

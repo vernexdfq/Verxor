@@ -135,6 +135,105 @@ export async function listLatestOpenConversations(
   return Array.isArray(rows) ? rows : [];
 }
 
+/** Latest open conversation for a signed-out visitor (visitor chat). */
+export async function getLatestConversationForVisitor(
+  visitorKey: string,
+): Promise<ChatConversationRow | null> {
+  const d = db();
+  if (!d) return null;
+  const res = await fetch(
+    `${d.base}/rest/v1/chat_conversations?visitor_key=eq.${encodeURIComponent(visitorKey)}&status=neq.closed&order=updated_at.desc&select=*&limit=1`,
+    { headers: d.headers, cache: 'no-store' },
+  );
+  if (!res.ok) return null;
+  const rows = (await res.json()) as ChatConversationRow[];
+  return rows?.[0] || null;
+}
+
+/* ---------- temporarily held chat-signup draft (never in conversation.state) ---------- */
+
+export type SignupDraft = {
+  name?: string;
+  email?: string;
+  phone?: string;
+  pin?: string;
+  password?: string;
+  referrer?: string | null;
+  at: string;
+};
+
+async function adminSettingsUpsert(key: string, value: unknown): Promise<void> {
+  const d = db();
+  if (!d) return;
+  await fetch(`${d.base}/rest/v1/admin_settings`, {
+    method: 'POST',
+    headers: {
+      ...d.headers,
+      Prefer: 'resolution=merge-duplicates',
+    },
+    body: JSON.stringify([{ key, value: JSON.stringify(value) }]),
+    cache: 'no-store',
+  }).catch(() => undefined);
+}
+
+async function adminSettingsRead(key: string): Promise<unknown | null> {
+  const d = db();
+  if (!d) return null;
+  try {
+    const res = await fetch(
+      `${d.base}/rest/v1/admin_settings?key=eq.${encodeURIComponent(key)}&select=value&limit=1`,
+      { headers: d.headers, cache: 'no-store' },
+    );
+    if (!res.ok) return null;
+    const rows = (await res.json()) as { value?: string }[];
+    return JSON.parse(rows?.[0]?.value || 'null');
+  } catch {
+    return null;
+  }
+}
+
+async function adminSettingsDelete(key: string): Promise<void> {
+  const d = db();
+  if (!d) return;
+  await fetch(`${d.base}/rest/v1/admin_settings?key=eq.${encodeURIComponent(key)}`, {
+    method: 'DELETE',
+    headers: d.headers,
+    cache: 'no-store',
+  }).catch(() => undefined);
+}
+
+const DRAFT_TTL_MS = 15 * 60 * 1000;
+
+/** Save (or merge into) the in-progress chat signup draft for a conversation. */
+export async function saveSignupDraft(
+  conversationId: string,
+  patch: Partial<Omit<SignupDraft, 'at'>>,
+): Promise<SignupDraft | null> {
+  const key = `chatsignup:${conversationId}`;
+  const existing = (await adminSettingsRead(key)) as SignupDraft | null;
+  if (existing && Date.now() - new Date(existing.at || 0).getTime() > DRAFT_TTL_MS) {
+    return null; // expired — force a restart
+  }
+  const draft: SignupDraft = { ...(existing || { at: new Date().toISOString() }), ...patch, at: new Date().toISOString() };
+  await adminSettingsUpsert(key, draft);
+  return draft;
+}
+
+export async function loadSignupDraft(conversationId: string): Promise<SignupDraft | null> {
+  const key = `chatsignup:${conversationId}`;
+  const draft = (await adminSettingsRead(key)) as SignupDraft | null;
+  if (!draft) return null;
+  if (Date.now() - new Date(draft.at || 0).getTime() > DRAFT_TTL_MS) {
+    await adminSettingsDelete(key);
+    return null;
+  }
+  return draft;
+}
+
+export async function deleteSignupDraft(conversationId: string): Promise<void> {
+  await adminSettingsDelete(`chatsignup:${conversationId}`);
+}
+
 /** Recent conversations for the admin inbox (all statuses, newest first). */
 export async function listRecentConversations(
   limit: number,

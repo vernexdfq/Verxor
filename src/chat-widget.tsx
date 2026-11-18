@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Maximize2, MessageCircle, Minimize2, Send, X } from 'lucide-react';
+import { Image as ImageIcon, Maximize2, MessageCircle, Mic, Minimize2, Send, X } from 'lucide-react';
 import type { AuthSession } from './auth/AuthFlow';
 import { loadSessionProfile, loadSessionTokens } from './auth/session-unlock';
 import './chat-widget.css';
@@ -17,6 +17,59 @@ type ChatMessage = {
 };
 
 const CONVO_KEY = 'verxor-chat-conversation-id';
+const VISITOR_KEY = 'verxor-visitor-key';
+
+/** Stable id for signed-out visitors so their conversation survives reloads. */
+function getVisitorKey(): string {
+  try {
+    let k = localStorage.getItem(VISITOR_KEY);
+    if (!k) {
+      k =
+        typeof crypto !== 'undefined' && crypto.randomUUID
+          ? crypto.randomUUID()
+          : `v-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      localStorage.setItem(VISITOR_KEY, k);
+    }
+    return k;
+  } catch {
+    return '';
+  }
+}
+
+/** Downscale an image before sending it through the chat (keeps payloads small). */
+async function downscaleImage(file: File, maxDim = 900, quality = 0.72): Promise<string | null> {
+  let bitmap: ImageBitmap | null = null;
+  try {
+    bitmap = await createImageBitmap(file);
+  } catch {
+    return null;
+  }
+  if (!bitmap) return null;
+  const scale = Math.min(1, maxDim / Math.max(bitmap.width, bitmap.height));
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.round(bitmap.width * scale);
+  canvas.height = Math.round(bitmap.height * scale);
+  canvas.getContext('2d')?.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  try {
+    return canvas.toDataURL('image/jpeg', quality);
+  } catch {
+    return null;
+  }
+}
+
+/** Minimal shapes for the Web Speech API (not part of the standard TS lib). */
+type VxSpeechEvent = { results: ArrayLike<ArrayLike<{ transcript: string }>> };
+type VxSpeechRecognition = {
+  lang: string;
+  interimResults: boolean;
+  continuous: boolean;
+  onresult: ((e: VxSpeechEvent) => void) | null;
+  onend: (() => void) | null;
+  onerror: (() => void) | null;
+  start: () => void;
+  stop: () => void;
+};
+type VxSpeechCtor = new () => VxSpeechRecognition;
 
 /**
  * Verxor assistant — floating chat widget. Buttons in AI cards carry payloads
@@ -38,6 +91,9 @@ export function ChatWidget({
   const [busy, setBusy] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [full, setFull] = useState(false);
+  const [listening, setListening] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const recogRef = useRef<VxSpeechRecognition | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const sessionRef = useRef(session);
   sessionRef.current = session;
@@ -53,6 +109,8 @@ export function ChatWidget({
     const h: Record<string, string> = { 'Content-Type': 'application/json' };
     const userId = loadSessionProfile()?.userId;
     if (userId) h['x-vx-user'] = userId;
+    const vk = getVisitorKey();
+    if (vk) h['x-vx-visitor'] = vk;
     try {
       const { getSupabaseBrowser } = await import('../lib/supabase/client');
       const sb = getSupabaseBrowser();
@@ -74,6 +132,11 @@ export function ChatWidget({
   }, []);
 
   const navigate = useCallback((payload: string) => {
+    // Signed-out visitors are sent to the auth pages for anything account-related.
+    if (!sessionRef.current && payload.startsWith('open_')) {
+      window.location.assign('/signin');
+      return true;
+    }
     switch (payload) {
       case 'open_fund':
         onOpenFund();
@@ -178,16 +241,57 @@ export function ChatWidget({
     return () => window.clearInterval(timer);
   }, [open, conversationId, authHeaders, scrollDown]);
 
+  /** Voice input — Web Speech API (Chrome / Edge / Safari). */
+  const toggleMic = useCallback(() => {
+    if (listening) {
+      recogRef.current?.stop();
+      setListening(false);
+      return;
+    }
+    const w = window as unknown as { SpeechRecognition?: VxSpeechCtor; webkitSpeechRecognition?: VxSpeechCtor };
+    const Ctor = w.SpeechRecognition || w.webkitSpeechRecognition;
+    if (!Ctor) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `err-${Date.now()}`,
+          role: 'system',
+          content: 'Voice input is not supported in this browser — you can still type.',
+        },
+      ]);
+      return;
+    }
+    const recog = new Ctor();
+    recog.lang = 'en-NG';
+    recog.interimResults = false;
+    recog.continuous = false;
+    recog.onresult = (e) => {
+      let transcript = '';
+      for (let i = 0; i < e.results.length; i++) transcript += e.results[i][0]?.transcript || '';
+      if (transcript) setInput((v) => (v ? `${v} ${transcript.trim()}` : transcript.trim()));
+    };
+    recog.onend = () => setListening(false);
+    recog.onerror = () => setListening(false);
+    recogRef.current = recog;
+    try {
+      recog.start();
+      setListening(true);
+    } catch {
+      /* already started */
+    }
+  }, [listening]);
+
   const send = useCallback(
-    async (opts: { text?: string; payload?: string; label?: string }) => {
+    async (opts: { text?: string; payload?: string; label?: string; image?: string }) => {
       if (busy) return;
       const text = opts.text?.trim();
       const payload = opts.payload?.trim();
-      if (!text && !payload) return;
+      const image = opts.image || '';
+      if (!text && !payload && !image) return;
       setBusy(true);
       setMessages((prev) => [
         ...prev,
-        { id: `local-${Date.now()}`, role: 'user', content: text || opts.label || payload || '' },
+        { id: `local-${Date.now()}`, role: 'user', content: text || opts.label || payload || (image ? '📷 Photo' : '') },
       ]);
       setInput('');
       scrollDown();
@@ -200,6 +304,7 @@ export function ChatWidget({
             text: text || undefined,
             payload: payload || undefined,
             label: opts.label || undefined,
+            image: image || undefined,
           }),
         });
         const data = await res.json().catch(() => ({}));
@@ -243,6 +348,27 @@ export function ChatWidget({
     [busy, conversationId, authHeaders, navigate, scrollDown],
   );
 
+  /** Image upload — downscaled client-side and delivered to the team's Telegram. */
+  const onPickImage = useCallback(async () => {
+    const file = fileRef.current?.files?.[0];
+    if (fileRef.current) fileRef.current.value = '';
+    if (!file || busy) return;
+    try {
+      const dataUrl = await downscaleImage(file);
+      if (dataUrl) void send({ image: dataUrl });
+    } catch {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `err-${Date.now()}`,
+          role: 'system',
+          content: 'Could not read that image. Try another one.',
+        },
+      ]);
+    }
+  }, [busy, send]);
+
+
   const startChat = useCallback(() => {
     setOpen(true);
     // First open: greet + menu.
@@ -252,19 +378,25 @@ export function ChatWidget({
         {
           id: 'welcome',
           role: 'ai',
-          content: `Hello${sessionRef.current?.name ? ` ${sessionRef.current.name}` : ''} 👋 I am your Verxor assistant. What would you like to do today?`,
-          buttons: [
-            { label: '💬 Get Support', payload: 'get_support' },
-            { label: '🎫 Open Ticket', payload: 'open_ticket' },
-            { label: '🛒 Buy Service', payload: 'buy_service' },
-          ],
+          content: sessionRef.current
+            ? `Hello${sessionRef.current.name ? ` ${sessionRef.current.name}` : ''} 👋 I am your Verxor assistant. What would you like to do today?`
+            : 'Hello 👋 I am your Verxor assistant. You are browsing as a visitor — I can set up your free account right here in chat. What would you like to do today?',
+          buttons: sessionRef.current
+            ? [
+                { label: '💬 Get Support', payload: 'get_support' },
+                { label: '🎫 Open Ticket', payload: 'open_ticket' },
+                { label: '🛒 Buy Service', payload: 'buy_service' },
+              ]
+            : [
+                { label: '👤 Create Account', payload: 'create_account' },
+                { label: '🛒 Buy Service', payload: 'buy_service' },
+                { label: '💬 Get Support', payload: 'get_support' },
+              ],
         },
       ];
     });
     scrollDown();
   }, [scrollDown]);
-
-  if (!session) return null;
 
   return (
     <>
@@ -335,6 +467,31 @@ export function ChatWidget({
               void send({ text: input });
             }}
           >
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/*"
+              hidden
+              onChange={() => void onPickImage()}
+            />
+            <button
+              type="button"
+              className="vxc-attach"
+              disabled={busy}
+              onClick={() => fileRef.current?.click()}
+              aria-label="Attach image"
+            >
+              <ImageIcon size={17} />
+            </button>
+            <button
+              type="button"
+              className={`vxc-attach${listening ? ' listening' : ''}`}
+              disabled={busy}
+              onClick={toggleMic}
+              aria-label="Voice input"
+            >
+              <Mic size={17} />
+            </button>
             <input
               value={input}
               onChange={(e) => setInput(e.target.value)}

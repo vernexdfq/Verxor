@@ -396,7 +396,16 @@ export function VerxorApp() {
   }
 
   if (!auth) {
-    return <AuthFlow onAuthenticated={handleAuth} />;
+    return (
+      <>
+        <AuthFlow onAuthenticated={handleAuth} />
+        <ChatWidget
+          session={auth}
+          onOpenFund={() => navigatePage('fund')}
+          onOpenService={(id) => openService(id as ServiceView)}
+        />
+      </>
+    );
   }
 
   if (admin) {
