@@ -2,6 +2,7 @@ import { createHash } from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import {
   appendMessage,
+  findConversationByTicket,
   listLatestOpenConversations,
   listMessages,
   updateConversation,
@@ -155,6 +156,7 @@ export async function POST(req: NextRequest) {
       chatId,
       'Verxor admin bot — commands:\n' +
         '/pending — the website customer waiting for a reply\n' +
+        '/ticket <VX-1234> — status of a customer ticket\n' +
         '/reply <message> — answer the last Telegram customer\n' +
         '/help — this list\n\n' +
         'Anything else you type goes to the most recent customer waiting in the website chat.',
@@ -174,6 +176,32 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true });
   }
 
+  // ── /ticket VX-1234 — ticket status lookup. ──
+  if (text.toLowerCase().startsWith('/ticket ')) {
+    const ref = text.slice('/ticket '.length).trim().toUpperCase();
+    const convo = await findConversationByTicket(ref);
+    if (!convo) {
+      await tg(chatId, `No ticket ${ref || '(empty)'} found. The ID looks like VX-1234.`);
+      return NextResponse.json({ ok: true });
+    }
+    const msgs = await listMessages(convo.id);
+    const last = msgs[msgs.length - 1];
+    const ticketId = convo.ticket_id || convo.subject?.match(/\[(VX-\d{3,6})\]/)?.[1] || ref;
+    const statusLine: Record<string, string> = {
+      ai: 'assistant',
+      waiting_admin: 'waiting for our reply',
+      admin: 'we replied',
+      closed: 'closed (archived)',
+    };
+    await tg(
+      chatId,
+      `🎫 Ticket ${ticketId}\nSubject: ${convo.subject?.replace(/^\[VX-\d{3,6}\]\s*/, '') || '(no subject)'}\n` +
+        `Status: ${statusLine[convo.status] || convo.status} · customer: ${convo.user_id || 'unknown'}\n` +
+        (last ? `Last message (${last.role}): "${last.content.slice(0, 200)}"` : 'No messages.'),
+    );
+    return NextResponse.json({ ok: true });
+  }
+
   // ── Plain text → the most recent website customer waiting. ──
   const conversations = await listLatestOpenConversations(3);
   for (const c of conversations) {
@@ -183,7 +211,7 @@ export async function POST(req: NextRequest) {
     if (text === '/pending') {
       await tg(
         chatId,
-        `⏳ Waiting customer: ${c.subject || '(no subject)'}\nLast message: "${last.content.slice(0, 200)}"\nType your reply to answer them.`,
+        `⏳ Waiting customer${c.ticket_id ? ` — ticket ${c.ticket_id}` : ''}: ${c.subject || '(no subject)'}\nLast message: "${last.content.slice(0, 200)}"\nType your reply to answer them.`,
       );
       return NextResponse.json({ ok: true });
     }

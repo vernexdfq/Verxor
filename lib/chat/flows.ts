@@ -11,6 +11,10 @@ import { notifyAdmin } from '@/lib/notify';
 import { getUserOrdersSummary } from '@/lib/support-summary';
 import {
   appendMessage,
+  assignTicketId,
+  findConversationByTicket,
+  generateTicketId,
+  getConversation,
   updateConversation,
   type ChatButton,
   type ChatMessageRow,
@@ -547,13 +551,50 @@ export async function handleFreeText(
   }
   if (state?.flow === 'ticket' && state.step === 'body' && state.subject) {
     const body = text.trim().slice(0, 1500);
+    const ticketId = generateTicketId();
     await updateConversation(conversationId, { state: null, subject: state.subject, status: 'waiting_admin' });
+    await assignTicketId(conversationId, ticketId, state.subject);
     void notifyAdmin(
-      `🎫 NEW TICKET\nSubject: ${state.subject}\nCustomer: ${opts.user?.email || opts.user?.name || 'unknown'}\n\n${body}`,
+      `🎫 NEW TICKET ${ticketId}\nSubject: ${state.subject}\nCustomer: ${opts.user?.email || opts.user?.name || 'unknown'}\n\n${body}\n\n/ticket ${ticketId} for status — or just type a reply to answer the customer waiting longest.`,
     );
     return reply(
       conversationId,
-      '🎫 Ticket received — our team has been notified and will get back to you here. You can keep chatting with me while you wait.',
+      `🎫 Ticket received! Your ticket ID is ${ticketId} — keep it safe and quote it any time to check the status. Our team has been notified and will get back to you here. You can keep chatting with me while you wait.`,
+      MENU_BUTTONS,
+    );
+  }
+
+  // Ticket status lookup — "ticket status", "my ticket", or a VX-1234 reference.
+  const ticketRefMatch = lower.match(/vx-?\s?(\d{3,6})\b/);
+  if (ticketRefMatch || /\bticket status\b|\bmy tickets?\b/.test(lower)) {
+    const ref = ticketRefMatch ? `VX-${ticketRefMatch[1]}` : null;
+    const ticketConvo = ref
+      ? await findConversationByTicket(ref)
+      : await getConversation(conversationId);
+    const ticketId =
+      ticketConvo?.ticket_id ||
+      (ticketConvo?.subject?.match(/\[(VX-\d{3,6})\]/)?.[1] ?? null) ||
+      ref;
+    if (!ticketConvo || !ticketId) {
+      return reply(
+        conversationId,
+        ref
+          ? `I could not find ticket ${ref.toUpperCase()}. Check the ID (it looks like VX-1234) and send it again.`
+          : 'I do not have a ticket ID on this chat yet. If you opened one before, send it here (it looks like VX-1234) and I will check it.',
+        MENU_BUTTONS,
+      );
+    }
+    const statusLine: Record<string, string> = {
+      ai: 'being handled by the assistant',
+      waiting_admin: 'with our support team, waiting for their reply',
+      admin: 'being handled by our team right now',
+      closed: 'closed (archived)',
+    };
+    return reply(
+      conversationId,
+      `🎫 Ticket ${ticketId} — "${ticketConvo.subject?.replace(/^\[VX-\d{3,6}\]\s*/, '') || 'no subject'}"\nStatus: ${statusLine[ticketConvo.status] || ticketConvo.status}.${
+        ticketConvo.status === 'closed' ? ' If it is not solved, tap Open Ticket and quote this ID.' : ''
+      }`,
       MENU_BUTTONS,
     );
   }

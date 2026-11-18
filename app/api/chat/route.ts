@@ -7,6 +7,7 @@ import {
   getLatestConversationForUser,
   lastDbError,
   listMessages,
+  updateConversation,
   type ChatMessageRow,
 } from '@/lib/chat/store';
 import { handleButtonPayload, handleFreeText, type FlowState } from '@/lib/chat/flows';
@@ -26,6 +27,18 @@ function maybeEscalate(text: string, userId: string, conversationId: string): vo
   void notifyAdmin(
     `⚠️ Verxor chat escalation\nUser: ${userId}\nChat: ${conversationId}\n"${snippet}"\nOpen the chat in your dashboard to reply.`,
   );
+}
+
+/**
+ * A conversation with no activity for 24h is archived (status=closed, rows
+ * kept — never deleted) and the customer starts a fresh one on return.
+ */
+const STALE_MS = 24 * 60 * 60 * 1000;
+
+function isStale(updatedAt: string | null | undefined): boolean {
+  if (!updatedAt) return false;
+  const t = new Date(updatedAt).getTime();
+  return Number.isFinite(t) && Date.now() - t > STALE_MS;
 }
 
 /**
@@ -130,6 +143,11 @@ export async function GET(req: NextRequest) {
   if (!conversation || conversation.user_id !== userId) {
     return NextResponse.json({ ok: true, conversationId: null, messages: [] });
   }
+  if (isStale(conversation.updated_at)) {
+    // 24h auto-close: archive the old chat, customer gets a fresh start.
+    await updateConversation(conversation.id, { status: 'closed', state: null });
+    return NextResponse.json({ ok: true, conversationId: null, messages: [] });
+  }
   const messages = await listMessages(conversation.id);
   return NextResponse.json({ ok: true, conversationId: conversation.id, messages });
 }
@@ -162,9 +180,18 @@ export async function POST(req: NextRequest) {
     if (conversation && conversation.user_id !== userId) conversation = null;
   }
   if (!conversation) {
-    conversation =
-      (await getLatestConversationForUser(userId)) ||
-      (await createConversation({ userId, subject: text ? text.slice(0, 60) : null }));
+    conversation = await getLatestConversationForUser(userId);
+  }
+  if (conversation && isStale(conversation.updated_at)) {
+    // 24h auto-close: archive the old chat and start a fresh one below.
+    await updateConversation(conversation.id, { status: 'closed', state: null });
+    conversation = null;
+  }
+  if (!conversation) {
+    conversation = await createConversation({
+      userId,
+      subject: text ? text.slice(0, 60) : null,
+    });
   }
   if (!conversation) {
     void notifyAdmin(`🚨 Verxor chat: could not create a conversation for user ${userId}\n${lastDbError || 'no DB error recorded'}`);

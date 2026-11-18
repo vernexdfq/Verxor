@@ -25,6 +25,7 @@ export type ChatConversationRow = {
   status: 'ai' | 'waiting_admin' | 'admin' | 'closed';
   last_agent: 'gemini' | 'mistral' | 'admin' | null;
   subject: string | null;
+  ticket_id?: string | null;
   unread_admin: number;
   state: Record<string, unknown> | null;
   created_at: string;
@@ -136,7 +137,7 @@ export async function listLatestOpenConversations(
 
 export async function updateConversation(
   id: string,
-  patch: Partial<Pick<ChatConversationRow, 'status' | 'state' | 'subject' | 'last_agent' | 'unread_admin'>>,
+  patch: Partial<Pick<ChatConversationRow, 'status' | 'state' | 'subject' | 'ticket_id' | 'last_agent' | 'unread_admin'>>,
 ): Promise<void> {
   const d = db();
   if (!d) return;
@@ -146,6 +147,59 @@ export async function updateConversation(
     body: JSON.stringify({ ...patch, updated_at: new Date().toISOString() }),
     cache: 'no-store',
   });
+}
+
+/* ---------- ticket IDs (VX-XXXX) ---------- */
+
+/** Random human-friendly ticket reference, e.g. VX-4821. */
+export function generateTicketId(): string {
+  return `VX-${Math.floor(1000 + Math.random() * 9000)}`;
+}
+
+/**
+ * Attach a ticket ID to a conversation. Prefers a dedicated ticket_id
+ * column; if the column is missing on the live table (PostgREST rejects the
+ * PATCH), falls back to a "[VX-1234] subject" prefix so lookups still work
+ * with zero schema changes.
+ */
+export async function assignTicketId(
+  conversationId: string,
+  ticketId: string,
+  subject: string,
+): Promise<void> {
+  const d = db();
+  if (!d) return;
+  const patch = async (body: Record<string, unknown>): Promise<boolean> => {
+    const res = await fetch(`${d.base}/rest/v1/chat_conversations?id=eq.${encodeURIComponent(conversationId)}`, {
+      method: 'PATCH',
+      headers: { ...d.headers, Prefer: 'return=representation' },
+      body: JSON.stringify({ ...body, updated_at: new Date().toISOString() }),
+      cache: 'no-store',
+    });
+    if (!res.ok) return false;
+    const rows = (await res.json().catch(() => [])) as ChatConversationRow[];
+    return Boolean(rows?.[0]);
+  };
+  if (await patch({ ticket_id: ticketId, subject })) return;
+  await patch({ subject: `[${ticketId}] ${subject}` });
+}
+
+/** Find a conversation by its VX-XXXX ticket reference (column or subject prefix). */
+export async function findConversationByTicket(
+  ticketId: string,
+): Promise<ChatConversationRow | null> {
+  const d = db();
+  if (!d) return null;
+  const t = (ticketId || '').trim().toUpperCase().replace(/^VX[-\s]?/, '');
+  if (!/^\d{3,6}$/.test(t)) return null;
+  const ref = `VX-${t}`;
+  const res = await fetch(
+    `${d.base}/rest/v1/chat_conversations?or=(ticket_id.eq.${ref},subject.like.*${ref}*)&order=updated_at.desc&select=*&limit=1`,
+    { headers: d.headers, cache: 'no-store' },
+  );
+  if (!res.ok) return null;
+  const rows = (await res.json()) as ChatConversationRow[];
+  return rows?.[0] || null;
 }
 
 export async function appendMessage(input: {
