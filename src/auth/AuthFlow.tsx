@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowRight, Eye, EyeOff, Fingerprint, Lock, Mail, Pencil, Phone, User } from 'lucide-react';
+import { ArrowRight, Eye, EyeOff, Fingerprint, Lock, Mail, User } from 'lucide-react';
 import {
   DEFAULT_COUNTRY,
   displayNational,
   findCountry,
+  flagEmoji,
   homeCurrencyFor,
   isVtuEligible,
   normalizeNational,
@@ -14,7 +15,7 @@ import {
   validatePhoneForCountry,
   type Country,
 } from './countries';
-import { CountryPickerSheet, PhoneField } from './phone-field';
+import { CountryPickerSheet } from './phone-field';
 import { getSupabaseBrowser, isSupabaseBrowserConfigured } from '../../lib/supabase/client';
 import {
   getRememberPreference,
@@ -203,19 +204,21 @@ function maskEmail(addr: string): string {
   if (!em.includes('@')) return em;
   const [name, domain] = em.split('@');
   if (!name) return em;
-  const head = name.slice(0, 3);
-  return `${head}${'•'.repeat(4)}@${domain}`;
+  return `${name.slice(0, 3)}${'•'.repeat(4)}@${domain}`;
 }
 
 function BrandMark() {
   return (
     <div className="auth-brand">
-      <div className="auth-brand-mark">
-        <img src="/brand/verxor-logo.svg" alt="" width={44} height={44} />
-      </div>
+      <img className="auth-brand-logo" src="/brand/verxor-logo.svg" alt="" />
       <span className="auth-brand-name">Verxor</span>
     </div>
   );
+}
+
+/** The single identifier accepts email or phone; email wins when it has an @. */
+function isEmailIdentifier(v: string): boolean {
+  return v.includes('@');
 }
 
 export function AuthFlow({
@@ -230,17 +233,15 @@ export function AuthFlow({
   const router = useRouter();
   const [remembered, setRemembered] = useState<AuthSession>(DEFAULT_MOCK);
   const [step, setStep] = useState<Step>('boot');
-  const [method, setMethod] = useState<AuthMethod>('phone');
+  const [identifier, setIdentifier] = useState('');
   const [country, setCountry] = useState<Country>(DEFAULT_COUNTRY);
-  const [national, setNational] = useState('');
-  const [email, setEmail] = useState('');
+  const [nationalPhone, setNationalPhone] = useState('');
   const [fullName, setFullName] = useState('');
   const [password, setPassword] = useState('');
   const [showPass, setShowPass] = useState(false);
   const [showPinField, setShowPinField] = useState(false);
   const [signupPin, setSignupPin] = useState('');
   const [remember, setRemember] = useState(true);
-  const [welcomeMode, setWelcomeMode] = useState(false);
   const [biometricReady, setBiometricReady] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [error, setError] = useState('');
@@ -254,8 +255,7 @@ export function AuthFlow({
   const [newPassword, setNewPassword] = useState('');
   const [showNewPass, setShowNewPass] = useState(false);
 
-  const rememberedContact = remembered.email || remembered.contact;
-  const hasRemembered = Boolean(rememberedContact);
+  const identifierIsEmail = isEmailIdentifier(identifier);
 
   useEffect(() => {
     const s = loadRemembered();
@@ -269,21 +269,22 @@ export function AuthFlow({
       }
     } catch {}
 
-    if (s.email || s.contact) {
-      setStep('signin');
-      setWelcomeMode(true);
-      setMethod(s.method || 'phone');
-      if (s.email) setEmail(s.email);
-      return;
-    }
-    const last = loadLastPhone();
-    if (last) {
-      setCountry(findCountry(last.iso));
-      setNational(displayNational(last.iso, last.national));
-      setMethod('phone');
+    // Prefill the identifier from the last login — no card, just the value.
+    if (s.email) {
+      setIdentifier(s.email);
+    } else if (s.method === 'email' && s.contact && s.contact.includes('@')) {
+      setIdentifier(s.contact);
+    } else if (s.contact) {
+      setIdentifier(displayNational(s.phoneCountry || 'NG', s.contact));
+      if (s.phoneCountry) setCountry(findCountry(s.phoneCountry));
+    } else {
+      const last = loadLastPhone();
+      if (last) {
+        setCountry(findCountry(last.iso));
+        setIdentifier(displayNational(last.iso, last.national));
+      }
     }
     setStep(initialStep === 'signup' ? 'signup' : 'signin');
-    setWelcomeMode(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -359,6 +360,11 @@ export function AuthFlow({
   async function handleSignIn() {
     setError('');
     setNotice('');
+    const id = identifier.trim();
+    if (!id) {
+      setError('Enter your email or phone number');
+      return;
+    }
     if (!password) {
       setError('Enter your password');
       return;
@@ -368,19 +374,20 @@ export function AuthFlow({
     try {
       let phoneE164 = '';
       let em = '';
-      if (method === 'phone') {
-        const phoneErr = validatePhoneForCountry(country.iso, national);
-        if (phoneErr) {
-          setError(phoneErr);
-          return;
-        }
-        phoneE164 = toE164(country.iso, country.dial, national);
-      } else {
-        em = email.trim().toLowerCase();
+
+      if (identifierIsEmail) {
+        em = id.toLowerCase();
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)) {
           setError('Enter a valid email address');
           return;
         }
+      } else {
+        const phoneErr = validatePhoneForCountry(country.iso, id);
+        if (phoneErr) {
+          setError(phoneErr);
+          return;
+        }
+        phoneE164 = toE164(country.iso, country.dial, id);
       }
 
       if (backendConfigured()) {
@@ -388,7 +395,7 @@ export function AuthFlow({
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(
-            method === 'phone' ? { phone: phoneE164, password } : { email: em, password },
+            em ? { email: em, password } : { phone: phoneE164, password },
           ),
         });
         const body = await res.json().catch(() => ({}));
@@ -406,8 +413,8 @@ export function AuthFlow({
           finish({
             ...DEFAULT_MOCK,
             authenticated: true,
-            method,
-            contact: b.phone || (method === 'phone' ? phoneE164 : ''),
+            method: em ? 'email' : 'phone',
+            contact: b.phone || (phoneE164 || em),
             name: b.fullName || remembered.name || '',
             email: b.email || em || '',
             phoneCountry: b.phoneCountry || country.iso,
@@ -443,7 +450,7 @@ export function AuthFlow({
         setError('Incorrect password. Try again or tap "Forgot password?".');
         return;
       }
-      finish({ ...account, authenticated: true, method, password: '' });
+      finish({ ...account, authenticated: true, method: em ? 'email' : 'phone', password: '' });
     } catch {
       setError('Network error. Check your connection and try again.');
     } finally {
@@ -456,30 +463,30 @@ export function AuthFlow({
     setNotice('');
     const name = fullName.trim().replace(/\s+/g, ' ');
     if (!name || name.split(' ').length < 2) {
-      setError('Enter your full name (first and last)');
+      setError('Enter your full name');
       return;
     }
-    const phoneErr = validatePhoneForCountry(country.iso, national);
-    if (phoneErr) {
-      setError(phoneErr);
-      return;
-    }
-    const em = email.trim().toLowerCase();
+    const em = identifier.trim().toLowerCase();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)) {
       setError('Enter a valid email address');
       return;
     }
+    const phoneErr = validatePhoneForCountry(country.iso, nationalPhone);
+    if (phoneErr) {
+      setError(phoneErr);
+      return;
+    }
     if (!strongPassword(password)) {
-      setError('Password must be at least 6 characters with uppercase, lowercase, and a number');
+      setError('Password must have an uppercase letter, a lowercase letter, and a number');
       return;
     }
     if (!/^\d{4}$/.test(signupPin)) {
-      setError('Create a 4-digit PIN');
+      setError('Enter a 4-digit PIN');
       return;
     }
-    const e164 = toE164(country.iso, country.dial, national);
-    saveLastPhone(country.iso, country.dial, national);
-    setRememberPreference(remember);
+    const e164 = toE164(country.iso, country.dial, nationalPhone);
+    saveLastPhone(country.iso, country.dial, nationalPhone);
+    setRememberPreference(true);
     setBusy(true);
     try {
       if (backendConfigured()) {
@@ -581,7 +588,7 @@ export function AuthFlow({
       finish({
         ...DEFAULT_MOCK,
         authenticated: true,
-        method: remembered.method || method,
+        method: remembered.method || 'phone',
         contact: b.phone || remembered.contact,
         name: b.fullName || remembered.name || 'User',
         email: b.email || remembered.email || '',
@@ -637,7 +644,7 @@ export function AuthFlow({
       return;
     }
     if (!strongPassword(newPassword)) {
-      setError('Password must be at least 6 characters with uppercase, lowercase, and a number');
+      setError('Password must have an uppercase letter, a lowercase letter, and a number');
       return;
     }
     setBusy(true);
@@ -686,24 +693,18 @@ export function AuthFlow({
         <div className="auth-body">
           <BrandMark />
           <h1 className="auth-title">Reset password</h1>
-          <p className="auth-sub">
-            {forgotStage === 'email'
-              ? 'Enter the email address on your account and we will send you a 6-digit code.'
-              : 'Enter the code from the email and choose a new password.'}
-          </p>
           {error ? <p className="auth-error">{error}</p> : null}
           {notice ? <p className="auth-notice">{notice}</p> : null}
           {forgotStage === 'email' ? (
             <>
               <div className="auth-field">
-                <label>Email Address</label>
                 <div className="auth-input-wrap">
                   <Mail size={18} strokeWidth={2} />
                   <input
                     type="email"
                     value={forgotEmail}
                     onChange={(e) => setForgotEmail(e.target.value)}
-                    placeholder="you@example.com"
+                    placeholder="Email address"
                     autoComplete="email"
                   />
                 </div>
@@ -716,34 +717,31 @@ export function AuthFlow({
           ) : (
             <>
               <div className="auth-field">
-                <label>6-digit code</label>
                 <div className="auth-input-wrap">
                   <input
                     inputMode="numeric"
                     maxLength={6}
                     value={otpCode}
                     onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                    placeholder="••••••"
+                    placeholder="6-digit code"
                     className="auth-otp-input"
                   />
                 </div>
               </div>
               <div className="auth-field">
-                <label>New password</label>
                 <div className="auth-input-wrap">
                   <Lock size={18} strokeWidth={2} />
                   <input
                     type={showNewPass ? 'text' : 'password'}
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
-                    placeholder="Create a strong password"
+                    placeholder="New password"
                     autoComplete="new-password"
                   />
                   <button type="button" className="auth-eye" onClick={() => setShowNewPass((v) => !v)}>
                     {showNewPass ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
                 </div>
-                <p className="auth-hint">Min 6 chars · uppercase, lowercase, and a number</p>
               </div>
               <button type="button" className="auth-btn" disabled={busy} onClick={handleForgotConfirm}>
                 {busy ? 'Saving…' : 'Set new password'}
@@ -771,61 +769,68 @@ export function AuthFlow({
         <div className="auth-body">
           <BrandMark />
           <h1 className="auth-title">Create your account</h1>
-          <p className="auth-sub">Fill in your details below to get started for free</p>
           {error ? <p className="auth-error">{error}</p> : null}
           <div className="auth-field">
-            <label>Full Name</label>
             <div className="auth-input-wrap">
               <User size={18} strokeWidth={2} />
               <input
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
-                placeholder="First and last name"
+                placeholder="Full name"
                 autoComplete="name"
               />
             </div>
           </div>
-          <PhoneField
-            id="signup-phone"
-            label="Phone Number"
-            country={country}
-            national={national}
-            onOpenPicker={() => setPickerOpen(true)}
-            onNationalChange={setNational}
-            placeholder="08012345678"
-          />
           <div className="auth-field">
-            <label>Email Address</label>
             <div className="auth-input-wrap">
               <Mail size={18} strokeWidth={2} />
               <input
                 type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
+                value={identifier}
+                onChange={(e) => setIdentifier(e.target.value)}
+                placeholder="Email address"
                 autoComplete="email"
               />
             </div>
           </div>
           <div className="auth-field">
-            <label>Password</label>
+            <div className="auth-phone-row">
+              <button
+                type="button"
+                className="cc-trigger"
+                onClick={() => setPickerOpen(true)}
+                aria-label={`Country ${country.name}, +${country.dial}`}
+              >
+                <span className="cc-trigger-flag">{flagEmoji(country.iso)}</span>
+              </button>
+              <div className="auth-input-wrap auth-input-wrap--phone">
+                <input
+                  type="tel"
+                  inputMode="tel"
+                  placeholder="Phone number"
+                  value={nationalPhone}
+                  onChange={(e) => setNationalPhone(e.target.value.replace(/[^\d]/g, ''))}
+                  autoComplete="tel-national"
+                />
+              </div>
+            </div>
+          </div>
+          <div className="auth-field">
             <div className="auth-input-wrap">
               <Lock size={18} strokeWidth={2} />
               <input
                 type={showPass ? 'text' : 'password'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Create a strong password"
+                placeholder="Password"
                 autoComplete="new-password"
               />
               <button type="button" className="auth-eye" onClick={() => setShowPass((v) => !v)}>
                 {showPass ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
-            <p className="auth-hint">Min 6 chars · must include uppercase, lowercase, and a number</p>
           </div>
           <div className="auth-field">
-            <label>4-Digit Transaction PIN</label>
             <div className="auth-input-wrap">
               <Lock size={18} strokeWidth={2} />
               <input
@@ -834,23 +839,13 @@ export function AuthFlow({
                 maxLength={4}
                 value={signupPin}
                 onChange={(e) => setSignupPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                placeholder="Enter 4-digit PIN"
+                placeholder="4-digit PIN"
               />
               <button type="button" className="auth-eye" onClick={() => setShowPinField((v) => !v)}>
                 {showPinField ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
-            <p className="auth-hint">Used to authorise transactions — keep it secret</p>
           </div>
-          <label className="auth-remember">
-            <span>Keep me signed in for 30 days</span>
-            <input
-              type="checkbox"
-              checked={remember}
-              onChange={(e) => setRemember(e.target.checked)}
-            />
-            <i className="auth-switch" aria-hidden="true" />
-          </label>
           <button type="button" className="auth-btn" disabled={busy} onClick={handleSignup}>
             {busy ? 'Creating…' : 'Create account'}
             {!busy ? <ArrowRight size={18} strokeWidth={2.2} /> : null}
@@ -870,7 +865,7 @@ export function AuthFlow({
             onClose={() => setPickerOpen(false)}
             onSelect={(c) => {
               setCountry(c);
-              setNational('');
+              setNationalPhone('');
             }}
           />
         ) : null}
@@ -878,113 +873,51 @@ export function AuthFlow({
     );
   }
 
-  // ---- signin ----
-  const welcomeName = (remembered.name || '').trim().split(/\s+/)[0] || 'there';
-  const welcomeInitial = ((remembered.name || 'V').trim()[0] || 'V').toUpperCase();
-
+  // ---- signin: one identifier field (email or phone), then password ----
   return (
     <div className="auth-root">
       <div className="auth-body auth-body--signin">
         <BrandMark />
-        {welcomeMode && hasRemembered ? (
-          <>
-            <h1 className="auth-title auth-title--center">Welcome back 👋</h1>
-            <div className="auth-welcome">
-              <div className="auth-avatar" aria-hidden="true">
-                {welcomeInitial}
-              </div>
-              <div className="auth-welcome-id">
-                <span className="auth-welcome-name">{welcomeName}</span>
-                <span className="auth-welcome-contact">
-                  {remembered.email ? maskEmail(remembered.email) : remembered.contact}
-                </span>
-              </div>
-              <button
-                type="button"
-                className="auth-welcome-edit"
-                aria-label="Use a different account"
-                title="Use a different account"
-                onClick={() => {
-                  setWelcomeMode(false);
-                  setError('');
-                  setNotice('');
-                }}
-              >
-                <Pencil size={16} strokeWidth={2.2} />
-              </button>
-            </div>
-          </>
-        ) : (
-          <>
-            <h1 className="auth-title">Sign in</h1>
-            <p className="auth-sub">Welcome back — enter your details to continue</p>
-            <div className="auth-tabs">
-              <button
-                type="button"
-                className={method === 'phone' ? 'auth-tab active' : 'auth-tab'}
-                onClick={() => {
-                  setMethod('phone');
-                  setError('');
-                  setNotice('');
-                }}
-              >
-                <Phone size={15} strokeWidth={2.2} /> Phone Number
-              </button>
-              <button
-                type="button"
-                className={method === 'email' ? 'auth-tab active' : 'auth-tab'}
-                onClick={() => {
-                  setMethod('email');
-                  setError('');
-                  setNotice('');
-                }}
-              >
-                <Mail size={15} strokeWidth={2.2} /> Email
-              </button>
-            </div>
-            {method === 'phone' ? (
-              <PhoneField
-                id="signin-phone"
-                label="Phone Number"
-                country={country}
-                national={national}
-                onOpenPicker={() => setPickerOpen(true)}
-                onNationalChange={setNational}
-                placeholder="08012345678"
-              />
-            ) : (
-              <div className="auth-field">
-                <label>Email Address</label>
-                <div className="auth-input-wrap">
-                  <Mail size={18} strokeWidth={2} />
-                  <input
-                    id="signin-email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="you@example.com"
-                    autoComplete="email"
-                  />
-                </div>
-              </div>
-            )}
-          </>
-        )}
+        <h1 className="auth-title">Sign in</h1>
+        {error ? <p className="auth-error">{error}</p> : null}
+        {notice ? <p className="auth-notice">{notice}</p> : null}
         <div className="auth-field">
-          <div className="auth-label-row">
-            <label>Password</label>
-            <button type="button" className="auth-forgot" onClick={() => goStep('forgot')}>
-              Forgot?
-            </button>
+          <div className="auth-phone-row">
+            {identifierIsEmail ? (
+              <Mail size={18} strokeWidth={2} className="auth-id-icon" />
+            ) : (
+              <button
+                type="button"
+                className="cc-trigger"
+                onClick={() => setPickerOpen(true)}
+                aria-label={`Country ${country.name}, +${country.dial}`}
+              >
+                <span className="cc-trigger-flag">{flagEmoji(country.iso)}</span>
+              </button>
+            )}
+            <div className="auth-input-wrap auth-input-wrap--phone">
+              <input
+                type="text"
+                value={identifier}
+                onChange={(e) => setIdentifier(e.target.value)}
+                placeholder="Email or phone number"
+                autoComplete="username"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !busy) void handleSignIn();
+                }}
+              />
+            </div>
           </div>
+        </div>
+        <div className="auth-field">
           <div className="auth-input-wrap">
             <Lock size={18} strokeWidth={2} />
             <input
               type={showPass ? 'text' : 'password'}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter your password"
-              autoComplete={welcomeMode ? 'current-password' : 'current-password'}
+              placeholder="Password"
+              autoComplete="current-password"
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !busy) void handleSignIn();
               }}
@@ -993,11 +926,12 @@ export function AuthFlow({
               {showPass ? <EyeOff size={18} /> : <Eye size={18} />}
             </button>
           </div>
+          <button type="button" className="auth-forgot" onClick={() => goStep('forgot')}>
+            Forgot password?
+          </button>
         </div>
-        {error ? <p className="auth-error">{error}</p> : null}
-        {notice ? <p className="auth-notice">{notice}</p> : null}
         <label className="auth-remember">
-          <span>Remember me for 30 days</span>
+          <span>Remember me</span>
           <input
             type="checkbox"
             checked={remember}
@@ -1027,7 +961,7 @@ export function AuthFlow({
         <p className="auth-footer-link">
           Don&apos;t have an account?{' '}
           <button type="button" onClick={() => goStep('signup')}>
-            Create one free
+            Sign up
           </button>
         </p>
       </div>
@@ -1038,7 +972,7 @@ export function AuthFlow({
           onClose={() => setPickerOpen(false)}
           onSelect={(c) => {
             setCountry(c);
-            setNational('');
+            if (!identifier.includes('@')) setIdentifier('');
           }}
         />
       ) : null}

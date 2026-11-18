@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { ChevronDown, Search, X } from 'lucide-react';
+import { Search, X } from 'lucide-react';
 import { COUNTRIES, flagEmoji, type Country } from './countries';
 import './auth.css';
 
@@ -108,8 +108,6 @@ export function PhoneField({
           aria-label={`Country ${country.name}, +${country.dial}`}
         >
           <span className="cc-trigger-flag">{flagEmoji(country.iso)}</span>
-          <span className="cc-trigger-dial">+{country.dial}</span>
-          <ChevronDown size={14} strokeWidth={2.4} />
         </button>
         <div className="auth-input-wrap auth-input-wrap--phone">
           <input
