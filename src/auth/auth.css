@@ -928,3 +928,45 @@
   .auth-body { padding-inline: 18px; }
   .auth-visual-copy p { font-size: 24px; }
 }
+
+
+/* Final sizing pass: compact, balanced fintech authentication panel. */
+@media (min-width: 761px) {
+  .auth-root {
+    padding: 32px clamp(28px, 5vw, 76px) 32px 40px;
+  }
+  .auth-visual {
+    width: calc(100% - 460px);
+    min-width: 50%;
+  }
+  .auth-body,
+  .auth-body--signin {
+    width: min(100%, 410px);
+    max-width: 410px;
+    padding: 32px 30px 28px;
+  }
+  .auth-brand { margin-bottom: 24px; gap: 8px; }
+  .auth-brand-logo { width: 27px; height: 27px; }
+  .auth-brand-name { font-size: 19px; }
+  .auth-title { font-size: 26px; margin-bottom: 20px; }
+  .auth-field { margin-bottom: 13px; }
+  .auth-input-wrap { min-height: 48px; }
+  .auth-input-wrap input { padding: 12px 0; }
+  .auth-btn { min-height: 48px; }
+  .auth-google-btn { min-height: 45px; }
+}
+@media (max-width: 760px) {
+  .auth-visual { height: 260px; }
+  .auth-visual-image { object-position: center 44%; }
+  .auth-visual-copy { display: none; }
+  .auth-body,
+  .auth-body--signin,
+  .auth-body--center {
+    margin-top: 194px;
+    padding: 26px 22px 24px;
+  }
+  .auth-brand { margin-bottom: 20px; gap: 8px; }
+  .auth-brand-logo { width: 26px; height: 26px; }
+  .auth-brand-name { font-size: 18px; }
+  .auth-title { font-size: 24px; margin-bottom: 18px; }
+}
