@@ -1,5 +1,5 @@
-import { VerxorApp } from '../../src/VerxorApp';
+import { permanentRedirect } from 'next/navigation';
 
 export default function WorkspacePage() {
-  return <VerxorApp />;
+  permanentRedirect('/dashboard');
 }

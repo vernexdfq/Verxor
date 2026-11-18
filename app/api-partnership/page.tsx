@@ -230,7 +230,7 @@ Content-Type: application/json
               <p>
                 Launch your Verxor workspace to access your API keys, inspect live documentation, and manage webhook endpoints.
               </p>
-              <ButtonLink href="/workspace" variant="primary">
+              <ButtonLink href="/dashboard" variant="primary">
                 Open Developer Workspace <ArrowRight size={16} />
               </ButtonLink>
               <p className="mk-small-note">

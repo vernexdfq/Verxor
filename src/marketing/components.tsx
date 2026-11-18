@@ -87,10 +87,10 @@ export function MarketingHeader() {
           </nav>
 
           <div className="mk-nav-actions">
-            <a className="mk-login-link" href="/workspace">
+            <a className="mk-login-link" href="/dashboard">
               Log in
             </a>
-            <a className="mk-nav-cta" href="/workspace">
+            <a className="mk-nav-cta" href="/dashboard">
               Get Started <ArrowRight size={14} />
             </a>
           </div>
@@ -106,7 +106,7 @@ export function MarketingHeader() {
               <a href="/api-partnership">For Developers (API)</a>
               <a href="/child-panels">For Resellers (Child Panels)</a>
               <a href="/#faq">FAQs</a>
-              <a href="/workspace" className="mk-mobile-cta">
+              <a href="/dashboard" className="mk-mobile-cta">
                 Launch Workspace →
               </a>
             </nav>
@@ -167,7 +167,7 @@ export function MarketingFooter() {
             <b>Developers & Legal</b>
             <a href="/api-partnership">API Partnerships</a>
             <a href="/child-panels">Child Panels</a>
-            <a href="/workspace">Launch Workspace</a>
+            <a href="/dashboard">Launch Workspace</a>
             <a href="/privacy-policy">Privacy Policy</a>
             {/* Discreet operator entry — same pattern as child partner panel; separate from /workspace user login */}
             <a

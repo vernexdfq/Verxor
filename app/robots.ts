@@ -7,8 +7,10 @@ import type { MetadataRoute } from 'next';
 export default function robots(): MetadataRoute.Robots {
   const disallowPrivate = [
     '/api/',
-    '/workspace',
-    '/workspace/',
+    '/dashboard',
+    '/dashboard/',
+    '/history',
+    '/profile',
     '/admin',
     '/admin/',
     '/wc',

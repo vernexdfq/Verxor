@@ -229,7 +229,7 @@ export default async function ServiceLandingPage({ params }: Props) {
 
               {/* Action buttons */}
               <div className="mk-hero-actions">
-                <ButtonLink href="/workspace" variant="primary">
+                <ButtonLink href="/dashboard" variant="primary">
                   Explore in Verxor <ArrowRight size={16} />
                 </ButtonLink>
                 <ButtonLink href="/api-partnership" variant="secondary">
@@ -369,7 +369,7 @@ export default async function ServiceLandingPage({ params }: Props) {
               <h2>Ready to deploy {service.shortTitle.toLowerCase()}?</h2>
               <p>Access live inventory, real-time rates, and instant automated delivery from your Verxor wallet.</p>
             </div>
-            <ButtonLink href="/workspace" variant="white">
+            <ButtonLink href="/dashboard" variant="white">
               Launch Workspace <ArrowRight size={16} />
             </ButtonLink>
           </div>

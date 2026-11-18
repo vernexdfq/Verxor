@@ -213,7 +213,7 @@ export default function ChildPanelsPage() {
               <p>
                 Launch your Verxor workspace to manage your reseller settings, view wholesale rates, and connect custom domains.
               </p>
-              <ButtonLink href="/workspace" variant="primary">
+              <ButtonLink href="/dashboard" variant="primary">
                 Open Reseller Workspace <ArrowRight size={16} />
               </ButtonLink>
               <p className="mk-small-note">

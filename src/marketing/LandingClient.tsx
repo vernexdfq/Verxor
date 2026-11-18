@@ -101,7 +101,7 @@ export const servicesData: Record<ServiceKey, ServiceData> = {
     ctaText: 'Get Virtual Card',
     ctaHref: '/services/virtual-cards',
     secondaryText: 'Card Limits & Rates',
-    secondaryHref: '/workspace',
+    secondaryHref: '/dashboard',
     tag: 'Global Merchant Acceptance',
     features: [
       {
@@ -237,7 +237,7 @@ export const servicesData: Record<ServiceKey, ServiceData> = {
     ctaText: 'Deploy Proxies',
     ctaHref: '/services/proxies',
     secondaryText: 'Review Session Specs',
-    secondaryHref: '/workspace',
+    secondaryHref: '/dashboard',
     tag: '99.7% Success Rate',
     features: [
       {
@@ -271,7 +271,7 @@ export const servicesData: Record<ServiceKey, ServiceData> = {
     ctaText: 'Trade Gift Cards',
     ctaHref: '/services/gift-cards',
     secondaryText: 'Check Current Rates',
-    secondaryHref: '/workspace',
+    secondaryHref: '/dashboard',
     tag: 'Zero Convenience Deductions',
     features: [
       {
@@ -501,7 +501,7 @@ export default function LandingClient() {
 
           {/* Action Buttons */}
           <div className="vx-hero-actions">
-            <a href="/workspace" className="vx-btn vx-btn-primary">
+            <a href="/dashboard" className="vx-btn vx-btn-primary">
               Launch Workspace <ArrowRight size={16} />
             </a>
             <a href="#services-hub" className="vx-btn vx-btn-secondary">
@@ -829,7 +829,7 @@ export default function LandingClient() {
           </p>
 
           <div className="vx-cta-actions">
-            <a href="/workspace" className="vx-btn vx-btn-primary">
+            <a href="/dashboard" className="vx-btn vx-btn-primary">
               Launch Platform Free <ArrowRight size={16} />
             </a>
             <a href="/api-partnership" className="vx-btn vx-btn-secondary vx-btn-white-surface">

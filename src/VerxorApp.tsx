@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { AppShell } from './components/AppShell';
 import { HomePage, FundPage, HistoryPage, ProfilePage } from './pages';
 import { ServicePage, ServicesPage, type ServiceView } from './service-pages';
+import { navUrl, stateFromPath } from './nav-url';
 import { RentalPage } from './rental-page';
 import { CommunicationHubPage } from './communication-hub-page';
 import { AccountsPage } from './product-pages';
@@ -63,9 +64,15 @@ function isFaqService(s: ServiceView | null): s is 'faq' | 'help' {
   return s === 'faq' || s === 'help';
 }
 
-export function VerxorApp() {
-  const [page, setPage] = useState<Page>('home');
-  const [service, setService] = useState<ServiceView | null>(null);
+export function VerxorApp({
+  initialPage = 'home',
+  initialService = null,
+}: {
+  initialPage?: Page;
+  initialService?: ServiceView | null;
+} = {}) {
+  const [page, setPage] = useState<Page>(initialPage);
+  const [service, setService] = useState<ServiceView | null>(initialService);
   const [dark, setDark] = useState(() => {
     if (typeof window === 'undefined') return false;
     try {
@@ -110,7 +117,7 @@ export function VerxorApp() {
       return;
     }
     try {
-      window.history.pushState(next, '', window.location.pathname + window.location.search);
+      window.history.pushState(next, '', navUrl(next.page, next.service));
     } catch {
       /* ignore */
     }
@@ -266,16 +273,13 @@ export function VerxorApp() {
         void refreshBalance(restored);
 
         try {
-          sessionStorage.removeItem('verxor-nav');
-          const homeState: NavState = { page: 'home', service: null };
-          setPage('home');
-          setService(null);
-          skipPushRef.current = true;
-          window.history.replaceState(
-            homeState,
-            '',
-            window.location.pathname + window.location.search,
-          );
+          if (!initialService && initialPage === 'home') {
+            const homeState: NavState = { page: 'home', service: null };
+            setPage('home');
+            setService(null);
+            skipPushRef.current = true;
+            window.history.replaceState(homeState, '', navUrl('home', null));
+          }
         } catch {
           /* ignore */
         }
@@ -316,11 +320,26 @@ export function VerxorApp() {
         setPage(restored.page);
         setService(restored.service);
       } else {
-        setService(null);
+        const fromPath = stateFromPath(window.location.pathname);
+        setPage(fromPath.page);
+        setService(fromPath.service);
       }
     };
     window.addEventListener('popstate', onPop);
     return () => window.removeEventListener('popstate', onPop);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      window.history.replaceState(
+        { page: pageRef.current, service: serviceRef.current },
+        '',
+        navUrl(pageRef.current, serviceRef.current),
+      );
+    } catch {
+      /* ignore */
+    }
   }, []);
 
   const handleAuth = useCallback(
@@ -345,6 +364,9 @@ export function VerxorApp() {
         userId: restoredSession.userId,
       });
       void refreshBalance(restoredSession);
+      if (initialService || initialPage !== 'home') {
+        return;
+      }
       try {
         const raw = sessionStorage.getItem('verxor-nav');
         if (raw) {
@@ -354,11 +376,7 @@ export function VerxorApp() {
             setService(restored.service);
             skipPushRef.current = true;
             try {
-              window.history.replaceState(
-                restored,
-                '',
-                window.location.pathname + window.location.search,
-              );
+              window.history.replaceState(restored, '', navUrl(restored.page, restored.service));
             } catch {
               /* ignore */
             }

@@ -1547,12 +1547,18 @@ type OverviewData = {
   services?: { name: string; orders: number; sales: number }[];
 };
 
-export function AdminPage({ onBack }: { onBack: () => void }) {
+export function AdminPage({
+  onBack,
+  initialSection = 'overview',
+}: {
+  onBack: () => void;
+  initialSection?: AdminSection;
+}) {
   const [unlocked, setUnlocked] = useState(false);
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState('');
   const [loginBusy, setLoginBusy] = useState(false);
-  const [section, setSection] = useState<AdminSection>('overview');
+  const [section, setSection] = useState<AdminSection>(initialSection);
   const [menuOpen, setMenuOpen] = useState(false);
 
   // Today's USD→NGN rate. UI-only for now: Phase 2 moves it to the database
