@@ -99,8 +99,7 @@ export function PhoneField({
 }) {
   return (
     <div className="auth-field">
-      <label htmlFor={id}>{label}</label>
-      <div className="auth-phone-row">
+      <div className="auth-input-wrap auth-input-wrap--phone">
         <button
           type="button"
           className="cc-trigger"
@@ -109,17 +108,15 @@ export function PhoneField({
         >
           <span className="cc-trigger-flag">{flagEmoji(country.iso)}</span>
         </button>
-        <div className="auth-input-wrap auth-input-wrap--phone">
-          <input
-            id={id}
-            type="tel"
-            inputMode="tel"
-            placeholder={placeholder}
-            value={national}
-            onChange={(e) => onNationalChange(e.target.value.replace(/[^\d]/g, ''))}
-            autoComplete="tel-national"
-          />
-        </div>
+        <input
+          id={id}
+          type="tel"
+          inputMode="tel"
+          placeholder={placeholder}
+          value={national}
+          onChange={(e) => onNationalChange(e.target.value.replace(/[^\d]/g, ''))}
+          autoComplete="tel-national"
+        />
       </div>
     </div>
   );

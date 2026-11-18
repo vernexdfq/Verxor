@@ -46,7 +46,7 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  margin-bottom: 24px;
+  margin-bottom: 20px;
 }
 
 .auth-brand-logo {
@@ -65,8 +65,8 @@
 /* ---------- headings ---------- */
 
 .auth-title {
-  margin: 0 0 6px;
-  font-size: 26px;
+  margin: 0 0 18px;
+  font-size: 23px;
   font-weight: 700;
   letter-spacing: -0.02em;
   color: #0f172a;
@@ -90,7 +90,7 @@
 /* ---------- fields ---------- */
 
 .auth-field {
-  margin-bottom: 16px;
+  margin-bottom: 14px;
 }
 
 .auth-field label,
@@ -124,11 +124,11 @@
 .auth-input-wrap {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   background: #f8fafc;
-  border: 1.5px solid #e2e8f0;
-  border-radius: 12px;
-  padding: 0 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 0 12px;
   transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
 }
 
@@ -149,8 +149,8 @@
   border: none;
   outline: none;
   background: transparent;
-  padding: 13px 0;
-  font-size: 15px;
+  padding: 11px 0;
+  font-size: 14px;
   color: #0f172a;
   font-family: inherit;
 }
@@ -188,15 +188,9 @@
 
 /* phone field (country picker trigger) */
 
-.auth-input-wrap--phone {
-  padding: 0 8px 0 14px;
-}
-
-.auth-phone-row {
-  display: flex;
-  align-items: center;
-  width: 100%;
-  gap: 10px;
+.auth-input-wrap--phone .cc-trigger {
+  flex: none;
+  align-self: center;
 }
 
 .cc-trigger {
@@ -206,14 +200,14 @@
   border: none;
   background: transparent;
   cursor: pointer;
-  padding: 6px 6px;
+  padding: 2px 2px;
   border-radius: 8px;
   color: #334155;
   flex: none;
 }
 
 .cc-trigger:hover {
-  background: #f1f5f9;
+  background: #eff6ff;
 }
 
 .cc-trigger-flag {
@@ -326,12 +320,12 @@
   justify-content: center;
   gap: 8px;
   border: none;
-  border-radius: 12px;
+  border-radius: 10px;
   background: #1d4ed8;
   color: #ffffff;
-  font-size: 15px;
+  font-size: 14.5px;
   font-weight: 600;
-  padding: 14px 16px;
+  padding: 12px 16px;
   cursor: pointer;
   transition: background 0.15s ease, transform 0.1s ease;
   font-family: inherit;
@@ -351,12 +345,12 @@
 }
 
 .auth-bio-btn {
-  width: 52px;
+  width: 48px;
   flex: none;
   display: grid;
   place-items: center;
-  border: 1.5px solid #e2e8f0;
-  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
   background: #f8fafc;
   color: #1d4ed8;
   cursor: pointer;
@@ -627,7 +621,7 @@
 }
 
 .dark .cc-trigger:hover {
-  background: #334155;
+  background: #172554;
 }
 
 .dark .auth-error {

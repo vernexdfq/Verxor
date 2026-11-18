@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowRight, Eye, EyeOff, Fingerprint, Lock, Mail, User } from 'lucide-react';
+import { ArrowRight, Eye, EyeOff, Fingerprint } from 'lucide-react';
 import {
   DEFAULT_COUNTRY,
   displayNational,
@@ -15,7 +15,7 @@ import {
   validatePhoneForCountry,
   type Country,
 } from './countries';
-import { CountryPickerSheet } from './phone-field';
+import { CountryPickerSheet, PhoneField } from './phone-field';
 import { getSupabaseBrowser, isSupabaseBrowserConfigured } from '../../lib/supabase/client';
 import {
   getRememberPreference,
@@ -699,7 +699,6 @@ export function AuthFlow({
             <>
               <div className="auth-field">
                 <div className="auth-input-wrap">
-                  <Mail size={18} strokeWidth={2} />
                   <input
                     type="email"
                     value={forgotEmail}
@@ -730,7 +729,6 @@ export function AuthFlow({
               </div>
               <div className="auth-field">
                 <div className="auth-input-wrap">
-                  <Lock size={18} strokeWidth={2} />
                   <input
                     type={showNewPass ? 'text' : 'password'}
                     value={newPassword}
@@ -772,7 +770,6 @@ export function AuthFlow({
           {error ? <p className="auth-error">{error}</p> : null}
           <div className="auth-field">
             <div className="auth-input-wrap">
-              <User size={18} strokeWidth={2} />
               <input
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
@@ -783,7 +780,6 @@ export function AuthFlow({
           </div>
           <div className="auth-field">
             <div className="auth-input-wrap">
-              <Mail size={18} strokeWidth={2} />
               <input
                 type="email"
                 value={identifier}
@@ -793,31 +789,17 @@ export function AuthFlow({
               />
             </div>
           </div>
-          <div className="auth-field">
-            <div className="auth-phone-row">
-              <button
-                type="button"
-                className="cc-trigger"
-                onClick={() => setPickerOpen(true)}
-                aria-label={`Country ${country.name}, +${country.dial}`}
-              >
-                <span className="cc-trigger-flag">{flagEmoji(country.iso)}</span>
-              </button>
-              <div className="auth-input-wrap auth-input-wrap--phone">
-                <input
-                  type="tel"
-                  inputMode="tel"
-                  placeholder="Phone number"
-                  value={nationalPhone}
-                  onChange={(e) => setNationalPhone(e.target.value.replace(/[^\d]/g, ''))}
-                  autoComplete="tel-national"
-                />
-              </div>
-            </div>
-          </div>
+          <PhoneField
+            id="signup-phone"
+            label="Phone number"
+            country={country}
+            national={nationalPhone}
+            onOpenPicker={() => setPickerOpen(true)}
+            onNationalChange={setNationalPhone}
+            placeholder="Phone number"
+          />
           <div className="auth-field">
             <div className="auth-input-wrap">
-              <Lock size={18} strokeWidth={2} />
               <input
                 type={showPass ? 'text' : 'password'}
                 value={password}
@@ -832,7 +814,6 @@ export function AuthFlow({
           </div>
           <div className="auth-field">
             <div className="auth-input-wrap">
-              <Lock size={18} strokeWidth={2} />
               <input
                 type={showPinField ? 'text' : 'password'}
                 inputMode="numeric"
@@ -882,10 +863,8 @@ export function AuthFlow({
         {error ? <p className="auth-error">{error}</p> : null}
         {notice ? <p className="auth-notice">{notice}</p> : null}
         <div className="auth-field">
-          <div className="auth-phone-row">
-            {identifierIsEmail ? (
-              <Mail size={18} strokeWidth={2} className="auth-id-icon" />
-            ) : (
+          <div className="auth-input-wrap auth-input-wrap--phone">
+            {identifierIsEmail ? null : (
               <button
                 type="button"
                 className="cc-trigger"
@@ -895,23 +874,20 @@ export function AuthFlow({
                 <span className="cc-trigger-flag">{flagEmoji(country.iso)}</span>
               </button>
             )}
-            <div className="auth-input-wrap auth-input-wrap--phone">
-              <input
-                type="text"
-                value={identifier}
-                onChange={(e) => setIdentifier(e.target.value)}
-                placeholder="Email or phone number"
-                autoComplete="username"
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !busy) void handleSignIn();
-                }}
-              />
-            </div>
+            <input
+              type="text"
+              value={identifier}
+              onChange={(e) => setIdentifier(e.target.value)}
+              placeholder="Email or phone number"
+              autoComplete="username"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !busy) void handleSignIn();
+              }}
+            />
           </div>
         </div>
         <div className="auth-field">
           <div className="auth-input-wrap">
-            <Lock size={18} strokeWidth={2} />
             <input
               type={showPass ? 'text' : 'password'}
               value={password}
