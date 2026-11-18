@@ -19,6 +19,7 @@ export const GLOBAL_SERVICES: ReadonlySet<ServiceView> = new Set([
   'boost',
   'accounts',
   'rental',
+  'sms-calls',
   'gift-card',
   'virtual-card',
   'esim',
