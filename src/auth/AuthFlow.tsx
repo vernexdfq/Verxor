@@ -800,6 +800,7 @@ export function AuthFlow({
   if (step === 'signup') {
     return (
       <div className="auth-root">
+        <AuthVisual />
         <div className="auth-body">
           <BrandMark />
           <h1 className="auth-title">Create your account</h1>
