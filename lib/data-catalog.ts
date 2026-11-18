@@ -12,25 +12,17 @@ export type DataNetwork = 'mtn' | 'glo' | 'airtel' | '9mobile';
 export type DataTab = 'daily' | 'weekly' | 'monthly' | 'threemonths' | 'yearly' | 'router';
 
 export interface CatalogPlan {
-  /** 247API plan_id — used for purchase */
   id: number;
   network: DataNetwork;
-  /** Clean volume label e.g. "1GB", "75MB", "20 Mbps" */
   size: string;
-  /** Validity in days (string for UI helpers) */
   days: string;
   tab: DataTab;
-  /** Customer retail price (₦) — baseline; live sync may raise with cost */
   retail: number;
-  /** Child panel / API user price (₦) */
   apiPrice: number;
-  /** Provider bundle type label, only when verified from the provider/catalog source. */
   planType?: string;
-  /** Provider cost snapshot used as margin baseline */
   cost?: number;
 }
 
-/** MTN Daily */
 export const MTN_DAILY: CatalogPlan[] = [
   { id: 250, network: 'mtn', size: '75MB', days: '1', tab: 'daily', retail: 75, apiPrice: 74, cost: 72.3 },
   { id: 251, network: 'mtn', size: '110MB', days: '1', tab: 'daily', retail: 100, apiPrice: 98, cost: 96.3 },
@@ -48,7 +40,6 @@ export const MTN_DAILY: CatalogPlan[] = [
   { id: 108, network: 'mtn', size: '6.5GB', days: '2', tab: 'daily', retail: 1800, apiPrice: 1585, cost: 1485 },
 ];
 
-/** MTN Weekly */
 export const MTN_WEEKLY: CatalogPlan[] = [
   { id: 10, network: 'mtn', size: '500MB', days: '7', tab: 'weekly', retail: 495, apiPrice: 240, cost: 220, planType: 'SME1 DataShare' },
   { id: 9, network: 'mtn', size: '1GB', days: '7', tab: 'weekly', retail: 790, apiPrice: 385, cost: 375, planType: 'SME1 DataShare' },
@@ -65,7 +56,6 @@ export const MTN_WEEKLY: CatalogPlan[] = [
   { id: 304, network: 'mtn', size: '40GB', days: '14', tab: 'weekly', retail: 10300, apiPrice: 10000, cost: 9620 },
 ];
 
-/** MTN Monthly — IDs 6/7/21 removed (no longer on 247API) */
 export const MTN_MONTHLY: CatalogPlan[] = [
   { id: 11, network: 'mtn', size: '1GB', days: '30', tab: 'monthly', retail: 740, apiPrice: 445, cost: 440 },
   { id: 12, network: 'mtn', size: '2GB', days: '30', tab: 'monthly', retail: 1200, apiPrice: 750, cost: 735 },
@@ -121,7 +111,7 @@ export const AIRTEL_WEEKLY: CatalogPlan[] = [
   { id: 357, network: 'airtel', size: '3.5GB', days: '7', tab: 'weekly', retail: 1500, apiPrice: 1455, cost: 1450.5, planType: 'Gifting' },
   { id: 452, network: 'airtel', size: '4GB', days: '7', tab: 'weekly', retail: 1800, apiPrice: 1505, cost: 1500, planType: 'SME' },
   { id: 453, network: 'airtel', size: '6GB', days: '7', tab: 'weekly', retail: 2300, apiPrice: 2005, cost: 2000, planType: 'SME' },
-  { id: 358, network: 'airtel', size: '8GB', days: '7', tab: 'weekly', retail: 3000, apiPrice: 2425, cost: 2417.5, planType: 'Gifting' },
+  { id: 358, network: 'airtel', size: '6GB', days: '7', tab: 'weekly', retail: 3000, apiPrice: 2425, cost: 2417.5, planType: 'Gifting' },
   { id: 359, network: 'airtel', size: '10GB', days: '7', tab: 'weekly', retail: 3500, apiPrice: 2910, cost: 2901, planType: 'Gifting' },
   { id: 360, network: 'airtel', size: '18GB', days: '7', tab: 'weekly', retail: 5000, apiPrice: 4860, cost: 4835, planType: 'Gifting' },
   { id: 377, network: 'airtel', size: '20GB', days: '7', tab: 'weekly', retail: 5500, apiPrice: 5010, cost: 5000, planType: 'Gifting' },
@@ -189,7 +179,6 @@ export function findCatalogPlan(planId: number): CatalogPlan | undefined {
   return DATA_CATALOG.find((p) => p.id === planId);
 }
 
-/** UI-facing shape used by data-page */
 export function toLivePlan(p: CatalogPlan) {
   const validity =
     p.tab === 'threemonths'
