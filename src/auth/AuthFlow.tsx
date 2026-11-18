@@ -221,7 +221,7 @@ function AuthVisual() {
     <aside className="auth-visual" aria-hidden="true">
       <img
         className="auth-visual-image"
-        src="https://images.unsplash.com/photo-1512941937669-90a1b58e7e9?auto=format&fit=crop&w=1800&q=88"
+        src="/images/verxor-auth-visual.jpg"
         alt=""
       />
       <div className="auth-visual-shade" />
