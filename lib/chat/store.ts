@@ -47,6 +47,9 @@ function db() {
   };
 }
 
+/** Last PostgREST error from a chat write (for diagnostics / admin alerts). */
+export let lastDbError: string | null = null;
+
 export function chatDbConfigured(): boolean {
   return db() !== null;
 }
@@ -58,20 +61,36 @@ export async function createConversation(input: {
 }): Promise<ChatConversationRow | null> {
   const d = db();
   if (!d) return null;
-  const res = await fetch(`${d.base}/rest/v1/chat_conversations`, {
-    method: 'POST',
-    headers: { ...d.headers, Prefer: 'return=representation' },
-    body: JSON.stringify({
+  const insert = async (body: Record<string, unknown>): Promise<ChatConversationRow | null> => {
+    const res = await fetch(`${d.base}/rest/v1/chat_conversations`, {
+      method: 'POST',
+      headers: { ...d.headers, Prefer: 'return=representation' },
+      body: JSON.stringify(body),
+      cache: 'no-store',
+    });
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      lastDbError = `chat_conversations POST ${res.status}: ${text.slice(0, 300)}`;
+      return null;
+    }
+    const rows = (await res.json()) as ChatConversationRow[];
+    lastDbError = null;
+    return rows?.[0] || null;
+  };
+  // Full row first; fall back to a minimal insert in case a column is
+  // missing/renamed in the live table, and surface whatever PostgREST says.
+  return (
+    (await insert({
       user_id: input.userId || null,
       visitor_key: input.visitorKey || null,
       subject: input.subject || null,
       status: 'ai',
-    }),
-    cache: 'no-store',
-  });
-  if (!res.ok) return null;
-  const rows = (await res.json()) as ChatConversationRow[];
-  return rows?.[0] || null;
+    })) ||
+    (await insert({
+      user_id: input.userId || null,
+      status: 'ai',
+    }))
+  );
 }
 
 export async function getConversation(id: string): Promise<ChatConversationRow | null> {
@@ -98,6 +117,21 @@ export async function getLatestConversationForUser(
   if (!res.ok) return null;
   const rows = (await res.json()) as ChatConversationRow[];
   return rows?.[0] || null;
+}
+
+/** Latest open conversations regardless of user (admin bot / inbox). */
+export async function listLatestOpenConversations(
+  limit: number,
+): Promise<ChatConversationRow[]> {
+  const d = db();
+  if (!d) return [];
+  const res = await fetch(
+    `${d.base}/rest/v1/chat_conversations?status=neq.closed&order=updated_at.desc&select=*&limit=${limit}`,
+    { headers: d.headers, cache: 'no-store' },
+  );
+  if (!res.ok) return [];
+  const rows = (await res.json()) as ChatConversationRow[];
+  return Array.isArray(rows) ? rows : [];
 }
 
 export async function updateConversation(

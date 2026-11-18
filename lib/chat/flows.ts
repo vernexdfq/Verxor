@@ -311,6 +311,170 @@ export async function handleDataPhoneInput(
 }
 
 /**
+ * Phase 2 — Gemini free-text shopping. The model only extracts intent
+ * (network, size, duration, phone) as strict JSON; the actual plan matching
+ * and purchase remain deterministic code, so the AI can never invent prices.
+ */
+type GeminiIntent = {
+  action: 'buy_data' | 'price_check' | 'other';
+  network?: string | null;
+  size_text?: string | null;
+  duration?: string | null;
+  phone?: string | null;
+};
+
+function parseJsonLoose(raw: string): GeminiIntent | null {
+  const cleaned = raw.replace(/```json|```/g, '').trim();
+  const start = cleaned.indexOf('{');
+  const end = cleaned.lastIndexOf('}');
+  if (start < 0 || end <= start) return null;
+  try {
+    return JSON.parse(cleaned.slice(start, end + 1)) as GeminiIntent;
+  } catch {
+    return null;
+  }
+}
+
+async function geminiExtract(text: string): Promise<GeminiIntent | null> {
+  const key = process.env.GEMINI_API_KEY;
+  if (!key) return null;
+  const prompt = [
+    'You extract shopping intent from a Nigerian customer message for the Verxor data service.',
+    `Respond with ONLY a JSON object, no prose. Fields: "action" ("buy_data" if they want to purchase data, "price_check" if they only ask what a plan costs, "other" if the message is not about buying or checking data prices), "network" (one of "mtn","airtel","glo","9mobile", or null), "size_text" (the data size they want like "5GB" or "500MB", or null), "duration" (one of "daily","weekly","monthly","threemonths","router","yearly", or null), "phone" (the phone number as 11 digits starting with 0, or null).`,
+    'If they ask a general question or mention several things, use "other".',
+    `Message: "${text.slice(0, 300)}"`,
+  ].join('\n');
+  try {
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ role: 'user', parts: [{ text: prompt }] }],
+          generationConfig: {
+            temperature: 0.1,
+            maxOutputTokens: 120,
+            responseMimeType: 'application/json',
+          },
+        }),
+        cache: 'no-store',
+      },
+    );
+    if (!res.ok) return null;
+    const data = (await res.json()) as {
+      candidates?: { content?: { parts?: { text?: string }[] } }[];
+    };
+    const raw = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    return parseJsonLoose(raw);
+  } catch {
+    return null;
+  }
+}
+
+/** Normalise "5 GB", "5gb", "500MB" -> "5GB" / "500MB" for comparisons. */
+function normaliseSize(s: string): string {
+  const m = s.toLowerCase().match(/(\d+(?:\.\d+)?)\s*(gb|gig|mb)/);
+  if (!m) return '';
+  const num = m[1].replace(/\.0+$/, '');
+  const unit = m[2].startsWith('g') ? 'GB' : 'MB';
+  return `${num}${unit}`;
+}
+
+/**
+ * Run the Gemini intent, then resolve it against the real plan list.
+ * Returns null when Gemini is not configured or the intent is "other"
+ * (caller falls back to the Mistral Q&A brain).
+ */
+async function geminiShopping(
+  conversationId: string,
+  text: string,
+): Promise<ChatMessageRow[] | null> {
+  const intent = await geminiExtract(text);
+  if (!intent || intent.action === 'other') return null;
+
+  const net =
+    NETWORKS.find((n) => n.id === (intent.network || '').toLowerCase()) ||
+    NETWORKS.find((n) => n.label.toLowerCase() === (intent.network || '').toLowerCase()) ||
+    null;
+  if (!net) {
+    return handleButtonPayload(conversationId, null, 'start_data', {
+      purchaseOrigin: '',
+      authHeader: null,
+    });
+  }
+
+  const { plans } = await getSyncedLivePlansForNetwork(net.id);
+  let pool = plans as Plan[];
+  if (intent.duration) {
+    const filtered = pool.filter((p) => planCategory(p) === intent.duration);
+    if (filtered.length > 0) pool = filtered;
+  }
+  const wanted = intent.size_text ? normaliseSize(intent.size_text) : '';
+  let match: Plan | null = null;
+  if (wanted) {
+    match =
+      pool.find((p) => normaliseSize(p.name) === wanted) ||
+      pool.find((p) => normaliseSize(p.name).startsWith(wanted)) ||
+      null;
+  } else if (pool.length > 0) {
+    match = [...pool].sort((a, b) => a.price - b.price)[0];
+  }
+  if (!match) {
+    const closest = [...pool].sort((a, b) => a.price - b.price).slice(0, 6);
+    const buttons: ChatButton[] = closest.map((p) => ({
+      label: `${p.name} · ${naira(p.price)}`,
+      payload: `data_plan:${p.id}`,
+    }));
+    return reply(
+      conversationId,
+      `I could not find ${wanted || 'that plan'} on ${net.label} right now. These are available:`,
+      buttons.length > 0 ? [...buttons, ...cancelButtons()] : [...cancelButtons()],
+    );
+  }
+
+  const phoneDigits = (intent.phone || '').replace(/\D/g, '');
+  const planLabel = `${match.name} · ${match.days || '?'} days`;
+  if (intent.action === 'price_check') {
+    return reply(
+      conversationId,
+      `${planLabel} on ${net.label} is ${naira(match.price)}. Want it?`,
+      [
+        { label: `Buy · ${naira(match.price)}`, payload: `data_plan:${match.id}` },
+        ...cancelButtons(),
+      ],
+    );
+  }
+  if (phoneDigits.length === 11) {
+    const state: DataFlowState = {
+      flow: 'data',
+      step: 'plans',
+      network: net.id,
+      planId: match.id,
+      planLabel,
+      planPrice: match.price,
+    };
+    return handleDataPhoneInput(conversationId, state, phoneDigits);
+  }
+  await updateConversation(conversationId, {
+    state: {
+      flow: 'data',
+      step: 'phone',
+      network: net.id,
+      category: intent.duration || undefined,
+      planId: match.id,
+      planLabel,
+      planPrice: match.price,
+    },
+  });
+  return reply(
+    conversationId,
+    `Found it: ${planLabel} on ${net.label} for ${naira(match.price)}. What phone number should I send it to? (e.g. 08031234567)`,
+    cancelButtons(),
+  );
+}
+
+/**
  * Free text routing. Keywords hit the deterministic flows first; everything
  * else falls through to the Mistral Q&A brain (if configured).
  */
@@ -340,6 +504,9 @@ export async function handleFreeText(
 
   // Keyword routing — start the data flow.
   if (/\bdata\b|gb\b|bundle/.test(lower) || lower.includes('internet')) {
+    // Phase 2: let Gemini resolve specifics ("buy 5GB MTN for 0803…") first.
+    const shopped = await geminiShopping(conversationId, text);
+    if (shopped) return shopped;
     return handleButtonPayload(conversationId, null, 'start_data', {
       purchaseOrigin: '',
       authHeader: null,
@@ -354,6 +521,11 @@ export async function handleFreeText(
       MENU_BUTTONS,
     );
   }
+
+  // Phase 2: try Gemini shopping intent on any remaining message
+  // (returns null fast when the message is not a purchase).
+  const shopped = await geminiShopping(conversationId, text);
+  if (shopped) return shopped;
 
   // Mistral Q&A brain.
   const mistralKey = process.env.MISTRAL_API_KEY;

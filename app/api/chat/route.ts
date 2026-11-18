@@ -5,6 +5,7 @@ import {
   createConversation,
   getConversation,
   getLatestConversationForUser,
+  lastDbError,
   listMessages,
   type ChatMessageRow,
 } from '@/lib/chat/store';
@@ -166,6 +167,7 @@ export async function POST(req: NextRequest) {
       (await createConversation({ userId, subject: text ? text.slice(0, 60) : null }));
   }
   if (!conversation) {
+    void notifyAdmin(`🚨 Verxor chat: could not create a conversation for user ${userId}\n${lastDbError || 'no DB error recorded'}`);
     return NextResponse.json({ ok: false, error: 'Could not open a chat' }, { status: 500 });
   }
   const conversationId = conversation.id;

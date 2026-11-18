@@ -65,7 +65,27 @@ function isFaqService(s: ServiceView | null): s is 'faq' | 'help' {
 export function VerxorApp() {
   const [page, setPage] = useState<Page>('home');
   const [service, setService] = useState<ServiceView | null>(null);
-  const [dark, setDark] = useState(false);
+  // Theme: saved preference first, then the device's system preference.
+  const [dark, setDark] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    try {
+      const saved = window.localStorage.getItem('verxor-theme');
+      if (saved === 'dark') return true;
+      if (saved === 'light') return false;
+      return window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false;
+    } catch {
+      return false;
+    }
+  });
+
+  // Keep the choice across visits.
+  useEffect(() => {
+    try {
+      window.localStorage.setItem('verxor-theme', dark ? 'dark' : 'light');
+    } catch {
+      /* ignore */
+    }
+  }, [dark]);
   const [admin, setAdmin] = useState(false);
   const [auth, setAuth] = useState<AuthSession | null>(null);
   const [authReady, setAuthReady] = useState(false);

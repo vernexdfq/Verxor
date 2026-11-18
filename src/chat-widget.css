@@ -92,8 +92,7 @@
 .vxc-system .vxc-bubble { background: #fdecec; color: #9f1239; font-size: 12.5px; text-align: center; }
 
 .vxc-buttons {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid; grid-template-columns: 1fr 1fr;
   gap: 6px;
   margin-top: 7px;
 }
@@ -166,3 +165,33 @@
     border-right: 1px solid rgba(15, 23, 42, 0.08);
   }
 }
+
+/* ── Dark mode (follows the app's .dark theme) ─────────────────────── */
+.dark .vxc-panel {
+  background: #0d1526;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.5);
+}
+.dark .vxc-head {
+  background: linear-gradient(135deg, #1e3a8a, #0b63e5);
+}
+.dark .vxc-ai .vxc-bubble {
+  background: #172033;
+  color: #e8eefc;
+  border: 1px solid #263449;
+}
+.dark .vxc-user .vxc-bubble { background: #0b63e5; color: #fff; }
+.dark .vxc-system .vxc-bubble { background: #3d1d28; color: #fda4af; }
+.dark .vxc-btn {
+  background: #172554;
+  color: #93c5fd;
+  border: 1px solid #1e3a8a;
+}
+.dark .vxc-btn:hover { background: #1e3a8a; color: #fff; }
+.dark .vxc-input-row { background: #0f1a30; border-top: 1px solid #263449; }
+.dark .vxc-input-row input {
+  background: #0d1526;
+  color: #e8eefc;
+  border: 1px solid #263449;
+}
+.dark .vxc-input-row input:focus { border-color: #3b82f6; }
+.dark .vxc-typing { color: #94a3b8; }
