@@ -5,7 +5,7 @@
  */
 'use client';
 
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import {
   ArrowLeft,
   BarChart3,
@@ -17,6 +17,7 @@ import {
   Lock,
   Mail,
   Menu,
+  MessageCircle,
   Pencil,
   Percent,
   Plug,
@@ -30,7 +31,7 @@ import {
 } from 'lucide-react';
 import './admin-page.css';
 
-type AdminSection = 'overview' | 'users' | 'pricing' | 'email-otp' | 'boost' | 'accounts' | 'providers' | 'settings';
+type AdminSection = 'overview' | 'users' | 'chats' | 'pricing' | 'email-otp' | 'boost' | 'accounts' | 'providers' | 'settings';
 
 type AdminUserTab = 'all' | 'customers' | 'api' | 'panels';
 
@@ -69,6 +70,7 @@ const RATE_KEY = 'verxor-admin-rate';
 const NAV: { id: AdminSection; label: string; icon: typeof LayoutDashboard }[] = [
   { id: 'overview', label: 'Overview', icon: LayoutDashboard },
   { id: 'users', label: 'Users', icon: Users },
+  { id: 'chats', label: 'Live Chats', icon: MessageCircle },
   { id: 'pricing', label: 'Virtual Number', icon: Percent },
   { id: 'email-otp', label: 'Email OTP', icon: Mail },
   { id: 'boost', label: 'Boost (SMM)', icon: Rocket },
@@ -81,6 +83,7 @@ const NAV: { id: AdminSection; label: string; icon: typeof LayoutDashboard }[] =
 const SECTION_META: Record<AdminSection, { title: string; sub: string }> = {
   overview: { title: 'Daily earnings', sub: 'Your gain for today, updated live' },
   users: { title: 'Users', sub: 'Accounts, wallets, bans and manual credits' },
+  chats: { title: 'Live Chats', sub: 'Continue customer conversations and cross-check tickets' },
   pricing: { title: 'Virtual Number pricing', sub: 'Markups for retail, API users and Child Panel' },
   'email-otp': { title: 'Email OTP pricing', sub: 'Flat USD markups for retail, API users and Child Panel' },
   boost: { title: 'Boost pricing', sub: 'Per-tier multipliers for retail, API users and Child Panel' },
@@ -121,6 +124,199 @@ function serviceEnabled(u: AdminUser, id: string): boolean {
 function displayName(u: AdminUser): string {
   const label = (u.name || u.email || u.phone || u.id).trim();
   return label.length > 22 ? label.slice(0, 20) + '…' : label;
+}
+
+/* ---------- Live Chats (admin inbox / conversation continuation) ---------- */
+
+type AdminChatConversation = {
+  id: string;
+  user_id: string | null;
+  status: string;
+  subject: string | null;
+  ticket_id?: string | null;
+  updated_at: string;
+};
+type AdminChatMessage = { id: string; role: string; content: string; created_at: string };
+
+function chatTicket(c: AdminChatConversation): string | null {
+  return c.ticket_id || c.subject?.match(/\[(VX-\d{3,6})\]/)?.[1] || null;
+}
+
+function timeAgo(iso: string): string {
+  const t = new Date(iso).getTime();
+  if (!Number.isFinite(t)) return '';
+  const mins = Math.floor((Date.now() - t) / 60000);
+  if (mins < 1) return 'now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  return `${Math.floor(hrs / 24)}d ago`;
+}
+
+const CHAT_STATUS_TAG: Record<string, string> = {
+  ai: 'AI',
+  waiting_admin: 'Waiting',
+  admin: 'You replied',
+  closed: 'Archived',
+};
+
+function LiveChats() {
+  const [conversations, setConversations] = useState<AdminChatConversation[]>([]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selected, setSelected] = useState<AdminChatConversation | null>(null);
+  const [messages, setMessages] = useState<AdminChatMessage[]>([]);
+  const [reply, setReply] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [loadError, setLoadError] = useState(false);
+  const threadRef = useRef<HTMLDivElement>(null);
+
+  const scrollThread = () => {
+    requestAnimationFrame(() => {
+      const el = threadRef.current;
+      if (el) el.scrollTop = el.scrollHeight;
+    });
+  };
+
+  const loadList = async () => {
+    try {
+      const res = await fetch('/api/admin/chat', { headers: adminHeaders(), cache: 'no-store' });
+      const data = (await res.json()) as { ok?: boolean; conversations?: AdminChatConversation[] };
+      if (res.ok && data.ok) {
+        setConversations(data.conversations || []);
+        setLoadError(false);
+      } else {
+        setLoadError(true);
+      }
+    } catch {
+      setLoadError(true);
+    }
+  };
+
+  const loadThread = async (id: string, scroll = true) => {
+    try {
+      const res = await fetch(`/api/admin/chat?conversationId=${encodeURIComponent(id)}`, {
+        headers: adminHeaders(),
+        cache: 'no-store',
+      });
+      const data = (await res.json()) as {
+        ok?: boolean;
+        conversation?: AdminChatConversation;
+        messages?: AdminChatMessage[];
+      };
+      if (res.ok && data.ok && data.conversation) {
+        setSelected(data.conversation);
+        setSelectedId(id);
+        setMessages(data.messages || []);
+        if (scroll) scrollThread();
+      }
+    } catch {
+      /* ignore */
+    }
+  };
+
+  useEffect(() => {
+    void loadList();
+    const t = window.setInterval(() => {
+      void loadList();
+      if (selectedId) void loadThread(selectedId, false);
+    }, 15000);
+    return () => window.clearInterval(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedId]);
+
+  const sendReply = async (e: FormEvent) => {
+    e.preventDefault();
+    const text = reply.trim();
+    if (!text || !selectedId || busy) return;
+    setBusy(true);
+    try {
+      const res = await fetch('/api/admin/chat', {
+        method: 'POST',
+        headers: adminHeaders(),
+        body: JSON.stringify({ conversationId: selectedId, text }),
+      });
+      const data = (await res.json()) as { ok?: boolean; error?: string };
+      if (res.ok && data.ok) {
+        setReply('');
+        await loadThread(selectedId);
+        await loadList();
+      }
+    } catch {
+      /* ignore */
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="vxa-chat">
+      <aside className="vxa-chat-list">
+        {loadError ? (
+          <p className="vxa-chat-err">Could not load chats. Check the connection and reload.</p>
+        ) : null}
+        {!loadError && conversations.length === 0 ? (
+          <p className="vxa-chat-err">No customer chats yet. They appear here the moment a customer starts one.</p>
+        ) : null}
+        {conversations.map((c) => {
+          const ticket = chatTicket(c);
+          return (
+            <button
+              key={c.id}
+              type="button"
+              className={`vxa-chat-item${selectedId === c.id ? ' active' : ''}`}
+              onClick={() => void loadThread(c.id)}
+            >
+              <span className="vxa-chat-item-top">
+                <strong>{ticket ? ticket : c.subject || 'Conversation'}</strong>
+                <em>{timeAgo(c.updated_at)}</em>
+              </span>
+              <span className="vxa-chat-item-sub">
+                <i className={`vxa-chat-status s-${c.status}`}>
+                  {CHAT_STATUS_TAG[c.status] || c.status}
+                </i>
+                <span className="vxa-chat-item-user">{c.user_id ? c.user_id.slice(0, 8) : 'visitor'}</span>
+              </span>
+            </button>
+          );
+        })}
+      </aside>
+      <div className="vxa-chat-thread">
+        {!selected ? (
+          <p className="vxa-chat-empty">Pick a conversation on the left to read it and reply.</p>
+        ) : (
+          <>
+            <header className="vxa-chat-thread-head">
+              <strong>{chatTicket(selected) ? `${chatTicket(selected)} · ` : ''}{selected.subject || 'Conversation'}</strong>
+              <span>
+                Status: {CHAT_STATUS_TAG[selected.status] || selected.status}
+                {' · '}customer: {selected.user_id || 'unknown'}
+                {' · '}updated {timeAgo(selected.updated_at)}
+              </span>
+            </header>
+            <div className="vxa-chat-msgs" ref={threadRef}>
+              {messages.map((m) => (
+                <div key={m.id} className={`vxa-chat-msg role-${m.role}`}>
+                  <div className="vxa-chat-bubble">{m.content}</div>
+                  <span className="vxa-chat-meta">{m.role === 'user' ? 'Customer' : m.role === 'admin' ? 'You' : 'Assistant'} · {timeAgo(m.created_at)}</span>
+                </div>
+              ))}
+              {messages.length === 0 ? <p className="vxa-chat-empty">No messages in this conversation.</p> : null}
+            </div>
+            <form className="vxa-chat-reply" onSubmit={sendReply}>
+              <input
+                value={reply}
+                onChange={(e) => setReply(e.target.value)}
+                placeholder="Type your reply — it lands in the customer's chat instantly…"
+                disabled={busy}
+                aria-label="Reply to customer"
+              />
+              <button type="submit" disabled={busy || !reply.trim()}>Send</button>
+            </form>
+          </>
+        )}
+      </div>
+    </div>
+  );
 }
 
 function UserManagement() {
@@ -1643,6 +1839,12 @@ export function AdminPage({ onBack }: { onBack: () => void }) {
         {section === 'users' && (
           <section className="vxa-body">
             <UserManagement />
+          </section>
+        )}
+
+        {section === 'chats' && (
+          <section className="vxa-body">
+            <LiveChats />
           </section>
         )}
 

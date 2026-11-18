@@ -135,6 +135,21 @@ export async function listLatestOpenConversations(
   return Array.isArray(rows) ? rows : [];
 }
 
+/** Recent conversations for the admin inbox (all statuses, newest first). */
+export async function listRecentConversations(
+  limit: number,
+): Promise<ChatConversationRow[]> {
+  const d = db();
+  if (!d) return [];
+  const res = await fetch(
+    `${d.base}/rest/v1/chat_conversations?order=updated_at.desc&select=*&limit=${limit}`,
+    { headers: d.headers, cache: 'no-store' },
+  );
+  if (!res.ok) return [];
+  const rows = (await res.json()) as ChatConversationRow[];
+  return Array.isArray(rows) ? rows : [];
+}
+
 export async function updateConversation(
   id: string,
   patch: Partial<Pick<ChatConversationRow, 'status' | 'state' | 'subject' | 'ticket_id' | 'last_agent' | 'unread_admin'>>,

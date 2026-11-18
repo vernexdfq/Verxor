@@ -149,7 +149,11 @@ export async function handleButtonPayload(
     return reply(
       conversationId,
       'Tell me what is going on — a failed order, OTP not arriving, being stuck mid-purchase, anything. I will help you sort it out, and I will bring in a human if needed.',
-      [...cancelButtons(), { label: '🛒 Buy Service', payload: 'buy_service' }],
+      [
+        ...cancelButtons(),
+        { label: '🎫 Open Ticket', payload: 'open_ticket' },
+        { label: '🛒 Buy Service', payload: 'buy_service' },
+      ],
     );
   }
 
@@ -645,19 +649,23 @@ export async function handleFreeText(
     );
   }
 
-  // Support detection — a customer describing a problem escalates to Denny.
+  // Support detection — a customer describing a problem escalates to Denny,
+  // and gets a ticket reference immediately.
   if (
     /\b(fail|failed|error|stuck|problem|issue|not work\w*|not deliver\w*|refund|wrong number|missing|didn'?t|did not)\b/.test(
       lower,
     )
   ) {
+    const ticketId = generateTicketId();
+    const subject = text.trim().slice(0, 60) || 'Support request';
     await updateConversation(conversationId, { status: 'waiting_admin' });
+    await assignTicketId(conversationId, ticketId, subject);
     void notifyAdmin(
-      `🆘 Customer needs help\nCustomer: ${opts.user?.email || opts.user?.name || 'unknown'}\nMessage: "${text.slice(0, 300)}"\nReply from Telegram to answer them (or use /pending).`,
+      `🆘 Customer needs help — ticket ${ticketId}\nCustomer: ${opts.user?.email || opts.user?.name || 'unknown'}\nMessage: "${text.slice(0, 300)}"\nReply from Telegram (or admin dashboard → Live Chats) to answer them.`,
     );
     return reply(
       conversationId,
-      'I am sorry about that — I have flagged this to our team right away and they will reply here shortly. If you have an order reference or the phone number involved, send it now so we can trace it faster.',
+      `I am sorry about that — I have flagged this to our team right away as ticket ${ticketId} and they will reply here shortly. If you have an order reference or the phone number involved, send it now so we can trace it faster.`,
       [
         { label: '🎫 Open Ticket', payload: 'open_ticket' },
         { label: '🛒 Buy Service', payload: 'buy_service' },

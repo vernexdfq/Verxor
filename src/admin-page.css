@@ -1005,3 +1005,161 @@
   .vxa-mu-row { grid-template-columns: 1fr auto; }
   .vxa-mu-row span.h { grid-column: 1 / -1; }
 }
+
+/* ---------- Live Chats (admin inbox) ---------- */
+.vxa-chat {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  gap: 16px;
+  min-height: 60vh;
+}
+.vxa-chat-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+  max-height: 70vh;
+  padding-right: 4px;
+}
+.vxa-chat-err {
+  font-size: 13px;
+  color: #64748b;
+  padding: 10px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+}
+.vxa-chat-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: left;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #ffffff;
+  padding: 11px 12px;
+  cursor: pointer;
+  font-family: inherit;
+}
+.vxa-chat-item:hover { border-color: #cbd5e1; }
+.vxa-chat-item.active {
+  border-color: #1d4ed8;
+  box-shadow: 0 0 0 2px rgba(29, 78, 216, 0.12);
+}
+.vxa-chat-item-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+.vxa-chat-item-top strong { font-size: 13.5px; color: #0f172a; }
+.vxa-chat-item-top em { font-style: normal; font-size: 11px; color: #94a3b8; }
+.vxa-chat-item-sub { display: flex; align-items: center; gap: 8px; font-size: 11.5px; }
+.vxa-chat-status {
+  font-style: normal;
+  font-weight: 700;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border-radius: 999px;
+  padding: 2px 8px;
+  background: #f1f5f9;
+  color: #475569;
+}
+.vxa-chat-status.s-waiting_admin { background: #fef3c7; color: #92400e; }
+.vxa-chat-status.s-admin { background: #dcfce7; color: #166534; }
+.vxa-chat-status.s-closed { background: #f1f5f9; color: #94a3b8; }
+.vxa-chat-item-user { color: #94a3b8; }
+.vxa-chat-thread {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  background: #ffffff;
+  min-height: 60vh;
+}
+.vxa-chat-empty {
+  margin: auto;
+  font-size: 13px;
+  color: #94a3b8;
+  text-align: center;
+  padding: 24px;
+}
+.vxa-chat-thread-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 14px 16px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #f8fafc;
+  border-radius: 14px 14px 0 0;
+}
+.vxa-chat-thread-head strong { font-size: 15px; color: #0f172a; }
+.vxa-chat-thread-head span { font-size: 12px; color: #64748b; }
+.vxa-chat-msgs {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 52vh;
+}
+.vxa-chat-msg { display: flex; flex-direction: column; gap: 4px; }
+.vxa-chat-msg.role-user { align-items: flex-start; }
+.vxa-chat-msg.role-ai,
+.vxa-chat-msg.role-system { align-items: flex-start; }
+.vxa-chat-msg.role-admin { align-items: flex-end; }
+.vxa-chat-msg.role-user .vxa-chat-bubble {
+  background: #eef2ff;
+  border: 1px solid #e0e7ff;
+  color: #312e81;
+}
+.vxa-chat-msg.role-admin .vxa-chat-bubble {
+  background: #1d4ed8;
+  color: #ffffff;
+}
+.vxa-chat-bubble {
+  max-width: 76%;
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-size: 13.5px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  color: #0f172a;
+}
+.vxa-chat-meta { font-size: 10.5px; color: #94a3b8; }
+.vxa-chat-reply {
+  display: flex;
+  gap: 8px;
+  padding: 12px;
+  border-top: 1px solid #e2e8f0;
+}
+.vxa-chat-reply input {
+  flex: 1;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 13.5px;
+  font-family: inherit;
+  outline: none;
+}
+.vxa-chat-reply input:focus { border-color: #1d4ed8; }
+.vxa-chat-reply button {
+  border: none;
+  border-radius: 10px;
+  padding: 10px 18px;
+  background: #1d4ed8;
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+}
+.vxa-chat-reply button:disabled { opacity: 0.5; cursor: default; }
+@media (max-width: 780px) {
+  .vxa-chat { grid-template-columns: 1fr; min-height: 0; }
+  .vxa-chat-list { max-height: 30vh; }
+}

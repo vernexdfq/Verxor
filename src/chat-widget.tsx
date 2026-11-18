@@ -138,6 +138,46 @@ export function ChatWidget({
     })();
   }, [open, loaded, authHeaders]);
 
+  // Poll for new messages while open — admin replies from the dashboard
+  // (or Telegram) land in the open widget without the customer refreshing.
+  useEffect(() => {
+    if (!open || !conversationId) return;
+    const timer = window.setInterval(async () => {
+      try {
+        const res = await fetch(`/api/chat?conversationId=${encodeURIComponent(conversationId)}`, {
+          headers: await authHeaders(),
+          cache: 'no-store',
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data?.ok || !data.conversationId) return;
+        setMessages((prev) => {
+          const known = new Set(prev.map((m) => m.id));
+          const fresh = ((data.messages || []) as {
+            id: string;
+            role: string;
+            content: string;
+            actions?: { buttons?: ChatButton[] };
+          }[])
+            // Customer's own messages come from this widget already; only
+            // incoming (ai / admin / system) messages are merged in.
+            .filter((m) => m.role !== 'user' && !known.has(m.id))
+            .map((m) => ({
+              id: m.id,
+              role: m.role as ChatMessage['role'],
+              content: m.content,
+              buttons: m.actions?.buttons || undefined,
+            }));
+          if (fresh.length === 0) return prev;
+          requestAnimationFrame(() => scrollDown());
+          return [...prev, ...fresh];
+        });
+      } catch {
+        /* offline */
+      }
+    }, 10000);
+    return () => window.clearInterval(timer);
+  }, [open, conversationId, authHeaders, scrollDown]);
+
   const send = useCallback(
     async (opts: { text?: string; payload?: string; label?: string }) => {
       if (busy) return;
