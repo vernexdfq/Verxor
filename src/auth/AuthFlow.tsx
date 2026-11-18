@@ -216,6 +216,17 @@ function BrandMark() {
   );
 }
 
+function GoogleG() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path fill="#4285F4" d="M23.06 12.25c0-.85-.08-1.67-.22-2.45H12v4.64h6.2a5.3 5.3 0 0 1-2.3 3.48v2.89h3.72c2.18-2 3.44-4.95 3.44-8.56z" />
+      <path fill="#34A853" d="M12 24c3.11 0 5.72-1.03 7.62-2.8l-3.72-2.89c-1.03.69-2.35 1.1-3.9 1.1-3 0-5.54-2.03-6.44-4.75H1.72v2.98A11.99 11.99 0 0 0 12 24z" />
+      <path fill="#FBBC05" d="M5.56 14.66a7.2 7.2 0 0 1 0-4.6V7.08H1.72a12 12 0 0 0 0 10.56l3.84-2.98z" />
+      <path fill="#EA4335" d="M12 4.75c1.69 0 3.2.58 4.4 1.72l3.3-3.3C17.71 1.19 15.1 0 12 0 7.3 0 3.25 2.69 1.72 7.08l3.84 2.98C6.46 7.34 9 4.75 12 4.75z" />
+    </svg>
+  );
+}
+
 /** The single identifier accepts email or phone; email wins when it has an @. */
 function isEmailIdentifier(v: string): boolean {
   return v.includes('@');
@@ -677,6 +688,11 @@ export function AuthFlow({
     }
   }
 
+  function handleGoogleLogin() {
+    setError('');
+    setNotice('Google sign-in is coming soon. Use your email or phone number for now.');
+  }
+
   if (step === 'boot') {
     return (
       <div className="auth-root">
@@ -832,6 +848,10 @@ export function AuthFlow({
             {!busy ? <ArrowRight size={18} strokeWidth={2.2} /> : null}
           </button>
           <div className="auth-or">or</div>
+          <button type="button" className="auth-google-btn" onClick={handleGoogleLogin}>
+            <GoogleG />
+            Continue with Google
+          </button>
           <p className="auth-footer-link">
             Already have an account?{' '}
             <button type="button" onClick={() => goStep('signin')}>
@@ -934,6 +954,10 @@ export function AuthFlow({
           ) : null}
         </div>
         <div className="auth-or">or</div>
+        <button type="button" className="auth-google-btn" onClick={handleGoogleLogin}>
+          <GoogleG />
+          Continue with Google
+        </button>
         <p className="auth-footer-link">
           Don&apos;t have an account?{' '}
           <button type="button" onClick={() => goStep('signup')}>
