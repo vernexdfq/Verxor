@@ -54,3 +54,4 @@ https://YOUR-PROJECT.vercel.app/api/health
 - Env vars: MISTRAL_API_KEY (free-text Q&A fallback), GEMINI_API_KEY (Phase 2 shopping).
 - Supabase tables: chat_conversations, chat_messages (service-role only).
 - Requires chat_conversations.state jsonb column for flow persistence.
+- Admin alerts: Telegram (@verxorsupport_bot) + WhatsApp (TextMeBot). Env: TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, WHATSAPP_API_KEY, WHATSAPP_PHONE.
