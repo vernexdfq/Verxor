@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Eye, EyeOff, Fingerprint, Lock, Mail, Phone, User } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { ArrowRight, Eye, EyeOff, Fingerprint, Lock, Mail, Pencil, Phone, User } from 'lucide-react';
 import {
   DEFAULT_COUNTRY,
   displayNational,
@@ -15,8 +16,13 @@ import {
 } from './countries';
 import { CountryPickerSheet, PhoneField } from './phone-field';
 import { getSupabaseBrowser, isSupabaseBrowserConfigured } from '../../lib/supabase/client';
-import { saveSessionTokens, saveSessionProfile } from './session-unlock';
-import { authenticateWithBiometric } from '../lib/webauthn';
+import {
+  getRememberPreference,
+  saveSessionProfile,
+  saveSessionTokens,
+  setRememberPreference,
+} from './session-unlock';
+import { authenticateWithBiometric, isBiometricEnabledLocally } from '../lib/webauthn';
 import './auth.css';
 
 function backendConfigured() {
@@ -66,7 +72,8 @@ const DEFAULT_MOCK: AuthSession = {
 };
 
 type LastPhone = { iso: string; dial: string; national: string };
-type Step = 'boot' | 'signin' | 'signup' | 'pin' | 'forgot';
+type Step = 'boot' | 'signin' | 'signup' | 'forgot';
+type ForgotStage = 'email' | 'code';
 type StoredAccount = AuthSession & { id: string };
 
 function loadRemembered(): AuthSession {
@@ -95,7 +102,11 @@ function loadRemembered(): AuthSession {
 function saveRemembered(session: AuthSession) {
   if (typeof window === 'undefined') return;
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...session, authenticated: false }));
+    // Never persist the password or PIN here — only display identity.
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ ...session, authenticated: false, pin: '', password: '' }),
+    );
   } catch {}
 }
 
@@ -105,7 +116,7 @@ function loadLastPhone(): LastPhone | null {
     const raw = localStorage.getItem(LAST_PHONE_KEY);
     if (!raw) return null;
     const p = JSON.parse(raw) as LastPhone;
-    if (p?.iso && p?.national) return p;
+    if (p?.iso && p.national) return p;
   } catch {}
   return null;
 }
@@ -158,17 +169,6 @@ function findAccount(opts: { phoneE164?: string; email?: string }): StoredAccoun
     if (em && emailsMatch(acc.email, em)) return acc;
     if (em && acc.method === 'email' && emailsMatch(acc.contact, em)) return acc;
   }
-  const stored = loadRemembered();
-  if (stored.contact && stored.pin) {
-    if (phone && phoneDigits(stored.contact) === phone) return { ...stored, id: 'legacy' };
-    if (
-      em &&
-      (emailsMatch(stored.email, em) ||
-        (stored.method === 'email' && emailsMatch(stored.contact, em)))
-    ) {
-      return { ...stored, id: 'legacy' };
-    }
-  }
   return null;
 }
 
@@ -198,18 +198,36 @@ function strongPassword(pw: string): boolean {
   return pw.length >= 6 && /[A-Z]/.test(pw) && /[a-z]/.test(pw) && /\d/.test(pw);
 }
 
+function maskEmail(addr: string): string {
+  const em = (addr || '').trim().toLowerCase();
+  if (!em.includes('@')) return em;
+  const [name, domain] = em.split('@');
+  if (!name) return em;
+  const head = name.slice(0, 3);
+  return `${head}${'•'.repeat(4)}@${domain}`;
+}
+
 function BrandMark() {
   return (
     <div className="auth-brand">
       <div className="auth-brand-mark">
-        <img src="/brand/verxor-logo.svg" alt="" width={40} height={40} />
+        <img src="/brand/verxor-logo.svg" alt="" width={44} height={44} />
       </div>
       <span className="auth-brand-name">Verxor</span>
     </div>
   );
 }
 
-export function AuthFlow({ onAuthenticated }: { onAuthenticated: (session: AuthSession) => void }) {
+export function AuthFlow({
+  onAuthenticated,
+  initialStep,
+  redirectTo,
+}: {
+  onAuthenticated: (session: AuthSession) => void;
+  initialStep?: 'signin' | 'signup';
+  redirectTo?: string;
+}) {
+  const router = useRouter();
   const [remembered, setRemembered] = useState<AuthSession>(DEFAULT_MOCK);
   const [step, setStep] = useState<Step>('boot');
   const [method, setMethod] = useState<AuthMethod>('phone');
@@ -221,54 +239,41 @@ export function AuthFlow({ onAuthenticated }: { onAuthenticated: (session: AuthS
   const [showPass, setShowPass] = useState(false);
   const [showPinField, setShowPinField] = useState(false);
   const [signupPin, setSignupPin] = useState('');
-  const [pin, setPin] = useState('');
-  const [newPin, setNewPin] = useState('');
-  const [confirmNewPin, setConfirmNewPin] = useState('');
-  const [forgotPassword, setForgotPassword] = useState('');
-  const [showForgotPass, setShowForgotPass] = useState(false);
+  const [remember, setRemember] = useState(true);
+  const [welcomeMode, setWelcomeMode] = useState(false);
+  const [biometricReady, setBiometricReady] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
+
+  // Forgot-password state
+  const [forgotStage, setForgotStage] = useState<ForgotStage>('email');
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [otpCode, setOtpCode] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [showNewPass, setShowNewPass] = useState(false);
+
+  const rememberedContact = remembered.email || remembered.contact;
+  const hasRemembered = Boolean(rememberedContact);
 
   useEffect(() => {
     const s = loadRemembered();
     setRemembered(s);
-    if (s.contact && s.pin) upsertAccount(s);
+    if (s.contact || s.email) upsertAccount(s);
+    setRemember(getRememberPreference());
+    setBiometricReady(isBiometricEnabledLocally());
     try {
       if (sessionStorage.getItem('verxor-force-signin') === '1') {
         sessionStorage.removeItem('verxor-force-signin');
-        setStep('signin');
-        if (s.method) setMethod(s.method);
-        if (s.phoneCountry) setCountry(findCountry(s.phoneCountry));
-        if (s.method === 'email') setEmail(s.contact || s.email || '');
-        else if (s.contact) setNational(displayNational(s.phoneCountry || 'NG', s.contact));
-        return;
-      }
-    } catch {}
-    // Preserve the current public/auth screen across a browser refresh.
-    // This stores only the screen name, never the PIN or password.
-    try {
-      const savedStep = sessionStorage.getItem('verxor-auth-step');
-      if (savedStep === 'signin' || savedStep === 'signup' || savedStep === 'pin' || savedStep === 'forgot') {
-        if (savedStep === 'pin' && !(s.contact && s.pin)) {
-          // Without remembered login details, fall back to the normal sign-in flow.
-        } else {
-          setStep(savedStep);
-          setMethod(s.method || 'phone');
-          if (s.phoneCountry) setCountry(findCountry(s.phoneCountry));
-          if (s.method === 'email') setEmail(s.contact || s.email || '');
-          else if (s.contact) setNational(displayNational(s.phoneCountry || 'NG', s.contact));
-          return;
-        }
       }
     } catch {}
 
-    if (s.contact && s.pin) {
-      setStep('pin');
+    if (s.email || s.contact) {
+      setStep('signin');
+      setWelcomeMode(true);
       setMethod(s.method || 'phone');
-      if (s.phoneCountry) setCountry(findCountry(s.phoneCountry));
-      if (s.method === 'email') setEmail(s.contact || s.email || '');
-      else if (s.contact) setNational(displayNational(s.phoneCountry || 'NG', s.contact));
+      if (s.email) setEmail(s.email);
       return;
     }
     const last = loadLastPhone();
@@ -276,10 +281,10 @@ export function AuthFlow({ onAuthenticated }: { onAuthenticated: (session: AuthS
       setCountry(findCountry(last.iso));
       setNational(displayNational(last.iso, last.national));
       setMethod('phone');
-      setStep('signin');
-      return;
     }
-    setStep('signup');
+    setStep(initialStep === 'signup' ? 'signup' : 'signin');
+    setWelcomeMode(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -288,6 +293,18 @@ export function AuthFlow({ onAuthenticated }: { onAuthenticated: (session: AuthS
       sessionStorage.setItem('verxor-auth-step', step);
     } catch {}
   }, [step]);
+
+  function goStep(next: Step) {
+    setError('');
+    setNotice('');
+    setStep(next);
+    if (typeof window !== 'undefined' && redirectTo) {
+      const path = next === 'signup' ? '/signup' : '/signin';
+      if (window.location.pathname !== path) {
+        window.history.replaceState(null, '', path);
+      }
+    }
+  }
 
   function finish(session: AuthSession) {
     const iso = session.phoneCountry || country.iso;
@@ -324,149 +341,111 @@ export function AuthFlow({ onAuthenticated }: { onAuthenticated: (session: AuthS
     }
     setRemembered(full);
     onAuthenticated(full);
+    if (redirectTo) {
+      router.replace(redirectTo);
+    }
   }
 
-  async function handleContinueSignIn() {
+  async function applyBackendTokens(tokens: { access_token?: string; refresh_token?: string }) {
+    saveSessionTokens(tokens);
+    const sb = getSupabaseBrowser();
+    if (sb && tokens.access_token && tokens.refresh_token) {
+      await sb.auth
+        .setSession({ access_token: tokens.access_token, refresh_token: tokens.refresh_token })
+        .catch(() => {});
+    }
+  }
+
+  async function handleSignIn() {
     setError('');
+    setNotice('');
+    if (!password) {
+      setError('Enter your password');
+      return;
+    }
+    setRememberPreference(remember);
     setBusy(true);
     try {
+      let phoneE164 = '';
+      let em = '';
       if (method === 'phone') {
         const phoneErr = validatePhoneForCountry(country.iso, national);
         if (phoneErr) {
           setError(phoneErr);
           return;
         }
-        const e164 = toE164(country.iso, country.dial, national);
-        saveLastPhone(country.iso, country.dial, national);
-
-        if (backendConfigured()) {
-          try {
-            const res = await fetch('/api/auth/lookup', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ phone: e164 }),
-            });
-            const body = await res.json().catch(() => ({}));
-            if (res.ok && (body as { found?: boolean }).found) {
-              const b = body as {
-                fullName?: string;
-                email?: string;
-                phone?: string;
-                phoneCountry?: string;
-                hasPin?: boolean;
-              };
-              if (!b.hasPin) {
-                setError('PIN is not set for this account.');
-                return;
-              }
-              const session: AuthSession = {
-                ...DEFAULT_MOCK,
-                method: 'phone',
-                contact: b.phone || e164,
-                name: b.fullName || '',
-                email: b.email || '',
-                phoneCountry: b.phoneCountry || country.iso,
-                dialCode: country.dial,
-                pin: '',
-                password: '',
-                authenticated: false,
-              };
-              saveRemembered(session);
-              setRemembered(session);
-              setPin('');
-              setStep('pin');
-              return;
-            }
-            if (res.ok && !(body as { found?: boolean }).found) {
-              setError('No account found for this number. Check the number or create an account.');
-              return;
-            }
-          } catch {
-            /* fall through local */
-          }
-        }
-
-        const account = findAccount({ phoneE164: e164 });
-        if (!account || !account.pin) {
-          setError('No account found for this number. Check the number or create an account.');
+        phoneE164 = toE164(country.iso, country.dial, national);
+      } else {
+        em = email.trim().toLowerCase();
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)) {
+          setError('Enter a valid email address');
           return;
         }
-        const session: AuthSession = {
-          ...account,
-          method: 'phone',
-          contact: account.contact || e164,
-          authenticated: false,
-        };
-        saveRemembered(session);
-        setRemembered(session);
-        setPin('');
-        setStep('pin');
-        return;
-      }
-
-      const em = email.trim().toLowerCase();
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)) {
-        setError('Enter a valid email address');
-        return;
       }
 
       if (backendConfigured()) {
-        try {
-          const res = await fetch('/api/auth/lookup', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email: em }),
+        const res = await fetch('/api/auth/password-login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(
+            method === 'phone' ? { phone: phoneE164, password } : { email: em, password },
+          ),
+        });
+        const body = await res.json().catch(() => ({}));
+        if (res.ok) {
+          const b = body as {
+            access_token?: string;
+            refresh_token?: string;
+            userId?: string;
+            email?: string;
+            phone?: string;
+            fullName?: string;
+            phoneCountry?: string;
+          };
+          await applyBackendTokens(b);
+          finish({
+            ...DEFAULT_MOCK,
+            authenticated: true,
+            method,
+            contact: b.phone || (method === 'phone' ? phoneE164 : ''),
+            name: b.fullName || remembered.name || '',
+            email: b.email || em || '',
+            phoneCountry: b.phoneCountry || country.iso,
+            dialCode: country.dial,
+            pin: '',
+            password: '',
+            userId: b.userId,
+            accessToken: b.access_token,
           });
-          const body = await res.json().catch(() => ({}));
-          if (res.ok && (body as { found?: boolean }).found) {
-            const b = body as {
-              fullName?: string;
-              email?: string;
-              phone?: string;
-              phoneCountry?: string;
-            };
-            const session: AuthSession = {
-              ...DEFAULT_MOCK,
-              method: 'email',
-              contact: b.phone || em,
-              name: b.fullName || '',
-              email: b.email || em,
-              phoneCountry: b.phoneCountry || 'NG',
-              pin: '',
-              password: '',
-              authenticated: false,
-            };
-            saveRemembered(session);
-            setRemembered(session);
-            setPin('');
-            setStep('pin');
-            return;
-          }
-          if (res.ok && !(body as { found?: boolean }).found) {
-            setError('No account found for this email. Check the address or create an account.');
-            return;
-          }
-        } catch {
-          /* fall through */
+          return;
         }
+        if (res.status === 401) {
+          setError('Incorrect password. Try again or tap "Forgot password?".');
+          return;
+        }
+        if (res.status === 404) {
+          setError((body as { error?: string }).error || 'No account found. Create one free below.');
+          return;
+        }
+        if (res.status !== 503) {
+          setError((body as { error?: string }).error || 'Could not sign in');
+          return;
+        }
+        // 503: backend not configured — fall through to local demo accounts.
       }
 
-      const account = findAccount({ email: em });
-      if (!account || !account.pin) {
-        setError('No account found for this email. Check the address or create an account.');
+      const account = findAccount({ phoneE164, email: em });
+      if (!account) {
+        setError('No account found. Create one free below.');
         return;
       }
-      const session: AuthSession = {
-        ...account,
-        method: 'email',
-        contact: account.contact,
-        email: account.email || em,
-        authenticated: false,
-      };
-      saveRemembered(session);
-      setRemembered(session);
-      setPin('');
-      setStep('pin');
+      if (!account.password || account.password !== password) {
+        setError('Incorrect password. Try again or tap "Forgot password?".');
+        return;
+      }
+      finish({ ...account, authenticated: true, method, password: '' });
+    } catch {
+      setError('Network error. Check your connection and try again.');
     } finally {
       setBusy(false);
     }
@@ -474,6 +453,7 @@ export function AuthFlow({ onAuthenticated }: { onAuthenticated: (session: AuthS
 
   async function handleSignup() {
     setError('');
+    setNotice('');
     const name = fullName.trim().replace(/\s+/g, ' ');
     if (!name || name.split(' ').length < 2) {
       setError('Enter your full name (first and last)');
@@ -499,66 +479,60 @@ export function AuthFlow({ onAuthenticated }: { onAuthenticated: (session: AuthS
     }
     const e164 = toE164(country.iso, country.dial, national);
     saveLastPhone(country.iso, country.dial, national);
+    setRememberPreference(remember);
     setBusy(true);
     try {
       if (backendConfigured()) {
-        try {
-          const res = await fetch('/api/auth/register', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              fullName: name,
-              email: em,
-              password,
-              pin: signupPin,
-              phone: e164,
-              phoneCountry: country.iso,
-            }),
+        const res = await fetch('/api/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            fullName: name,
+            email: em,
+            password,
+            pin: signupPin,
+            phone: e164,
+            phoneCountry: country.iso,
+          }),
+        });
+        const body = await res.json().catch(() => ({}));
+        if (res.ok) {
+          const b = body as {
+            access_token?: string;
+            refresh_token?: string;
+            email?: string;
+            phone?: string;
+            fullName?: string;
+            phoneCountry?: string;
+            userId?: string;
+          };
+          if (b.access_token && b.refresh_token) {
+            await applyBackendTokens(b);
+          }
+          finish({
+            ...DEFAULT_MOCK,
+            authenticated: true,
+            method: 'phone',
+            contact: b.phone || e164,
+            name: b.fullName || name,
+            username: '',
+            pin: '',
+            password: '',
+            phoneCountry: b.phoneCountry || country.iso,
+            dialCode: country.dial,
+            homeCurrency: homeCurrencyFor(country.iso),
+            vtuEligible: isVtuEligible(country.iso),
+            balanceNgn: 0,
+            balanceUsd: 0,
+            email: b.email || em,
+            userId: b.userId,
+            accessToken: b.access_token,
           });
-          const body = await res.json().catch(() => ({}));
-          if (res.ok) {
-            const b = body as {
-              access_token?: string;
-              refresh_token?: string;
-              email?: string;
-              phone?: string;
-              fullName?: string;
-              phoneCountry?: string;
-            };
-            if (b.access_token && b.refresh_token) {
-              saveSessionTokens({
-                access_token: b.access_token,
-                refresh_token: b.refresh_token,
-              });
-              const sb = getSupabaseBrowser();
-              if (sb) await sb.auth.setSession({ access_token: b.access_token, refresh_token: b.refresh_token }).catch(() => {});
-            }
-            finish({
-              authenticated: true,
-              method: 'phone',
-              contact: b.phone || e164,
-              name: b.fullName || name,
-              username: '',
-              pin: '',
-              password: '',
-              phoneCountry: b.phoneCountry || country.iso,
-              dialCode: country.dial,
-              homeCurrency: homeCurrencyFor(country.iso),
-              vtuEligible: isVtuEligible(country.iso),
-              balanceNgn: 0,
-              balanceUsd: 0,
-              email: b.email || em,
-              userId: (b as { userId?: string }).userId,
-              accessToken: b.access_token,
-            });
-            return;
-          }
-          if (res.status !== 503) {
-            setError((body as { error?: string }).error || 'Could not create account');
-            return;
-          }
-        } catch {
-          /* fall through local */
+          return;
+        }
+        if (res.status !== 503) {
+          setError((body as { error?: string }).error || 'Could not create account');
+          return;
         }
       }
 
@@ -585,194 +559,112 @@ export function AuthFlow({ onAuthenticated }: { onAuthenticated: (session: AuthS
     }
   }
 
-  async function verifyPin(candidate: string) {
-    const stored = loadRemembered();
-    const expected = stored.pin || remembered.pin;
-
-    if (backendConfigured()) {
-      setBusy(true);
-      try {
-        const isEmail = (remembered.method || method) === 'email';
-        const payload: Record<string, string> = { pin: candidate };
-        if (isEmail) payload.email = remembered.email || remembered.contact || email;
-        else payload.phone = remembered.contact || toE164(country.iso, country.dial, national);
-
-        const res = await fetch('/api/auth/pin-login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
-        const body = await res.json().catch(() => ({}));
-        if (res.ok) {
-          const b = body as {
-            access_token?: string;
-            refresh_token?: string;
-            email?: string;
-            phone?: string;
-            fullName?: string;
-            phoneCountry?: string;
-            balanceNgn?: number;
-            balanceUsd?: number;
-            userId?: string;
-          };
-          if (b.access_token && b.refresh_token) {
-            saveSessionTokens({
-              access_token: b.access_token,
-              refresh_token: b.refresh_token,
-            });
-            const sb = getSupabaseBrowser();
-            if (sb) await sb.auth.setSession({ access_token: b.access_token, refresh_token: b.refresh_token }).catch(() => {});
-          }
-          finish({
-            ...DEFAULT_MOCK,
-            ...remembered,
-            authenticated: true,
-            method: isEmail ? 'email' : 'phone',
-            contact: b.phone || remembered.contact,
-            name: b.fullName || remembered.name,
-            email: b.email || remembered.email,
-            phoneCountry: b.phoneCountry || remembered.phoneCountry || country.iso,
-            pin: '',
-            password: '',
-            balanceNgn: b.balanceNgn ?? 0,
-            balanceUsd: b.balanceUsd ?? 0,
-            userId: b.userId,
-            accessToken: b.access_token,
-          });
-          return;
-        }
-        setError((body as { error?: string }).error || 'Incorrect PIN');
-        setPin('');
-        return;
-      } catch {
-        setError('Network error. Try again.');
-        setPin('');
-        return;
-      } finally {
-        setBusy(false);
-      }
-    }
-
-    if (expected && candidate === expected) {
-      finish({ ...remembered, pin: expected, authenticated: true });
-      return;
-    }
-    setError('Incorrect PIN');
-    setPin('');
-  }
-
   async function handleBiometricLogin() {
     if (busy) return;
     setError('');
     setBusy(true);
     try {
-      const result = await authenticateWithBiometric();
-      const b = result as {
-        access_token?: string; refresh_token?: string; email?: string; phone?: string;
-        fullName?: string; phoneCountry?: string; balanceNgn?: number; balanceUsd?: number;
+      const b = (await authenticateWithBiometric()) as {
+        access_token?: string;
+        refresh_token?: string;
+        email?: string;
+        phone?: string;
+        fullName?: string;
+        phoneCountry?: string;
+        balanceNgn?: number;
+        balanceUsd?: number;
+        userId?: string;
       };
-      if (!b.access_token || !b.refresh_token) throw new Error('Biometric login did not return a valid session.');
-      saveSessionTokens({
-        access_token: b.access_token,
-        refresh_token: b.refresh_token,
-      });
-      const sb = getSupabaseBrowser();
-      if (!sb) throw new Error('Auth service is unavailable. Use your PIN.');
-      const { error: sessionError } = await sb.auth.setSession({ access_token: b.access_token, refresh_token: b.refresh_token });
-      if (sessionError) throw sessionError;
+      if (!b.access_token || !b.refresh_token) throw new Error('Biometric unlock did not return a session. Sign in with your password.');
+      setRememberPreference(true);
+      await applyBackendTokens(b);
       finish({
         ...DEFAULT_MOCK,
         authenticated: true,
         method: remembered.method || method,
         contact: b.phone || remembered.contact,
         name: b.fullName || remembered.name || 'User',
-        email: b.email || remembered.email,
+        email: b.email || remembered.email || '',
         phoneCountry: b.phoneCountry || remembered.phoneCountry || country.iso,
         pin: '',
         password: '',
         balanceNgn: b.balanceNgn ?? 0,
         balanceUsd: b.balanceUsd ?? 0,
-        userId: (b as { userId?: string }).userId,
+        userId: b.userId,
         accessToken: b.access_token,
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Biometric login failed. Use your PIN.');
+      setError(err instanceof Error ? err.message : 'Biometric unlock failed. Use your password.');
     } finally {
       setBusy(false);
     }
   }
 
-  function onPinDigit(d: string) {
-    if (busy) return;
+  async function handleForgotSend() {
     setError('');
-    setPin((prev) => {
-      const next = (prev + d).slice(0, 4);
-      if (next.length === 4) {
-        queueMicrotask(() => verifyPin(next));
-      }
-      return next;
-    });
-  }
-
-  function onPinDelete() {
-    if (busy) return;
-    setError('');
-    setPin((p) => p.slice(0, -1));
-  }
-
-  async function handleForgotReset() {
-    setError('');
-    if (!forgotPassword) {
-      setError('Enter your account password');
-      return;
-    }
-    if (!/^\d{4}$/.test(newPin) || newPin !== confirmNewPin) {
-      setError('PINs must match and be 4 digits');
+    setNotice('');
+    const em = forgotEmail.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)) {
+      setError('Enter the email address on your account');
       return;
     }
     setBusy(true);
     try {
-      if (backendConfigured()) {
-        const isEmail = (remembered.method || method) === 'email';
-        const payload: Record<string, string> = {
-          password: forgotPassword,
-          newPin,
-        };
-        if (isEmail) payload.email = remembered.email || remembered.contact || email;
-        else payload.phone = remembered.contact || toE164(country.iso, country.dial, national);
-
-        const res = await fetch('/api/auth/reset-pin', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
-        const body = await res.json().catch(() => ({}));
-        if (res.ok) {
-          setError('');
-          setStep('pin');
-          setPin('');
-          setNewPin('');
-          setConfirmNewPin('');
-          setForgotPassword('');
-          return;
-        }
-        setError((body as { error?: string }).error || 'Could not reset PIN');
-        return;
-      }
-      const acc = findAccount({
-        phoneE164: remembered.contact,
-        email: remembered.email,
+      const res = await fetch('/api/auth/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: em }),
       });
-      if (!acc || acc.password !== forgotPassword) {
-        setError('Incorrect password');
+      const body = await res.json().catch(() => ({}));
+      if (res.ok) {
+        setForgotStage('code');
+        setNotice(`We sent a 6-digit code to ${maskEmail(em)}. It expires in 10 minutes.`);
         return;
       }
-      const updated = { ...acc, pin: newPin };
-      upsertAccount(updated);
-      saveRemembered(updated);
-      setRemembered(updated);
-      setStep('pin');
-      setPin('');
+      setError((body as { error?: string }).error || 'Could not send the code');
+    } catch {
+      setError('Network error. Try again.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleForgotConfirm() {
+    setError('');
+    setNotice('');
+    if (otpCode.replace(/\D/g, '').length !== 6) {
+      setError('Enter the 6-digit code from the email');
+      return;
+    }
+    if (!strongPassword(newPassword)) {
+      setError('Password must be at least 6 characters with uppercase, lowercase, and a number');
+      return;
+    }
+    setBusy(true);
+    try {
+      const res = await fetch('/api/auth/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: forgotEmail.trim().toLowerCase(),
+          code: otpCode.replace(/\D/g, ''),
+          newPassword,
+        }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (res.ok) {
+        setPassword('');
+        setOtpCode('');
+        setNewPassword('');
+        setForgotEmail('');
+        setForgotStage('email');
+        goStep('signin');
+        setNotice('Password updated. Sign in with your new password.');
+        return;
+      }
+      setError((body as { error?: string }).error || 'Could not reset the password');
+    } catch {
+      setError('Network error. Try again.');
     } finally {
       setBusy(false);
     }
@@ -788,139 +680,86 @@ export function AuthFlow({ onAuthenticated }: { onAuthenticated: (session: AuthS
     );
   }
 
-  if (step === 'pin') {
-    const isEmailLogin = (remembered.method || method) === 'email';
-    const loginLabel = isEmailLogin
-      ? remembered.email || remembered.contact || email
-      : displayNational(
-          remembered.phoneCountry || country.iso,
-          remembered.contact || toE164(country.iso, country.dial, national),
-        );
-    return (
-      <div className="auth-root">
-        <div className="auth-body auth-body--pin">
-          <BrandMark />
-          <h1 className="auth-title auth-title--center">
-            Enter your PIN <span className="pin-emoji">🔒</span>
-          </h1>
-          <p className="auth-sub auth-sub--center">
-            Logging in as <strong>{loginLabel}</strong>
-          </p>
-          {error ? <p className="auth-error">{error}</p> : null}
-          <div className="pin-boxes">
-            {[0, 1, 2, 3].map((i) => (
-              <div
-                key={i}
-                className={`pin-box${pin.length > i ? ' filled' : ''}${pin.length === i ? ' active' : ''}`}
-              >
-                {pin.length > i ? <span className="pin-dot" /> : null}
-              </div>
-            ))}
-          </div>
-          <div className="pin-keypad">
-            {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((d) => (
-              <button key={d} type="button" className="pin-key" onClick={() => onPinDigit(d)}>
-                {d}
-              </button>
-            ))}
-            <button type="button" className="pin-key pin-key--bio" aria-label="Biometric login" onClick={() => void handleBiometricLogin()} disabled={busy}>
-              <Fingerprint size={22} />
-            </button>
-            <button type="button" className="pin-key" onClick={() => onPinDigit('0')}>
-              0
-            </button>
-            <button type="button" className="pin-key pin-key--del" onClick={onPinDelete} aria-label="Delete">
-              ⌫
-            </button>
-          </div>
-          <div className="pin-actions">
-            <button
-              type="button"
-              onClick={() => {
-                setError('');
-                setPin('');
-                setStep('signin');
-              }}
-            >
-              Change {isEmailLogin ? 'email' : 'number'}
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setError('');
-                setStep('forgot');
-              }}
-            >
-              Forgot PIN?
-            </button>
-          </div>
-          <div className="auth-or">or</div>
-          <p className="auth-footer-link">
-            Don't have an account?{' '}
-            <button type="button" onClick={() => setStep('signup')}>
-              Create one free
-            </button>
-          </p>
-        </div>
-      </div>
-    );
-  }
-
   if (step === 'forgot') {
     return (
       <div className="auth-root">
         <div className="auth-body">
           <BrandMark />
-          <h1 className="auth-title">Reset PIN</h1>
-          <p className="auth-sub">Confirm your password, then choose a new 4-digit PIN.</p>
+          <h1 className="auth-title">Reset password</h1>
+          <p className="auth-sub">
+            {forgotStage === 'email'
+              ? 'Enter the email address on your account and we will send you a 6-digit code.'
+              : 'Enter the code from the email and choose a new password.'}
+          </p>
           {error ? <p className="auth-error">{error}</p> : null}
-          <div className="auth-field">
-            <label>Password</label>
-            <div className="auth-input-wrap">
-              <Lock size={18} />
-              <input
-                type={showForgotPass ? 'text' : 'password'}
-                value={forgotPassword}
-                onChange={(e) => setForgotPassword(e.target.value)}
-                placeholder="Account password"
-              />
-              <button type="button" className="auth-eye" onClick={() => setShowForgotPass((v) => !v)}>
-                {showForgotPass ? <EyeOff size={18} /> : <Eye size={18} />}
+          {notice ? <p className="auth-notice">{notice}</p> : null}
+          {forgotStage === 'email' ? (
+            <>
+              <div className="auth-field">
+                <label>Email Address</label>
+                <div className="auth-input-wrap">
+                  <Mail size={18} strokeWidth={2} />
+                  <input
+                    type="email"
+                    value={forgotEmail}
+                    onChange={(e) => setForgotEmail(e.target.value)}
+                    placeholder="you@example.com"
+                    autoComplete="email"
+                  />
+                </div>
+              </div>
+              <button type="button" className="auth-btn" disabled={busy} onClick={handleForgotSend}>
+                {busy ? 'Sending…' : 'Send code'}
+                {!busy ? <ArrowRight size={18} strokeWidth={2.2} /> : null}
               </button>
-            </div>
-          </div>
-          <div className="auth-field">
-            <label>New PIN</label>
-            <div className="auth-input-wrap">
-              <Lock size={18} />
-              <input
-                inputMode="numeric"
-                maxLength={4}
-                value={newPin}
-                onChange={(e) => setNewPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                placeholder="4 digits"
-              />
-            </div>
-          </div>
-          <div className="auth-field">
-            <label>Confirm PIN</label>
-            <div className="auth-input-wrap">
-              <Lock size={18} />
-              <input
-                inputMode="numeric"
-                maxLength={4}
-                value={confirmNewPin}
-                onChange={(e) => setConfirmNewPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                placeholder="4 digits"
-              />
-            </div>
-          </div>
-          <button type="button" className="auth-btn" disabled={busy} onClick={handleForgotReset}>
-            {busy ? 'Saving…' : 'Save new PIN'}
-          </button>
-          <button type="button" className="auth-footer-link" onClick={() => setStep('pin')}>
-            Back to PIN
-          </button>
+            </>
+          ) : (
+            <>
+              <div className="auth-field">
+                <label>6-digit code</label>
+                <div className="auth-input-wrap">
+                  <input
+                    inputMode="numeric"
+                    maxLength={6}
+                    value={otpCode}
+                    onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    placeholder="••••••"
+                    className="auth-otp-input"
+                  />
+                </div>
+              </div>
+              <div className="auth-field">
+                <label>New password</label>
+                <div className="auth-input-wrap">
+                  <Lock size={18} strokeWidth={2} />
+                  <input
+                    type={showNewPass ? 'text' : 'password'}
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="Create a strong password"
+                    autoComplete="new-password"
+                  />
+                  <button type="button" className="auth-eye" onClick={() => setShowNewPass((v) => !v)}>
+                    {showNewPass ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
+                <p className="auth-hint">Min 6 chars · uppercase, lowercase, and a number</p>
+              </div>
+              <button type="button" className="auth-btn" disabled={busy} onClick={handleForgotConfirm}>
+                {busy ? 'Saving…' : 'Set new password'}
+              </button>
+              <button type="button" className="auth-text-btn" onClick={() => setForgotStage('email')}>
+                Use a different email
+              </button>
+            </>
+          )}
+          <div className="auth-or">or</div>
+          <p className="auth-footer-link">
+            Remembered it?{' '}
+            <button type="button" onClick={() => goStep('signin')}>
+              Back to sign in
+            </button>
+          </p>
         </div>
       </div>
     );
@@ -931,13 +770,13 @@ export function AuthFlow({ onAuthenticated }: { onAuthenticated: (session: AuthS
       <div className="auth-root">
         <div className="auth-body">
           <BrandMark />
-          <h1 className="auth-title">Create your account 🚀</h1>
+          <h1 className="auth-title">Create your account</h1>
           <p className="auth-sub">Fill in your details below to get started for free</p>
           {error ? <p className="auth-error">{error}</p> : null}
           <div className="auth-field">
             <label>Full Name</label>
             <div className="auth-input-wrap">
-              <User size={18} />
+              <User size={18} strokeWidth={2} />
               <input
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
@@ -958,7 +797,7 @@ export function AuthFlow({ onAuthenticated }: { onAuthenticated: (session: AuthS
           <div className="auth-field">
             <label>Email Address</label>
             <div className="auth-input-wrap">
-              <Mail size={18} />
+              <Mail size={18} strokeWidth={2} />
               <input
                 type="email"
                 value={email}
@@ -971,7 +810,7 @@ export function AuthFlow({ onAuthenticated }: { onAuthenticated: (session: AuthS
           <div className="auth-field">
             <label>Password</label>
             <div className="auth-input-wrap">
-              <Lock size={18} />
+              <Lock size={18} strokeWidth={2} />
               <input
                 type={showPass ? 'text' : 'password'}
                 value={password}
@@ -988,7 +827,7 @@ export function AuthFlow({ onAuthenticated }: { onAuthenticated: (session: AuthS
           <div className="auth-field">
             <label>4-Digit Transaction PIN</label>
             <div className="auth-input-wrap">
-              <Lock size={18} />
+              <Lock size={18} strokeWidth={2} />
               <input
                 type={showPinField ? 'text' : 'password'}
                 inputMode="numeric"
@@ -1003,12 +842,23 @@ export function AuthFlow({ onAuthenticated }: { onAuthenticated: (session: AuthS
             </div>
             <p className="auth-hint">Used to authorise transactions — keep it secret</p>
           </div>
+          <label className="auth-remember">
+            <span>Keep me signed in for 30 days</span>
+            <input
+              type="checkbox"
+              checked={remember}
+              onChange={(e) => setRemember(e.target.checked)}
+            />
+            <i className="auth-switch" aria-hidden="true" />
+          </label>
           <button type="button" className="auth-btn" disabled={busy} onClick={handleSignup}>
             {busy ? 'Creating…' : 'Create account'}
+            {!busy ? <ArrowRight size={18} strokeWidth={2.2} /> : null}
           </button>
+          <div className="auth-or">or</div>
           <p className="auth-footer-link">
             Already have an account?{' '}
-            <button type="button" onClick={() => setStep('signin')}>
+            <button type="button" onClick={() => goStep('signin')}>
               Sign in
             </button>
           </p>
@@ -1028,69 +878,155 @@ export function AuthFlow({ onAuthenticated }: { onAuthenticated: (session: AuthS
     );
   }
 
-  // signin
+  // ---- signin ----
+  const welcomeName = (remembered.name || '').trim().split(/\s+/)[0] || 'there';
+  const welcomeInitial = ((remembered.name || 'V').trim()[0] || 'V').toUpperCase();
+
   return (
     <div className="auth-root">
       <div className="auth-body auth-body--signin">
         <BrandMark />
-        <h1 className="auth-title">Welcome back 👋</h1>
-        <p className="auth-sub">Sign in to your Verxor account</p>
-        <div className="auth-tabs">
-          <button
-            type="button"
-            className={method === 'phone' ? 'auth-tab active' : 'auth-tab'}
-            onClick={() => {
-              setMethod('phone');
-              setError('');
-            }}
-          >
-            <Phone size={16} /> Phone Number
-          </button>
-          <button
-            type="button"
-            className={method === 'email' ? 'auth-tab active' : 'auth-tab'}
-            onClick={() => {
-              setMethod('email');
-              setError('');
-            }}
-          >
-            <Mail size={16} /> Email Address
-          </button>
-        </div>
-        {method === 'phone' ? (
-          <PhoneField
-            id="signin-phone"
-            label="Phone Number"
-            country={country}
-            national={national}
-            onOpenPicker={() => setPickerOpen(true)}
-            onNationalChange={setNational}
-            placeholder="08012345678"
-          />
-        ) : (
-          <div className="auth-field">
-            <label htmlFor="signin-email">Email Address</label>
-            <div className="auth-input-wrap">
-              <Mail size={18} strokeWidth={2} />
-              <input
-                id="signin-email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
-                autoComplete="email"
-              />
+        {welcomeMode && hasRemembered ? (
+          <>
+            <h1 className="auth-title auth-title--center">Welcome back 👋</h1>
+            <div className="auth-welcome">
+              <div className="auth-avatar" aria-hidden="true">
+                {welcomeInitial}
+              </div>
+              <div className="auth-welcome-id">
+                <span className="auth-welcome-name">{welcomeName}</span>
+                <span className="auth-welcome-contact">
+                  {remembered.email ? maskEmail(remembered.email) : remembered.contact}
+                </span>
+              </div>
+              <button
+                type="button"
+                className="auth-welcome-edit"
+                aria-label="Use a different account"
+                title="Use a different account"
+                onClick={() => {
+                  setWelcomeMode(false);
+                  setError('');
+                  setNotice('');
+                }}
+              >
+                <Pencil size={16} strokeWidth={2.2} />
+              </button>
             </div>
-          </div>
+          </>
+        ) : (
+          <>
+            <h1 className="auth-title">Sign in</h1>
+            <p className="auth-sub">Welcome back — enter your details to continue</p>
+            <div className="auth-tabs">
+              <button
+                type="button"
+                className={method === 'phone' ? 'auth-tab active' : 'auth-tab'}
+                onClick={() => {
+                  setMethod('phone');
+                  setError('');
+                  setNotice('');
+                }}
+              >
+                <Phone size={15} strokeWidth={2.2} /> Phone Number
+              </button>
+              <button
+                type="button"
+                className={method === 'email' ? 'auth-tab active' : 'auth-tab'}
+                onClick={() => {
+                  setMethod('email');
+                  setError('');
+                  setNotice('');
+                }}
+              >
+                <Mail size={15} strokeWidth={2.2} /> Email
+              </button>
+            </div>
+            {method === 'phone' ? (
+              <PhoneField
+                id="signin-phone"
+                label="Phone Number"
+                country={country}
+                national={national}
+                onOpenPicker={() => setPickerOpen(true)}
+                onNationalChange={setNational}
+                placeholder="08012345678"
+              />
+            ) : (
+              <div className="auth-field">
+                <label>Email Address</label>
+                <div className="auth-input-wrap">
+                  <Mail size={18} strokeWidth={2} />
+                  <input
+                    id="signin-email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="you@example.com"
+                    autoComplete="email"
+                  />
+                </div>
+              </div>
+            )}
+          </>
         )}
+        <div className="auth-field">
+          <div className="auth-label-row">
+            <label>Password</label>
+            <button type="button" className="auth-forgot" onClick={() => goStep('forgot')}>
+              Forgot?
+            </button>
+          </div>
+          <div className="auth-input-wrap">
+            <Lock size={18} strokeWidth={2} />
+            <input
+              type={showPass ? 'text' : 'password'}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Enter your password"
+              autoComplete={welcomeMode ? 'current-password' : 'current-password'}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !busy) void handleSignIn();
+              }}
+            />
+            <button type="button" className="auth-eye" onClick={() => setShowPass((v) => !v)}>
+              {showPass ? <EyeOff size={18} /> : <Eye size={18} />}
+            </button>
+          </div>
+        </div>
         {error ? <p className="auth-error">{error}</p> : null}
-        <button type="button" className="auth-btn" disabled={busy} onClick={handleContinueSignIn}>
-          {busy ? 'Checking…' : 'Continue'}
-        </button>
+        {notice ? <p className="auth-notice">{notice}</p> : null}
+        <label className="auth-remember">
+          <span>Remember me for 30 days</span>
+          <input
+            type="checkbox"
+            checked={remember}
+            onChange={(e) => setRemember(e.target.checked)}
+          />
+          <i className="auth-switch" aria-hidden="true" />
+        </label>
+        <div className="auth-submit-row">
+          <button type="button" className="auth-btn" disabled={busy} onClick={handleSignIn}>
+            {busy ? 'Signing in…' : 'Sign In'}
+            {!busy ? <ArrowRight size={18} strokeWidth={2.2} /> : null}
+          </button>
+          {biometricReady ? (
+            <button
+              type="button"
+              className="auth-bio-btn"
+              aria-label="Unlock with fingerprint or Face ID"
+              title="Unlock with fingerprint or Face ID"
+              disabled={busy}
+              onClick={() => void handleBiometricLogin()}
+            >
+              <Fingerprint size={24} strokeWidth={2} />
+            </button>
+          ) : null}
+        </div>
         <div className="auth-or">or</div>
         <p className="auth-footer-link">
-          Don't have an account?{' '}
-          <button type="button" onClick={() => setStep('signup')}>
+          Don&apos;t have an account?{' '}
+          <button type="button" onClick={() => goStep('signup')}>
             Create one free
           </button>
         </p>
