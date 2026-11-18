@@ -32,6 +32,7 @@ export type ServiceView =
   | 'services'
   | 'virtual-numbers'
   | 'rental'
+  | 'sms-calls'
   | 'boost'
   | 'boost-orders'
   | 'accounts'

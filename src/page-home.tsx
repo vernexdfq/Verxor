@@ -39,7 +39,7 @@ const QUICK_ACTIONS: {
   { id: 'email-otp', title: 'Email OTP', icon: Mail, tone: 'qa-solid', service: 'email-otp' },
   { id: 'telegram-premium', title: 'Telegram Premium', icon: Send, tone: 'qa-solid', service: 'telegram-premium' },
   { id: 'rent-sms', title: 'Rent for SMS', icon: PhoneCall, tone: 'qa-solid', service: 'rental' },
-  { id: 'rent-sms-calls', title: 'Rent for SMS/Calls', icon: PhoneForwarded, tone: 'qa-solid', service: 'rental' },
+  { id: 'rent-sms-calls', title: 'Rent for SMS/Calls', icon: PhoneForwarded, tone: 'qa-solid', service: 'sms-calls' },
   { id: 'proxies', title: 'Proxies', icon: ShieldCheck, tone: 'qa-solid', soon: true },
 ];
 
@@ -85,7 +85,7 @@ const PROMO_SLIDES: {
     headline: 'Rent dedicated lines',
     subtext: 'Long-term SMS & call numbers.',
     cta: 'Rent Line',
-    service: 'rental',
+    service: 'sms-calls',
     accent: 'promo-accent-blue',
   },
 ];
