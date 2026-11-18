@@ -21,8 +21,8 @@ function supabaseBase() {
     .replace(/\/$/, '');
 }
 
-async function resolveUserId(req: NextRequest, bodyUserId?: string): Promise<string | null> {
-  if (bodyUserId) return bodyUserId;
+/** Resolve user from Bearer JWT only (never trust body.userId alone). */
+async function resolveUserIdFromJwt(req: NextRequest): Promise<string | null> {
   const auth = req.headers.get('authorization') || '';
   const token = auth.startsWith('Bearer ') ? auth.slice(7).trim() : '';
   if (!token || token.startsWith('vx_panel_')) return null;
@@ -46,7 +46,6 @@ function formatNaira(n: number): string {
   return `₦${Math.round(n).toLocaleString('en-NG')}`;
 }
 
-/** Resolve a profile id from email or phone, mirroring wallet/balance lookup. */
 async function profileIdByEmailOrPhone(email: string, phone: string): Promise<string | null> {
   const base = supabaseBase();
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -214,23 +213,34 @@ export async function POST(req: NextRequest) {
   const catalog = resolved.plan;
   if (catalog.network !== network) {
     return NextResponse.json(
-      { ok: false, error: 'Plan does not match selected network' },
+      { ok: false, error: 'Plan does not match selected network. Open the correct network tab and try again.' },
       { status: 400 },
     );
   }
 
   const amount = resolved.amount;
   const phone = String(body.phone || '');
-  let userId = await resolveUserId(req, body.userId as string | undefined);
 
-  // Soft-session fallback: identify the user by profile email/phone when the
-  // Supabase JWT is missing or expired but the app session is still valid.
+  // 1) Supabase JWT  2) profile email/phone  — never trust body.userId alone
+  let userId = await resolveUserIdFromJwt(req);
   if (!userId) {
     const contactStr = String(body.contact || '').trim();
     const emailStr = String(body.email || '').trim();
     const effEmail = emailStr || (contactStr.includes('@') ? contactStr : '');
     const effPhone = !contactStr.includes('@') ? contactStr : '';
     userId = (await profileIdByEmailOrPhone(effEmail, effPhone)) || null;
+  }
+  // Optional: if client sent userId and it matches profile contact, accept
+  if (!userId && body.userId) {
+    const claimed = String(body.userId).trim();
+    const contactStr = String(body.contact || body.email || '').trim();
+    if (claimed && contactStr) {
+      const viaProfile = await profileIdByEmailOrPhone(
+        contactStr.includes('@') ? contactStr : '',
+        contactStr.includes('@') ? '' : contactStr,
+      );
+      if (viaProfile && viaProfile === claimed) userId = claimed;
+    }
   }
 
   if (!userId) {
@@ -315,10 +325,23 @@ export async function POST(req: NextRequest) {
       );
     }
     const rawMessage = err instanceof Error ? err.message : 'Data purchase failed';
-    const cleanMessage =
+    let cleanMessage =
       rawMessage
         .replace(/(api247|clubkonnect|smeplug|provider|upstream):\s*/gi, '')
         .trim() || 'Data purchase failed. Please try again shortly.';
+
+    // Friendlier Airtel / phone messages
+    if (/invalid\s+airtel\s+phone/i.test(cleanMessage)) {
+      cleanMessage =
+        'This number was rejected for Airtel data. Confirm it is an Airtel line (or ported to Airtel), then try again.';
+    } else if (/invalid\s+.*phone/i.test(cleanMessage)) {
+      cleanMessage =
+        'This phone number was rejected by the network. Check the number and network tab, then try again.';
+    } else if (/plan\s+field\s+is\s+required|invalid\s+plan|unknown\s+plan/i.test(cleanMessage)) {
+      cleanMessage =
+        'This data plan is not available right now. Please choose another bundle.';
+    }
+
     return NextResponse.json(
       { ok: false, error: cleanMessage, refunded: debited },
       { status: 502 },
