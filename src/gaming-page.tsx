@@ -12,9 +12,10 @@ import { AlertCircle, ArrowLeft, Check, Gamepad2, Loader2, Search, Wallet, X } f
 import type { AuthSession } from './auth/AuthFlow';
 import { loadSessionProfile, loadSessionTokens, saveSessionProfile, saveSessionTokens } from './auth/session-unlock';
 import './gaming-page.css';
+import './gaming-page-polish.css';
 
 type Category = { id: string; name: string };
-type CatalogProduct = { id: string; name: string; fromNgn: number | null };
+type CatalogProduct = { id: string; name: string; fromNgn: number | null; image?: string | null };
 type Variation = { id: string; name: string; priceNgn: number; inStock: boolean };
 type DetailField = { field: string };
 type Server = { id: string; name: string };
@@ -272,7 +273,9 @@ export function GamingPage({
   /* ---------- render ---------- */
 
   const stripAds = [
-    { id: 'a2', title: 'Mobile Legends diamonds delivered in minutes', cta: 'Browse games', emoji: '🎮', onClick: () => setQuery('Mobile Legends') },
+    { id: 'ml', title: 'Mobile Legends diamonds', body: 'Fast top-ups. Secure checkout.', cta: 'Explore', image: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=900&q=80', onClick: () => setQuery('Mobile Legends') },
+    { id: 'play', title: 'Ready for your next match?', body: 'Top up popular games in seconds.', cta: 'Browse games', image: 'https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=900&q=80', onClick: () => setQuery('') },
+    { id: 'level', title: 'Your game. Your next level.', body: 'Choose a title and view available options.', cta: 'Shop now', image: 'https://images.unsplash.com/photo-1493711662062-fa541e42fce8?auto=format&fit=crop&w=900&q=80', onClick: () => setQuery('') },
   ];
 
   return (
@@ -291,12 +294,11 @@ export function GamingPage({
       </header>
 
       {/* Slim ad strips instead of a big banner */}
-      <div className="gm-strips">
+      <div className="gm-strips" aria-label="Gaming offers">
         {stripAds.map((ad) => (
-          <button key={ad.id} type="button" className="gm-strip" onClick={ad.onClick}>
-            <span className="gm-strip-emoji">{ad.emoji}</span>
-            <span className="gm-strip-title">{ad.title}</span>
-            <span className="gm-strip-cta">{ad.cta}</span>
+          <button key={ad.id} type="button" className="gm-strip" style={{ backgroundImage: 'linear-gradient(90deg, rgba(7,18,42,.94), rgba(7,18,42,.58)), url(' + ad.image + ')' }} onClick={ad.onClick}>
+            <span className="gm-strip-copy"><strong>{ad.title}</strong><small>{ad.body}</small></span>
+            <span className="gm-strip-cta">{ad.cta} →</span>
           </button>
         ))}
       </div>
@@ -368,7 +370,7 @@ export function GamingPage({
       ) : (
         <div className="gm-grid">
           {visible.map((p) => {
-            const art = tileArt({ id: p.id, name: p.name });
+            const art = tileArt({ id: p.id, name: p.name, image: p.image });
             return (
               <button key={p.id} type="button" className="gm-tile" onClick={() => void openProduct(p.id)}>
                 <div className="gm-tile-art">
@@ -382,7 +384,7 @@ export function GamingPage({
                 <div className="gm-tile-body">
                   <strong>{p.name}</strong>
                   <span className="gm-tile-from">{p.fromNgn ? `From ${ngn(p.fromNgn)}` : 'View prices'}</span>
-                  <span className="gm-tile-choose">Choose options</span>
+                  <span className="gm-tile-choose">View options →</span>
                 </div>
               </button>
             );
