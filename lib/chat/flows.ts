@@ -57,6 +57,20 @@ export type ElectricityFlowState = {
   phone?: string;
 };
 
+export type BoostFlowState = {
+  flow: 'boost';
+  step: 'platform' | 'services' | 'quantity' | 'link' | 'confirm';
+  platform?: string;
+  platformName?: string;
+  serviceId?: string;
+  serviceTitle?: string;
+  ratePer1000?: number;
+  min?: number;
+  max?: number;
+  qty?: number;
+  link?: string;
+};
+
 export type LogsFlowState = {
   flow: 'logs';
   step: 'platform' | 'offers' | 'quantity' | 'confirm';
@@ -91,6 +105,7 @@ export type FlowState =
   | ElectricityFlowState
   | EmailOtpFlowState
   | LogsFlowState
+  | BoostFlowState
   | null;
 
 const NETWORKS: { id: string; label: string }[] = [
@@ -187,6 +202,40 @@ async function fetchLogsCatalog(
   }
 }
 
+type BoostCatalogService = {
+  id: string;
+  platform: string;
+  platformName: string;
+  title: string;
+  ratePer1000: number;
+  min: number;
+  max: number;
+};
+
+type BoostCatalogPlatform = { id: string; name: string; totalServices: number };
+
+async function fetchBoostCatalog(
+  origin: string,
+): Promise<{ ok: boolean; error?: string; platforms?: BoostCatalogPlatform[]; services?: BoostCatalogService[] }> {
+  try {
+    const res = await fetch(`${origin || 'https://www.verxor.com'}/api/v1/boost/catalog`, { cache: 'no-store' });
+    const data = (await res.json().catch(() => ({}))) as {
+      ok?: boolean;
+      error?: string;
+      platforms?: BoostCatalogPlatform[];
+      services?: BoostCatalogService[];
+    };
+    if (!res.ok || !data?.ok) return { ok: false, error: data?.error || 'Catalog unavailable' };
+    return { ok: true, platforms: data.platforms || [], services: data.services || [] };
+  } catch {
+    return { ok: false, error: 'network' };
+  }
+}
+
+function boostPrice(ratePer1000: number, qty: number): number {
+  return Math.round((qty / 1000) * ratePer1000);
+}
+
 const ELECTRICITY_DISCOS: { id: string; label: string }[] = [
   { id: 'ikeja', label: 'Ikeja Electric' },
   { id: 'eko', label: 'Eko Electric' },
@@ -270,7 +319,7 @@ export const SERVICE_MENU: ChatButton[] = [
   { label: '🔢 Virtual Number', payload: 'open_vn' },
   { label: '📧 Email OTP', payload: 'start_emailotp' },
   { label: '👥 Buy Logs', payload: 'start_buylogs' },
-  { label: '🚀 Boost', payload: 'open_boost' },
+  { label: '🚀 Boost', payload: 'start_boost' },
   { label: '🎁 Gift Card', payload: 'open_giftcard' },
   { label: '💡 Electricity', payload: 'start_electricity' },
 ];
@@ -291,6 +340,7 @@ export async function handleButtonPayload(
   const elecState: ElectricityFlowState | null = state && state.flow === 'electricity' ? state : null;
   const emailOtpState: EmailOtpFlowState | null = state && state.flow === 'emailotp' ? state : null;
   const logsState: LogsFlowState | null = state && state.flow === 'logs' ? state : null;
+  const boostState: BoostFlowState | null = state && state.flow === 'boost' ? state : null;
 
   // --- navigation buttons (handled by the widget, but answer server-side too)
   if (payload.startsWith('open_')) {
@@ -719,6 +769,110 @@ export async function handleButtonPayload(
 
   if (payload === 'logs_confirm' && logsState?.providerListingId && logsState.platform && logsState.qty) {
     return purchaseLogs(conversationId, logsState, ctx);
+  }
+
+  // --- boost flow: platform → service → quantity → link → confirm
+  if (payload === 'start_boost' || payload === 'boost_change_platform') {
+    const catalog = await fetchBoostCatalog(ctx.purchaseOrigin);
+    if (!catalog.ok || !catalog.platforms || catalog.platforms.length === 0) {
+      await updateConversation(conversationId, { state: null });
+      return reply(
+        conversationId,
+        catalog.error === 'network'
+          ? 'Could not reach the boost provider right now. Try again in a moment.'
+          : catalog.error || 'The boost catalog is not available right now.',
+        MENU_BUTTONS,
+      );
+    }
+    await updateConversation(conversationId, {
+      state: { flow: 'boost', step: 'platform' },
+      subject: 'Boost order',
+    });
+    const plats = catalog.platforms.slice(0, 12);
+    return reply(
+      conversationId,
+      'Which platform do you want to boost?',
+      [...plats.map((p) => ({ label: p.name, payload: `boost_platform:${p.id}` })), ...cancelButtons()],
+    );
+  }
+
+  if (payload.startsWith('boost_platform:') && !payload.startsWith('boost_platform:--')) {
+    const platform = payload.split('boost_platform:')[1];
+    const catalog = await fetchBoostCatalog(ctx.purchaseOrigin);
+    const services = (catalog.services || [])
+      .filter((sv) => sv.platform === platform && sv.max > 0)
+      .sort((a, b) => a.ratePer1000 - b.ratePer1000)
+      .slice(0, 6);
+    if (!catalog.ok || services.length === 0) {
+      return reply(conversationId, 'No boost services for that platform right now. Pick another:', [
+        ...(catalog.platforms || []).slice(0, 12).map((p) => ({ label: p.name, payload: `boost_platform:${p.id}` })),
+        ...cancelButtons(),
+      ]);
+    }
+    const platformName = services[0].platformName || platform;
+    await updateConversation(conversationId, {
+      state: { flow: 'boost', step: 'services', platform, platformName },
+    });
+    return reply(
+      conversationId,
+      `${platformName} boosts — cheapest first:`,
+      [
+        ...services.map((sv) => ({ label: `${sv.title.slice(0, 32)} · ${naira(sv.ratePer1000)}/1k`, payload: `boost_service:${sv.id}` })),
+        { label: '↩ Other platform', payload: 'boost_change_platform' },
+        ...cancelButtons(),
+      ],
+    );
+  }
+
+  if (payload.startsWith('boost_service:') && boostState?.platform) {
+    const serviceId = payload.split('boost_service:')[1];
+    const catalog = await fetchBoostCatalog(ctx.purchaseOrigin);
+    const svc = (catalog.services || []).find((sv) => sv.id === serviceId && sv.platform === boostState.platform);
+    if (!svc) {
+      return reply(conversationId, 'That boost service is no longer available. Pick another:', [
+        { label: '↩ Back', payload: `boost_platform:${boostState.platform}` },
+        ...cancelButtons(),
+      ]);
+    }
+    await updateConversation(conversationId, {
+      state: {
+        ...boostState,
+        step: 'quantity',
+        serviceId: svc.id,
+        serviceTitle: svc.title,
+        ratePer1000: svc.ratePer1000,
+        min: svc.min || 100,
+        max: svc.max,
+      },
+    });
+    const qtys = Array.from(new Set([svc.min || 100, 1000, 5000, 10000].filter((q) => q >= (svc.min || 100) && q <= svc.max)))
+      .slice(0, 4);
+    return reply(
+      conversationId,
+      `${svc.title} — ${naira(svc.ratePer1000)} per 1,000.\nHow many do you want? (allowed ${svc.min || 100}–${svc.max.toLocaleString('en-NG')})`,
+      [
+        ...qtys.map((q) => ({ label: `${q.toLocaleString('en-NG')} · ${naira(boostPrice(svc.ratePer1000, q))}`, payload: `boost_qty:${q}` })),
+        { label: '↩ Other boost', payload: `boost_platform:${boostState.platform}` },
+        ...cancelButtons(),
+      ],
+    );
+  }
+
+  if (payload.startsWith('boost_qty:') && boostState?.serviceId) {
+    return boostAfterQty(conversationId, boostState, Number(payload.split('boost_qty:')[1]));
+  }
+
+  if (payload === 'boost_change_qty' && boostState?.serviceId) {
+    await updateConversation(conversationId, { state: { ...boostState, step: 'quantity' } });
+    return reply(
+      conversationId,
+      `How many do you want? (${boostState.min || 100}–${(boostState.max || 100000).toLocaleString('en-NG')})`,
+      cancelButtons(),
+    );
+  }
+
+  if (payload === 'boost_confirm' && boostState?.serviceId && boostState.link && boostState.qty) {
+    return purchaseBoost(conversationId, boostState, ctx);
   }
 
   // Unknown payload → reset to menu.
@@ -1587,6 +1741,147 @@ function titleCasePlatform(raw: string): string | null {
     .join(' ');
 }
 
+async function boostAfterQty(
+  conversationId: string,
+  state: BoostFlowState,
+  qty: number,
+): Promise<ChatMessageRow[]> {
+  if (!Number.isFinite(qty) || qty < (state.min || 100) || qty > (state.max || 1000000)) {
+    return reply(
+      conversationId,
+      `Pick a quantity between ${state.min || 100} and ${(state.max || 1000000).toLocaleString('en-NG')} — or tap a button.`,
+      cancelButtons(),
+    );
+  }
+  await updateConversation(conversationId, { state: { ...state, step: 'link', qty } });
+  return reply(
+    conversationId,
+    `${qty.toLocaleString('en-NG')} for ${naira(boostPrice(state.ratePer1000 || 0, qty))}.\nNow type the link to boost (the profile, post or video URL):`,
+    cancelButtons(),
+  );
+}
+
+async function purchaseBoost(
+  conversationId: string,
+  state: BoostFlowState,
+  ctx: { purchaseOrigin: string; authHeader: string | null; userId?: string | null; email?: string | null },
+): Promise<ChatMessageRow[]> {
+  if (!ctx.userId) {
+    await updateConversation(conversationId, { state: { ...state, step: 'confirm' } });
+    return reply(
+      conversationId,
+      'You need a free Verxor account to buy — it unlocks your wallet and order history. Create one right here in chat or sign in.',
+      [
+        { label: '👤 Create Account', payload: 'create_account' },
+        { label: '🔑 Sign In', payload: 'open_signin' },
+      ],
+    );
+  }
+  try {
+    const res = await fetch(`${ctx.purchaseOrigin}/api/v1/boost`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(ctx.authHeader ? { Authorization: ctx.authHeader } : {}),
+      },
+      body: JSON.stringify({
+        serviceId: state.serviceId,
+        link: state.link,
+        quantity: state.qty,
+        userId: ctx.userId || undefined,
+      }),
+      cache: 'no-store',
+    });
+    const data = (await res.json().catch(() => ({}))) as {
+      ok?: boolean;
+      error?: string;
+      order?: { ref?: string; status?: string } | null;
+    };
+    if (!res.ok || !data?.ok) {
+      const insufficient = res.status === 402 || /balance|funds/i.test(data?.error || '');
+      await updateConversation(conversationId, { state: { ...state, step: 'confirm' } });
+      if (!insufficient) {
+        void notifyAdmin(
+          `⚠️ Verxor chat boost FAILED\n${state.serviceTitle} x${state.qty}\nLink: ${state.link}\nError: ${data?.error || `HTTP ${res.status}`}\nCustomer: ${ctx.email || ctx.userId || 'unknown'}`,
+        );
+      }
+      return reply(
+        conversationId,
+        insufficient
+          ? `Not enough wallet balance for ${naira(boostPrice(state.ratePer1000 || 0, state.qty || 1))}. Fund your wallet and come back — your order is saved.`
+          : data?.error || 'The boost order failed. Tap Retry to try again.',
+        insufficient
+          ? [{ label: '💰 Fund Wallet', payload: 'open_fund' }, { label: 'Retry', payload: 'boost_confirm' }]
+          : [{ label: 'Retry', payload: 'boost_confirm' }, ...cancelButtons()],
+      );
+    }
+    await updateConversation(conversationId, { state: null });
+    return reply(
+      conversationId,
+      `🚀 Boost started! ${state.serviceTitle} · ${state.qty?.toLocaleString('en-NG')} · ${state.platformName || state.platform}\nLink: ${state.link}${data.order?.ref ? `\nOrder: ${data.order.ref}` : ''}\nDelivery starts soon and completes gradually — track it under Boost → Orders.`,
+      [{ label: '🚀 My Boost Orders', payload: 'open_boost-orders' }, ...MENU_BUTTONS],
+    );
+  } catch {
+    await updateConversation(conversationId, { state: { ...state, step: 'confirm' } });
+    void notifyAdmin(
+      `⚠️ Verxor chat boost ERROR\n${state.serviceTitle} x${state.qty}\nCustomer: ${ctx.email || ctx.userId || 'unknown'}`,
+    );
+    return reply(conversationId, 'Network error while ordering. Tap Retry to try again.', [
+      { label: 'Retry', payload: 'boost_confirm' },
+      ...cancelButtons(),
+    ]);
+  }
+}
+
+/** Boost free-text: quantity at the quantity step, link at the link step. */
+export async function handleBoostText(
+  conversationId: string,
+  state: BoostFlowState,
+  text: string,
+  ctx: { purchaseOrigin: string; authHeader: string | null; userId?: string | null },
+): Promise<ChatMessageRow[]> {
+  const digits = text.replace(/\D/g, '');
+  if (state.step === 'quantity' && state.serviceId) {
+    return boostAfterQty(conversationId, state, Number(digits.slice(0, 7)));
+  }
+  if (state.step === 'link' && state.qty) {
+    const t = text.trim();
+    if (t.length < 5 || !/[.\/]/.test(t)) {
+      return reply(conversationId, 'Type the full link to boost (the profile, post or video URL):', cancelButtons());
+    }
+    await updateConversation(conversationId, { state: { ...state, step: 'confirm', link: t.slice(0, 300) } });
+    const price = boostPrice(state.ratePer1000 || 0, state.qty);
+    return reply(
+      conversationId,
+      `Confirm your boost:\n\n${state.serviceTitle}\nPlatform: ${state.platformName || state.platform}\nQuantity: ${state.qty.toLocaleString('en-NG')}\nPrice: ${naira(price)}\nLink: ${t.slice(0, 300)}`,
+      [
+        { label: `Confirm ${naira(price)}`, payload: 'boost_confirm' },
+        { label: 'Change quantity', payload: 'boost_change_qty' },
+        { label: '✖ Cancel', payload: 'cancel_flow' },
+      ],
+    );
+  }
+  if (state.step === 'confirm' && state.link && state.qty) {
+    if (/^(confirm|yes|buy|proceed|go)\b/i.test(text)) {
+      return purchaseBoost(conversationId, state, ctx);
+    }
+    if (digits && Number(digits) >= (state.min || 100) && Number(digits) <= (state.max || 1000000)) {
+      await updateConversation(conversationId, { state: { ...state, step: 'link', qty: Number(digits) } });
+      return boostAfterQty(conversationId, { ...state, qty: Number(digits) }, Number(digits));
+    }
+    const price = boostPrice(state.ratePer1000 || 0, state.qty);
+    return reply(conversationId, `Tap Confirm ${naira(price)} to place the boost, or type a new quantity.`, [
+      { label: `Confirm ${naira(price)}`, payload: 'boost_confirm' },
+      { label: 'Change quantity', payload: 'boost_change_qty' },
+      { label: '✖ Cancel', payload: 'cancel_flow' },
+    ]);
+  }
+  return reply(conversationId, 'Which platform do you want to boost?', [
+    { label: '🚀 Pick platform', payload: 'start_boost' },
+    ...cancelButtons(),
+  ]);
+}
+
 /**
  * Phase 2 — Gemini free-text shopping. The model only extracts intent
  * (network, size, duration, phone) as strict JSON; the actual plan matching
@@ -1928,6 +2223,15 @@ export async function handleFreeText(
     return handleElectricityText(conversationId, state, text, opts.chatOrigin || '');
   }
 
+  // Active boost flow expecting a quantity / link?
+  if (state?.flow === 'boost') {
+    return handleBoostText(conversationId, state, text, {
+      purchaseOrigin: opts.chatOrigin || '',
+      authHeader: null,
+      userId: opts.user?.userId || null,
+    });
+  }
+
   // Active buy logs flow expecting a platform / quantity?
   if (state?.flow === 'logs') {
     return handleLogsText(conversationId, state, text, {
@@ -1960,6 +2264,14 @@ export async function handleFreeText(
   // Keyword routing — airtime.
   if (/\b(airtime|recharge|credit)\b/.test(lower)) {
     return handleButtonPayload(conversationId, null, 'start_airtime', {
+      purchaseOrigin: '',
+      authHeader: null,
+    });
+  }
+
+  // Keyword routing — boost.
+  if (/\b(boost|followers|likes|views|subscribers)\b/.test(lower)) {
+    return handleButtonPayload(conversationId, null, 'start_boost', {
       purchaseOrigin: '',
       authHeader: null,
     });
