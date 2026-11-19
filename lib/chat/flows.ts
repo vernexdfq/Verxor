@@ -7,7 +7,7 @@
  */
 
 import { getSyncedLivePlansForNetwork } from '@/lib/data-plan-sync';
-import { notifyAdmin } from '@/lib/notify';
+import { notifyAdmin, notifyAdminTracked, openAdminButton, type TelegramButton } from '@/lib/notify';
 import { getUserOrdersSummary } from '@/lib/support-summary';
 import {
   appendMessage,
@@ -2338,8 +2338,10 @@ export async function handleFreeText(
     const subject = text.trim().slice(0, 60) || 'Support request';
     await updateConversation(conversationId, { status: 'waiting_admin' });
     await assignTicketId(conversationId, ticketId, subject);
-    void notifyAdmin(
-      `🆘 Customer needs help — ticket ${ticketId}\nCustomer: ${opts.user?.email || opts.user?.name || 'unknown'}\nMessage: "${text.slice(0, 300)}"\nReply from Telegram (or admin dashboard → Live Chats) to answer them.`,
+    void notifyAdminTracked(
+      `🆘 Customer needs help — ticket ${ticketId}\nCustomer: ${opts.user?.email || opts.user?.name || 'unknown'}\nMessage: "${text.slice(0, 300)}"\nSwipe-reply to this message in Telegram to answer them directly.`,
+      { kind: 'web', conversationId },
+      [openAdminButton()],
     );
     return reply(
       conversationId,
@@ -2477,8 +2479,10 @@ async function createChatAccount(
     }
     await updateConversation(conversationId, { state: null, subject: 'Account created via chat' });
     await deleteSignupDraft(conversationId);
-    void notifyAdmin(
+    void notifyAdminTracked(
       `👤 New account created via chat\nName: ${draft.name}\nEmail: ${draft.email}\nPhone: ${draft.phone}${referrer ? `\nReferrer: ${referrer}` : ''}`,
+      { kind: 'web', conversationId },
+      [openAdminButton('👤 Open User in Admin')],
     );
     return reply(
       conversationId,

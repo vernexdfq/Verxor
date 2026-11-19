@@ -13,7 +13,7 @@ import {
   type ChatMessageRow,
 } from '@/lib/chat/store';
 import { handleButtonPayload, handleFreeText, type FlowState } from '@/lib/chat/flows';
-import { notifyAdmin, sendTelegramPhoto } from '@/lib/notify';
+import { notifyAdmin, notifyAdminTracked, openAdminButton, sendTelegramPhoto } from '@/lib/notify';
 
 /**
  * Interim escalation heuristic (Phase 5 replaces this with the admin inbox):
@@ -26,8 +26,10 @@ const ESCALATION_WORDS =
 function maybeEscalate(text: string, userId: string, conversationId: string): void {
   if (!ESCALATION_WORDS.test(text)) return;
   const snippet = text.length > 180 ? `${text.slice(0, 180)}…` : text;
-  void notifyAdmin(
-    `⚠️ Verxor chat escalation\nUser: ${userId}\nChat: ${conversationId}\n"${snippet}"\nOpen the chat in your dashboard to reply.`,
+  void notifyAdminTracked(
+    `⚠️ Verxor chat escalation\nUser: ${userId}\nChat: ${conversationId}\n"${snippet}"\nSwipe-reply to this message (or use /reply) to answer the customer directly.`,
+    { kind: 'web', conversationId },
+    [openAdminButton()],
   );
 }
 
@@ -266,6 +268,7 @@ export async function POST(req: NextRequest) {
         void sendTelegramPhoto(
           imageData,
           `📷 Verxor chat photo${conversation.subject ? `\nSubject: ${conversation.subject}` : ''}\nCustomer: ${userId || 'visitor'}${text ? `\n"${text.slice(0, 200)}"` : ''}`,
+          { kind: 'web', conversationId },
         );
       }
       if (!text) {

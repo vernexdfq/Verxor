@@ -7,7 +7,12 @@ import {
   listMessages,
   updateConversation,
 } from '@/lib/chat/store';
-import { notifyAdmin } from '@/lib/notify';
+import {
+  loadTelegramMap,
+  notifyAdmin,
+  notifyAdminTracked,
+  openAdminButton,
+} from '@/lib/notify';
 
 /**
  * POST /api/telegram/webhook — two-way bot.
@@ -38,14 +43,39 @@ function webhookSecret(): string {
 }
 
 async function tg(chatId: string | number, text: string): Promise<void> {
+  await tgSend(chatId, text);
+}
+
+async function tgSend(
+  chatId: string | number,
+  text: string,
+  buttons?: { label: string; url: string }[],
+): Promise<number | null> {
   const token = botToken();
-  if (!token) return;
-  await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ chat_id: chatId, text, disable_web_page_preview: true }),
-    cache: 'no-store',
-  }).catch(() => undefined);
+  if (!token) return null;
+  try {
+    const body: Record<string, unknown> = {
+      chat_id: chatId,
+      text,
+      disable_web_page_preview: true,
+    };
+    if (buttons?.length) {
+      body.reply_markup = { inline_keyboard: buttons.map((b) => [{ text: b.label, url: b.url }]) };
+    }
+    const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      cache: 'no-store',
+    });
+    const data = (await res.json().catch(() => ({}))) as {
+      ok?: boolean;
+      result?: { message_id?: number };
+    };
+    return data.ok && data.result?.message_id ? data.result.message_id : null;
+  } catch {
+    return null;
+  }
 }
 
 /** Remember the last Telegram customer so /reply can reach them. */
@@ -125,6 +155,7 @@ export async function POST(req: NextRequest) {
       chat?: { id?: number };
       from?: { first_name?: string; username?: string };
       text?: string;
+      reply_to_message?: { message_id?: number; from?: { is_bot?: boolean } };
     };
   };
   const fromId = update.message?.chat?.id;
@@ -144,10 +175,29 @@ export async function POST(req: NextRequest) {
         'For instant help with buying, use the chat assistant in the app.',
     );
     await rememberTelegramCustomer({ chatId: fromId, name: fromName, username: fromUsername });
-    await notifyAdmin(
-      `📥 Telegram customer message\nFrom: ${fromName}${fromUsername ? ` (@${fromUsername})` : ''}\n\n${text.slice(0, 400)}\n\nReply with: /reply <your message>`,
+    await notifyAdminTracked(
+      `📥 Telegram customer message\nFrom: ${fromName}${fromUsername ? ` (@${fromUsername})` : ''}\n\n${text.slice(0, 400)}\n\nSwipe-reply to this message (or use /reply <your message>) to answer them directly.`,
+      { kind: 'telegram', tgChatId: fromId, name: fromName },
     );
     return NextResponse.json({ ok: true });
+  }
+
+  // ── Native swipe-reply: Denny replied to one of the bot's notifications. ──
+  const repliedToId = update.message?.reply_to_message?.message_id ?? null;
+  if (repliedToId) {
+    const map = await loadTelegramMap(repliedToId);
+    if (map?.kind === 'telegram' && map.tgChatId) {
+      await tg(map.tgChatId, `💬 Verxor Support:\n\n${text.slice(0, 3500)}`);
+      await tg(chatId, `✅ Sent to ${map.name || 'customer'} (Telegram).`);
+      return NextResponse.json({ ok: true });
+    }
+    if (map?.kind === 'web' && map.conversationId) {
+      await appendMessage({ conversationId: map.conversationId, role: 'admin', content: text });
+      await updateConversation(map.conversationId, { status: 'admin', last_agent: 'admin' });
+      await tg(chatId, `✅ Sent to the website chat customer${map.name ? ` (${map.name})` : ''}.`);
+      return NextResponse.json({ ok: true });
+    }
+    // Unmapped message — fall through to the normal commands / last-waiting flow.
   }
 
   // ── Denny's commands. ──
@@ -159,6 +209,7 @@ export async function POST(req: NextRequest) {
         '/ticket <VX-1234> — status of a customer ticket\n' +
         '/reply <message> — answer the last Telegram customer\n' +
         '/help — this list\n\n' +
+        'Swipe-reply to any 📥/🆘/⚠️ notification to answer that exact customer directly.\n' +
         'Anything else you type goes to the most recent customer waiting in the website chat.',
     );
     return NextResponse.json({ ok: true });
