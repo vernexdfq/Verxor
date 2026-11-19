@@ -78,6 +78,7 @@ export function GamingPage({
 
   const [query, setQuery] = useState('');
   const [sortMode, setSortMode] = useState<'popular' | 'az'>('popular');
+  const [activeStrip, setActiveStrip] = useState(0);
 
   const [detail, setDetail] = useState<ProductDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -270,6 +271,11 @@ export function GamingPage({
     }
   };
 
+  useEffect(() => {
+    const timer = window.setInterval(() => setActiveStrip((current) => (current + 1) % 3), 4500);
+    return () => window.clearInterval(timer);
+  }, []);
+
   /* ---------- render ---------- */
 
   const stripAds = [
@@ -294,13 +300,28 @@ export function GamingPage({
       </header>
 
       {/* Slim ad strips instead of a big banner */}
-      <div className="gm-strips" aria-label="Gaming offers">
-        {stripAds.map((ad) => (
-          <button key={ad.id} type="button" className="gm-strip" style={{ backgroundImage: 'linear-gradient(90deg, rgba(7,18,42,.94), rgba(7,18,42,.58)), url(' + ad.image + ')' }} onClick={ad.onClick}>
-            <span className="gm-strip-copy"><strong>{ad.title}</strong><small>{ad.body}</small></span>
-            <span className="gm-strip-cta">{ad.cta} →</span>
-          </button>
-        ))}
+      <div className="gm-ad-wrap" aria-label="Gaming offers">
+        <div className="gm-strips">
+          {stripAds.map((ad, index) => (
+            <button
+              key={ad.id}
+              type="button"
+              className={`gm-strip${activeStrip === index ? ' active' : ''}`}
+              style={{ backgroundImage: 'linear-gradient(90deg, rgba(7,18,42,.88), rgba(7,18,42,.32)), url(' + ad.image + ')' }}
+              onClick={ad.onClick}
+              aria-hidden={activeStrip !== index}
+              tabIndex={activeStrip === index ? 0 : -1}
+            >
+              <span className="gm-strip-copy"><strong>{ad.title}</strong><small>{ad.body}</small></span>
+              <span className="gm-strip-cta">{ad.cta} →</span>
+            </button>
+          ))}
+        </div>
+        <div className="gm-ad-dots" aria-label="Choose gaming promotion">
+          {stripAds.map((ad, index) => (
+            <button key={ad.id} type="button" className={activeStrip === index ? 'active' : ''} onClick={() => setActiveStrip(index)} aria-label={`Show promotion ${index + 1}`} />
+          ))}
+        </div>
       </div>
 
       {/* Controls: category chips + search + sort */}
