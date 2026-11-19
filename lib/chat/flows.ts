@@ -57,6 +57,16 @@ export type ElectricityFlowState = {
   phone?: string;
 };
 
+export type LogsFlowState = {
+  flow: 'logs';
+  step: 'platform' | 'offers' | 'quantity' | 'confirm';
+  platform?: string;
+  providerListingId?: number;
+  offerTitle?: string;
+  unitPrice?: number;
+  qty?: number;
+};
+
 export type EmailOtpFlowState = {
   flow: 'emailotp';
   step: 'site' | 'domains' | 'confirm';
@@ -80,6 +90,7 @@ export type FlowState =
   | AirtimeFlowState
   | ElectricityFlowState
   | EmailOtpFlowState
+  | LogsFlowState
   | null;
 
 const NETWORKS: { id: string; label: string }[] = [
@@ -110,6 +121,70 @@ function cleanSiteName(raw: string): string | null {
   if (byName) return byName.site;
   if (/^[a-z0-9][a-z0-9.-]*\.[a-z]{2,}\/?$/.test(t)) return t.split('/')[0];
   return null;
+}
+
+const LOGS_PLATFORMS: string[] = [
+  'Facebook',
+  'Instagram',
+  'TikTok',
+  'X / Twitter',
+  'Telegram',
+  'Gmail',
+  'YouTube',
+  'WhatsApp',
+  'Discord',
+  'Reddit',
+  'Snapchat',
+  'Spotify',
+];
+
+const LOGS_ALIASES: Record<string, string> = {
+  ig: 'Instagram',
+  insta: 'Instagram',
+  instagram: 'Instagram',
+  fb: 'Facebook',
+  wa: 'WhatsApp',
+  tg: 'Telegram',
+  yt: 'YouTube',
+  twitter: 'X / Twitter',
+  x: 'X / Twitter',
+};
+
+type LogsOffer = {
+  providerListingId: number;
+  title: string;
+  priceNgn: number;
+  count: number;
+};
+
+async function fetchLogsCatalog(
+  origin: string,
+  platform: string,
+): Promise<{ ok: boolean; error?: string; offers?: LogsOffer[] }> {
+  try {
+    const res = await fetch(
+      `${origin || 'https://www.verxor.com'}/api/v1/accounts/catalog?platform=${encodeURIComponent(platform)}`,
+      { cache: 'no-store' },
+    );
+    const data = (await res.json().catch(() => ({}))) as {
+      ok?: boolean;
+      error?: string;
+      offers?: { providerListingId?: number | string; title?: string; priceNgn?: number; quantity?: number; count?: number }[];
+    };
+    if (!res.ok || !data?.ok || !Array.isArray(data.offers)) {
+      return { ok: false, error: data?.error || `Could not load ${platform} stock right now` };
+    }
+    const offers: LogsOffer[] = [];
+    for (const o of data.offers) {
+      const id = Number(o.providerListingId);
+      const price = Number(o.priceNgn);
+      if (!Number.isSafeInteger(id) || !Number.isFinite(price)) continue;
+      offers.push({ providerListingId: id, title: String(o.title || 'Account'), priceNgn: price, count: Number(o.count ?? o.quantity ?? 0) || 0 });
+    }
+    return { ok: true, offers };
+  } catch {
+    return { ok: false, error: 'network' };
+  }
 }
 
 const ELECTRICITY_DISCOS: { id: string; label: string }[] = [
@@ -194,7 +269,7 @@ export const SERVICE_MENU: ChatButton[] = [
   { label: '⚡ Airtime', payload: 'start_airtime' },
   { label: '🔢 Virtual Number', payload: 'open_vn' },
   { label: '📧 Email OTP', payload: 'start_emailotp' },
-  { label: '👥 Buy Logs', payload: 'open_logs' },
+  { label: '👥 Buy Logs', payload: 'start_buylogs' },
   { label: '🚀 Boost', payload: 'open_boost' },
   { label: '🎁 Gift Card', payload: 'open_giftcard' },
   { label: '💡 Electricity', payload: 'start_electricity' },
@@ -215,6 +290,7 @@ export async function handleButtonPayload(
   const airtimeState: AirtimeFlowState | null = state && state.flow === 'airtime' ? state : null;
   const elecState: ElectricityFlowState | null = state && state.flow === 'electricity' ? state : null;
   const emailOtpState: EmailOtpFlowState | null = state && state.flow === 'emailotp' ? state : null;
+  const logsState: LogsFlowState | null = state && state.flow === 'logs' ? state : null;
 
   // --- navigation buttons (handled by the widget, but answer server-side too)
   if (payload.startsWith('open_')) {
@@ -567,6 +643,82 @@ export async function handleButtonPayload(
 
   if (payload === 'emailotp_confirm' && emailOtpState?.site && emailOtpState.domain) {
     return purchaseEmailOtp(conversationId, emailOtpState, ctx);
+  }
+
+  // --- buy logs flow: platform → offer → quantity → confirm
+  if (payload === 'start_buylogs' || payload === 'logs_change_platform') {
+    await updateConversation(conversationId, {
+      state: { flow: 'logs', step: 'platform' },
+      subject: 'Buy Logs purchase',
+    });
+    return reply(
+      conversationId,
+      'Which platform do you need accounts (logs) for? Tap one, or type a name.',
+      [
+        ...LOGS_PLATFORMS.map((p) => ({ label: p, payload: `logs_platform:${p}` })),
+        ...cancelButtons(),
+      ],
+    );
+  }
+
+  if (payload.startsWith('logs_platform:') && !payload.startsWith('logs_platform:--')) {
+    const platform = payload.split('logs_platform:')[1];
+    return loadLogsOffers(conversationId, platform, ctx);
+  }
+
+  if (payload.startsWith('logs_offer:') && logsState?.platform && logsState.step === 'offers') {
+    const id = Number(payload.split('logs_offer:')[1]);
+    const catalog = await fetchLogsCatalog(ctx.purchaseOrigin, logsState.platform);
+    const offer = catalog.offers?.find((o) => o.providerListingId === id);
+    if (catalog.ok && offer && offer.count > 0) {
+      await updateConversation(conversationId, {
+        state: {
+          ...logsState,
+          step: 'quantity',
+          providerListingId: id,
+          offerTitle: offer.title,
+          unitPrice: offer.priceNgn,
+        },
+      });
+      return reply(
+        conversationId,
+        `${offer.title} — ${naira(offer.priceNgn)} each. How many do you want? (1–10)`,
+        [
+          ...[1, 2, 3, 5, 10].map((q) => ({ label: `${q}× ${naira(offer.priceNgn * q)}`, payload: `logs_qty:${q}` })),
+          { label: '↩ Other accounts', payload: `logs_platform:${logsState.platform}` },
+          ...cancelButtons(),
+        ],
+      );
+    }
+    return loadLogsOffers(conversationId, logsState.platform, ctx, 'That listing just sold out. Pick another one:');
+  }
+
+  if (payload.startsWith('logs_qty:') && logsState?.providerListingId && logsState.platform && logsState.offerTitle) {
+    const qty = Number(payload.split('logs_qty:')[1]);
+    if (!Number.isSafeInteger(qty) || qty < 1 || qty > 10) {
+      return reply(conversationId, 'How many do you want? (1–10)', cancelButtons());
+    }
+    await updateConversation(conversationId, {
+      state: { ...logsState, step: 'confirm', qty },
+    });
+    return logsConfirmCard(conversationId, logsState.platform, logsState.offerTitle, logsState.unitPrice || 0, qty);
+  }
+
+  if (payload === 'logs_change_qty' && logsState?.providerListingId && logsState.platform && logsState.offerTitle) {
+    await updateConversation(conversationId, { state: { ...logsState, step: 'quantity' } });
+    return reply(
+      conversationId,
+      `${logsState.offerTitle} — ${naira(logsState.unitPrice || 0)} each. How many do you want? (1–10)`,
+      [
+        ...[1, 2, 3, 5, 10].map((q) => ({ label: `${q}× ${naira((logsState.unitPrice || 0) * q)}`, payload: `logs_qty:${q}` })),
+        { label: '↩ Other accounts', payload: `logs_platform:${logsState.platform}` },
+        ...cancelButtons(),
+      ],
+    );
+  }
+
+  if (payload === 'logs_confirm' && logsState?.providerListingId && logsState.platform && logsState.qty) {
+    return purchaseLogs(conversationId, logsState, ctx);
   }
 
   // Unknown payload → reset to menu.
@@ -1227,6 +1379,214 @@ export async function handleEmailOtpText(
   ]);
 }
 
+async function loadLogsOffers(
+  conversationId: string,
+  platform: string,
+  ctx: { purchaseOrigin: string; authHeader: string | null; userId?: string | null },
+  intro?: string,
+): Promise<ChatMessageRow[]> {
+  const catalog = await fetchLogsCatalog(ctx.purchaseOrigin, platform);
+  if (!catalog.ok || !catalog.offers || catalog.offers.length === 0) {
+    await updateConversation(conversationId, { state: { flow: 'logs', step: 'platform' } });
+    return reply(
+      conversationId,
+      catalog.error === 'network'
+        ? 'Could not reach the stock provider right now. Try again in a moment.'
+        : (catalog.error || `No ${platform} stock right now.`) + ' Pick another platform:',
+      [...LOGS_PLATFORMS.map((p) => ({ label: p, payload: `logs_platform:${p}` })), ...cancelButtons()],
+    );
+  }
+  const inStock = catalog.offers.filter((o) => o.count > 0).sort((a, b) => a.priceNgn - b.priceNgn).slice(0, 6);
+  if (inStock.length === 0) {
+    await updateConversation(conversationId, { state: { flow: 'logs', step: 'platform' } });
+    return reply(conversationId, `No ${platform} accounts in stock right now. Pick another platform:`, [
+      ...LOGS_PLATFORMS.map((p) => ({ label: p, payload: `logs_platform:${p}` })),
+      ...cancelButtons(),
+    ]);
+  }
+  await updateConversation(conversationId, {
+    state: { flow: 'logs', step: 'offers', platform },
+  });
+  const buttons = inStock.map((o) => ({
+    label: `${o.title.slice(0, 38)} · ${naira(o.priceNgn)}`,
+    payload: `logs_offer:${o.providerListingId}`,
+  }));
+  return reply(
+    conversationId,
+    intro || `${platform} accounts in stock — cheapest first:`,
+    [
+      ...buttons,
+      { label: '↩ Other platform', payload: 'logs_change_platform' },
+      ...cancelButtons(),
+    ],
+  );
+}
+
+function logsConfirmCard(
+  conversationId: string,
+  platform: string,
+  offerTitle: string,
+  unitPrice: number,
+  qty: number,
+): Promise<ChatMessageRow[]> {
+  const total = unitPrice * qty;
+  return reply(
+    conversationId,
+    `Confirm your order:\n\n${offerTitle}\nPlatform: ${platform}\nQuantity: ${qty}\nTotal: ${naira(total)}`,
+    [
+      { label: `Confirm ${naira(total)}`, payload: 'logs_confirm' },
+      { label: 'Change quantity', payload: 'logs_change_qty' },
+      { label: '↩ Other platform', payload: 'logs_change_platform' },
+      { label: '✖ Cancel', payload: 'cancel_flow' },
+    ],
+  );
+}
+
+async function purchaseLogs(
+  conversationId: string,
+  state: LogsFlowState,
+  ctx: { purchaseOrigin: string; authHeader: string | null; userId?: string | null; email?: string | null },
+): Promise<ChatMessageRow[]> {
+  if (!ctx.userId) {
+    await updateConversation(conversationId, { state: { ...state, step: 'confirm' } });
+    return reply(
+      conversationId,
+      'You need a free Verxor account to buy — it unlocks your wallet and order history. Create one right here in chat or sign in.',
+      [
+        { label: '👤 Create Account', payload: 'create_account' },
+        { label: '🔑 Sign In', payload: 'open_signin' },
+      ],
+    );
+  }
+  // Fresh price/stock before charging.
+  const catalog = await fetchLogsCatalog(ctx.purchaseOrigin, state.platform || '');
+  const offer = catalog.offers?.find((o) => o.providerListingId === state.providerListingId);
+  if (catalog.ok && offer && offer.count < (state.qty || 1)) {
+    await updateConversation(conversationId, { state: { ...state, step: 'offers' } });
+    return reply(conversationId, 'Not enough stock left for that quantity. Pick an account:', [
+      ...(catalog.offers || [])
+        .filter((o) => o.count > 0)
+        .slice(0, 6)
+        .map((o) => ({ label: `${o.title.slice(0, 38)} · ${naira(o.priceNgn)}`, payload: `logs_offer:${o.providerListingId}` })),
+      ...cancelButtons(),
+    ]);
+  }
+  try {
+    const res = await fetch(`${ctx.purchaseOrigin}/api/v1/accounts/buy`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(ctx.authHeader ? { Authorization: ctx.authHeader } : {}),
+      },
+      body: JSON.stringify({
+        providerListingId: state.providerListingId,
+        quantity: state.qty,
+        platform: state.platform,
+      }),
+      cache: 'no-store',
+    });
+    const data = (await res.json().catch(() => ({}))) as {
+      ok?: boolean;
+      error?: string;
+      orderId?: string | number;
+      credentials?: string[];
+      totalNgn?: number;
+      warning?: string;
+    };
+    if (!res.ok || !data?.ok) {
+      const insufficient = res.status === 402 || /balance|funds/i.test(data?.error || '');
+      const needsAuth = res.status === 401;
+      await updateConversation(conversationId, { state: { ...state, step: 'confirm' } });
+      if (!insufficient && !needsAuth) {
+        void notifyAdmin(
+          `⚠️ Verxor chat buy logs FAILED\n${state.offerTitle} x${state.qty} (${state.platform})\nError: ${data?.error || `HTTP ${res.status}`}\nCustomer: ${ctx.email || ctx.userId || 'unknown'}`,
+        );
+      }
+      return reply(
+        conversationId,
+        needsAuth
+          ? 'Your sign-in expired. Sign in again, then tap Retry — your order is saved.'
+          : insufficient
+            ? `Not enough wallet balance for ${naira(data.totalNgn || (state.unitPrice || 0) * (state.qty || 1))}. Fund your wallet and come back — your order is saved.`
+            : data?.error || 'The purchase failed. Tap Retry to try again.',
+        needsAuth
+          ? [{ label: '🔑 Sign In Now', payload: 'open_signin' }, { label: 'Retry', payload: 'logs_confirm' }]
+          : insufficient
+            ? [{ label: '💰 Fund Wallet', payload: 'open_fund' }, { label: 'Retry', payload: 'logs_confirm' }]
+            : [{ label: 'Retry', payload: 'logs_confirm' }, ...cancelButtons()],
+      );
+    }
+    await updateConversation(conversationId, { state: null });
+    const credentials = (data.credentials || []).slice(0, 10);
+    const credLines = credentials.map((c) => `• ${c}`);
+    const total = Number.isFinite(data.totalNgn) && data.totalNgn ? naira(data.totalNgn) : naira((state.unitPrice || 0) * (state.qty || 1));
+    const warning = data.warning ? `\n⚠️ ${data.warning}` : '';
+    return reply(
+      conversationId,
+      `✅ Bought ${state.qty}× ${state.offerTitle} (${state.platform}) for ${total}.${data.orderId ? ` Order: ${data.orderId}.` : ''}\n\nYour account details:\n${credLines.join('\n')}\nSave them now — you can also find them under Accounts → My Orders.${warning}`,
+      MENU_BUTTONS,
+    );
+  } catch {
+    await updateConversation(conversationId, { state: { ...state, step: 'confirm' } });
+    void notifyAdmin(
+      `⚠️ Verxor chat buy logs ERROR\n${state.offerTitle} x${state.qty} (${state.platform})\nCustomer: ${ctx.email || ctx.userId || 'unknown'}`,
+    );
+    return reply(conversationId, 'Network error while purchasing. Tap Retry to try again.', [
+      { label: 'Retry', payload: 'logs_confirm' },
+      ...cancelButtons(),
+    ]);
+  }
+}
+
+/** Buy Logs free-text: platform name on the platform step, quantity on the quantity step. */
+export async function handleLogsText(
+  conversationId: string,
+  state: LogsFlowState,
+  text: string,
+  ctx: { purchaseOrigin: string; authHeader: string | null; userId?: string | null },
+): Promise<ChatMessageRow[]> {
+  const digits = text.replace(/\D/g, '');
+  if (state.step === 'quantity' && state.platform && state.providerListingId && state.offerTitle) {
+    const qty = Number(digits.slice(0, 2));
+    if (!Number.isSafeInteger(qty) || qty < 1 || qty > 10) {
+      return reply(conversationId, 'How many do you want? Pick a number from 1 to 10.', cancelButtons());
+    }
+    await updateConversation(conversationId, { state: { ...state, step: 'confirm', qty } });
+    return logsConfirmCard(conversationId, state.platform, state.offerTitle, state.unitPrice || 0, qty);
+  }
+  if (state.step === 'confirm' && state.platform) {
+    if (/confirm|yes|buy|proceed/i.test(text)) {
+      return purchaseLogs(conversationId, state, ctx);
+    }
+    if (digits && Number(digits) >= 1 && Number(digits) <= 10) {
+      await updateConversation(conversationId, { state: { ...state, step: 'confirm', qty: Number(digits) } });
+      return logsConfirmCard(conversationId, state.platform, state.offerTitle || '', state.unitPrice || 0, Number(digits));
+    }
+    return logsConfirmCard(conversationId, state.platform, state.offerTitle || '', state.unitPrice || 0, state.qty || 1);
+  }
+  if (state.step === 'platform' || state.step === 'offers') {
+    const word = text.trim().toLowerCase();
+    const platform = LOGS_ALIASES[word] || titleCasePlatform(text.trim());
+    if (platform) {
+      return loadLogsOffers(conversationId, platform, ctx);
+    }
+    return reply(conversationId, 'Which platform? Tap one of the buttons, or type a name like "Facebook".', cancelButtons());
+  }
+  return reply(conversationId, 'Which platform do you need accounts for?', [
+    ...LOGS_PLATFORMS.map((p) => ({ label: p, payload: `logs_platform:${p}` })),
+    ...cancelButtons(),
+  ]);
+}
+
+function titleCasePlatform(raw: string): string | null {
+  const t = raw.trim();
+  if (!t || t.length < 2 || t.length > 30) return null;
+  return t
+    .split(/\s+/)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ');
+}
+
 /**
  * Phase 2 — Gemini free-text shopping. The model only extracts intent
  * (network, size, duration, phone) as strict JSON; the actual plan matching
@@ -1568,6 +1928,15 @@ export async function handleFreeText(
     return handleElectricityText(conversationId, state, text, opts.chatOrigin || '');
   }
 
+  // Active buy logs flow expecting a platform / quantity?
+  if (state?.flow === 'logs') {
+    return handleLogsText(conversationId, state, text, {
+      purchaseOrigin: opts.chatOrigin || '',
+      authHeader: null,
+      userId: opts.user?.userId || null,
+    });
+  }
+
   // Active email OTP flow expecting a site name?
   if (state?.flow === 'emailotp') {
     return handleEmailOtpText(conversationId, state, text, {
@@ -1591,6 +1960,14 @@ export async function handleFreeText(
   // Keyword routing — airtime.
   if (/\b(airtime|recharge|credit)\b/.test(lower)) {
     return handleButtonPayload(conversationId, null, 'start_airtime', {
+      purchaseOrigin: '',
+      authHeader: null,
+    });
+  }
+
+  // Keyword routing — buy logs.
+  if (/\b(buy\s+logs?|purchase\s+logs?|logs?\s+account|social\s+media\s+accounts?)\b/.test(lower)) {
+    return handleButtonPayload(conversationId, null, 'start_buylogs', {
       purchaseOrigin: '',
       authHeader: null,
     });
