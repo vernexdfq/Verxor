@@ -141,6 +141,12 @@ async function mgProxyPost(
   });
 }
 
+/** Last provider error text (for surfacing in route responses when lists come back empty). */
+let mgLastErrorValue = '';
+export function mgLastError(): string {
+  return mgLastErrorValue;
+}
+
 async function mgRequest<T = unknown>(
   path: string,
   data: Record<string, unknown>,
@@ -148,6 +154,7 @@ async function mgRequest<T = unknown>(
   const partnerId = (process.env.MOOGOLD_PARTNER_ID || '').trim();
   const secret = (process.env.MOOGOLD_SECRET_KEY || process.env.MOOGOLD_SECRET || '').trim();
   if (!partnerId || !secret) {
+    mgLastErrorValue = 'MooGold provider not configured';
     return { ok: false, error: 'MooGold provider not configured' };
   }
   const payload = JSON.stringify({ path, ...data });
@@ -187,21 +194,25 @@ async function mgRequest<T = unknown>(
   } catch (e) {
     const msg = `MooGold network error: ${e instanceof Error ? e.message : 'unknown'}`;
     console.error(`[moogold] ${path}: ${msg} (proxy: ${proxyUrl ? 'on' : 'off'})`);
+    mgLastErrorValue = `${msg} (proxy ${proxyUrl ? 'on' : 'off'})`;
     return { ok: false, error: msg };
   }
   if (status < 200 || status >= 300) {
     console.error(`[moogold] ${path}: HTTP ${status}: ${raw.slice(0, 180)}`);
+    mgLastErrorValue = `MooGold HTTP ${status}: ${raw.slice(0, 180)}`;
     return { ok: false, error: `MooGold HTTP ${status}: ${raw.slice(0, 180)}` };
   }
   let body: unknown;
   try {
     body = JSON.parse(raw);
   } catch {
+    mgLastErrorValue = `MooGold non-JSON response (likely a WAF block): ${raw.slice(0, 120)}`;
     return { ok: false, error: `MooGold returned a non-JSON response (likely a WAF block): ${raw.slice(0, 120)}` };
   }
   const obj = body as Record<string, unknown>;
   if (obj && typeof obj === 'object' && ('err_code' in obj || 'err_message' in obj)) {
     console.error(`[moogold] ${path}: ${String(obj.err_message ?? obj.err_code ?? 'unknown')}`);
+    mgLastErrorValue = `MooGold error: ${String(obj.err_message ?? obj.err_code ?? 'unknown')}`;
     return { ok: false, error: `MooGold error: ${String(obj.err_message ?? obj.err_code ?? 'unknown')}` };
   }
   return { ok: true, data: body as T };

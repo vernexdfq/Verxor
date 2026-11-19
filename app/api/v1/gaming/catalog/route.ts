@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import {
   mgCategories,
+  mgLastError,
   mgListProducts,
   mgProductDetail,
   moogoldConfigured,
@@ -45,6 +46,9 @@ export async function GET(req: NextRequest) {
       }),
     );
     const rest = products.slice(PRICE_BATCH).map((p) => ({ id: p.id, name: p.name, fromNgn: null }));
+    if (!products.length) {
+      return NextResponse.json({ ok: true, categoryId, rate, products: [], providerNotice: mgLastError() || 'provider returned no products' });
+    }
     return NextResponse.json({ ok: true, categoryId, rate, products: [...priced, ...rest] });
   }
 
