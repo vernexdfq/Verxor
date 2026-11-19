@@ -41,6 +41,7 @@ export async function GET(req: NextRequest) {
         return {
           id: p.id,
           name: p.name,
+          image: detail?.image || null,
           fromNgn: prices.length ? gamingRetailNgn(Math.min(...prices), rate) : null,
         };
       }),
