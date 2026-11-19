@@ -6,6 +6,7 @@
  *
  * MTN: Daily + Weekly + Monthly + 3 months+ + Yearly.
  * Airtel: Daily + Weekly + Monthly + 3 months+ + Router + Yearly.
+ * Glo: Daily + Weekly + Monthly (Corporate2 / SME).
  */
 
 export type DataNetwork = 'mtn' | 'glo' | 'airtel' | '9mobile';
@@ -156,6 +157,37 @@ export const AIRTEL_YEARLY: CatalogPlan[] = [
   { id: 376, network: 'airtel', size: '650GB', days: '365', tab: 'yearly', retail: 100500, apiPrice: 96800, cost: 96700, planType: 'Gifting' },
 ];
 
+/** Glo Daily (1–3 days) — Corporate2 preferred over Corporate twins */
+export const GLO_DAILY: CatalogPlan[] = [
+  { id: 110, network: 'glo', size: '750MB', days: '1', tab: 'daily', retail: 210, apiPrice: 182, cost: 180, planType: 'SME' },
+  { id: 111, network: 'glo', size: '1.5GB', days: '1', tab: 'daily', retail: 325, apiPrice: 273, cost: 270, planType: 'SME' },
+  { id: 112, network: 'glo', size: '2.5GB', days: '2', tab: 'daily', retail: 510, apiPrice: 455, cost: 450, planType: 'SME' },
+  { id: 702, network: 'glo', size: '1GB', days: '3', tab: 'daily', retail: 355, apiPrice: 334, cost: 330, planType: 'Corporate2' },
+  { id: 703, network: 'glo', size: '2GB', days: '3', tab: 'daily', retail: 720, apiPrice: 667, cost: 660, planType: 'Corporate2' },
+  { id: 704, network: 'glo', size: '3GB', days: '3', tab: 'daily', retail: 1060, apiPrice: 1000, cost: 990, planType: 'Corporate2' },
+  { id: 706, network: 'glo', size: '5GB', days: '3', tab: 'daily', retail: 1850, apiPrice: 1667, cost: 1650, planType: 'Corporate2' },
+  { id: 707, network: 'glo', size: '10GB', days: '3', tab: 'daily', retail: 3600, apiPrice: 3333, cost: 3300, planType: 'Corporate2' },
+];
+
+/** Glo Weekly */
+export const GLO_WEEKLY: CatalogPlan[] = [
+  { id: 710, network: 'glo', size: '1GB', days: '7', tab: 'weekly', retail: 370, apiPrice: 349, cost: 345, planType: 'Corporate2' },
+  { id: 711, network: 'glo', size: '2GB', days: '7', tab: 'weekly', retail: 730, apiPrice: 691, cost: 684, planType: 'Corporate2' },
+  { id: 712, network: 'glo', size: '3GB', days: '7', tab: 'weekly', retail: 1115, apiPrice: 1037, cost: 1026, planType: 'Corporate2' },
+  { id: 714, network: 'glo', size: '5GB', days: '7', tab: 'weekly', retail: 1860, apiPrice: 1728, cost: 1710, planType: 'Corporate2' },
+  { id: 113, network: 'glo', size: '10GB', days: '7', tab: 'weekly', retail: 2030, apiPrice: 1818, cost: 1800, planType: 'SME' },
+];
+
+/** Glo Monthly */
+export const GLO_MONTHLY: CatalogPlan[] = [
+  { id: 701, network: 'glo', size: '500MB', days: '30', tab: 'monthly', retail: 250, apiPrice: 197, cost: 195, planType: 'Corporate2' },
+  { id: 720, network: 'glo', size: '1GB', days: '30', tab: 'monthly', retail: 450, apiPrice: 389, cost: 385, planType: 'Corporate2' },
+  { id: 721, network: 'glo', size: '2GB', days: '30', tab: 'monthly', retail: 910, apiPrice: 768, cost: 760, planType: 'Corporate2' },
+  { id: 722, network: 'glo', size: '3GB', days: '30', tab: 'monthly', retail: 1360, apiPrice: 1152, cost: 1140, planType: 'Corporate2' },
+  { id: 724, network: 'glo', size: '5GB', days: '30', tab: 'monthly', retail: 2350, apiPrice: 1919, cost: 1900, planType: 'Corporate2' },
+  { id: 730, network: 'glo', size: '10GB', days: '30', tab: 'monthly', retail: 4500, apiPrice: 3838, cost: 3800, planType: 'Corporate2' },
+];
+
 export const DATA_CATALOG: CatalogPlan[] = [
   ...MTN_DAILY,
   ...MTN_WEEKLY,
@@ -168,6 +200,9 @@ export const DATA_CATALOG: CatalogPlan[] = [
   ...AIRTEL_THREEMONTHS,
   ...AIRTEL_ROUTER,
   ...AIRTEL_YEARLY,
+  ...GLO_DAILY,
+  ...GLO_WEEKLY,
+  ...GLO_MONTHLY,
 ];
 
 export function catalogForNetwork(network: string): CatalogPlan[] {
