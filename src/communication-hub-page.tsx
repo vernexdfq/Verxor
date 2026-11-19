@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowLeft,
   ChevronDown,
@@ -52,7 +52,7 @@ const NUMBER_TYPES: { id: NumberType; label: string; hint: string }[] = [
 export function CommunicationHubPage({ onBack }: { onBack: () => void }) {
   const [tab, setTab] = useState<HubTab>('numbers');
   const [getOpen, setGetOpen] = useState(false);
-  const [numberPickerOpen, setNumberPickerOpen] = useState(false);
+  const [dropdownFor, setDropdownFor] = useState<'call' | 'messages' | 'history' | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [country, setCountry] = useState(COUNTRIES[0]);
   const [numberType, setNumberType] = useState<NumberType>('local');
@@ -60,6 +60,8 @@ export function CommunicationHubPage({ onBack }: { onBack: () => void }) {
   const [typePicker, setTypePicker] = useState(false);
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
+
+  const dropdownRef = useRef<HTMLDivElement | null>(null);
 
   // Placeholder — real numbers will come from SignalWire / our API later
   const myNumbers: HubNumber[] = [];
@@ -74,15 +76,34 @@ export function CommunicationHubPage({ onBack }: { onBack: () => void }) {
     [],
   );
 
+  useEffect(() => {
+    if (!dropdownFor) return;
+    const onDoc = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setDropdownFor(null);
+      }
+    };
+    document.addEventListener('mousedown', onDoc);
+    return () => document.removeEventListener('mousedown', onDoc);
+  }, [dropdownFor]);
+
+  useEffect(() => {
+    setDropdownFor(null);
+  }, [tab]);
+
   const openGetNumber = () => {
     setSearchError(null);
-    setNumberPickerOpen(false);
+    setDropdownFor(null);
     setGetOpen(true);
   };
 
-  /** Opens list of already-rented numbers only — never the purchase sheet */
-  const openNumberPicker = () => {
-    setNumberPickerOpen(true);
+  const toggleDropdown = (which: 'call' | 'messages' | 'history') => {
+    setDropdownFor((prev) => (prev === which ? null : which));
+  };
+
+  const pickNumber = (id: string) => {
+    setSelectedId(id);
+    setDropdownFor(null);
   };
 
   const handleSearch = () => {
@@ -98,6 +119,36 @@ export function CommunicationHubPage({ onBack }: { onBack: () => void }) {
 
   const selectLabel = selected?.friendly ?? 'Select your number…';
   const selectHistoryLabel = selected?.friendly ?? 'Select a number…';
+
+  const renderNumberDropdown = (which: 'call' | 'messages' | 'history') => {
+    if (dropdownFor !== which) return null;
+    return (
+      <div className="chub-dropdown" role="listbox">
+        {myNumbers.length === 0 ? (
+          <div className="chub-dropdown-empty">
+            <p>No rented numbers yet</p>
+            <button type="button" className="chub-dropdown-cta" onClick={openGetNumber}>
+              Get a Number
+            </button>
+          </div>
+        ) : (
+          myNumbers.map((n) => (
+            <button
+              key={n.id}
+              type="button"
+              role="option"
+              aria-selected={selectedId === n.id}
+              className={selectedId === n.id ? 'chub-dropdown-item active' : 'chub-dropdown-item'}
+              onClick={() => pickNumber(n.id)}
+            >
+              <span className="chub-dropdown-main">{n.friendly}</span>
+              <span className="chub-dropdown-sub">{n.country}</span>
+            </button>
+          ))
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="chub">
@@ -188,10 +239,19 @@ export function CommunicationHubPage({ onBack }: { onBack: () => void }) {
 
             <div className="chub-form-card">
               <label className="chub-label">CALL FROM</label>
-              <button type="button" className="chub-select" onClick={openNumberPicker}>
-                <span className={selected ? '' : 'chub-placeholder'}>{selectLabel}</span>
-                <ChevronDown size={16} />
-              </button>
+              <div className="chub-select-wrap" ref={dropdownFor === 'call' ? dropdownRef : undefined}>
+                <button
+                  type="button"
+                  className={dropdownFor === 'call' ? 'chub-select open' : 'chub-select'}
+                  onClick={() => toggleDropdown('call')}
+                  aria-expanded={dropdownFor === 'call'}
+                  aria-haspopup="listbox"
+                >
+                  <span className={selected ? '' : 'chub-placeholder'}>{selectLabel}</span>
+                  <ChevronDown size={16} className={dropdownFor === 'call' ? 'chub-chevron up' : 'chub-chevron'} />
+                </button>
+                {renderNumberDropdown('call')}
+              </div>
               {myNumbers.length === 0 ? (
                 <p className="chub-hint">
                   You need a{' '}
@@ -233,12 +293,27 @@ export function CommunicationHubPage({ onBack }: { onBack: () => void }) {
 
             <div className="chub-form-card">
               <label className="chub-label">NUMBER</label>
-              <button type="button" className="chub-select" onClick={openNumberPicker}>
-                <span className={selected ? '' : 'chub-placeholder'}>{selectLabel}</span>
-                <ChevronDown size={16} />
-              </button>
-              <button type="button" className="chub-secondary" disabled={!selected}>
-                <Plus size={16} /> New Message
+              <div className="chub-select-wrap" ref={dropdownFor === 'messages' ? dropdownRef : undefined}>
+                <button
+                  type="button"
+                  className={dropdownFor === 'messages' ? 'chub-select open' : 'chub-select'}
+                  onClick={() => toggleDropdown('messages')}
+                  aria-expanded={dropdownFor === 'messages'}
+                  aria-haspopup="listbox"
+                >
+                  <span className={selected ? '' : 'chub-placeholder'}>{selectLabel}</span>
+                  <ChevronDown size={16} className={dropdownFor === 'messages' ? 'chub-chevron up' : 'chub-chevron'} />
+                </button>
+                {renderNumberDropdown('messages')}
+              </div>
+
+              {/* Always visible; muted until a number is rented/selected — like AfriNum */}
+              <button
+                type="button"
+                className={selected ? 'chub-msg-cta' : 'chub-msg-cta muted'}
+                disabled={!selected}
+              >
+                <Plus size={16} strokeWidth={2.4} /> New Message
               </button>
             </div>
 
@@ -267,10 +342,19 @@ export function CommunicationHubPage({ onBack }: { onBack: () => void }) {
 
             <div className="chub-form-card">
               <label className="chub-label">NUMBER</label>
-              <button type="button" className="chub-select" onClick={openNumberPicker}>
-                <span className={selected ? '' : 'chub-placeholder'}>{selectHistoryLabel}</span>
-                <ChevronDown size={16} />
-              </button>
+              <div className="chub-select-wrap" ref={dropdownFor === 'history' ? dropdownRef : undefined}>
+                <button
+                  type="button"
+                  className={dropdownFor === 'history' ? 'chub-select open' : 'chub-select'}
+                  onClick={() => toggleDropdown('history')}
+                  aria-expanded={dropdownFor === 'history'}
+                  aria-haspopup="listbox"
+                >
+                  <span className={selected ? '' : 'chub-placeholder'}>{selectHistoryLabel}</span>
+                  <ChevronDown size={16} className={dropdownFor === 'history' ? 'chub-chevron up' : 'chub-chevron'} />
+                </button>
+                {renderNumberDropdown('history')}
+              </div>
             </div>
 
             <div className="chub-empty compact">
@@ -287,69 +371,6 @@ export function CommunicationHubPage({ onBack }: { onBack: () => void }) {
           </section>
         )}
       </main>
-
-      {/* Rented-number picker — NOT the purchase sheet */}
-      {numberPickerOpen && (
-        <div className="chub-sheet-backdrop" onClick={() => setNumberPickerOpen(false)}>
-          <div
-            className="chub-sheet list"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="chub-pick-title"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="chub-sheet-head">
-              <h3 id="chub-pick-title">Select number</h3>
-              <button
-                type="button"
-                className="chub-sheet-close"
-                onClick={() => setNumberPickerOpen(false)}
-                aria-label="Close"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            {myNumbers.length === 0 ? (
-              <div className="chub-picker-empty">
-                <strong>No rented numbers</strong>
-                <p>Rent a number first, then it will appear here for calls and SMS.</p>
-                <button
-                  type="button"
-                  className="chub-primary full"
-                  onClick={() => {
-                    setNumberPickerOpen(false);
-                    openGetNumber();
-                  }}
-                >
-                  <Plus size={16} /> Get a Number
-                </button>
-              </div>
-            ) : (
-              <ul className="chub-list">
-                {myNumbers.map((n) => (
-                  <li key={n.id}>
-                    <button
-                      type="button"
-                      className={selectedId === n.id ? 'chub-list-item active' : 'chub-list-item'}
-                      onClick={() => {
-                        setSelectedId(n.id);
-                        setNumberPickerOpen(false);
-                      }}
-                    >
-                      <span>
-                        <strong style={{ display: 'block' }}>{n.friendly}</strong>
-                        <small style={{ color: '#64748B' }}>{n.country}</small>
-                      </span>
-                      {selectedId === n.id ? <span className="chub-check">✓</span> : null}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        </div>
-      )}
 
       {/* Get a Phone Number sheet — purchase only */}
       {getOpen && (
