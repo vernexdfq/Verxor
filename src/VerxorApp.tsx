@@ -439,7 +439,7 @@ export function VerxorApp({
   if (service === 'services') {
     content = <ServicesPage open={openService} onBack={closeService} />;
   } else if (service === 'rental') {
-    content = <RentalPage onBack={closeService} onOpenEsim={() => openService('esim')} />;
+    content = <RentalPage onBack={closeService} session={auth} onFund={() => navigatePage('fund')} />;
   } else if (service === 'sms-calls') {
     content = <CommunicationHubPage onBack={closeService} />;
   } else if (service === 'virtual-numbers') {
@@ -498,6 +498,7 @@ export function VerxorApp({
   } else if (service === 'gaming') {
     content = <GamingPage onBack={closeService} session={auth} onFund={() => navigatePage('fund')} />;
   } else if (service === 'tv-cable') {
+
     content = <TvPage onBack={closeService} session={auth} />;
   } else if (service === 'electricity') {
     content = <ElectricityPage onBack={closeService} session={auth} onFund={() => navigatePage('fund')} />;

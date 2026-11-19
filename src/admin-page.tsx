@@ -33,7 +33,7 @@ import {
 } from 'lucide-react';
 import './admin-page.css';
 
-type AdminSection = 'overview' | 'users' | 'chats' | 'pricing' | 'email-otp' | 'boost' | 'accounts' | 'gift-cards' | 'providers' | 'settings';
+type AdminSection = 'overview' | 'users' | 'chats' | 'pricing' | 'email-otp' | 'boost' | 'accounts' | 'gift-cards' | 'rent-sms' | 'providers' | 'settings';
 
 type AdminUserTab = 'all' | 'customers' | 'api' | 'panels';
 
@@ -78,6 +78,7 @@ const NAV: { id: AdminSection; label: string; icon: typeof LayoutDashboard }[] =
   { id: 'boost', label: 'Boost (SMM)', icon: Rocket },
   { id: 'accounts', label: 'Buy Logs', icon: FileText },
   { id: 'gift-cards', label: 'Gift Cards', icon: Gift },
+  { id: 'rent-sms', label: 'Rent SMS', icon: MessageCircle },
   { id: 'providers', label: 'Providers', icon: Plug },
   { id: 'settings', label: 'Settings', icon: KeyRound },
 ];
@@ -92,6 +93,7 @@ const SECTION_META: Record<AdminSection, { title: string; sub: string }> = {
   boost: { title: 'Boost pricing', sub: 'Per-tier multipliers for retail, API users and Child Panel' },
   accounts: { title: 'Buy Logs pricing', sub: 'Account multipliers for Retail and API / Child Panel' },
   'gift-cards': { title: 'Gift Card rates', sub: 'Standalone FX rates decoupled from the global daily rate' },
+  'rent-sms': { title: 'Rent-for-SMS pricing', sub: 'Multipliers on the Textverified USD cost, using the global daily rate' },
   providers: { title: 'Providers', sub: 'Upstream provider health and keys' },
   settings: { title: 'Settings', sub: 'Service switches and announcements' },
 };
@@ -496,6 +498,7 @@ function UserManagement({ focusUserId }: { focusUserId?: string | null }) {
             <button type="button" disabled={busy}
               className={selected.frozen ? 'vxa-freeze-btn frozen' : 'vxa-freeze-btn'}
               onClick={() => act(
+
                 { action: selected.frozen ? 'unfreeze' : 'freeze', userId: selected.id },
                 selected.frozen ? 'User unfrozen' : 'User frozen',
               )}>
@@ -996,6 +999,7 @@ function EmailOtpSection() {
                   ))}
                 </div>
               ))}
+
             </div>
             <ul className="vxa-price-notes">
               <li>Formula: (provider cost + markup) × ₦{rate.toLocaleString('en-NG')} rate, rounded.</li>
@@ -1496,6 +1500,7 @@ function GiftCardsSection() {
     { key: 'retail', label: 'Retail rate', hint: 'What customers pay on the Gift Cards page', icon: Percent },
     { key: 'api', label: 'API / Child Panel rate', hint: 'Wholesale rate for API users and child panels', icon: Plug },
     { key: 'trade', label: 'Trade / Buy-back rate', hint: 'Payout when customers sell cards to Verxor', icon: TrendingUp },
+
   ];
 
   return (
@@ -1535,6 +1540,96 @@ function GiftCardsSection() {
             <span className="vxa-tile-label"><Gift size={14} /> HOW PRICING WORKS</span>
             <p>Gift card prices never follow the Overview daily rate. Price = provider USD cost × the standalone rate above, rounded to whole Naira. USD is never shown to customers.</p>
             <p>Trade flow: when a customer sells a card back to Verxor, payout = card face value × the Trade rate.</p>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+type RentSmsPricingData = { ok?: boolean; rate?: number; retail?: number; api?: number; error?: string };
+
+const RENT_SMS_DEFAULT_MULTIPLIERS_UI = { retail: 1.5, api: 1.3 };
+
+function RentSmsSection() {
+  const [data, setData] = useState<RentSmsPricingData | null>(null);
+  const [loadError, setLoadError] = useState(false);
+  const [editing, setEditing] = useState<'retail' | 'api' | null>(null);
+  const [draft, setDraft] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState('');
+
+  const load = async () => {
+    try {
+      const res = await fetch('/api/admin/rent-sms-pricing', { headers: adminHeaders(), cache: 'no-store' });
+      const d = (await res.json()) as RentSmsPricingData;
+      if (res.ok && d.ok) { setData(d); setLoadError(false); } else { setLoadError(true); }
+    } catch { setLoadError(true); }
+  };
+
+  useEffect(() => { void load(); }, []);
+
+  const multOf = (k: 'retail' | 'api'): number =>
+    data && data[k] && data[k]! >= 1 ? data[k]! : RENT_SMS_DEFAULT_MULTIPLIERS_UI[k];
+
+  const save = async (k: 'retail' | 'api') => {
+    const v = Number(draft.replace(/[^0-9.]/g, ''));
+    if (!Number.isFinite(v) || v < 1 || v > 10) { setMsg('Enter a multiplier between 1.0 and 10.0'); return; }
+    setBusy(true); setMsg('');
+    try {
+      const res = await fetch('/api/admin/rent-sms-pricing', {
+        method: 'PUT',
+        headers: adminHeaders(),
+        body: JSON.stringify({ [k]: v }),
+      });
+      const d = (await res.json()) as RentSmsPricingData;
+      if (!res.ok || !d.ok) { setMsg(d.error || 'Could not save'); return; }
+      setData(d); setEditing(null);
+      setMsg('Saved — Rent-for-SMS prices update everywhere immediately');
+    } catch { setMsg('Network error'); } finally { setBusy(false); }
+  };
+
+  const rows: { key: 'retail' | 'api'; label: string; hint: string; icon: typeof Percent }[] = [
+    { key: 'retail', label: 'Retail multiplier', hint: 'What customers pay on the Rent a Number page', icon: Percent },
+    { key: 'api', label: 'API / Child Panel multiplier', hint: 'Wholesale multiplier for API users and child panels', icon: Plug },
+  ];
+
+  return (
+    <>
+      {msg ? <div className="vxa-action-msg">{msg}</div> : null}
+      {loadError ? (
+        <div className="vxa-empty tall">
+          <strong>Could not load Rent-for-SMS pricing</strong>
+          <p>Check that the server can reach the database, then reload.</p>
+        </div>
+      ) : (
+        <div className="vxa-duo">
+          {rows.map(({ key, label, hint, icon: Icon }) => (
+            <div className="vxa-tile" key={key}>
+              <span className="vxa-tile-label"><Icon size={14} /> {label.toUpperCase()}</span>
+              <div className="vxa-rate-row">
+                <strong>×{multOf(key).toFixed(2)}</strong>
+                <span className="vxa-rate-per">on $ cost</span>
+                {editing === key ? (
+                  <div className="vxa-rate-actions">
+                    <input value={draft} onChange={(e) => setDraft(e.target.value)} inputMode="decimal" aria-label={label} />
+                    <button type="button" className="vxa-rate-save" disabled={busy} onClick={() => void save(key)}>Save</button>
+                    <button type="button" className="vxa-rate-cancel" onClick={() => setEditing(null)}>Cancel</button>
+                  </div>
+                ) : (
+                  <div className="vxa-rate-actions">
+                    <button type="button" className="vxa-rate-btn" onClick={() => { setEditing(key); setDraft(multOf(key).toFixed(2)); }}>
+                      Edit
+                    </button>
+                  </div>
+                )}
+              </div>
+              <p>{hint}. Price = Textverified USD cost × multiplier × the global daily rate (₦{data?.rate ? data.rate.toLocaleString('en-NG') : '1,380'}). USD is never shown to customers.</p>
+            </div>
+          ))}
+          <div className="vxa-tile">
+            <span className="vxa-tile-label"><MessageCircle size={14} /> HOW PRICING WORKS</span>
+            <p>Rent-for-SMS follows the Virtual Number pattern: the daily ₦ rate from Overview applies, and these multipliers set the retail / API margin on the Textverified USD cost. Prices are quoted live per service and duration, so one multiplier covers 1-day to 1-year rentals.</p>
           </div>
         </div>
       )}
@@ -1906,6 +2001,7 @@ export function AdminPage({
           <section className="vxa-body">
             {/* Today's profit hero */}
             <div className="vxa-hero">
+
               <span className="vxa-hero-label"><TrendingUp size={15} /> TODAY'S PROFIT</span>
               <strong>{naira(ov?.todayNet ?? 0)}</strong>
               <em>{ov?.todayOrders ?? 0} orders completed today · {ov?.todayRefunds ?? 0} refunded · all services combined</em>
@@ -2041,6 +2137,12 @@ export function AdminPage({
         {section === 'gift-cards' && (
           <section className="vxa-body">
             <GiftCardsSection />
+          </section>
+        )}
+
+        {section === 'rent-sms' && (
+          <section className="vxa-body">
+            <RentSmsSection />
           </section>
         )}
 
