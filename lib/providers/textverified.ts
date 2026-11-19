@@ -1,0 +1,265 @@
+/**
+ * Textverified provider client — Rent-for-SMS (US mobile, non-VoIP).
+ *
+ * Auth (per the official Textverified Python client / API v2):
+ *   POST https://www.textverified.com/api/pub/v2/auth
+ *     headers: X-API-KEY, X-API-USERNAME          → { token, expiresAt }
+ *   All other calls: Authorization: Bearer <token>
+ *
+ * Rentals model:
+ *   - service_name from GET /api/pub/v2/services (or 'allservices')
+ *   - durations: oneDay|threeDay|sevenDay|fourteenDay|thirtyDay|ninetyDay|oneYear
+ *   - pricing:  POST /api/pub/v2/pricing/rentals
+ *     { serviceName, areaCode, numberType: 'mobile', capability: 'sms',
+ *       isRenewable, duration, alwaysOn? }
+ *   - create:   POST /api/pub/v2/reservations/rental
+ *     { allowBackOrderReservations, duration, isRenewable, numberType,
+ *       serviceName, capability, alwaysOn?, areaCodeSelectOption? }
+ *     → response is a follow-up action (GET reservation details) with the e164.
+ *   - list:     GET /api/pub/v2/reservations/rental/renewable|nonrenewable
+ *   - sms:      GET /api/pub/v2/sms
+ *
+ * Env: TEXTVERIFIED_API_KEY, TEXTVERIFIED_USERNAME.
+ * Keys are server-side only; never exposed to clients.
+ */
+
+const TV_BASE = 'https://www.textverified.com';
+
+/* ---------- config ---------- */
+
+export function textverifiedConfigured(): boolean {
+  return Boolean(
+    (process.env.TEXTVERIFIED_API_KEY || '').trim() &&
+      (process.env.TEXTVERIFIED_USERNAME || process.env.TEXTVERIFIED_API_USERNAME || '').trim(),
+  );
+}
+
+/* ---------- bearer token cache ---------- */
+
+type TvToken = { token: string; expiresAt: number };
+let tvTokenCache: TvToken | null = null;
+let tvLastErrorValue = '';
+
+export function tvLastError(): string {
+  return tvLastErrorValue;
+}
+
+async function tvAuthToken(): Promise<string> {
+  const apiKey = (process.env.TEXTVERIFIED_API_KEY || '').trim();
+  const username = (
+    process.env.TEXTVERIFIED_USERNAME ||
+    process.env.TEXTVERIFIED_API_USERNAME ||
+    ''
+  ).trim();
+  if (!apiKey || !username) throw new Error('Textverified not configured');
+
+  if (tvTokenCache && tvTokenCache.expiresAt > Date.now() + 30_000) {
+    return tvTokenCache.token;
+  }
+  const res = await fetch(`${TV_BASE}/api/pub/v2/auth`, {
+    method: 'POST',
+    headers: { 'X-API-KEY': apiKey, 'X-API-USERNAME': username },
+    cache: 'no-store',
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    tvLastErrorValue = `Textverified auth failed: HTTP ${res.status}: ${text.slice(0, 180)}`;
+    throw new Error(tvLastErrorValue);
+  }
+  const data = (await res.json()) as { token?: string; expiresAt?: string };
+  if (!data.token) {
+    tvLastErrorValue = 'Textverified auth returned no token';
+    throw new Error(tvLastErrorValue);
+  }
+  const expiresAt = data.expiresAt ? Date.parse(data.expiresAt) : Date.now() + 55 * 60_000;
+  tvTokenCache = { token: data.token, expiresAt: Number.isFinite(expiresAt) ? expiresAt : Date.now() + 55 * 60_000 };
+  return data.token;
+}
+
+/* ---------- core request ---------- */
+
+async function tvRequest<T = unknown>(
+  path: string,
+  init: { method?: string; body?: unknown } = {},
+): Promise<{ ok: boolean; status?: number; error?: string; data?: T }> {
+  if (!textverifiedConfigured()) {
+    return { ok: false, error: 'Textverified provider not configured' };
+  }
+  try {
+    const token = await tvAuthToken();
+    const res = await fetch(`${TV_BASE}${path}`, {
+      method: init.method || 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        ...(init.body ? { 'Content-Type': 'application/json' } : {}),
+      },
+      ...(init.body ? { body: JSON.stringify(init.body) } : {}),
+      cache: 'no-store',
+    });
+    const raw = await res.text().catch(() => '');
+    if (!res.ok) {
+      tvLastErrorValue = `Textverified HTTP ${res.status}: ${raw.slice(0, 180)}`;
+      console.error(`[textverified] ${path}: HTTP ${res.status}: ${raw.slice(0, 180)}`);
+      return { ok: false, status: res.status, error: tvLastErrorValue };
+    }
+    const data = raw ? JSON.parse(raw) : {};
+    tvLastErrorValue = '';
+    return { ok: true, data: data as T };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : 'unknown error';
+    tvLastErrorValue = `Textverified network error: ${msg}`;
+    console.error(`[textverified] ${path}: ${msg}`);
+    return { ok: false, error: tvLastErrorValue };
+  }
+}
+
+/* ---------- paging helper ---------- */
+
+async function tvListAll<T>(path: string, maxPages = 20): Promise<T[]> {
+  const out: T[] = [];
+  let url = path;
+  for (let i = 0; i < maxPages; i++) {
+    const res = await tvRequest<{ data?: unknown[] } & Record<string, unknown>>(url);
+    if (!res.ok || !res.data) break;
+    const body = res.data as Record<string, unknown>;
+    const rows = (Array.isArray(body) ? body : (body.data as unknown[]) || []) as T[];
+    out.push(...rows);
+    const next = (body.next as string | undefined) || (body.action as { href?: string } | undefined)?.href;
+    if (!next) break;
+    url = next.startsWith('/api') ? next : new URL(next, TV_BASE).pathname;
+  }
+  return out;
+}
+
+/* ---------- account ---------- */
+
+export type TvAccount = { balanceUsd: number };
+
+export async function tvAccount(): Promise<TvAccount | null> {
+  const res = await tvRequest<{ currentBalance?: number; username?: string }>('/api/pub/v2/account');
+  if (!res.ok || !res.data) return null;
+  return { balanceUsd: Number(res.data.currentBalance ?? 0) };
+}
+
+/* ---------- services ---------- */
+
+export type TvService = { serviceName: string; supportBackOrder?: number };
+
+export async function tvServices(): Promise<{ services: TvService[]; error?: string }> {
+  const rows = await tvListAll<Record<string, unknown>>('/api/pub/v2/services');
+  const services = rows
+    .map((r) => ({
+      serviceName: String(
+        r.serviceName ?? r.service_name ?? (r.service as Record<string, unknown> | undefined)?.serviceName ?? '',
+      ),
+      supportBackOrder: Number(r.supportBackOrder ?? 0) || 0,
+    }))
+    .filter((s) => s.serviceName);
+  if (!services.length) {
+    return { services: [], error: tvLastError() || 'no services returned' };
+  }
+  return { services };
+}
+
+/* ---------- pricing & rentals ---------- */
+
+export type TvRentalDuration =
+  | 'oneDay'
+  | 'threeDay'
+  | 'sevenDay'
+  | 'fourteenDay'
+  | 'thirtyDay'
+  | 'ninetyDay'
+  | 'oneYear';
+
+export const TV_DURATIONS: { id: TvRentalDuration; label: string; days: number }[] = [
+  { id: 'oneDay', label: '1 Day', days: 1 },
+  { id: 'threeDay', label: '3 Days', days: 3 },
+  { id: 'sevenDay', label: '7 Days', days: 7 },
+  { id: 'fourteenDay', label: '14 Days', days: 14 },
+  { id: 'thirtyDay', label: '30 Days', days: 30 },
+  { id: 'ninetyDay', label: '90 Days', days: 90 },
+  { id: 'oneYear', label: '1 Year', days: 365 },
+];
+
+/** Live USD price for a rental config (before Verxor markup). */
+export async function tvRentalPriceUsd(opts: {
+  serviceName: string;
+  duration: TvRentalDuration;
+  isRenewable: boolean;
+}): Promise<{ ok: boolean; priceUsd?: number; error?: string }> {
+  const res = await tvRequest<{ price?: number } & Record<string, unknown>>('/api/pub/v2/pricing/rentals', {
+    method: 'POST',
+    body: {
+      serviceName: opts.serviceName,
+      areaCode: false,
+      numberType: 'mobile',
+      capability: 'sms',
+      isRenewable: opts.isRenewable,
+      duration: opts.duration,
+      alwaysOn: true,
+    },
+  });
+  if (!res.ok || !res.data) return { ok: false, error: res.error };
+  const price = Number((res.data as Record<string, unknown>).price ?? (res.data as { price?: number }).price ?? 0);
+  if (!Number.isFinite(price) || price <= 0) return { ok: false, error: 'Provider returned no price for that option' };
+  return { ok: true, priceUsd: price };
+}
+
+const asRecord = (v: unknown): Record<string, unknown> =>
+  v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : {};
+
+/**
+ * Create a rental. Returns e164 number + reservation id + expires info.
+ * Uses always-on, non-backorder (fail fast when out of stock) by default.
+ */
+export async function tvCreateRental(opts: {
+  serviceName: string;
+  duration: TvRentalDuration;
+  isRenewable: boolean;
+}): Promise<{ ok: boolean; reservationId?: string; e164?: string; error?: string }> {
+  const res = await tvRequest<Record<string, unknown>>('/api/pub/v2/reservations/rental', {
+    method: 'POST',
+    body: {
+      allowBackOrderReservations: false,
+      duration: opts.duration,
+      isRenewable: opts.isRenewable,
+      numberType: 'mobile',
+      serviceName: opts.serviceName,
+      capability: 'sms',
+      alwaysOn: true,
+    },
+  });
+  if (!res.ok || !res.data) return { ok: false, error: res.error };
+  // Create returns a reservationSale: { id, reservations: [{ id, serviceName, reservationType }] }.
+  const sale = asRecord(res.data);
+  const reservations = (Array.isArray(sale.reservations) ? (sale.reservations as unknown[]).map(asRecord) : []);
+  const reservation = reservations[0] || {};
+  const reservationId = String(reservation.id ?? sale.id ?? '');
+  if (!reservationId) return { ok: false, error: 'Provider created the rental but returned no id' };
+  // Expand via the details endpoint to get the number.
+  const det = await tvRequest<Record<string, unknown>>(`/api/pub/v2/reservations/${reservationId}`);
+  if (!det.ok || !det.data) return { ok: true, reservationId, error: det.error ? `${det.error} (created)` : undefined };
+  const d = asRecord(det.data);
+  return {
+    ok: true,
+    reservationId: String(d.id ?? reservationId),
+    e164: String(d.number ?? ''),
+  };
+}
+
+/** My rentals (renewable + non-renewable) for the "My Numbers" view. */
+export async function tvMyRentals(): Promise<Record<string, unknown>[]> {
+  const a = await tvListAll<Record<string, unknown>>('/api/pub/v2/reservations/rental/renewable');
+  const b = await tvListAll<Record<string, unknown>>('/api/pub/v2/reservations/rental/nonrenewable');
+  return [...a, ...b];
+}
+
+/** SMS list (optionally filtered by reservation or destination number). */
+export async function tvSms(filter?: { reservationId?: string; to?: string }): Promise<Record<string, unknown>[]> {
+  const params: string[] = [];
+  if (filter?.reservationId) params.push(`reservationId=${encodeURIComponent(filter.reservationId)}`);
+  if (filter?.to) params.push(`to=${encodeURIComponent(filter.to)}`);
+  const qs = params.length ? `?${params.join('&')}` : '';
+  return tvListAll<Record<string, unknown>>(`/api/pub/v2/sms${qs}`);
+}
