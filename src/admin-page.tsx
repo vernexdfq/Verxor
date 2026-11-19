@@ -24,6 +24,7 @@ import {
   Rocket,
   Search,
   Shield,
+  Trash2,
   TrendingUp,
   Users,
   Wallet,
@@ -134,6 +135,8 @@ type AdminChatConversation = {
   status: string;
   subject: string | null;
   ticket_id?: string | null;
+  unread_admin?: number;
+  customer?: { email: string | null; phone: string | null; name: string | null } | null;
   updated_at: string;
 };
 type AdminChatMessage = { id: string; role: string; content: string; created_at: string };
@@ -168,7 +171,14 @@ function LiveChats() {
   const [reply, setReply] = useState('');
   const [busy, setBusy] = useState(false);
   const [loadError, setLoadError] = useState(false);
+  const [filter, setFilter] = useState<'all' | 'waiting' | 'closed'>('all');
   const threadRef = useRef<HTMLDivElement>(null);
+
+  const chatCustomerLabel = (c: AdminChatConversation): string => {
+    if (c.customer?.email || c.customer?.phone) return c.customer.email || c.customer.phone || '';
+    if (c.customer?.name) return c.customer.name;
+    return c.user_id ? c.user_id.slice(0, 8) : 'visitor';
+  };
 
   const scrollThread = () => {
     requestAnimationFrame(() => {
@@ -257,7 +267,24 @@ function LiveChats() {
         {!loadError && conversations.length === 0 ? (
           <p className="vxa-chat-err">No customer chats yet. They appear here the moment a customer starts one.</p>
         ) : null}
-        {conversations.map((c) => {
+        <div className="vxa-chat-filters">
+          {([['all', 'All'], ['waiting', 'Waiting'], ['closed', 'Archived']] as const).map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              className={`vxa-chat-filter${filter === id ? ' active' : ''}`}
+              onClick={() => setFilter(id)}
+            >
+              {label}
+              {id === 'waiting'
+                ? ` (${conversations.filter((c) => c.status === 'waiting_admin').length})`
+                : ''}
+            </button>
+          ))}
+        </div>
+        {conversations
+          .filter((c) => (filter === 'all' ? true : filter === 'waiting' ? c.status === 'waiting_admin' : c.status === 'closed'))
+          .map((c) => {
           const ticket = chatTicket(c);
           return (
             <button
@@ -274,7 +301,10 @@ function LiveChats() {
                 <i className={`vxa-chat-status s-${c.status}`}>
                   {CHAT_STATUS_TAG[c.status] || c.status}
                 </i>
-                <span className="vxa-chat-item-user">{c.user_id ? c.user_id.slice(0, 8) : 'visitor'}</span>
+                <span className="vxa-chat-item-user">{chatCustomerLabel(c)}</span>
+                {c.unread_admin && c.unread_admin > 0 && selectedId !== c.id ? (
+                  <i className="vxa-chat-unread">{c.unread_admin > 9 ? '9+' : c.unread_admin}</i>
+                ) : null}
               </span>
             </button>
           );
@@ -289,7 +319,7 @@ function LiveChats() {
               <strong>{chatTicket(selected) ? `${chatTicket(selected)} · ` : ''}{selected.subject || 'Conversation'}</strong>
               <span>
                 Status: {CHAT_STATUS_TAG[selected.status] || selected.status}
-                {' · '}customer: {selected.user_id || 'unknown'}
+                {' · '}customer: {selected.customer?.email || selected.customer?.phone || chatCustomerLabel(selected)}
                 {' · '}updated {timeAgo(selected.updated_at)}
               </span>
             </header>
@@ -319,7 +349,7 @@ function LiveChats() {
   );
 }
 
-function UserManagement() {
+function UserManagement({ focusUserId }: { focusUserId?: string | null }) {
   const [tab, setTab] = useState<AdminUserTab>('all');
   const [query, setQuery] = useState('');
   const [users, setUsers] = useState<AdminUser[]>([]);
@@ -360,9 +390,20 @@ function UserManagement() {
     }
   };
 
+  const focusApplied = useRef<string | null>(null);
+
   useEffect(() => {
     void load();
   }, []);
+
+  useEffect(() => {
+    if (!focusUserId || focusApplied.current === focusUserId || users.length === 0) return;
+    const found = users.find((u) => u.id === focusUserId);
+    if (found) {
+      setSelected(found);
+      focusApplied.current = focusUserId;
+    }
+  }, [focusUserId, users]);
 
   useEffect(() => {
     if (!selected) return;
@@ -456,6 +497,19 @@ function UserManagement() {
                 selected.frozen ? 'User unfrozen' : 'User frozen',
               )}>
               <Lock size={15} /> {selected.frozen ? 'Unfreeze' : 'Freeze'}
+            </button>
+            <button type="button" disabled={busy} className="vxa-del-btn"
+              onClick={() => {
+                if (!window.confirm(`Delete ${displayName(selected)} permanently?\n\nThis erases their profile, wallet, balance, orders, chats and flags. It cannot be undone.`)) return;
+                void (async () => {
+                  const ok = await act(
+                    { action: 'delete-account', userId: selected.id },
+                    'User and all their data deleted',
+                  );
+                  if (ok) setSelected(null);
+                })();
+              }}>
+              <Trash2 size={15} /> Delete account
             </button>
           </div>
         </div>
@@ -1555,6 +1609,7 @@ export function AdminPage({
   initialSection?: AdminSection;
 }) {
   const [unlocked, setUnlocked] = useState(false);
+  const [focusUserId, setFocusUserId] = useState<string | null>(null);
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState('');
   const [loginBusy, setLoginBusy] = useState(false);
@@ -1599,6 +1654,12 @@ export function AdminPage({
     try {
       if (sessionStorage.getItem(SESSION_KEY) === '1') setUnlocked(true);
     } catch { /* ignore */ }
+    // Telegram deep link: /admin?user=<id> opens the Users section on that user.
+    const q = new URLSearchParams(window.location.search).get('user');
+    if (q) {
+      setFocusUserId(q);
+      setSection('users');
+    }
   }, []);
 
   // Load the live USD→NGN rate from admin_settings (falls back to local cache).
@@ -1844,7 +1905,7 @@ export function AdminPage({
 
         {section === 'users' && (
           <section className="vxa-body">
-            <UserManagement />
+            <UserManagement focusUserId={focusUserId} />
           </section>
         )}
 

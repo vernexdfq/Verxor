@@ -3037,7 +3037,7 @@ export async function handleFreeText(
     void notifyAdminTracked(
       `🆘 Customer needs help — ticket ${ticketId}\nCustomer: ${opts.user?.email || opts.user?.name || 'unknown'}\nMessage: "${text.slice(0, 300)}"\nSwipe-reply to this message in Telegram to answer them directly.`,
       { kind: 'web', conversationId },
-      [openAdminButton()],
+      [openAdminButton('👤 Open User in Admin', opts.user?.userId || undefined)],
     );
     return reply(
       conversationId,
@@ -3152,7 +3152,7 @@ async function createChatAccount(
       }),
       cache: 'no-store',
     });
-    const body = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
+    const body = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string; userId?: string };
     if (!res.ok || !body?.ok) {
       const exists = res.status === 409 || /already exists/i.test(body?.error || '');
       await updateConversation(conversationId, { state: null });
@@ -3178,7 +3178,7 @@ async function createChatAccount(
     void notifyAdminTracked(
       `👤 New account created via chat\nName: ${draft.name}\nEmail: ${draft.email}\nPhone: ${draft.phone}${referrer ? `\nReferrer: ${referrer}` : ''}`,
       { kind: 'web', conversationId },
-      [openAdminButton('👤 Open User in Admin')],
+      [openAdminButton('👤 Open User in Admin', body.userId || undefined)],
     );
     return reply(
       conversationId,

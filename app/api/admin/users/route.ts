@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
  * GET  /api/admin/users — list users with wallet, API/panel flags, bans, service overrides.
  * POST /api/admin/users — actions: credit | debit | ban | unban | freeze | unfreeze |
  *                          set-phone | set-service | set-panel | set-api-user |
- *                          panel-credit | panel-debit
+ *                          panel-credit | panel-debit | delete-account
  * Auth: x-admin-password header must match ADMIN_PASSWORD.
  */
 export const dynamic = 'force-dynamic';
@@ -570,6 +570,85 @@ export async function POST(req: NextRequest) {
         reason: body.unlockNote,
         meta: { service },
       });
+      return NextResponse.json({ ok: true });
+    }
+
+    case 'delete-account': {
+      // Wipes every trace of the user from the platform. Irreversible.
+      const profRes = await fetch(
+        `${base}/rest/v1/profiles?id=eq.${encodeURIComponent(userId)}&select=id,email&limit=1`,
+        { headers: hdr, cache: 'no-store' },
+      );
+      if (!profRes.ok) {
+        return NextResponse.json({ ok: false, error: 'Could not read the profile' }, { status: 500 });
+      }
+      const profRows = (await profRes.json()) as Array<{ id?: string; email?: string }>;
+      if (!profRows.length) {
+        return NextResponse.json({ ok: false, error: 'Unknown user' }, { status: 404 });
+      }
+      const email = profRows[0].email || '';
+
+      const del = async (table: string, filter: string): Promise<boolean> => {
+        const res = await fetch(`${base}/rest/v1/${table}?${filter}`, {
+          method: 'DELETE',
+          headers: hdr,
+          cache: 'no-store',
+        });
+        return res.ok;
+      };
+
+      const failures: string[] = [];
+
+      // Chat: delete the user's messages, then their conversations.
+      try {
+        const convRes = await fetch(
+          `${base}/rest/v1/chat_conversations?user_id=eq.${encodeURIComponent(userId)}&select=id&limit=500`,
+          { headers: hdr, cache: 'no-store' },
+        );
+        if (convRes.ok) {
+          const convs = (await convRes.json()) as Array<{ id: string }>;
+          if (convs.length) {
+            const ids = convs.map((c) => `"${c.id}"`).join(',');
+            if (!(await del('chat_messages', `conversation_id=in.(${ids})`))) failures.push('chat_messages');
+          }
+        }
+        if (!(await del('chat_conversations', `user_id=eq.${encodeURIComponent(userId)}`))) failures.push('chat_conversations');
+      } catch {
+        failures.push('chat_conversations');
+      }
+
+      // Wallet + history
+      if (!(await del('wallets', `user_id=eq.${encodeURIComponent(userId)}`))) failures.push('wallets');
+      if (!(await del('reseller_wallet', `user_id=eq.${encodeURIComponent(userId)}`))) failures.push('reseller_wallet');
+      if (!(await del('wallet_ledger', `user_id=eq.${encodeURIComponent(userId)}`))) failures.push('wallet_ledger');
+      if (!(await del('transactions', `user_id=eq.${encodeURIComponent(userId)}`))) failures.push('transactions');
+      // Service flags + panel registry + funding accounts + feedback
+      if (!(await del('service_access', `user_id=eq.${encodeURIComponent(userId)}`))) failures.push('service_access');
+      if (!(await del('child_panels', `user_id=eq.${encodeURIComponent(userId)}`))) failures.push('child_panels');
+      if (!(await del('virtual_accounts', `user_id=eq.${encodeURIComponent(userId)}`))) failures.push('virtual_accounts');
+      if (email && !(await del('feedback', `user_email=eq.${encodeURIComponent(email)}`))) failures.push('feedback');
+      // Finally the profile itself
+      if (!(await del('profiles', `id=eq.${encodeURIComponent(userId)}`))) failures.push('profiles');
+
+      // Remove from the admin_settings flag lists.
+      for (const key of ['banned_users', 'frozen_users', 'api_users']) {
+        try {
+          const list = await readUserList(key);
+          const set = new Set(list);
+          if (set.delete(userId)) await writeUserList(key, Array.from(set));
+        } catch {
+          /* best effort */
+        }
+      }
+
+      if (failures.length) {
+        console.error('[admin/users] delete-account partial failures for', userId, failures.join(','));
+        return NextResponse.json(
+          { ok: false, error: `Partially deleted — these records remain: ${failures.join(', ')}` },
+          { status: 500 },
+        );
+      }
+      await audit('delete_account', { userId, reason: email || body.reason });
       return NextResponse.json({ ok: true });
     }
 

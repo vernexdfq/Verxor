@@ -207,8 +207,9 @@ export async function notifyAdminTracked(
   }
 }
 
-/** Deep-link button that opens the admin panel (used on account + escalation alerts). */
-export function openAdminButton(label = '👤 Open Admin Panel'): TelegramButton {
+/** Deep-link button that opens the admin panel, optionally focused on one user. */
+export function openAdminButton(label = '👤 Open Admin Panel', userId?: string | null): TelegramButton {
   const site = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.verxor.com';
-  return { label, url: `${site.replace(/\/$/, '')}/admin` };
+  const base = site.replace(/\/$/, '');
+  return { label, url: userId ? `${base}/admin?user=${encodeURIComponent(userId)}` : `${base}/admin` };
 }

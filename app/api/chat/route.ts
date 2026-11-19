@@ -29,7 +29,7 @@ function maybeEscalate(text: string, userId: string, conversationId: string): vo
   void notifyAdminTracked(
     `⚠️ Verxor chat escalation\nUser: ${userId}\nChat: ${conversationId}\n"${snippet}"\nSwipe-reply to this message (or use /reply) to answer the customer directly.`,
     { kind: 'web', conversationId },
-    [openAdminButton()],
+    [openAdminButton('👤 Open User in Admin', userId && userId !== 'visitor' ? userId : undefined)],
   );
 }
 
