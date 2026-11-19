@@ -57,6 +57,19 @@ export type ElectricityFlowState = {
   phone?: string;
 };
 
+export type VnFlowState = {
+  flow: 'vn';
+  step: 'pool' | 'service' | 'country' | 'confirm';
+  poolId?: string;
+  serviceId?: string;
+  serviceName?: string;
+  countryCode?: string;
+  countryName?: string;
+  optionId?: string;
+  priceNgn?: number;
+  priceUsd?: number;
+};
+
 export type BoostFlowState = {
   flow: 'boost';
   step: 'platform' | 'services' | 'quantity' | 'link' | 'confirm';
@@ -106,6 +119,7 @@ export type FlowState =
   | EmailOtpFlowState
   | LogsFlowState
   | BoostFlowState
+  | VnFlowState
   | null;
 
 const NETWORKS: { id: string; label: string }[] = [
@@ -236,6 +250,89 @@ function boostPrice(ratePer1000: number, qty: number): number {
   return Math.round((qty / 1000) * ratePer1000);
 }
 
+const VN_POOLS: { id: string; title: string; location: 'USA' | 'Worldwide' }[] = [
+  { id: 'usa-economy', title: 'USA · Economy (from ₦150)', location: 'USA' },
+  { id: 'worldwide-economy', title: 'Worldwide · Economy (from ₦280)', location: 'Worldwide' },
+  { id: 'usa-standard', title: 'USA · Standard (from ₦380)', location: 'USA' },
+  { id: 'worldwide-standard', title: 'Worldwide · Standard (from ₦450)', location: 'Worldwide' },
+  { id: 'usa-fast', title: 'USA · Fast (from ₦620)', location: 'USA' },
+  { id: 'worldwide-fast', title: 'Worldwide · Fast (from ₦750)', location: 'Worldwide' },
+  { id: 'usa-premium', title: 'USA · Premium (from ₦990)', location: 'USA' },
+  { id: 'worldwide-premium', title: 'Worldwide · Premium (from ₦1,100)', location: 'Worldwide' },
+];
+
+type VnCatalogService = { id: string; name: string; isPopular?: boolean };
+type VnCatalogCountry = { code: string; name: string; flag?: string };
+type VnPriceOption = {
+  id: string;
+  provider: string;
+  priceUsd: number;
+  priceNgn: number;
+  stock: number;
+  grizzlyCountry: string;
+};
+
+async function fetchVnServices(origin: string, poolId: string, userId?: string | null): Promise<VnCatalogService[]> {
+  try {
+    const res = await fetch(
+      `${origin || 'https://www.verxor.com'}/api/v1/catalog?mode=services&pool=${encodeURIComponent(poolId)}`,
+      { cache: 'no-store', headers: userId ? { 'x-vx-user': userId } : {} },
+    );
+    const data = (await res.json().catch(() => ({}))) as { ok?: boolean; services?: VnCatalogService[] };
+    return data.ok && Array.isArray(data.services) ? data.services : [];
+  } catch {
+    return [];
+  }
+}
+
+async function fetchVnCountries(
+  origin: string,
+  poolId: string,
+  serviceId: string,
+  userId?: string | null,
+): Promise<VnCatalogCountry[]> {
+  try {
+    const res = await fetch(
+      `${origin || 'https://www.verxor.com'}/api/v1/catalog?mode=countries&pool=${encodeURIComponent(poolId)}&service=${encodeURIComponent(serviceId)}`,
+      { cache: 'no-store', headers: userId ? { 'x-vx-user': userId } : {} },
+    );
+    const data = (await res.json().catch(() => ({}))) as { ok?: boolean; countries?: VnCatalogCountry[] };
+    return data.ok && Array.isArray(data.countries) ? data.countries : [];
+  } catch {
+    return [];
+  }
+}
+
+async function fetchVnPrices(
+  origin: string,
+  poolId: string,
+  serviceId: string,
+  countryCode: string,
+  userId?: string | null,
+): Promise<VnPriceOption[]> {
+  try {
+    const res = await fetch(
+      `${origin || 'https://www.verxor.com'}/api/v1/catalog?mode=prices&pool=${encodeURIComponent(poolId)}&service=${encodeURIComponent(serviceId)}&country=${encodeURIComponent(countryCode)}`,
+      { cache: 'no-store', headers: userId ? { 'x-vx-user': userId } : {} },
+    );
+    const data = (await res.json().catch(() => ({}))) as {
+      ok?: boolean;
+      options?: (Partial<VnPriceOption> & { optionId?: string; countryCode?: string })[];
+    };
+    if (!data.ok || !Array.isArray(data.options)) return [];
+    return data.options.map((o) => ({
+      id: String(o.id || o.optionId || ''),
+      provider: o.provider || 'grizzly',
+      priceUsd: Number(o.priceUsd) || 0,
+      priceNgn: Number(o.priceNgn) || 0,
+      stock: Number(o.stock) || 100,
+      grizzlyCountry: String(o.grizzlyCountry || o.countryCode || countryCode),
+    }));
+  } catch {
+    return [];
+  }
+}
+
 const ELECTRICITY_DISCOS: { id: string; label: string }[] = [
   { id: 'ikeja', label: 'Ikeja Electric' },
   { id: 'eko', label: 'Eko Electric' },
@@ -316,7 +413,7 @@ export const MENU_BUTTONS: ChatButton[] = [
 export const SERVICE_MENU: ChatButton[] = [
   { label: '📱 Data', payload: 'start_data' },
   { label: '⚡ Airtime', payload: 'start_airtime' },
-  { label: '🔢 Virtual Number', payload: 'open_vn' },
+  { label: '🔢 Virtual Number', payload: 'start_vn' },
   { label: '📧 Email OTP', payload: 'start_emailotp' },
   { label: '👥 Buy Logs', payload: 'start_buylogs' },
   { label: '🚀 Boost', payload: 'start_boost' },
@@ -341,6 +438,7 @@ export async function handleButtonPayload(
   const emailOtpState: EmailOtpFlowState | null = state && state.flow === 'emailotp' ? state : null;
   const logsState: LogsFlowState | null = state && state.flow === 'logs' ? state : null;
   const boostState: BoostFlowState | null = state && state.flow === 'boost' ? state : null;
+  const vnState: VnFlowState | null = state && state.flow === 'vn' ? state : null;
 
   // --- navigation buttons (handled by the widget, but answer server-side too)
   if (payload.startsWith('open_')) {
@@ -873,6 +971,118 @@ export async function handleButtonPayload(
 
   if (payload === 'boost_confirm' && boostState?.serviceId && boostState.link && boostState.qty) {
     return purchaseBoost(conversationId, boostState, ctx);
+  }
+
+  // --- virtual number flow: pool → service → country → price → confirm
+  if (payload === 'start_vn' || payload === 'vn_change_pool') {
+    await updateConversation(conversationId, {
+      state: { flow: 'vn', step: 'pool' },
+      subject: 'Virtual number purchase',
+    });
+    return reply(
+      conversationId,
+      'Pick a pool for your virtual number:\n\nECO = cheapest (mixed quality) · STD = reliable · FAST = high OTP success (non-VoIP) · PREMIUM = maximum reliability.',
+      [...VN_POOLS.map((p) => ({ label: p.title, payload: `vn_pool:${p.id}` })), ...cancelButtons()],
+    );
+  }
+
+  if (payload.startsWith('vn_pool:')) {
+    const poolId = payload.split('vn_pool:')[1];
+    const pool = VN_POOLS.find((p) => p.id === poolId);
+    if (!pool) {
+      return reply(conversationId, 'Pick a pool to continue.', [
+        ...VN_POOLS.map((p) => ({ label: p.title, payload: `vn_pool:${p.id}` })),
+        ...cancelButtons(),
+      ]);
+    }
+    const services = await fetchVnServices(ctx.purchaseOrigin, poolId, ctx.userId);
+    if (services.length === 0) {
+      return reply(conversationId, 'Could not load the service list right now. Try again in a moment.', cancelButtons());
+    }
+    const popular = services.filter((sv) => sv.isPopular).slice(0, 9);
+    const shown = popular.length > 0 ? popular : services.slice(0, 9);
+    await updateConversation(conversationId, {
+      state: { flow: 'vn', step: 'service', poolId },
+    });
+    return reply(
+      conversationId,
+      `${pool.title.split(' (')[0]} — which app / site do you need the OTP number for?`,
+      [
+        ...shown.map((sv) => ({ label: sv.name.slice(0, 34), payload: `vn_service:${sv.id}` })),
+        { label: '✏️ Type an app name', payload: 'vn_service_custom' },
+        { label: '↩ Other pool', payload: 'vn_change_pool' },
+        ...cancelButtons(),
+      ],
+    );
+  }
+
+  if (payload === 'vn_service_custom' && vnState?.poolId) {
+    await updateConversation(conversationId, { state: { ...vnState, step: 'service' } });
+    return reply(conversationId, 'Type the app or site name (e.g. "Binance", "OpenAI"):', cancelButtons());
+  }
+
+  if (payload.startsWith('vn_service:') && vnState?.poolId) {
+    const serviceId = payload.split('vn_service:')[1];
+    const pool = VN_POOLS.find((p) => p.id === vnState.poolId);
+    const services = await fetchVnServices(ctx.purchaseOrigin, vnState.poolId, ctx.userId);
+    const svc = services.find((sv) => sv.id === serviceId);
+    if (!svc) {
+      return reply(conversationId, 'That service is not available. Pick another:', cancelButtons());
+    }
+    // USA pools skip the country step (US numbers only).
+    if (pool?.location === 'USA') {
+      return vnAfterCountry(conversationId, vnState, serviceId, svc.name || serviceId, 'US', 'United States 🇺🇸', ctx);
+    }
+    const countries = await fetchVnCountries(ctx.purchaseOrigin, vnState.poolId, serviceId, ctx.userId);
+    if (countries.length === 0) {
+      return reply(conversationId, 'Could not load the country list right now. Try again in a moment.', cancelButtons());
+    }
+    await updateConversation(conversationId, {
+      state: { ...vnState, step: 'country', serviceId, serviceName: svc.name || serviceId },
+    });
+    return reply(
+      conversationId,
+      `${svc.name} — which country do you want the number from?`,
+      [
+        ...countries.slice(0, 9).map((c) => ({ label: `${c.flag || '🌍'} ${c.name}`, payload: `vn_country:${c.code}` })),
+        { label: '✏️ Type a country', payload: 'vn_country_custom' },
+        { label: '↩ Other app', payload: `vn_pool:${vnState.poolId}` },
+        ...cancelButtons(),
+      ],
+    );
+  }
+
+  if (payload === 'vn_country_custom' && vnState?.serviceId) {
+    await updateConversation(conversationId, { state: { ...vnState, step: 'country' } });
+    return reply(conversationId, 'Type the country name (e.g. "Nigeria", "UK"):', cancelButtons());
+  }
+
+  if (payload.startsWith('vn_country:') && vnState?.poolId && vnState.serviceId) {
+    const code = payload.split('vn_country:')[1];
+    const countries = await fetchVnCountries(ctx.purchaseOrigin, vnState.poolId, vnState.serviceId, ctx.userId);
+    const c = countries.find((x) => x.code === code);
+    if (!c) {
+      return reply(conversationId, 'Pick a country from the buttons, or type its name:', cancelButtons());
+    }
+    return vnAfterCountry(conversationId, vnState, vnState.serviceId, vnState.serviceName || '', c.code, `${c.name} ${c.flag || ''}`.trim(), ctx);
+  }
+
+  if (payload === 'vn_change_country' && vnState?.poolId && vnState.serviceId) {
+    const pool = VN_POOLS.find((p) => p.id === vnState.poolId);
+    if (pool?.location === 'USA') {
+      return handleButtonPayload(conversationId, null, 'start_vn', ctx);
+    }
+    const countries = await fetchVnCountries(ctx.purchaseOrigin, vnState.poolId, vnState.serviceId, ctx.userId);
+    await updateConversation(conversationId, { state: { ...vnState, step: 'country' } });
+    return reply(conversationId, 'Which country do you want the number from?', [
+      ...countries.slice(0, 9).map((c) => ({ label: `${c.flag || '🌍'} ${c.name}`, payload: `vn_country:${c.code}` })),
+      { label: '✏️ Type a country', payload: 'vn_country_custom' },
+      ...cancelButtons(),
+    ]);
+  }
+
+  if (payload === 'vn_confirm' && vnState?.poolId && vnState.serviceId && vnState.countryCode && vnState.optionId) {
+    return purchaseVn(conversationId, vnState, ctx);
   }
 
   // Unknown payload → reset to menu.
@@ -1882,6 +2092,220 @@ export async function handleBoostText(
   ]);
 }
 
+async function vnAfterCountry(
+  conversationId: string,
+  state: VnFlowState,
+  serviceId: string,
+  serviceName: string,
+  countryCode: string,
+  countryName: string,
+  ctx: { purchaseOrigin: string; authHeader: string | null; userId?: string | null },
+): Promise<ChatMessageRow[]> {
+  const options = await fetchVnPrices(ctx.purchaseOrigin, state.poolId || '', serviceId, countryCode, ctx.userId);
+  const inStock = options.filter((o) => o.stock > 0 && o.priceNgn > 0).sort((a, b) => a.priceNgn - b.priceNgn);
+  if (inStock.length === 0) {
+    await updateConversation(conversationId, {
+      state: { ...state, step: 'country', serviceId, serviceName },
+    });
+    return reply(conversationId, 'No numbers in stock for that country right now. Pick a different country:', [
+      { label: '↩ Change country', payload: 'vn_change_country' },
+      ...cancelButtons(),
+    ]);
+  }
+  const best = inStock[0];
+  await updateConversation(conversationId, {
+    state: {
+      ...state,
+      step: 'confirm',
+      serviceId,
+      serviceName,
+      countryCode,
+      countryName,
+      optionId: best.id,
+      priceNgn: best.priceNgn,
+      priceUsd: best.priceUsd,
+    },
+  });
+  const poolTitle = VN_POOLS.find((p) => p.id === state.poolId)?.title.split(' (')[0] || state.poolId;
+  return reply(
+    conversationId,
+    `Confirm your order:\n\n${serviceName} OTP number\n${countryName}\nPool: ${poolTitle}\nPrice: ${naira(best.priceNgn)}\n\nThe number arrives within a few minutes and waits for the SMS code.`,
+    [
+      { label: `Confirm ${naira(best.priceNgn)}`, payload: 'vn_confirm' },
+      { label: 'Change country', payload: 'vn_change_country' },
+      { label: '↩ Change app', payload: state.poolId ? `vn_pool:${state.poolId}` : 'start_vn' },
+      { label: '✖ Cancel', payload: 'cancel_flow' },
+    ],
+  );
+}
+
+async function purchaseVn(
+  conversationId: string,
+  state: VnFlowState,
+  ctx: { purchaseOrigin: string; authHeader: string | null; userId?: string | null; email?: string | null },
+): Promise<ChatMessageRow[]> {
+  if (!ctx.userId) {
+    await updateConversation(conversationId, { state: { ...state, step: 'confirm' } });
+    return reply(
+      conversationId,
+      'You need a free Verxor account to buy — it unlocks your wallet and order history. Create one right here in chat or sign in.',
+      [
+        { label: '👤 Create Account', payload: 'create_account' },
+        { label: '🔑 Sign In', payload: 'open_signin' },
+      ],
+    );
+  }
+  // Fresh prices before charging — pick cheapest in stock right now.
+  const options = await fetchVnPrices(ctx.purchaseOrigin, state.poolId || '', state.serviceId || '', state.countryCode || '', ctx.userId);
+  const best = options.filter((o) => o.stock > 0 && o.priceNgn > 0).sort((a, b) => a.priceNgn - b.priceNgn)[0];
+  if (!best) {
+    await updateConversation(conversationId, { state: { ...state, step: 'country' } });
+    return reply(conversationId, 'The number just sold out. Try a different country:', [
+      { label: 'Change country', payload: 'vn_change_country' },
+      ...cancelButtons(),
+    ]);
+  }
+  try {
+    const res = await fetch(`${ctx.purchaseOrigin}/api/v1/numbers/buy`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(ctx.authHeader ? { Authorization: ctx.authHeader } : {}),
+      },
+      body: JSON.stringify({
+        service: state.serviceId,
+        country: best.grizzlyCountry || state.countryCode,
+        maxPriceUsd: best.priceUsd > 0 ? best.priceUsd : 0.5,
+        poolId: state.poolId,
+        optionId: best.id,
+        priceNgn: best.priceNgn,
+        userId: ctx.userId || undefined,
+      }),
+      cache: 'no-store',
+    });
+    const data = (await res.json().catch(() => ({}))) as {
+      ok?: boolean;
+      error?: string;
+      order?: { id?: string; phone?: string; status?: string } | null;
+    };
+    if (!res.ok || !data?.ok) {
+      const insufficient = res.status === 402 || /balance|funds/i.test(data?.error || '');
+      await updateConversation(conversationId, {
+        state: {
+          ...state,
+          step: 'confirm',
+          optionId: best.id,
+          priceNgn: best.priceNgn,
+          priceUsd: best.priceUsd,
+        },
+      });
+      if (!insufficient) {
+        void notifyAdmin(
+          `⚠️ Verxor chat VN purchase FAILED\n${state.serviceName} · ${state.countryName} (${state.poolId})\nError: ${data?.error || `HTTP ${res.status}`}\nCustomer: ${ctx.email || ctx.userId || 'unknown'}`,
+        );
+      }
+      return reply(
+        conversationId,
+        insufficient
+          ? `Not enough wallet balance for the ${state.countryName} number (${naira(best.priceNgn)}). Fund your wallet and come back — your order is saved.`
+          : data?.error || 'The purchase failed. Tap Retry to try again.',
+        insufficient
+          ? [{ label: '💰 Fund Wallet', payload: 'open_fund' }, { label: 'Retry', payload: 'vn_confirm' }]
+          : [{ label: 'Retry', payload: 'vn_confirm' }, ...cancelButtons()],
+      );
+    }
+    await updateConversation(conversationId, { state: null });
+    const poolTitle = VN_POOLS.find((p) => p.id === state.poolId)?.title.split(' (')[0] || '';
+    return reply(
+      conversationId,
+      `✅ Number reserved! ${data.order?.phone || 'check your orders'}\n\n${state.serviceName} · ${state.countryName} · ${poolTitle}.${data.order?.id ? ` Order: ${data.order.id}.` : ''}\nUse it on the app now — the SMS code will appear under Virtual Numbers → My Numbers when it lands.`,
+      [
+        { label: '🔢 Open My Numbers', payload: 'open_vn' },
+        ...MENU_BUTTONS,
+      ],
+    );
+  } catch {
+    await updateConversation(conversationId, { state: { ...state, step: 'confirm' } });
+    void notifyAdmin(
+      `⚠️ Verxor chat VN purchase ERROR\n${state.serviceName} · ${state.countryName}\nCustomer: ${ctx.email || ctx.userId || 'unknown'}`,
+    );
+    return reply(conversationId, 'Network error while purchasing. Tap Retry to try again.', [
+      { label: 'Retry', payload: 'vn_confirm' },
+      ...cancelButtons(),
+    ]);
+  }
+}
+
+/** VN free-text: typed app name on the service step, typed country on the country step. */
+export async function handleVnText(
+  conversationId: string,
+  state: VnFlowState,
+  text: string,
+  ctx: { purchaseOrigin: string; authHeader: string | null; userId?: string | null },
+): Promise<ChatMessageRow[]> {
+  if (state.step === 'service' && state.poolId) {
+    const services = await fetchVnServices(ctx.purchaseOrigin, state.poolId, ctx.userId);
+    const q = text.trim().toLowerCase();
+    const svc =
+      services.find((sv) => sv.name.toLowerCase() === q) ||
+      services.find((sv) => sv.id.toLowerCase() === q) ||
+      services.find((sv) => sv.name.toLowerCase().includes(q));
+    if (!svc) {
+      return reply(
+        conversationId,
+        `I could not find "${text.slice(0, 40)}" in the catalogue. Tap one of the buttons, or type another app name.`,
+        cancelButtons(),
+      );
+    }
+    const pool = VN_POOLS.find((p) => p.id === state.poolId);
+    if (pool?.location === 'USA') {
+      return vnAfterCountry(conversationId, state, svc.id, svc.name || svc.id, 'US', 'United States 🇺🇸', ctx);
+    }
+    const countries = await fetchVnCountries(ctx.purchaseOrigin, state.poolId, svc.id, ctx.userId);
+    if (countries.length === 0) {
+      return reply(conversationId, 'Could not load the country list right now. Try again in a moment.', cancelButtons());
+    }
+    await updateConversation(conversationId, {
+      state: { ...state, step: 'country', serviceId: svc.id, serviceName: svc.name || svc.id },
+    });
+    return reply(
+      conversationId,
+      `${svc.name} — which country do you want the number from?`,
+      [
+        ...countries.slice(0, 9).map((c) => ({ label: `${c.flag || '🌍'} ${c.name}`, payload: `vn_country:${c.code}` })),
+        { label: '✏️ Type a country', payload: 'vn_country_custom' },
+        { label: '↩ Other app', payload: `vn_pool:${state.poolId}` },
+        ...cancelButtons(),
+      ],
+    );
+  }
+  if (state.step === 'country' && state.poolId && state.serviceId) {
+    const countries = await fetchVnCountries(ctx.purchaseOrigin, state.poolId, state.serviceId, ctx.userId);
+    const q = text.trim().toLowerCase();
+    const c =
+      countries.find((x) => x.name.toLowerCase() === q) ||
+      countries.find((x) => x.code.toLowerCase() === q) ||
+      countries.find((x) => x.name.toLowerCase().includes(q));
+    if (!c) {
+      return reply(conversationId, `I could not find "${text.slice(0, 40)}". Type a country name like "Nigeria" or "UK".`, cancelButtons());
+    }
+    return vnAfterCountry(conversationId, state, state.serviceId, state.serviceName || '', c.code, `${c.name} ${c.flag || ''}`.trim(), ctx);
+  }
+  if (state.step === 'confirm') {
+    if (/^(confirm|yes|buy|proceed|go)\b/i.test(text)) {
+      return purchaseVn(conversationId, state, ctx);
+    }
+    return reply(conversationId, 'Tap Confirm to get your number, or Cancel to stop.', [
+      { label: 'Confirm', payload: 'vn_confirm' },
+      { label: '✖ Cancel', payload: 'cancel_flow' },
+    ]);
+  }
+  return reply(conversationId, 'Pick a pool for your virtual number:', [
+    ...VN_POOLS.map((p) => ({ label: p.title, payload: `vn_pool:${p.id}` })),
+    ...cancelButtons(),
+  ]);
+}
+
 /**
  * Phase 2 — Gemini free-text shopping. The model only extracts intent
  * (network, size, duration, phone) as strict JSON; the actual plan matching
@@ -2223,6 +2647,15 @@ export async function handleFreeText(
     return handleElectricityText(conversationId, state, text, opts.chatOrigin || '');
   }
 
+  // Active VN flow expecting an app name / country?
+  if (state?.flow === 'vn') {
+    return handleVnText(conversationId, state, text, {
+      purchaseOrigin: opts.chatOrigin || '',
+      authHeader: null,
+      userId: opts.user?.userId || null,
+    });
+  }
+
   // Active boost flow expecting a quantity / link?
   if (state?.flow === 'boost') {
     return handleBoostText(conversationId, state, text, {
@@ -2247,6 +2680,14 @@ export async function handleFreeText(
       purchaseOrigin: opts.chatOrigin || '',
       authHeader: null,
       userId: opts.user?.userId || null,
+    });
+  }
+
+  // Keyword routing — virtual numbers.
+  if (/\b(virtual\s+numbers?|\bvn\b|otp\s+numbers?|temporary\s+numbers?)\b/.test(lower)) {
+    return handleButtonPayload(conversationId, null, 'start_vn', {
+      purchaseOrigin: '',
+      authHeader: null,
     });
   }
 
