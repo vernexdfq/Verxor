@@ -10,6 +10,11 @@
  *
  * Env: MOOGOLD_PARTNER_ID, MOOGOLD_SECRET_KEY (or MOOGOLD_SECRET), optional MOOGOLD_USER_ID
  * (User ID from the MooGold dashboard is not part of the signature.)
+ *
+ * Optional fixed-IP egress (Fixie): set MOOGOLD_PROXY_URL or FIXIE_URL to a
+ * proxy URL like http://user:pass@usefixie.com:80 — MooGold calls are then
+ * tunneled through it (HTTP CONNECT) using Node built-ins only, so no new
+ * dependency is introduced.
  */
 
 const MG_BASE = 'https://moogold.com/wp-json/v1/api';
@@ -41,6 +46,101 @@ export function moogoldConfigured(): boolean {
   );
 }
 
+/**
+ * HTTP POST via an intermediate HTTP proxy (CONNECT tunnel, TLS to the target).
+ * Returns { status, text }. Throws on transport failure.
+ */
+async function mgProxyPost(
+  targetUrl: URL,
+  headers: Record<string, string>,
+  body: string,
+): Promise<{ status: number; text: string }> {
+  const proxyUrl = new URL(targetUrl.protocol === 'http:' ? (process.env.MOOGOLD_HTTP_PROXY_URL || '') : (process.env.MOOGOLD_PROXY_URL || process.env.FIXIE_URL || ''));
+  return new Promise((resolve, reject) => {
+    (async () => {
+      const http = await import('node:http');
+      const https = await import('node:https');
+      const tls = await import('node:tls');
+      const proxyAuth =
+        proxyUrl.username || proxyUrl.password
+          ? 'Basic ' +
+            Buffer.from(
+              `${decodeURIComponent(proxyUrl.username)}:${decodeURIComponent(proxyUrl.password)}`,
+            ).toString('base64')
+          : '';
+      const connectReq = http.request({
+        host: proxyUrl.hostname,
+        port: Number(proxyUrl.port || 80),
+        method: 'CONNECT',
+        path: `${targetUrl.hostname}:${targetUrl.protocol === 'http:' ? 80 : 443}`,
+        headers: proxyAuth ? { 'Proxy-Authorization': proxyAuth } : {},
+        timeout: 20000,
+      });
+      connectReq.on('error', reject);
+      connectReq.on('timeout', () => {
+        connectReq.destroy(new Error('proxy CONNECT timeout'));
+      });
+      connectReq.on('connect', (res, socket) => {
+        if (res.statusCode !== 200) {
+          socket.destroy();
+          reject(new Error(`proxy CONNECT failed: HTTP ${res.statusCode}`));
+          return;
+        }
+        const finish = (socket as unknown as { _mgSpent?: boolean });
+        try {
+          if (targetUrl.protocol === 'http:') {
+            const upReq = http.request(
+              {
+                host: targetUrl.hostname,
+                port: Number(targetUrl.port || 80),
+                path: targetUrl.pathname + targetUrl.search,
+                method: 'POST',
+                headers,
+              } as unknown as import('node:http').RequestOptions & { createConnection: () => typeof socket },
+              (upRes) => {
+                let data = '';
+                upRes.on('data', (c: Buffer) => (data += c.toString()));
+                upRes.on('end', () => resolve({ status: upRes.statusCode ?? 0, text: data }));
+              },
+            );
+            upReq.on('error', reject);
+            upReq.end(body);
+          } else {
+            const tlsSock = tls.connect(
+              { socket, servername: targetUrl.hostname },
+              () => {
+                if (finish._mgSpent) return;
+                finish._mgSpent = true;
+                const upReq = https.request(
+                  {
+                    host: targetUrl.hostname,
+                    port: 443,
+                    path: targetUrl.pathname + targetUrl.search,
+                    method: 'POST',
+                    headers,
+                    agent: new https.Agent({ keepAlive: false, maxSockets: 1 } as unknown as import('node:https').AgentOptions & { createConnection: () => typeof tlsSock }),
+                  },
+                  (upRes) => {
+                    let data = '';
+                    upRes.on('data', (c: Buffer) => (data += c.toString()));
+                    upRes.on('end', () => resolve({ status: upRes.statusCode ?? 0, text: data }));
+                  },
+                );
+                upReq.on('error', reject);
+                upReq.end(body);
+              },
+            );
+            tlsSock.on('error', reject);
+          }
+        } catch (e) {
+          reject(e instanceof Error ? e : new Error(String(e)));
+        }
+      });
+      connectReq.end();
+    })().catch(reject);
+  });
+}
+
 async function mgRequest<T = unknown>(
   path: string,
   data: Record<string, unknown>,
@@ -57,25 +157,41 @@ async function mgRequest<T = unknown>(
   const auth = createHmac('sha256', secret).update(payload + timestamp + path).digest('hex');
   const authBasic = Buffer.from(`${partnerId}:${secret}`).toString('base64');
 
-  let res: Response;
+  const targetUrl = new URL(`${MG_BASE}/${path}`);
+  const headers = {
+    timestamp,
+    auth,
+    Authorization: `Basic ${authBasic}`,
+    'Content-Type': 'application/json',
+  };
+
+  const proxyUrl = (process.env.MOOGOLD_PROXY_URL || process.env.FIXIE_URL || '').trim();
+
+  let status = 0;
+  let raw = '';
   try {
-    res = await fetch(`${MG_BASE}/${path}`, {
-      method: 'POST',
-      headers: {
-        timestamp,
-        auth,
-        Authorization: `Basic ${authBasic}`,
-        'Content-Type': 'application/json',
-      },
-      body: payload,
-      cache: 'no-store',
-    });
+    if (proxyUrl) {
+      const r = await mgProxyPost(targetUrl, headers, payload);
+      status = r.status;
+      raw = r.text;
+    } else {
+      const res = await fetch(targetUrl.toString(), {
+        method: 'POST',
+        headers,
+        body: payload,
+        cache: 'no-store',
+      });
+      status = res.status;
+      raw = await res.text().catch(() => '');
+    }
   } catch (e) {
-    return { ok: false, error: `MooGold network error: ${e instanceof Error ? e.message : 'unknown'}` };
+    const msg = `MooGold network error: ${e instanceof Error ? e.message : 'unknown'}`;
+    console.error(`[moogold] ${path}: ${msg} (proxy: ${proxyUrl ? 'on' : 'off'})`);
+    return { ok: false, error: msg };
   }
-  const raw = await res.text().catch(() => '');
-  if (!res.ok) {
-    return { ok: false, error: `MooGold HTTP ${res.status}: ${raw.slice(0, 180)}` };
+  if (status < 200 || status >= 300) {
+    console.error(`[moogold] ${path}: HTTP ${status}: ${raw.slice(0, 180)}`);
+    return { ok: false, error: `MooGold HTTP ${status}: ${raw.slice(0, 180)}` };
   }
   let body: unknown;
   try {
@@ -85,6 +201,7 @@ async function mgRequest<T = unknown>(
   }
   const obj = body as Record<string, unknown>;
   if (obj && typeof obj === 'object' && ('err_code' in obj || 'err_message' in obj)) {
+    console.error(`[moogold] ${path}: ${String(obj.err_message ?? obj.err_code ?? 'unknown')}`);
     return { ok: false, error: `MooGold error: ${String(obj.err_message ?? obj.err_code ?? 'unknown')}` };
   }
   return { ok: true, data: body as T };
