@@ -12,6 +12,7 @@ import {
   Ban,
   Check,
   FileText,
+  Gift,
   KeyRound,
   LayoutDashboard,
   Lock,
@@ -32,7 +33,7 @@ import {
 } from 'lucide-react';
 import './admin-page.css';
 
-type AdminSection = 'overview' | 'users' | 'chats' | 'pricing' | 'email-otp' | 'boost' | 'accounts' | 'providers' | 'settings';
+type AdminSection = 'overview' | 'users' | 'chats' | 'pricing' | 'email-otp' | 'boost' | 'accounts' | 'gift-cards' | 'providers' | 'settings';
 
 type AdminUserTab = 'all' | 'customers' | 'api' | 'panels';
 
@@ -76,6 +77,7 @@ const NAV: { id: AdminSection; label: string; icon: typeof LayoutDashboard }[] =
   { id: 'email-otp', label: 'Email OTP', icon: Mail },
   { id: 'boost', label: 'Boost (SMM)', icon: Rocket },
   { id: 'accounts', label: 'Buy Logs', icon: FileText },
+  { id: 'gift-cards', label: 'Gift Cards', icon: Gift },
   { id: 'providers', label: 'Providers', icon: Plug },
   { id: 'settings', label: 'Settings', icon: KeyRound },
 ];
@@ -89,6 +91,7 @@ const SECTION_META: Record<AdminSection, { title: string; sub: string }> = {
   'email-otp': { title: 'Email OTP pricing', sub: 'Flat USD markups for retail, API users and Child Panel' },
   boost: { title: 'Boost pricing', sub: 'Per-tier multipliers for retail, API users and Child Panel' },
   accounts: { title: 'Buy Logs pricing', sub: 'Account multipliers for Retail and API / Child Panel' },
+  'gift-cards': { title: 'Gift Card rates', sub: 'Standalone FX rates decoupled from the global daily rate' },
   providers: { title: 'Providers', sub: 'Upstream provider health and keys' },
   settings: { title: 'Settings', sub: 'Service switches and announcements' },
 };
@@ -1443,6 +1446,102 @@ function AccountsPricingSection() {
   );
 }
 
+type GiftCardRatesData = { ok?: boolean; retail?: number; api?: number; trade?: number; error?: string };
+
+const GIFT_CARD_DEFAULT_RATES_UI = { retail: 1460, api: 1415, trade: 1200 };
+
+/**
+ * Admin → Pricing → Gift Cards: three standalone FX rates (retail, API/panel,
+ * trade/buy-back) decoupled from the global usd_ngn_rate. Naira per $1.
+ */
+function GiftCardsSection() {
+  const [data, setData] = useState<GiftCardRatesData | null>(null);
+  const [loadError, setLoadError] = useState(false);
+  const [editing, setEditing] = useState<'retail' | 'api' | 'trade' | null>(null);
+  const [draft, setDraft] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState('');
+
+  const load = async () => {
+    try {
+      const res = await fetch('/api/admin/giftcard-rates', { headers: adminHeaders(), cache: 'no-store' });
+      const d = (await res.json()) as GiftCardRatesData;
+      if (res.ok && d.ok) { setData(d); setLoadError(false); } else { setLoadError(true); }
+    } catch { setLoadError(true); }
+  };
+
+  useEffect(() => { void load(); }, []);
+
+  const rateOf = (k: 'retail' | 'api' | 'trade'): number =>
+    data && data[k] && data[k]! > 0 ? data[k]! : GIFT_CARD_DEFAULT_RATES_UI[k];
+
+  const save = async (k: 'retail' | 'api' | 'trade') => {
+    const v = Number(draft.replace(/[^0-9.]/g, ''));
+    if (!Number.isFinite(v) || v < 100 || v > 10000) { setMsg('Enter a rate between ₦100 and ₦10,000 per $1'); return; }
+    setBusy(true); setMsg('');
+    try {
+      const res = await fetch('/api/admin/giftcard-rates', {
+        method: 'PUT',
+        headers: adminHeaders(),
+        body: JSON.stringify({ [k]: v }),
+      });
+      const d = (await res.json()) as GiftCardRatesData;
+      if (!res.ok || !d.ok) { setMsg(d.error || 'Could not save'); return; }
+      setData(d); setEditing(null);
+      setMsg('Saved — Gift Card prices update everywhere immediately');
+    } catch { setMsg('Network error'); } finally { setBusy(false); }
+  };
+
+  const rows: { key: 'retail' | 'api' | 'trade'; label: string; hint: string; icon: typeof Percent }[] = [
+    { key: 'retail', label: 'Retail rate', hint: 'What customers pay on the Gift Cards page', icon: Percent },
+    { key: 'api', label: 'API / Child Panel rate', hint: 'Wholesale rate for API users and child panels', icon: Plug },
+    { key: 'trade', label: 'Trade / Buy-back rate', hint: 'Payout when customers sell cards to Verxor', icon: TrendingUp },
+  ];
+
+  return (
+    <>
+      {msg ? <div className="vxa-action-msg">{msg}</div> : null}
+      {loadError ? (
+        <div className="vxa-empty tall">
+          <strong>Could not load Gift Card rates</strong>
+          <p>Check that the server can reach the database, then reload.</p>
+        </div>
+      ) : (
+        <div className="vxa-duo">
+          {rows.map(({ key, label, hint, icon: Icon }) => (
+            <div className="vxa-tile" key={key}>
+              <span className="vxa-tile-label"><Icon size={14} /> {label.toUpperCase()}</span>
+              <div className="vxa-rate-row">
+                <strong>₦{rateOf(key).toLocaleString('en-NG')}</strong>
+                <span className="vxa-rate-per">/ $1</span>
+                {editing === key ? (
+                  <div className="vxa-rate-actions">
+                    <input value={draft} onChange={(e) => setDraft(e.target.value)} inputMode="numeric" aria-label={label} />
+                    <button type="button" className="vxa-rate-save" disabled={busy} onClick={() => void save(key)}>Save</button>
+                    <button type="button" className="vxa-rate-cancel" onClick={() => setEditing(null)}>Cancel</button>
+                  </div>
+                ) : (
+                  <div className="vxa-rate-actions">
+                    <button type="button" className="vxa-rate-btn" onClick={() => { setEditing(key); setDraft(String(rateOf(key))); }}>
+                      Edit
+                    </button>
+                  </div>
+                )}
+              </div>
+              <p>{hint}. Standalone rate — the global daily ₦ rate does NOT affect gift cards.</p>
+            </div>
+          ))}
+          <div className="vxa-tile">
+            <span className="vxa-tile-label"><Gift size={14} /> HOW PRICING WORKS</span>
+            <p>Gift card prices never follow the Overview daily rate. Price = provider USD cost × the standalone rate above, rounded to whole Naira. USD is never shown to customers.</p>
+            <p>Trade flow: when a customer sells a card back to Verxor, payout = card face value × the Trade rate.</p>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
 function VirtualNumberSection() {
   const [data, setData] = useState<VnPricingData | null>(null);
   const [loadError, setLoadError] = useState(false);
@@ -1936,6 +2035,12 @@ export function AdminPage({
         {section === 'accounts' && (
           <section className="vxa-body">
             <AccountsPricingSection />
+          </section>
+        )}
+
+        {section === 'gift-cards' && (
+          <section className="vxa-body">
+            <GiftCardsSection />
           </section>
         )}
 

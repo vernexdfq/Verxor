@@ -15,6 +15,7 @@ import { AirtimePage } from './airtime-page';
 import { GamingPage } from './gaming-page';
 import { DataPage } from './data-page';
 import { GiftCardPage } from './giftcard-page';
+import { GiftCardStorePage } from './giftcard-store-page';
 import { VirtualCardPage } from './virtual-card-page';
 import { TvPage } from './tv-page';
 import { ElectricityPage } from './electricity-page';
@@ -493,7 +494,7 @@ export function VerxorApp({
   } else if (service === 'virtual-card') {
     content = <VirtualCardPage onBack={closeService} session={auth} />;
   } else if (service === 'gift-card') {
-    content = <GiftCardPage onBack={closeService} session={auth} />;
+    content = <GiftCardStorePage onBack={closeService} session={auth} onFund={() => navigatePage('fund')} />;
   } else if (service === 'gaming') {
     content = <GamingPage onBack={closeService} session={auth} onFund={() => navigatePage('fund')} />;
   } else if (service === 'tv-cable') {
