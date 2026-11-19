@@ -272,7 +272,6 @@ export function GamingPage({
   /* ---------- render ---------- */
 
   const stripAds = [
-    { id: 'a1', title: 'Fund your wallet, level up instantly', cta: 'Fund wallet', emoji: '⚡', onClick: onFund },
     { id: 'a2', title: 'Mobile Legends diamonds delivered in minutes', cta: 'Browse games', emoji: '🎮', onClick: () => setQuery('Mobile Legends') },
   ];
 

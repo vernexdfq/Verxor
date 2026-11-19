@@ -8,7 +8,7 @@
  *   - Basic : base64(partner_id:secret)                                -> header `Authorization`
  *   - unix seconds                                                       -> header `timestamp`
  *
- * Env: MOOGOLD_PARTNER_ID, MOOGOLD_SECRET
+ * Env: MOOGOLD_PARTNER_ID, MOOGOLD_SECRET_KEY (or MOOGOLD_SECRET), optional MOOGOLD_USER_ID
  * (User ID from the MooGold dashboard is not part of the signature.)
  */
 
@@ -37,7 +37,7 @@ export type MgServer = { id: string; name: string };
 export function moogoldConfigured(): boolean {
   return Boolean(
     (process.env.MOOGOLD_PARTNER_ID || '').trim() &&
-      (process.env.MOOGOLD_SECRET || '').trim(),
+      (process.env.MOOGOLD_SECRET_KEY || process.env.MOOGOLD_SECRET || '').trim(),
   );
 }
 
@@ -46,7 +46,7 @@ async function mgRequest<T = unknown>(
   data: Record<string, unknown>,
 ): Promise<{ ok: boolean; error?: string; data?: T }> {
   const partnerId = (process.env.MOOGOLD_PARTNER_ID || '').trim();
-  const secret = (process.env.MOOGOLD_SECRET || '').trim();
+  const secret = (process.env.MOOGOLD_SECRET_KEY || process.env.MOOGOLD_SECRET || '').trim();
   if (!partnerId || !secret) {
     return { ok: false, error: 'MooGold provider not configured' };
   }
