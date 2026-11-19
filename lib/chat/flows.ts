@@ -46,6 +46,17 @@ export type SignupFlowState = {
   step: 'name' | 'email' | 'phone' | 'pin' | 'password' | 'referrer';
 };
 
+export type ElectricityFlowState = {
+  flow: 'electricity';
+  step: 'disco' | 'meterType' | 'meter' | 'amount' | 'phone' | 'confirm';
+  disco?: string;
+  meterType?: 'prepaid' | 'postpaid';
+  meterNo?: string;
+  customerName?: string;
+  amount?: number;
+  phone?: string;
+};
+
 export type AirtimeFlowState = {
   flow: 'airtime';
   step: 'network' | 'amount' | 'phone' | 'confirm';
@@ -54,7 +65,13 @@ export type AirtimeFlowState = {
   phone?: string;
 };
 
-export type FlowState = DataFlowState | TicketFlowState | SignupFlowState | AirtimeFlowState | null;
+export type FlowState =
+  | DataFlowState
+  | TicketFlowState
+  | SignupFlowState
+  | AirtimeFlowState
+  | ElectricityFlowState
+  | null;
 
 const NETWORKS: { id: string; label: string }[] = [
   { id: 'mtn', label: 'MTN' },
@@ -62,6 +79,24 @@ const NETWORKS: { id: string; label: string }[] = [
   { id: 'glo', label: 'Glo' },
   { id: '9mobile', label: '9mobile' },
 ];
+
+const ELECTRICITY_DISCOS: { id: string; label: string }[] = [
+  { id: 'ikeja', label: 'Ikeja Electric' },
+  { id: 'eko', label: 'Eko Electric' },
+  { id: 'ibadan', label: 'Ibadan Electric' },
+  { id: 'abuja', label: 'Abuja Electric' },
+  { id: 'kaduna', label: 'Kaduna Electric' },
+  { id: 'kano', label: 'Kano Electric' },
+  { id: 'jos', label: 'Jos Electric' },
+  { id: 'ph', label: 'Port Harcourt Electric' },
+  { id: 'enugu', label: 'Enugu Electric' },
+  { id: 'benin', label: 'Benin Electric' },
+  { id: 'yola', label: 'Yola Electric' },
+  { id: 'aba', label: 'Aba Electric' },
+];
+
+const ELECTRICITY_MIN = 1000;
+const ELECTRICITY_MAX = 200000;
 
 const CATEGORIES: { id: string; label: string }[] = [
   { id: 'daily', label: 'Daily' },
@@ -130,6 +165,7 @@ export const SERVICE_MENU: ChatButton[] = [
   { label: '👥 Buy Logs', payload: 'open_logs' },
   { label: '🚀 Boost', payload: 'open_boost' },
   { label: '🎁 Gift Card', payload: 'open_giftcard' },
+  { label: '💡 Electricity', payload: 'start_electricity' },
 ];
 
 export function cancelButtons(): ChatButton[] {
@@ -145,6 +181,7 @@ export async function handleButtonPayload(
 ): Promise<ChatMessageRow[]> {
   const dataState: DataFlowState | null = state && state.flow === 'data' ? state : null;
   const airtimeState: AirtimeFlowState | null = state && state.flow === 'airtime' ? state : null;
+  const elecState: ElectricityFlowState | null = state && state.flow === 'electricity' ? state : null;
 
   // --- navigation buttons (handled by the widget, but answer server-side too)
   if (payload.startsWith('open_')) {
@@ -385,6 +422,86 @@ export async function handleButtonPayload(
       { label: '✏️ Custom amount', payload: 'airtime_amount_custom' },
       ...cancelButtons(),
     ]);
+  }
+
+  // --- electricity flow: disco → meter type → meter (verify) → amount → phone → confirm
+  if (payload === 'start_electricity') {
+    await updateConversation(conversationId, {
+      state: { flow: 'electricity', step: 'disco' },
+      subject: 'Electricity payment',
+    });
+    return reply(
+      conversationId,
+      'Which electricity company?',
+      [...ELECTRICITY_DISCOS.map((d) => ({ label: d.label, payload: `elec_disco:${d.id}` })), ...cancelButtons()],
+    );
+  }
+
+  if (payload.startsWith('elec_disco:')) {
+    const disco = payload.split(':')[1];
+    const found = ELECTRICITY_DISCOS.find((d) => d.id === disco);
+    if (!found || !elecState) {
+      return reply(conversationId, 'Which electricity company?', [
+        ...ELECTRICITY_DISCOS.map((d) => ({ label: d.label, payload: `elec_disco:${d.id}` })),
+        ...cancelButtons(),
+      ]);
+    }
+    await updateConversation(conversationId, { state: { ...elecState, step: 'meterType', disco } });
+    return reply(conversationId, `${found.label} — is the meter prepaid or postpaid?`, [
+      { label: '⚡ Prepaid (buy token)', payload: 'elec_meter_type:prepaid' },
+      { label: '📄 Postpaid (pay bill)', payload: 'elec_meter_type:postpaid' },
+      ...cancelButtons(),
+    ]);
+  }
+
+  if (payload.startsWith('elec_meter_type:') && elecState) {
+    const mt = payload.split(':')[1] === 'postpaid' ? 'postpaid' : 'prepaid';
+    await updateConversation(conversationId, { state: { ...elecState, step: 'meter', meterType: mt } });
+    return reply(
+      conversationId,
+      `Type the ${mt} meter number (digits only, e.g. 45123456789):`,
+      cancelButtons(),
+    );
+  }
+
+  if (payload.startsWith('elec_amount:') && elecState) {
+    const amount = Number(payload.split(':')[1]);
+    if (!Number.isFinite(amount) || amount < ELECTRICITY_MIN || amount > ELECTRICITY_MAX) {
+      return reply(conversationId, `Type the amount (₦${ELECTRICITY_MIN.toLocaleString('en-NG')} – ₦${ELECTRICITY_MAX.toLocaleString('en-NG')}):`, cancelButtons());
+    }
+    await updateConversation(conversationId, { state: { ...elecState, step: 'phone', amount } });
+    return reply(
+      conversationId,
+      `${naira(amount)} — type your phone number for the receipt (e.g. 08031234567):`,
+      cancelButtons(),
+    );
+  }
+
+  if (payload === 'elec_amount_custom' && elecState) {
+    await updateConversation(conversationId, { state: { ...elecState, step: 'amount', amount: undefined } });
+    return reply(
+      conversationId,
+      `Type the amount (₦${ELECTRICITY_MIN.toLocaleString('en-NG')} – ₦${ELECTRICITY_MAX.toLocaleString('en-NG')}):`,
+      cancelButtons(),
+    );
+  }
+
+  if (payload === 'elec_change_meter' && elecState) {
+    await updateConversation(conversationId, {
+      state: { ...elecState, step: 'meter', meterNo: undefined, customerName: undefined },
+    });
+    return reply(
+      conversationId,
+      `Type the ${elecState.meterType || 'prepaid'} meter number (digits only):`,
+      [
+        { label: 'Change meter type', payload: `elec_disco:${elecState.disco}` },
+        ...cancelButtons(),
+      ],
+    );
+  }
+
+  if (payload === 'elec_confirm' && elecState?.amount && elecState.meterNo) {
+    return purchaseElectricity(conversationId, elecState, ctx);
   }
 
   // Unknown payload → reset to menu.
@@ -635,6 +752,195 @@ function airtimeConfirmCard(
       { label: `Confirm ${naira(amount)}`, payload: 'airtime_confirm' },
       { label: 'Change number', payload: 'airtime_change_phone' },
       { label: 'Change amount', payload: 'airtime_change_amount' },
+      { label: '✖ Cancel', payload: 'cancel_flow' },
+    ],
+  );
+}
+
+async function purchaseElectricity(
+  conversationId: string,
+  state: ElectricityFlowState,
+  ctx: { purchaseOrigin: string; authHeader: string | null; userId?: string | null; email?: string | null; contact?: string | null },
+): Promise<ChatMessageRow[]> {
+  if (!ctx.userId) {
+    await updateConversation(conversationId, { state: { ...state, step: 'confirm' } });
+    return reply(
+      conversationId,
+      'You need a free Verxor account to buy — it unlocks your wallet and order history. Create one right here in chat or sign in.',
+      [
+        { label: '👤 Create Account', payload: 'create_account' },
+        { label: '🔑 Sign In', payload: 'open_signin' },
+      ],
+    );
+  }
+  try {
+    const res = await fetch(`${ctx.purchaseOrigin}/api/v1/electricity`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(ctx.authHeader ? { Authorization: ctx.authHeader } : {}),
+      },
+      body: JSON.stringify({
+        action: 'pay',
+        disco: state.disco,
+        meterType: state.meterType,
+        meterNo: state.meterNo,
+        amount: state.amount,
+        phone: state.phone,
+        userId: ctx.userId || undefined,
+      }),
+      cache: 'no-store',
+    });
+    const data = (await res.json().catch(() => ({}))) as {
+      ok?: boolean;
+      error?: string;
+      order?: { ref?: string; token?: string | null; status?: string } | null;
+    };
+    if (!res.ok || !data?.ok) {
+      const insufficient = res.status === 402 || /balance|funds/i.test(data?.error || '');
+      await updateConversation(conversationId, { state: { ...state, step: 'confirm' } });
+      if (!insufficient) {
+        void notifyAdmin(
+          `⚠️ Verxor chat electricity FAILED\n${state.disco?.toUpperCase()} ${naira(state.amount || 0)} → meter ${state.meterNo}\nError: ${data?.error || `HTTP ${res.status}`}\nCustomer: ${ctx.email || ctx.userId || 'unknown'}`,
+        );
+      }
+      return reply(
+        conversationId,
+        insufficient
+          ? `Not enough wallet balance for ${naira(state.amount || 0)}. Fund your wallet and come back — your order is saved.`
+          : data?.error || 'The payment failed. Tap Retry to try again.',
+        insufficient
+          ? [{ label: '💰 Fund Wallet', payload: 'open_fund' }, { label: 'Retry', payload: 'elec_confirm' }]
+          : [{ label: 'Retry', payload: 'elec_confirm' }, ...cancelButtons()],
+      );
+    }
+    const discoLabel = ELECTRICITY_DISCOS.find((d) => d.id === state.disco)?.label || state.disco;
+    const tokenLine = data.order?.token ? `\n🔑 Token: ${data.order.token}` : '';
+    await updateConversation(conversationId, { state: null });
+    return reply(
+      conversationId,
+      `✅ Done! ${naira(state.amount || 0)} paid to ${discoLabel} for meter ${state.meterNo}${tokenLine}${data.order?.ref ? `\nRef: ${data.order.ref}.` : ''} Anything else?`,
+      MENU_BUTTONS,
+    );
+  } catch {
+    await updateConversation(conversationId, { state: { ...state, step: 'confirm' } });
+    void notifyAdmin(
+      `⚠️ Verxor chat electricity ERROR\n${state.disco?.toUpperCase()} ${naira(state.amount || 0)} → meter ${state.meterNo}\nCustomer: ${ctx.email || ctx.userId || 'unknown'}`,
+    );
+    return reply(conversationId, 'Network error while purchasing. Tap Retry to try again.', [
+      { label: 'Retry', payload: 'elec_confirm' },
+      ...cancelButtons(),
+    ]);
+  }
+}
+
+/** Electricity free-text: meter number at verify step, amounts, receipt phone. */
+export async function handleElectricityText(
+  conversationId: string,
+  state: ElectricityFlowState,
+  text: string,
+  chatOrigin: string,
+): Promise<ChatMessageRow[]> {
+  const digitsAll = text.replace(/\D/g, '');
+
+  if (state.step === 'meter') {
+    if (digitsAll.length < 8 || digitsAll.length > 13) {
+      return reply(conversationId, 'That does not look like a meter number — type the digits only (8–13 digits).', cancelButtons());
+    }
+    const origin = chatOrigin || 'https://www.verxor.com';
+    let data: { ok?: boolean; error?: string; customerName?: string } = {};
+    try {
+      const res = await fetch(`${origin}/api/v1/electricity`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'verify', disco: state.disco, meterType: state.meterType, meterNo: digitsAll }),
+        cache: 'no-store',
+      });
+      data = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string; customerName?: string };
+      if (!res.ok || !data?.ok) {
+        return reply(
+          conversationId,
+          data?.error || 'Meter not found. Check the number and try again.',
+          [
+            { label: 'Change meter type', payload: `elec_disco:${state.disco}` },
+            { label: '💰 Start over', payload: 'start_electricity' },
+            ...cancelButtons(),
+          ],
+        );
+      }
+    } catch {
+      return reply(conversationId, 'Could not reach the electricity provider right now. Try again in a moment.', [
+        { label: 'Retry meter', payload: 'elec_change_meter' },
+        ...cancelButtons(),
+      ]);
+    }
+    await updateConversation(conversationId, {
+      state: { ...state, step: 'amount', meterNo: digitsAll, customerName: data.customerName || '' },
+    });
+    return reply(
+      conversationId,
+      `Meter verified ✅\nCustomer: ${data.customerName || 'name unavailable'}\nMeter: ${digitsAll}\n\nHow much ${state.meterType === 'postpaid' ? 'is the bill' : 'electricity'} do you want to ${state.meterType === 'postpaid' ? 'pay' : 'buy'}?`,
+      [
+        ...[1000, 2000, 5000, 10000].map((a) => ({ label: naira(a), payload: `elec_amount:${a}` })),
+        { label: '✏️ Custom amount', payload: 'elec_amount_custom' },
+        { label: 'Change meter', payload: 'elec_change_meter' },
+        ...cancelButtons(),
+      ],
+    );
+  }
+
+  if (state.step === 'amount') {
+    const amount = Number(digitsAll.slice(0, 6));
+    if (!Number.isFinite(amount) || amount < ELECTRICITY_MIN || amount > ELECTRICITY_MAX) {
+      return reply(
+        conversationId,
+        `Type the amount (₦${ELECTRICITY_MIN.toLocaleString('en-NG')} – ₦${ELECTRICITY_MAX.toLocaleString('en-NG')}):`,
+        cancelButtons(),
+      );
+    }
+    return elecAfterAmount(conversationId, state, amount);
+  }
+
+  if (state.step === 'phone' || state.step === 'confirm') {
+    if (digitsAll.length === 11) {
+      await updateConversation(conversationId, { state: { ...state, step: 'confirm', phone: digitsAll } });
+      return elecConfirmCard(conversationId, state, state.amount || 0, digitsAll);
+    }
+    return reply(conversationId, 'Type your phone number for the receipt (e.g. 08031234567):', cancelButtons());
+  }
+
+  return reply(conversationId, 'Which electricity company?', [
+    ...ELECTRICITY_DISCOS.map((d) => ({ label: d.label, payload: `elec_disco:${d.id}` })),
+    ...cancelButtons(),
+  ]);
+}
+
+async function elecAfterAmount(
+  conversationId: string,
+  state: ElectricityFlowState,
+  amount: number,
+): Promise<ChatMessageRow[]> {
+  await updateConversation(conversationId, { state: { ...state, step: 'phone', amount } });
+  return reply(
+    conversationId,
+    `${naira(amount)} — type your phone number for the receipt (e.g. 08031234567):`,
+    cancelButtons(),
+  );
+}
+
+function elecConfirmCard(
+  conversationId: string,
+  state: ElectricityFlowState,
+  amount: number,
+  phone: string,
+): Promise<ChatMessageRow[]> {
+  const discoLabel = ELECTRICITY_DISCOS.find((d) => d.id === state.disco)?.label || state.disco;
+  return reply(
+    conversationId,
+    `Confirm your payment:\n\n${discoLabel} · ${(state.meterType || 'prepaid').toUpperCase()}\nMeter: ${state.meterNo}\nCustomer: ${state.customerName || '—'}\nAmount: ${naira(amount)}\nReceipt phone: ${phone}`,
+    [
+      { label: `Pay ${naira(amount)}`, payload: 'elec_confirm' },
+      { label: 'Change meter', payload: 'elec_change_meter' },
       { label: '✖ Cancel', payload: 'cancel_flow' },
     ],
   );
@@ -976,6 +1282,11 @@ export async function handleFreeText(
     return handleAirtimeText(conversationId, state, text);
   }
 
+  // Active electricity flow expecting meter number / amount / receipt phone?
+  if (state?.flow === 'electricity') {
+    return handleElectricityText(conversationId, state, text, opts.chatOrigin || '');
+  }
+
   // Keyword routing — start the data flow.
   if (/\bdata\b|gb\b|bundle/.test(lower) || lower.includes('internet')) {
     // Phase 2: let Gemini resolve specifics ("buy 5GB MTN for 0803…") first.
@@ -990,6 +1301,14 @@ export async function handleFreeText(
   // Keyword routing — airtime.
   if (/\b(airtime|recharge|credit)\b/.test(lower)) {
     return handleButtonPayload(conversationId, null, 'start_airtime', {
+      purchaseOrigin: '',
+      authHeader: null,
+    });
+  }
+
+  // Keyword routing — electricity.
+  if (/\b(electricity|meter|prepaid|postpaid|token)\b/.test(lower)) {
+    return handleButtonPayload(conversationId, null, 'start_electricity', {
       purchaseOrigin: '',
       authHeader: null,
     });
