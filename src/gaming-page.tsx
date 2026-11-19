@@ -73,6 +73,7 @@ export function GamingPage({
   const [products, setProducts] = useState<CatalogProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [isSetup, setIsSetup] = useState(false);
 
   const [query, setQuery] = useState('');
   const [sortMode, setSortMode] = useState<'popular' | 'az'>('popular');
@@ -97,7 +98,9 @@ export function GamingPage({
       const res = await fetch('/api/v1/gaming/catalog', { cache: 'no-store' });
       const data = (await res.json()) as { ok?: boolean; error?: string; categories?: Category[] };
       if (!res.ok || !data.ok) {
-        setLoadError(data.error || 'Could not load the gaming catalog.');
+        const msg = data.error || 'Could not load the gaming catalog.';
+        setLoadError(/not configured/i.test(msg) ? 'Gaming store is going live — provider setup is finishing. Try again shortly.' : msg);
+        setIsSetup(/not configured/i.test(msg));
       } else {
         const cats = data.categories || [];
         setCategories(cats);
@@ -119,7 +122,9 @@ export function GamingPage({
       });
       const data = (await res.json()) as { ok?: boolean; error?: string; products?: CatalogProduct[] };
       if (!res.ok || !data.ok) {
-        setLoadError(data.error || 'Could not load products.');
+        const msg = data.error || 'Could not load products.';
+        setLoadError(/not configured/i.test(msg) ? 'Gaming store is going live — provider setup is finishing. Try again shortly.' : msg);
+        setIsSetup(/not configured/i.test(msg));
         setProducts([]);
       } else {
         setProducts(data.products || []);
@@ -344,7 +349,7 @@ export function GamingPage({
       </div>
 
       {loadError ? (
-        <div className="gm-error">
+        <div className={`gm-error${isSetup ? ' config' : ''}`}>
           <AlertCircle size={16} /> {loadError}
           <button type="button" onClick={() => (categoryId ? loadProducts(categoryId) : loadCategories())}>
             Retry
