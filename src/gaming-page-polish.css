@@ -1,0 +1,43 @@
+/* Verxor gaming storefront — compact, image-led fintech treatment */
+.gm-page{width:100%;max-width:100%;padding:10px 10px 88px;gap:13px;background:#f8fafc}
+.gm-head{gap:10px;padding:2px 2px 4px}
+.gm-back{width:38px;height:38px;border-radius:10px;background:#fff;border-color:#dbe3ef;color:#0f172a}
+.gm-head h1{color:#0f172a;font-size:22px;font-weight:850;letter-spacing:-.65px}
+.gm-head p{color:#64748b;opacity:1;font-size:12px;font-weight:500}
+.gm-strips{display:grid;grid-template-columns:1fr;gap:8px}
+.gm-strip{min-height:76px;width:100%;padding:11px 12px;display:flex;align-items:center;justify-content:space-between;gap:10px;border:0;border-radius:12px;overflow:hidden;color:#fff;background-color:#0b1732;background-size:cover;background-position:center 42%;box-shadow:0 3px 10px rgba(15,23,42,.12)}
+.gm-strip-copy{display:grid;gap:3px;min-width:0;text-align:left}
+.gm-strip-copy strong{font-size:13px;line-height:1.25;font-weight:850;color:#fff}
+.gm-strip-copy small{font-size:10.5px;line-height:1.3;color:rgba(255,255,255,.78)}
+.gm-strip-cta{flex:none;display:inline-flex;align-items:center;gap:5px;padding:7px 9px;border-radius:7px;background:#fff;color:#1749bd;font-size:10px;font-weight:850;box-shadow:none}
+.gm-controls{gap:9px}.gm-search-row{gap:8px}
+.gm-search{min-height:43px;padding:0 12px;border-radius:10px;border:1px solid #dbe3ef;background:#fff}
+.gm-search input{color:#0f172a;font-size:13px}
+.gm-sort{flex:none}
+.gm-sort-btn{padding:9px 11px;border-radius:9px;border:1px solid #dbe3ef;color:#475569;font-size:11px}
+.gm-sort-btn.active{background:#164fe5;border-color:#164fe5;color:#fff}
+.gm-cat-chip{border-radius:8px;border-color:#dbe3ef;background:#fff;color:#475569}
+.gm-cat-chip.active{background:#164fe5;border-color:#164fe5;color:#fff}
+.gm-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.gm-tile{min-width:0;padding:0;border-radius:12px;border:1px solid #dfe6ef;background:#fff;box-shadow:0 2px 7px rgba(15,23,42,.045)}
+.gm-tile:hover{transform:none;border-color:#9bb8ff;box-shadow:0 4px 12px rgba(37,99,235,.09)}
+.gm-tile-art{aspect-ratio:1.48/1;background:#e8eef8}
+.gm-tile-art img{object-fit:cover}
+.gm-tile-initials{font-size:34px}
+.gm-tile-body{padding:9px 10px 10px;gap:5px}
+.gm-tile-body strong{min-height:32px;color:#101828;font-size:13px;line-height:1.25;font-weight:800}
+.gm-tile-from{color:#174fe5;font-size:12px;font-weight:850}
+.gm-tile-choose{display:flex;align-items:center;justify-content:space-between;margin-top:3px;padding-top:7px;border-top:1px solid #edf1f6;color:#475569;font-size:11px;font-weight:750}
+.gm-empty{color:#475569}
+.gm-sheet{background:#fff;color:#101828;border-color:#e2e8f0;border-radius:18px 18px 0 0;box-shadow:0 -10px 34px rgba(15,23,42,.16)}
+.gm-sheet-close{background:#f8fafc;color:#0f172a;border-color:#dbe3ef}
+.gm-sheet-head p{color:#64748b;opacity:1}
+.gm-field span{color:#334155;opacity:1}
+.gm-field input,.gm-field select,.gm-qty-step input{background:#fff;color:#0f172a;border-color:#dbe3ef}
+.gm-variation{background:#fff;border-color:#dbe3ef;border-radius:10px;color:#0f172a}
+.gm-variation.active{border-color:#164fe5;background:#eff5ff;box-shadow:0 0 0 2px rgba(22,79,229,.1)}
+.gm-variation-price{color:#174fe5}.gm-qty{color:#101828}
+.gm-qty-step button{color:#0f172a;border-color:#dbe3ef}
+.gm-buy{border-radius:10px;background:#164fe5;box-shadow:0 5px 14px rgba(22,79,229,.2)}
+@media(min-width:600px){.gm-page{padding:16px 18px 88px}.gm-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.gm-strips{grid-template-columns:repeat(3,minmax(0,1fr))}.gm-strip{min-height:90px}}
+@media(max-width:360px){.gm-page{padding-left:8px;padding-right:8px}.gm-search-row{flex-direction:row}.gm-sort-btn{padding:9px 8px}.gm-tile-body{padding:8px}.gm-tile-body strong{font-size:12px}}
