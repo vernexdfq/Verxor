@@ -6,6 +6,7 @@
  * (fallback Q&A brain until the Gemini shopping agent lands in Phase 2).
  */
 
+import { CABLE_PACKAGES, CABLE_PROVIDERS } from '@/lib/cable-catalog';
 import { getSyncedLivePlansForNetwork } from '@/lib/data-plan-sync';
 import { notifyAdmin, notifyAdminTracked, openAdminButton, type TelegramButton } from '@/lib/notify';
 import { getUserOrdersSummary } from '@/lib/support-summary';
@@ -110,12 +111,25 @@ export type AirtimeFlowState = {
   phone?: string;
 };
 
+export type TvFlowState = {
+  flow: 'tv';
+  step: 'provider' | 'package' | 'card' | 'phone' | 'confirm';
+  provider?: string;
+  packageId?: string;
+  packageName?: string;
+  packagePrice?: number;
+  cardNo?: string;
+  customerName?: string;
+  phone?: string;
+};
+
 export type FlowState =
   | DataFlowState
   | TicketFlowState
   | SignupFlowState
   | AirtimeFlowState
   | ElectricityFlowState
+  | TvFlowState
   | EmailOtpFlowState
   | LogsFlowState
   | BoostFlowState
@@ -419,6 +433,7 @@ export const SERVICE_MENU: ChatButton[] = [
   { label: '🚀 Boost', payload: 'start_boost' },
   { label: '🎁 Gift Card', payload: 'open_giftcard' },
   { label: '💡 Electricity', payload: 'start_electricity' },
+  { label: '📺 Cable TV', payload: 'start_tv' },
 ];
 
 export function cancelButtons(): ChatButton[] {
@@ -435,6 +450,7 @@ export async function handleButtonPayload(
   const dataState: DataFlowState | null = state && state.flow === 'data' ? state : null;
   const airtimeState: AirtimeFlowState | null = state && state.flow === 'airtime' ? state : null;
   const elecState: ElectricityFlowState | null = state && state.flow === 'electricity' ? state : null;
+  const tvState: TvFlowState | null = state && state.flow === 'tv' ? state : null;
   const emailOtpState: EmailOtpFlowState | null = state && state.flow === 'emailotp' ? state : null;
   const logsState: LogsFlowState | null = state && state.flow === 'logs' ? state : null;
   const boostState: BoostFlowState | null = state && state.flow === 'boost' ? state : null;
@@ -759,6 +775,75 @@ export async function handleButtonPayload(
 
   if (payload === 'elec_confirm' && elecState?.amount && elecState.meterNo) {
     return purchaseElectricity(conversationId, elecState, ctx);
+  }
+
+  // --- cable TV flow: provider → package → smartcard (verify) → phone → confirm
+  if (payload === 'start_tv') {
+    await updateConversation(conversationId, {
+      state: { flow: 'tv', step: 'provider' },
+      subject: 'Cable TV subscription',
+    });
+    return reply(conversationId, 'Which TV provider?', [
+      ...CABLE_PROVIDERS.map((p) => ({ label: p.label, payload: `tv_provider:${p.id}` })),
+      ...cancelButtons(),
+    ]);
+  }
+
+  if (payload.startsWith('tv_provider:')) {
+    const provider = payload.split(':')[1];
+    const found = CABLE_PROVIDERS.find((p) => p.id === provider);
+    if (!found) {
+      return reply(conversationId, 'Which TV provider?', [
+        ...CABLE_PROVIDERS.map((p) => ({ label: p.label, payload: `tv_provider:${p.id}` })),
+        ...cancelButtons(),
+      ]);
+    }
+    await updateConversation(conversationId, { state: { flow: 'tv', step: 'package', provider } });
+    const pkgs = CABLE_PACKAGES[(provider as 'dstv' | 'gotv' | 'startimes')] || [];
+    return reply(conversationId, `${found.label} — pick a package:`, [
+      ...pkgs.map((p) => ({ label: `${p.name} · ${naira(p.price)}`, payload: `tv_pkg:${p.id}` })),
+      { label: 'Change provider', payload: 'start_tv' },
+      ...cancelButtons(),
+    ]);
+  }
+
+  if (payload.startsWith('tv_pkg:') && tvState?.provider) {
+    const packageId = payload.slice('tv_pkg:'.length);
+    const pkgs = CABLE_PACKAGES[(tvState.provider as 'dstv' | 'gotv' | 'startimes')] || [];
+    const pkg = pkgs.find((p) => p.id === packageId);
+    if (!pkg) {
+      return reply(conversationId, 'Pick a package:', [
+        ...pkgs.map((p) => ({ label: `${p.name} · ${naira(p.price)}`, payload: `tv_pkg:${p.id}` })),
+        { label: 'Change provider', payload: 'start_tv' },
+        ...cancelButtons(),
+      ]);
+    }
+    await updateConversation(conversationId, {
+      state: { ...tvState, step: 'card', packageId: pkg.id, packageName: pkg.name, packagePrice: pkg.price },
+    });
+    return reply(
+      conversationId,
+      `Type the ${CABLE_PROVIDERS.find((p) => p.id === tvState.provider)?.label || ''} smartcard / IUC number (digits only):`,
+      [{ label: 'Change package', payload: `tv_provider:${tvState.provider}` }, ...cancelButtons()],
+    );
+  }
+
+  if (payload === 'tv_change_card' && tvState) {
+    await updateConversation(conversationId, { state: { ...tvState, step: 'card', cardNo: undefined, customerName: undefined } });
+    return reply(
+      conversationId,
+      `Type the smartcard / IUC number (digits only):`,
+      [{ label: 'Change package', payload: tvState.provider ? `tv_provider:${tvState.provider}` : 'start_tv' }, ...cancelButtons()],
+    );
+  }
+
+  if (payload === 'tv_change_phone' && tvState) {
+    await updateConversation(conversationId, { state: { ...tvState, step: 'phone', phone: undefined } });
+    return reply(conversationId, 'Type your phone number for the receipt (e.g. 08031234567):', cancelButtons());
+  }
+
+  if (payload === 'tv_confirm' && tvState?.packageId && tvState.cardNo && tvState.phone) {
+    return purchaseTv(conversationId, tvState, ctx);
   }
 
   // --- email OTP flow: platform → domain → confirm
@@ -1522,6 +1607,163 @@ function elecConfirmCard(
     [
       { label: `Pay ${naira(amount)}`, payload: 'elec_confirm' },
       { label: 'Change meter', payload: 'elec_change_meter' },
+      { label: '✖ Cancel', payload: 'cancel_flow' },
+    ],
+  );
+}
+
+async function purchaseTv(
+  conversationId: string,
+  state: TvFlowState,
+  ctx: { purchaseOrigin: string; authHeader: string | null; userId?: string | null; email?: string | null; contact?: string | null },
+): Promise<ChatMessageRow[]> {
+  if (!ctx.userId) {
+    await updateConversation(conversationId, { state: { ...state, step: 'confirm' } });
+    return reply(
+      conversationId,
+      'You need a free Verxor account to buy — it unlocks your wallet and order history. Create one right here in chat or sign in.',
+      [
+        { label: '👤 Create Account', payload: 'create_account' },
+        { label: '🔑 Sign In', payload: 'open_signin' },
+      ],
+    );
+  }
+  try {
+    const res = await fetch(`${ctx.purchaseOrigin}/api/v1/tv`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(ctx.authHeader ? { Authorization: ctx.authHeader } : {}),
+      },
+      body: JSON.stringify({
+        action: 'pay',
+        provider: state.provider,
+        packageId: state.packageId,
+        smartCardNo: state.cardNo,
+        phone: state.phone,
+        userId: ctx.userId || undefined,
+      }),
+      cache: 'no-store',
+    });
+    const data = (await res.json().catch(() => ({}))) as {
+      ok?: boolean;
+      error?: string;
+      order?: { ref?: string; orderId?: string; message?: string } | null;
+    };
+    if (!res.ok || !data?.ok) {
+      const insufficient = res.status === 402 || /balance|funds/i.test(data?.error || '');
+      await updateConversation(conversationId, { state: { ...state, step: 'confirm' } });
+      if (!insufficient) {
+        void notifyAdmin(
+          `⚠️ Verxor chat cable TV FAILED\n${state.provider?.toUpperCase()} ${state.packageName} ${naira(state.packagePrice || 0)} → card ${state.cardNo}\nError: ${data?.error || `HTTP ${res.status}`}\nCustomer: ${ctx.email || ctx.userId || 'unknown'}`,
+        );
+      }
+      return reply(
+        conversationId,
+        insufficient
+          ? `Not enough wallet balance for ${state.packageName} (${naira(state.packagePrice || 0)}). Fund your wallet and come back — your order is saved.`
+          : data?.error || 'The payment failed. Tap Retry to try again.',
+        insufficient
+          ? [{ label: '💰 Fund Wallet', payload: 'open_fund' }, { label: 'Retry', payload: 'tv_confirm' }]
+          : [{ label: 'Retry', payload: 'tv_confirm' }, ...cancelButtons()],
+      );
+    }
+    const providerLabel = CABLE_PROVIDERS.find((p) => p.id === state.provider)?.label || state.provider;
+    await updateConversation(conversationId, { state: null });
+    return reply(
+      conversationId,
+      `✅ Done! ${providerLabel} ${state.packageName} activated on ${state.cardNo}${data.order?.ref ? `\nRef: ${data.order.ref}.` : ''} Anything else?`,
+      MENU_BUTTONS,
+    );
+  } catch {
+    await updateConversation(conversationId, { state: { ...state, step: 'confirm' } });
+    void notifyAdmin(
+      `⚠️ Verxor chat cable TV ERROR\n${state.provider?.toUpperCase()} ${state.packageName} → card ${state.cardNo}\nCustomer: ${ctx.email || ctx.userId || 'unknown'}`,
+    );
+    return reply(conversationId, 'Network error while purchasing. Tap Retry to try again.', [
+      { label: 'Retry', payload: 'tv_confirm' },
+      ...cancelButtons(),
+    ]);
+  }
+}
+
+/** Cable TV free-text: smartcard number at verify step, receipt phone. */
+export async function handleTvText(
+  conversationId: string,
+  state: TvFlowState,
+  text: string,
+  chatOrigin: string,
+): Promise<ChatMessageRow[]> {
+  const digitsAll = text.replace(/\D/g, '');
+
+  if (state.step === 'card') {
+    if (digitsAll.length < 6 || digitsAll.length > 15) {
+      return reply(conversationId, 'That does not look like a smartcard / IUC number — type the digits only (6–15 digits).', cancelButtons());
+    }
+    const origin = chatOrigin || 'https://www.verxor.com';
+    let data: { ok?: boolean; error?: string; customerName?: string } = {};
+    try {
+      const res = await fetch(`${origin}/api/v1/tv`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'verify', provider: state.provider, smartCardNo: digitsAll }),
+        cache: 'no-store',
+      });
+      data = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string; customerName?: string };
+      if (!res.ok || !data?.ok) {
+        return reply(
+          conversationId,
+          data?.error || 'Smartcard not found. Check the number and try again.',
+          [
+            { label: 'Retry card', payload: 'tv_change_card' },
+            { label: 'Change package', payload: state.provider ? `tv_provider:${state.provider}` : 'start_tv' },
+            ...cancelButtons(),
+          ],
+        );
+      }
+    } catch {
+      return reply(conversationId, 'Could not reach the TV provider right now. Try again in a moment.', [
+        { label: 'Retry card', payload: 'tv_change_card' },
+        ...cancelButtons(),
+      ]);
+    }
+    await updateConversation(conversationId, {
+      state: { ...state, step: 'phone', cardNo: digitsAll, customerName: data.customerName || '' },
+    });
+    return reply(
+      conversationId,
+      `Smartcard verified ✅\nCustomer: ${data.customerName || 'name unavailable'}\nCard: ${digitsAll}\n\nType your phone number for the receipt (e.g. 08031234567):`,
+      cancelButtons(),
+    );
+  }
+
+  if (state.step === 'phone' || state.step === 'confirm') {
+    if (digitsAll.length === 11) {
+      await updateConversation(conversationId, { state: { ...state, step: 'confirm', phone: digitsAll } });
+      return tvConfirmCard(conversationId, state, digitsAll);
+    }
+    return reply(conversationId, 'Type your phone number for the receipt (e.g. 08031234567):', cancelButtons());
+  }
+
+  return reply(conversationId, 'Which TV provider?', [
+    ...CABLE_PROVIDERS.map((p) => ({ label: p.label, payload: `tv_provider:${p.id}` })),
+    ...cancelButtons(),
+  ]);
+}
+
+function tvConfirmCard(
+  conversationId: string,
+  state: TvFlowState,
+  phone: string,
+): Promise<ChatMessageRow[]> {
+  const providerLabel = CABLE_PROVIDERS.find((p) => p.id === state.provider)?.label || state.provider;
+  return reply(
+    conversationId,
+    `Confirm your subscription:\n\n${providerLabel} · ${state.packageName}\nSmartcard / IUC: ${state.cardNo}\nCustomer: ${state.customerName || '—'}\nAmount: ${naira(state.packagePrice || 0)}\nReceipt phone: ${phone}`,
+    [
+      { label: `Pay ${naira(state.packagePrice || 0)}`, payload: 'tv_confirm' },
+      { label: 'Change card', payload: 'tv_change_card' },
+      { label: 'Change phone', payload: 'tv_change_phone' },
       { label: '✖ Cancel', payload: 'cancel_flow' },
     ],
   );
@@ -2642,6 +2884,11 @@ export async function handleFreeText(
     return handleAirtimeText(conversationId, state, text);
   }
 
+  // Active cable TV flow expecting a smartcard / receipt phone?
+  if (state?.flow === 'tv') {
+    return handleTvText(conversationId, state, text, opts.chatOrigin || '');
+  }
+
   // Active electricity flow expecting meter number / amount / receipt phone?
   if (state?.flow === 'electricity') {
     return handleElectricityText(conversationId, state, text, opts.chatOrigin || '');
@@ -2729,6 +2976,14 @@ export async function handleFreeText(
   // Keyword routing — email OTP.
   if (/\b(email\s*otp|temporary email|temp(orary)? mail|otp email)\b/.test(lower)) {
     return handleButtonPayload(conversationId, null, 'start_emailotp', {
+      purchaseOrigin: '',
+      authHeader: null,
+    });
+  }
+
+  // Keyword routing — cable TV.
+  if (/\b(tv|cable|dstv|gotv|startimes|smart\s*card|iuc\b)/.test(lower)) {
+    return handleButtonPayload(conversationId, null, 'start_tv', {
       purchaseOrigin: '',
       authHeader: null,
     });
