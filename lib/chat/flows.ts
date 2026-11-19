@@ -46,7 +46,15 @@ export type SignupFlowState = {
   step: 'name' | 'email' | 'phone' | 'pin' | 'password' | 'referrer';
 };
 
-export type FlowState = DataFlowState | TicketFlowState | SignupFlowState | null;
+export type AirtimeFlowState = {
+  flow: 'airtime';
+  step: 'network' | 'amount' | 'phone' | 'confirm';
+  network?: string;
+  amount?: number;
+  phone?: string;
+};
+
+export type FlowState = DataFlowState | TicketFlowState | SignupFlowState | AirtimeFlowState | null;
 
 const NETWORKS: { id: string; label: string }[] = [
   { id: 'mtn', label: 'MTN' },
@@ -116,7 +124,7 @@ export const MENU_BUTTONS: ChatButton[] = [
 /** Every service, shown after "Buy Service". */
 export const SERVICE_MENU: ChatButton[] = [
   { label: '📱 Data', payload: 'start_data' },
-  { label: '⚡ Airtime', payload: 'open_airtime' },
+  { label: '⚡ Airtime', payload: 'start_airtime' },
   { label: '🔢 Virtual Number', payload: 'open_vn' },
   { label: '📧 Email OTP', payload: 'open_email' },
   { label: '👥 Buy Logs', payload: 'open_logs' },
@@ -136,6 +144,7 @@ export async function handleButtonPayload(
   ctx: { purchaseOrigin: string; authHeader: string | null; userId?: string | null; email?: string | null; contact?: string | null },
 ): Promise<ChatMessageRow[]> {
   const dataState: DataFlowState | null = state && state.flow === 'data' ? state : null;
+  const airtimeState: AirtimeFlowState | null = state && state.flow === 'airtime' ? state : null;
 
   // --- navigation buttons (handled by the widget, but answer server-side too)
   if (payload.startsWith('open_')) {
@@ -301,6 +310,83 @@ export async function handleButtonPayload(
     return reply(conversationId, 'Type the phone number to load (e.g. 08031234567):', cancelButtons());
   }
 
+  // --- airtime flow: network → amount → phone → confirm
+  if (payload === 'start_airtime') {
+    await updateConversation(conversationId, {
+      state: { flow: 'airtime', step: 'network' },
+      subject: 'Airtime purchase',
+    });
+    return reply(
+      conversationId,
+      'Which network for the airtime?',
+      [...NETWORKS.map((n) => ({ label: n.label, payload: `airtime_network:${n.id}` })), ...cancelButtons()],
+    );
+  }
+
+  if (payload.startsWith('airtime_network:')) {
+    const net = payload.split(':')[1];
+    const found = NETWORKS.find((n) => n.id === net);
+    if (!found) {
+      return reply(conversationId, 'Pick a network to continue.', [
+        ...NETWORKS.map((n) => ({ label: n.label, payload: `airtime_network:${n.id}` })),
+        ...cancelButtons(),
+      ]);
+    }
+    await updateConversation(conversationId, {
+      state: { flow: 'airtime', step: 'amount', network: net },
+    });
+    return reply(conversationId, `How much ${found.label} airtime?`, [
+      ...[100, 200, 500, 1000, 2000].map((a) => ({ label: naira(a), payload: `airtime_amount:${a}` })),
+      { label: '✏️ Custom amount', payload: 'airtime_amount_custom' },
+      ...cancelButtons(),
+    ]);
+  }
+
+  if (payload === 'airtime_amount_custom' && airtimeState?.network) {
+    await updateConversation(conversationId, {
+      state: { ...airtimeState, step: 'amount', amount: undefined },
+    });
+    return reply(conversationId, 'Type the amount in naira (₦50 – ₦50,000):', cancelButtons());
+  }
+
+  if (payload.startsWith('airtime_amount:') && airtimeState?.network) {
+    const amount = Number(payload.split(':')[1]);
+    if (!Number.isFinite(amount) || amount < 50 || amount > 50000) {
+      return reply(conversationId, 'Type the amount in naira (₦50 – ₦50,000):', cancelButtons());
+    }
+    await updateConversation(conversationId, {
+      state: { ...airtimeState, step: 'phone', amount },
+    });
+    return reply(
+      conversationId,
+      `${naira(amount)} airtime — type the phone number to load (e.g. 08031234567):`,
+      cancelButtons(),
+    );
+  }
+
+  if (payload === 'airtime_confirm' && airtimeState?.amount && airtimeState.phone) {
+    return purchaseAirtime(conversationId, airtimeState, ctx);
+  }
+
+  if (payload === 'airtime_change_phone' && airtimeState) {
+    await updateConversation(conversationId, { state: { ...airtimeState, step: 'phone', phone: undefined } });
+    return reply(
+      conversationId,
+      'Type the phone number to load (e.g. 08031234567):',
+      cancelButtons(),
+    );
+  }
+
+  if (payload === 'airtime_change_amount' && airtimeState) {
+    await updateConversation(conversationId, { state: { ...airtimeState, step: 'amount', amount: undefined } });
+    const net = NETWORKS.find((n) => n.id === airtimeState.network)?.label || '';
+    return reply(conversationId, `How much ${net} airtime?`, [
+      ...[100, 200, 500, 1000, 2000].map((a) => ({ label: naira(a), payload: `airtime_amount:${a}` })),
+      { label: '✏️ Custom amount', payload: 'airtime_amount_custom' },
+      ...cancelButtons(),
+    ]);
+  }
+
   // Unknown payload → reset to menu.
   await updateConversation(conversationId, { state: null });
   return reply(conversationId, 'Let us start over — what would you like to do?', MENU_BUTTONS);
@@ -404,6 +490,151 @@ export async function handleDataPhoneInput(
     [
       { label: `Confirm ${naira(state.planPrice || 0)}`, payload: 'data_confirm' },
       { label: 'Change number', payload: 'data_change_phone' },
+      { label: '✖ Cancel', payload: 'cancel_flow' },
+    ],
+  );
+}
+
+async function purchaseAirtime(
+  conversationId: string,
+  state: AirtimeFlowState,
+  ctx: { purchaseOrigin: string; authHeader: string | null; userId?: string | null; email?: string | null; contact?: string | null },
+): Promise<ChatMessageRow[]> {
+  // Visitors cannot buy — no wallet. Point them at account creation.
+  if (!ctx.userId) {
+    await updateConversation(conversationId, { state: { ...state, step: 'confirm' } });
+    return reply(
+      conversationId,
+      'You need a free Verxor account to buy — it unlocks your wallet and order history. Create one right here in chat or sign in.',
+      [
+        { label: '👤 Create Account', payload: 'create_account' },
+        { label: '🔑 Sign In', payload: 'open_signin' },
+      ],
+    );
+  }
+  try {
+    const res = await fetch(`${ctx.purchaseOrigin}/api/v1/airtime`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(ctx.authHeader ? { Authorization: ctx.authHeader } : {}),
+      },
+      body: JSON.stringify({
+        network: state.network,
+        phone: state.phone,
+        amount: state.amount,
+        userId: ctx.userId || undefined,
+      }),
+      cache: 'no-store',
+    });
+    const data = (await res.json().catch(() => ({}))) as {
+      ok?: boolean;
+      error?: string;
+      order?: { ref?: string } | null;
+    };
+    if (!res.ok || !data?.ok) {
+      const insufficient = res.status === 402 || /balance|funds/i.test(data?.error || '');
+      await updateConversation(conversationId, { state: { ...state, step: 'confirm' } });
+      if (!insufficient) {
+        void notifyAdmin(
+          `⚠️ Verxor chat airtime FAILED\n${state.network?.toUpperCase()} ${naira(state.amount || 0)} → ${state.phone}\nError: ${data?.error || `HTTP ${res.status}`}\nCustomer: ${ctx.email || ctx.userId || 'unknown'}`,
+        );
+      }
+      return reply(
+        conversationId,
+        insufficient
+          ? `Not enough wallet balance for ${naira(state.amount || 0)} airtime. Fund your wallet and come back — your order is saved.`
+          : data?.error || 'The purchase failed. Tap Retry to try again.',
+        insufficient
+          ? [{ label: '💰 Fund Wallet', payload: 'open_fund' }, { label: 'Retry', payload: 'airtime_confirm' }]
+          : [{ label: 'Retry', payload: 'airtime_confirm' }, ...cancelButtons()],
+      );
+    }
+    await updateConversation(conversationId, { state: null });
+    const net = NETWORKS.find((n) => n.id === state.network)?.label || state.network;
+    return reply(
+      conversationId,
+      `✅ Done! ${naira(state.amount || 0)} ${net} airtime sent to ${state.phone}.${data.order?.ref ? ` Ref: ${data.order.ref}.` : ''} Anything else?`,
+      MENU_BUTTONS,
+    );
+  } catch {
+    await updateConversation(conversationId, { state: { ...state, step: 'confirm' } });
+    void notifyAdmin(
+      `⚠️ Verxor chat airtime ERROR\n${state.network?.toUpperCase()} ${naira(state.amount || 0)} → ${state.phone}\nCustomer: ${ctx.email || ctx.userId || 'unknown'}`,
+    );
+    return reply(conversationId, 'Network error while purchasing. Tap Retry to try again.', [
+      { label: 'Retry', payload: 'airtime_confirm' },
+      ...cancelButtons(),
+    ]);
+  }
+}
+
+/** Airtime free-text: amounts at the amount step, phone numbers at the phone step. */
+export async function handleAirtimeText(
+  conversationId: string,
+  state: AirtimeFlowState,
+  text: string,
+): Promise<ChatMessageRow[]> {
+  const digits13 = text.replace(/\D/g, '');
+  // Allow combined input at the amount step: "500 for 08031234567".
+  const phoneMatch = text.match(/\b(0\d{10})\b/);
+
+  if (state.step === 'amount') {
+    const amount = Number(digits13.slice(0, 6).replace(/^0+(?=\d)/, ''));
+    if (!Number.isFinite(amount) || amount < 50 || amount > 50000) {
+      return reply(conversationId, 'Type the amount in naira (₦50 – ₦50,000):', cancelButtons());
+    }
+    const net = NETWORKS.find((n) => n.id === state.network)?.label || '';
+    if (phoneMatch) {
+      const phone = phoneMatch[1];
+      await updateConversation(conversationId, { state: { ...state, step: 'confirm', amount, phone } });
+      return airtimeConfirmCard(conversationId, state, amount, phone);
+    }
+    await updateConversation(conversationId, { state: { ...state, step: 'phone', amount } });
+    return reply(
+      conversationId,
+      `${naira(amount)} ${net} airtime — type the phone number to load (e.g. 08031234567):`,
+      cancelButtons(),
+    );
+  }
+
+  if (state.step === 'phone' || state.step === 'confirm') {
+    if (digits13.length === 11) {
+      await updateConversation(conversationId, { state: { ...state, step: 'confirm', phone: digits13 } });
+      return airtimeConfirmCard(conversationId, state, state.amount || 0, digits13);
+    }
+    if (phoneMatch) {
+      const phone = phoneMatch[1];
+      await updateConversation(conversationId, { state: { ...state, step: 'confirm', phone } });
+      return airtimeConfirmCard(conversationId, state, state.amount || 0, phone);
+    }
+    return reply(
+      conversationId,
+      'That does not look like a valid Nigerian number — it should be 11 digits like 08031234567. Try again:',
+      cancelButtons(),
+    );
+  }
+
+  return reply(conversationId, 'Which network for the airtime?', [
+    ...NETWORKS.map((n) => ({ label: n.label, payload: `airtime_network:${n.id}` })),
+    ...cancelButtons(),
+  ]);
+}
+
+function airtimeConfirmCard(
+  conversationId: string,
+  state: AirtimeFlowState,
+  amount: number,
+  phone: string,
+): Promise<ChatMessageRow[]> {
+  const net = NETWORKS.find((n) => n.id === state.network)?.label || state.network || '';
+  return reply(
+    conversationId,
+    `Confirm your order:\n\n${net} airtime\nAmount: ${naira(amount)}\nPhone: ${phone}`,
+    [
+      { label: `Confirm ${naira(amount)}`, payload: 'airtime_confirm' },
+      { label: 'Change number', payload: 'airtime_change_phone' },
+      { label: 'Change amount', payload: 'airtime_change_amount' },
       { label: '✖ Cancel', payload: 'cancel_flow' },
     ],
   );
@@ -740,12 +971,25 @@ export async function handleFreeText(
     if (digits.length === 11) return handleDataPhoneInput(conversationId, state, text);
   }
 
+  // Active airtime flow expecting an amount or phone number?
+  if (state?.flow === 'airtime') {
+    return handleAirtimeText(conversationId, state, text);
+  }
+
   // Keyword routing — start the data flow.
   if (/\bdata\b|gb\b|bundle/.test(lower) || lower.includes('internet')) {
     // Phase 2: let Gemini resolve specifics ("buy 5GB MTN for 0803…") first.
     const shopped = await geminiShopping(conversationId, text);
     if (shopped) return shopped;
     return handleButtonPayload(conversationId, null, 'start_data', {
+      purchaseOrigin: '',
+      authHeader: null,
+    });
+  }
+
+  // Keyword routing — airtime.
+  if (/\b(airtime|recharge|credit)\b/.test(lower)) {
+    return handleButtonPayload(conversationId, null, 'start_airtime', {
       purchaseOrigin: '',
       authHeader: null,
     });
