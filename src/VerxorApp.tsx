@@ -12,6 +12,7 @@ import { BoostPage } from './boost-page';
 import { BoostHistoryPage } from './boost-history-page';
 import { EmailHistoryPage } from './email-history-page';
 import { AirtimePage } from './airtime-page';
+import { GamingPage } from './gaming-page';
 import { DataPage } from './data-page';
 import { GiftCardPage } from './giftcard-page';
 import { VirtualCardPage } from './virtual-card-page';
@@ -493,6 +494,8 @@ export function VerxorApp({
     content = <VirtualCardPage onBack={closeService} session={auth} />;
   } else if (service === 'gift-card') {
     content = <GiftCardPage onBack={closeService} session={auth} />;
+  } else if (service === 'gaming') {
+    content = <GamingPage onBack={closeService} session={auth} onFund={() => navigatePage('fund')} />;
   } else if (service === 'tv-cable') {
     content = <TvPage onBack={closeService} session={auth} />;
   } else if (service === 'electricity') {

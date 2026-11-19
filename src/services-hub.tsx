@@ -39,7 +39,7 @@ const DIGITAL: ServiceItem[] = [
   { id: 'sell-gift-card', title: 'Buy Gift Card', icon: Gift, service: 'gift-card', tags: ['gift', 'sell', 'redeem'] },
   { id: 'trade-gift-card', title: 'Trade Gift Card', icon: Repeat, service: 'gift-card', tags: ['gift', 'trade', 'exchange'] },
   { id: 'ai-subs', title: 'AI/App Subs', icon: Sparkles, soon: true, tags: ['ai', 'subscription', 'chatgpt', 'netflix'] },
-  { id: 'gaming', title: 'Gaming Top Up', icon: Trophy, soon: true, tags: ['game', 'gaming', 'steam'] },
+  { id: 'gaming', title: 'Gaming Top Up', icon: Trophy, service: 'gaming', tags: ['game', 'gaming', 'steam', 'diamonds', 'pubg', 'free fire'] },
   { id: 'domain', title: 'Domain Reg', icon: AtSign, soon: true, tags: ['domain', 'website', 'dns'] },
 ];
 

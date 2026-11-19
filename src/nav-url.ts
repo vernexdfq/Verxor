@@ -40,6 +40,7 @@ export const SERVICE_VIEWS: ReadonlyArray<Exclude<ServiceView, 'services'>> = [
   'email-otp',
   'email-orders',
   'telegram-premium',
+  'gaming',
 ];
 
 export function serviceSlug(view: Exclude<ServiceView, 'services'>): string {

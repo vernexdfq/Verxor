@@ -66,7 +66,8 @@ export type ServiceView =
   | 'bet-wallet'
   | 'email-otp'
   | 'email-orders'
-  | 'telegram-premium';
+  | 'telegram-premium'
+  | 'gaming';
 
 function ServiceLayout({
   title,
