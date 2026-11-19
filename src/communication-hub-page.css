@@ -63,7 +63,7 @@
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0;
-  padding: 0 8px;
+  padding: 0 6px;
   background: #FFFFFF;
   border-bottom: 1px solid #E2E8F0;
 }
@@ -74,8 +74,8 @@
   align-items: center;
   justify-content: center;
   gap: 5px;
-  min-height: 56px;
-  padding: 10px 4px 12px;
+  min-height: 54px;
+  padding: 10px 4px 11px;
   border: none;
   border-bottom: 2.5px solid transparent;
   background: transparent;
@@ -94,21 +94,21 @@
 .chub-body {
   flex: 1;
   width: 100%;
-  max-width: 560px;
+  max-width: 520px;
   margin: 0 auto;
-  padding: 22px 16px 40px;
+  padding: 20px 16px 36px;
 }
 
 .chub-panel-head {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 14px;
-  margin-bottom: 20px;
+  gap: 12px;
+  margin-bottom: 16px;
 }
 
 .chub-panel-head.single {
-  margin-bottom: 18px;
+  margin-bottom: 14px;
 }
 
 .chub-eyebrow {
@@ -121,16 +121,16 @@
 }
 
 .chub-panel-head h2 {
-  margin: 6px 0 0;
+  margin: 5px 0 0;
   color: #0F172A;
-  font-size: 24px;
-  line-height: 1.12;
-  letter-spacing: -0.035em;
+  font-size: 22px;
+  line-height: 1.15;
+  letter-spacing: -0.03em;
   font-weight: 800;
 }
 
 .chub-count {
-  margin: 6px 0 0;
+  margin: 5px 0 0;
   color: #64748B;
   font-size: 12px;
   font-weight: 600;
@@ -140,10 +140,10 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  height: 38px;
-  padding: 0 14px;
+  height: 36px;
+  padding: 0 12px;
   border: none;
-  border-radius: 11px;
+  border-radius: 10px;
   background: #2563EB;
   color: #FFFFFF;
   font-size: 12px;
@@ -157,50 +157,50 @@
 .chub-empty {
   display: grid;
   justify-items: center;
-  gap: 10px;
-  padding: 48px 20px;
+  gap: 8px;
+  padding: 40px 18px;
   border: 1px solid #E2E8F0;
-  border-radius: 18px;
+  border-radius: 16px;
   background: #FFFFFF;
   text-align: center;
 }
 
 .chub-empty.compact {
-  padding: 32px 18px;
-  margin-top: 16px;
-  gap: 8px;
+  padding: 28px 16px;
+  margin-top: 14px;
+  gap: 6px;
 }
 
 .chub-empty-icon {
   display: grid;
   place-items: center;
-  width: 68px;
-  height: 68px;
-  margin-bottom: 4px;
-  border-radius: 18px;
+  width: 64px;
+  height: 64px;
+  margin-bottom: 2px;
+  border-radius: 16px;
   background: #EFF6FF;
   color: #2563EB;
 }
 
 .chub-empty-icon.soft {
-  width: 56px;
-  height: 56px;
+  width: 52px;
+  height: 52px;
   background: #F1F5F9;
   color: #64748B;
 }
 
 .chub-empty strong {
   color: #0F172A;
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 800;
 }
 
 .chub-empty p {
   margin: 0;
-  max-width: 280px;
+  max-width: 260px;
   color: #64748B;
   font-size: 13px;
-  line-height: 1.5;
+  line-height: 1.45;
 }
 
 /* Buttons */
@@ -209,9 +209,9 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  min-height: 48px;
-  padding: 0 20px;
-  margin-top: 10px;
+  min-height: 46px;
+  padding: 0 18px;
+  margin-top: 8px;
   border: none;
   border-radius: 12px;
   background: #2563EB;
@@ -223,33 +223,11 @@
 
 .chub-primary.full {
   width: 100%;
-  margin-top: 18px;
+  margin-top: 16px;
 }
 
 .chub-primary:disabled {
   opacity: 0.65;
-  cursor: not-allowed;
-}
-
-.chub-secondary {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  width: 100%;
-  min-height: 46px;
-  margin-top: 14px;
-  border: 1px solid #E2E8F0;
-  border-radius: 12px;
-  background: #F8FAFC;
-  color: #0F172A;
-  font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.chub-secondary:disabled {
-  opacity: 0.5;
   cursor: not-allowed;
 }
 
@@ -259,8 +237,8 @@
   justify-content: center;
   gap: 8px;
   width: 100%;
-  min-height: 50px;
-  margin-top: 18px;
+  min-height: 48px;
+  margin-top: 16px;
   border: none;
   border-radius: 12px;
   background: #059669;
@@ -271,21 +249,48 @@
 }
 
 .chub-call-btn:disabled {
-  opacity: 0.45;
+  opacity: 0.42;
   cursor: not-allowed;
+}
+
+/* New Message CTA — always visible; muted until number selected */
+.chub-msg-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 46px;
+  margin-top: 12px;
+  border: none;
+  border-radius: 12px;
+  background: #2563EB;
+  color: #FFFFFF;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: opacity 0.15s ease, background 0.15s ease;
+}
+
+.chub-msg-cta.muted,
+.chub-msg-cta:disabled {
+  background: #E2E8F0;
+  color: #94A3B8;
+  cursor: not-allowed;
+  opacity: 1;
 }
 
 /* Form card */
 .chub-form-card {
-  padding: 18px 16px;
+  padding: 16px;
   border: 1px solid #E2E8F0;
-  border-radius: 18px;
+  border-radius: 16px;
   background: #FFFFFF;
 }
 
 .chub-label {
   display: block;
-  margin-bottom: 8px;
+  margin-bottom: 7px;
   color: #64748B;
   font-size: 11px;
   font-weight: 800;
@@ -293,7 +298,12 @@
 }
 
 .chub-label-spaced {
-  margin-top: 18px;
+  margin-top: 16px;
+}
+
+.chub-select-wrap {
+  position: relative;
+  width: 100%;
 }
 
 .chub-select,
@@ -303,7 +313,7 @@
   justify-content: space-between;
   gap: 10px;
   width: 100%;
-  min-height: 50px;
+  min-height: 48px;
   padding: 0 14px;
   border: 1.5px solid #E2E8F0;
   border-radius: 12px;
@@ -314,6 +324,11 @@
   text-align: left;
   cursor: pointer;
   box-sizing: border-box;
+}
+
+.chub-select.open {
+  border-color: #2563EB;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
 }
 
 .chub-select span {
@@ -332,6 +347,17 @@
   font-weight: 500;
 }
 
+.chub-chevron {
+  flex-shrink: 0;
+  color: #64748B;
+  transition: transform 0.15s ease;
+}
+
+.chub-chevron.up {
+  transform: rotate(180deg);
+  color: #2563EB;
+}
+
 .chub-input {
   cursor: text;
 }
@@ -343,10 +369,10 @@
 }
 
 .chub-hint {
-  margin: 10px 0 0;
+  margin: 8px 0 0;
   color: #64748B;
   font-size: 12px;
-  line-height: 1.45;
+  line-height: 1.4;
 }
 
 .chub-link {
@@ -364,8 +390,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-top: 16px;
-  padding: 14px 14px;
+  margin-top: 14px;
+  padding: 12px 14px;
   border-radius: 12px;
   background: #F8FAFC;
   color: #64748B;
@@ -376,6 +402,82 @@
 .chub-price-row strong {
   color: #0F172A;
   font-weight: 800;
+}
+
+/* Inline dropdown — attached under select, not a bottom sheet */
+.chub-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 40;
+  max-height: 220px;
+  overflow: auto;
+  padding: 6px;
+  border: 1.5px solid #E2E8F0;
+  border-radius: 12px;
+  background: #FFFFFF;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.12);
+}
+
+.chub-dropdown-item {
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  padding: 12px 12px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.chub-dropdown-item:hover,
+.chub-dropdown-item.active {
+  background: #EFF6FF;
+}
+
+.chub-dropdown-main {
+  font-size: 14px;
+  font-weight: 700;
+  color: #0F172A;
+}
+
+.chub-dropdown-item.active .chub-dropdown-main {
+  color: #2563EB;
+}
+
+.chub-dropdown-sub {
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748B;
+}
+
+.chub-dropdown-empty {
+  padding: 14px 12px;
+  text-align: center;
+}
+
+.chub-dropdown-empty p {
+  margin: 0 0 10px;
+  color: #64748B;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.chub-dropdown-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 0 14px;
+  border: none;
+  border-radius: 10px;
+  background: #2563EB;
+  color: #FFFFFF;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
 }
 
 /* Number list (My Numbers when populated) */
@@ -434,7 +536,7 @@
   font-weight: 600;
 }
 
-/* Bottom sheet */
+/* Bottom sheet (purchase only) */
 .chub-sheet-backdrop {
   position: fixed;
   inset: 0;
@@ -490,13 +592,12 @@
   flex-shrink: 0;
 }
 
-/* Stacked fields — professional purchase form */
 .chub-field {
   margin-bottom: 14px;
 }
 
 .chub-field .chub-select {
-  min-height: 52px;
+  min-height: 50px;
 }
 
 .chub-price-banner {
@@ -519,26 +620,6 @@
   color: #B91C1C;
   font-size: 12px;
   font-weight: 600;
-  line-height: 1.45;
-}
-
-.chub-picker-empty {
-  display: grid;
-  gap: 8px;
-  padding: 8px 2px 4px;
-  text-align: center;
-}
-
-.chub-picker-empty strong {
-  color: #0F172A;
-  font-size: 15px;
-  font-weight: 800;
-}
-
-.chub-picker-empty p {
-  margin: 0;
-  color: #64748B;
-  font-size: 13px;
   line-height: 1.45;
 }
 
@@ -581,7 +662,7 @@
 
 @media (min-width: 540px) {
   .chub-body {
-    padding: 28px 20px 48px;
+    padding: 24px 20px 44px;
   }
 
   .chub-tab {
@@ -589,6 +670,6 @@
   }
 
   .chub-panel-head h2 {
-    font-size: 26px;
+    font-size: 24px;
   }
 }
