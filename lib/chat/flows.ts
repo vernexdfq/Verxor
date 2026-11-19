@@ -57,6 +57,14 @@ export type ElectricityFlowState = {
   phone?: string;
 };
 
+export type EmailOtpFlowState = {
+  flow: 'emailotp';
+  step: 'site' | 'domains' | 'confirm';
+  site?: string;
+  siteName?: string;
+  domain?: string;
+};
+
 export type AirtimeFlowState = {
   flow: 'airtime';
   step: 'network' | 'amount' | 'phone' | 'confirm';
@@ -71,6 +79,7 @@ export type FlowState =
   | SignupFlowState
   | AirtimeFlowState
   | ElectricityFlowState
+  | EmailOtpFlowState
   | null;
 
 const NETWORKS: { id: string; label: string }[] = [
@@ -79,6 +88,29 @@ const NETWORKS: { id: string; label: string }[] = [
   { id: 'glo', label: 'Glo' },
   { id: '9mobile', label: '9mobile' },
 ];
+
+const EMAIL_OTP_PLATFORMS: { id: string; name: string; site: string }[] = [
+  { id: 'instagram', name: 'Instagram', site: 'instagram.com' },
+  { id: 'google', name: 'Google / Gmail', site: 'google.com' },
+  { id: 'tiktok', name: 'TikTok', site: 'tiktok.com' },
+  { id: 'facebook', name: 'Facebook', site: 'facebook.com' },
+  { id: 'discord', name: 'Discord', site: 'discord.com' },
+  { id: 'x', name: 'X (Twitter)', site: 'x.com' },
+  { id: 'telegram', name: 'Telegram', site: 'telegram.org' },
+  { id: 'whatsapp', name: 'WhatsApp', site: 'whatsapp.com' },
+  { id: 'reddit', name: 'Reddit', site: 'reddit.com' },
+  { id: 'microsoft', name: 'Microsoft', site: 'microsoft.com' },
+  { id: 'apple', name: 'Apple', site: 'apple.com' },
+  { id: 'amazon', name: 'Amazon', site: 'amazon.com' },
+];
+
+function cleanSiteName(raw: string): string | null {
+  const t = raw.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '');
+  const byName = EMAIL_OTP_PLATFORMS.find((p) => p.name.toLowerCase() === t || p.id === t);
+  if (byName) return byName.site;
+  if (/^[a-z0-9][a-z0-9.-]*\.[a-z]{2,}\/?$/.test(t)) return t.split('/')[0];
+  return null;
+}
 
 const ELECTRICITY_DISCOS: { id: string; label: string }[] = [
   { id: 'ikeja', label: 'Ikeja Electric' },
@@ -161,7 +193,7 @@ export const SERVICE_MENU: ChatButton[] = [
   { label: '📱 Data', payload: 'start_data' },
   { label: '⚡ Airtime', payload: 'start_airtime' },
   { label: '🔢 Virtual Number', payload: 'open_vn' },
-  { label: '📧 Email OTP', payload: 'open_email' },
+  { label: '📧 Email OTP', payload: 'start_emailotp' },
   { label: '👥 Buy Logs', payload: 'open_logs' },
   { label: '🚀 Boost', payload: 'open_boost' },
   { label: '🎁 Gift Card', payload: 'open_giftcard' },
@@ -182,6 +214,7 @@ export async function handleButtonPayload(
   const dataState: DataFlowState | null = state && state.flow === 'data' ? state : null;
   const airtimeState: AirtimeFlowState | null = state && state.flow === 'airtime' ? state : null;
   const elecState: ElectricityFlowState | null = state && state.flow === 'electricity' ? state : null;
+  const emailOtpState: EmailOtpFlowState | null = state && state.flow === 'emailotp' ? state : null;
 
   // --- navigation buttons (handled by the widget, but answer server-side too)
   if (payload.startsWith('open_')) {
@@ -502,6 +535,38 @@ export async function handleButtonPayload(
 
   if (payload === 'elec_confirm' && elecState?.amount && elecState.meterNo) {
     return purchaseElectricity(conversationId, elecState, ctx);
+  }
+
+  // --- email OTP flow: platform → domain → confirm
+  if (payload === 'start_emailotp' || payload === 'emailotp_site_custom') {
+    await updateConversation(conversationId, {
+      state: { flow: 'emailotp', step: 'site' },
+      subject: 'Email OTP purchase',
+    });
+    return reply(
+      conversationId,
+      'Which platform do you need the email OTP for? (pick one, or type any site like "spotify.com")',
+      [
+        ...EMAIL_OTP_PLATFORMS.map((p) => ({ label: p.name, payload: `emailotp_site:${p.site}` })),
+        { label: '✏️ Type another site', payload: 'emailotp_site_custom' },
+        ...cancelButtons(),
+      ],
+    );
+  }
+
+  if (payload.startsWith('emailotp_site:') && emailOtpState?.step === 'site') {
+    const site = payload.split('emailotp_site:')[1];
+    const plat = EMAIL_OTP_PLATFORMS.find((p) => p.site === site);
+    return loadEmailOtpDomains(conversationId, site, plat?.name || site, ctx);
+  }
+
+  if (payload.startsWith('emailotp_domain:') && emailOtpState?.site) {
+    const domain = payload.split('emailotp_domain:')[1];
+    return loadEmailOtpDomains(conversationId, emailOtpState.site, emailOtpState.siteName || emailOtpState.site, ctx, domain);
+  }
+
+  if (payload === 'emailotp_confirm' && emailOtpState?.site && emailOtpState.domain) {
+    return purchaseEmailOtp(conversationId, emailOtpState, ctx);
   }
 
   // Unknown payload → reset to menu.
@@ -946,6 +1011,222 @@ function elecConfirmCard(
   );
 }
 
+async function fetchEmailOtpDomains(
+  origin: string,
+  site: string,
+  authHeader: string | null,
+  userId?: string | null,
+): Promise<{ ok: boolean; error?: string; domains?: { domain: string; count: number; priceNgn: number }[] }> {
+  try {
+    const res = await fetch(
+      `${origin || 'https://www.verxor.com'}/api/v1/email-otp/quantity?site=${encodeURIComponent(site)}`,
+      {
+        cache: 'no-store',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(userId ? { 'x-vx-user': userId } : {}),
+          ...(authHeader ? { Authorization: authHeader } : {}),
+        },
+      },
+    );
+    const data = (await res.json().catch(() => ({}))) as {
+      ok?: boolean;
+      error?: string;
+      domains?: { domain: string; count: number; priceNgn: number }[];
+    };
+    if (!res.ok || !data?.ok) return { ok: false, error: data?.error || `HTTP ${res.status}` };
+    return { ok: true, domains: data.domains || [] };
+  } catch {
+    return { ok: false, error: 'network' };
+  }
+}
+
+async function loadEmailOtpDomains(
+  conversationId: string,
+  site: string,
+  siteName: string,
+  ctx: { purchaseOrigin: string; authHeader: string | null; userId?: string | null },
+  pickedDomain?: string,
+): Promise<ChatMessageRow[]> {
+  const fetched = await fetchEmailOtpDomains(ctx.purchaseOrigin, site, ctx.authHeader, ctx.userId);
+  if (!fetched.ok || !fetched.domains || fetched.domains.length === 0) {
+    await updateConversation(conversationId, { state: { flow: 'emailotp', step: 'site' } });
+    return reply(
+      conversationId,
+      fetched.error === 'network'
+        ? 'Could not reach the email provider right now. Try again in a moment.'
+        : 'No domains available for that platform right now. Pick another:',
+      [
+        ...EMAIL_OTP_PLATFORMS.map((p) => ({ label: p.name, payload: `emailotp_site:${p.site}` })),
+        { label: '✏️ Type another site', payload: 'emailotp_site_custom' },
+        ...cancelButtons(),
+      ],
+    );
+  }
+  const inStock = fetched.domains.filter((d) => d.count > 0);
+  if (pickedDomain) {
+    const chosen = inStock.find((d) => d.domain === pickedDomain) || fetched.domains.find((d) => d.domain === pickedDomain);
+    if (!chosen) {
+      return reply(conversationId, 'That domain is not available for this platform. Pick one:', [
+        ...inStock.slice(0, 8).map((d) => ({ label: `@${d.domain} · ${naira(d.priceNgn)}`, payload: `emailotp_domain:${d.domain}` })),
+        ...cancelButtons(),
+      ]);
+    }
+    if (chosen.count <= 0) {
+      return reply(conversationId, `@${chosen.domain} is out of stock. Pick another one:`, [
+        ...inStock.slice(0, 8).map((d) => ({ label: `@${d.domain} · ${naira(d.priceNgn)}`, payload: `emailotp_domain:${d.domain}` })),
+        ...cancelButtons(),
+      ]);
+    }
+    await updateConversation(conversationId, {
+      state: {
+        flow: 'emailotp',
+        step: 'confirm',
+        site,
+        siteName,
+        domain: chosen.domain,
+      },
+    });
+    return reply(
+      conversationId,
+      `Confirm your order:\n\n${siteName} email on @${chosen.domain}\nPrice: ${naira(chosen.priceNgn)}\n\nYou will get an email address instantly and OTP messages land in it.`,
+      [
+        { label: `Confirm ${naira(chosen.priceNgn)}`, payload: 'emailotp_confirm' },
+        { label: '↩ Other platform', payload: 'start_emailotp' },
+        { label: '✖ Cancel', payload: 'cancel_flow' },
+      ],
+    );
+  }
+  await updateConversation(conversationId, {
+    state: { flow: 'emailotp', step: 'domains', site, siteName },
+  });
+  const buttons = inStock.slice(0, 8).map((d) => ({
+    label: `@${d.domain} · ${naira(d.priceNgn)} · ${d.count} left`,
+    payload: `emailotp_domain:${d.domain}`,
+  }));
+  return reply(
+    conversationId,
+    `${siteName} — available email domains:`,
+    [...buttons, { label: '↩ Other platform', payload: 'start_emailotp' }, ...cancelButtons()],
+  );
+}
+
+async function purchaseEmailOtp(
+  conversationId: string,
+  state: EmailOtpFlowState,
+  ctx: { purchaseOrigin: string; authHeader: string | null; userId?: string | null; email?: string | null; contact?: string | null },
+): Promise<ChatMessageRow[]> {
+  if (!ctx.userId) {
+    await updateConversation(conversationId, { state: { ...state, step: 'confirm' } });
+    return reply(
+      conversationId,
+      'You need a free Verxor account to buy — it unlocks your wallet and order history. Create one right here in chat or sign in.',
+      [
+        { label: '👤 Create Account', payload: 'create_account' },
+        { label: '🔑 Sign In', payload: 'open_signin' },
+      ],
+    );
+  }
+  // Fresh stock + price check before charging.
+  const fresh = await fetchEmailOtpDomains(ctx.purchaseOrigin, state.site || '', ctx.authHeader, ctx.userId);
+  const chosen = fresh.domains?.find((d) => d.domain === state.domain);
+  if (fresh.ok && chosen && chosen.count <= 0) {
+    await updateConversation(conversationId, { state: { ...state, step: 'domains' } });
+    return reply(conversationId, `@${state.domain} just sold out. Pick another one:`, [
+      ...(fresh.domains || [])
+        .filter((d) => d.count > 0)
+        .slice(0, 8)
+        .map((d) => ({ label: `@${d.domain} · ${naira(d.priceNgn)}`, payload: `emailotp_domain:${d.domain}` })),
+      ...cancelButtons(),
+    ]);
+  }
+  try {
+    const res = await fetch(`${ctx.purchaseOrigin}/api/v1/email-otp/order`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(ctx.userId ? { 'x-vx-user': ctx.userId } : {}),
+        ...(ctx.authHeader ? { Authorization: ctx.authHeader } : {}),
+      },
+      body: JSON.stringify({ site: state.site, domain: state.domain, userId: ctx.userId }),
+      cache: 'no-store',
+    });
+    const data = (await res.json().catch(() => ({}))) as {
+      ok?: boolean;
+      error?: string;
+      order?: { email?: string; priceNgn?: number; status?: string } | null;
+    };
+    if (!res.ok || !data?.ok) {
+      const insufficient = res.status === 402 || /balance|funds/i.test(data?.error || '');
+      await updateConversation(conversationId, { state: { ...state, step: 'confirm' } });
+      if (!insufficient) {
+        void notifyAdmin(
+          `⚠️ Verxor chat email OTP FAILED\n${state.site} on @${state.domain}\nError: ${data?.error || `HTTP ${res.status}`}\nCustomer: ${ctx.email || ctx.userId || 'unknown'}`,
+        );
+      }
+      return reply(
+        conversationId,
+        insufficient
+          ? `Not enough wallet balance for @${state.domain}. Fund your wallet and come back — your order is saved.`
+          : data?.error || 'The purchase failed. Tap Retry to try again.',
+        insufficient
+          ? [{ label: '💰 Fund Wallet', payload: 'open_fund' }, { label: 'Retry', payload: 'emailotp_confirm' }]
+          : [{ label: 'Retry', payload: 'emailotp_confirm' }, ...cancelButtons()],
+      );
+    }
+    await updateConversation(conversationId, { state: null });
+    return reply(
+      conversationId,
+      `✅ Your email is ready: ${data.order?.email || 'check your ORDERS'}. Use it to sign up on ${state.siteName || state.site} — OTP messages will arrive in the inbox.`,
+      [
+        { label: '📥 Open Inbox', payload: 'open_email' },
+        ...MENU_BUTTONS,
+      ],
+    );
+  } catch {
+    await updateConversation(conversationId, { state: { ...state, step: 'confirm' } });
+    void notifyAdmin(
+      `⚠️ Verxor chat email OTP ERROR\n${state.site} on @${state.domain}\nCustomer: ${ctx.email || ctx.userId || 'unknown'}`,
+    );
+    return reply(conversationId, 'Network error while purchasing. Tap Retry to try again.', [
+      { label: 'Retry', payload: 'emailotp_confirm' },
+      ...cancelButtons(),
+    ]);
+  }
+}
+
+/** Email OTP free-text: resolve the site the customer names on the site step. */
+export async function handleEmailOtpText(
+  conversationId: string,
+  state: EmailOtpFlowState,
+  text: string,
+  ctx: { purchaseOrigin: string; authHeader: string | null; userId?: string | null },
+): Promise<ChatMessageRow[]> {
+  if (state.step === 'site') {
+    const site = cleanSiteName(text);
+    if (!site) {
+      return reply(
+        conversationId,
+        'Which platform? Tap one of the buttons or type a site like "spotify.com".',
+        cancelButtons(),
+      );
+    }
+    return loadEmailOtpDomains(conversationId, site, site, ctx);
+  }
+  if (state.step === 'domains') {
+    const cleaned = cleanSiteName(text);
+    if (cleaned && cleaned !== state.site) {
+      return loadEmailOtpDomains(conversationId, cleaned, cleaned, ctx);
+    }
+    return reply(conversationId, 'Tap a domain to continue:', cancelButtons());
+  }
+  return reply(conversationId, 'Which platform do you need the email OTP for?', [
+    ...EMAIL_OTP_PLATFORMS.map((p) => ({ label: p.name, payload: `emailotp_site:${p.site}` })),
+    { label: '✏️ Type another site', payload: 'emailotp_site_custom' },
+    ...cancelButtons(),
+  ]);
+}
+
 /**
  * Phase 2 — Gemini free-text shopping. The model only extracts intent
  * (network, size, duration, phone) as strict JSON; the actual plan matching
@@ -1287,6 +1568,15 @@ export async function handleFreeText(
     return handleElectricityText(conversationId, state, text, opts.chatOrigin || '');
   }
 
+  // Active email OTP flow expecting a site name?
+  if (state?.flow === 'emailotp') {
+    return handleEmailOtpText(conversationId, state, text, {
+      purchaseOrigin: opts.chatOrigin || '',
+      authHeader: null,
+      userId: opts.user?.userId || null,
+    });
+  }
+
   // Keyword routing — start the data flow.
   if (/\bdata\b|gb\b|bundle/.test(lower) || lower.includes('internet')) {
     // Phase 2: let Gemini resolve specifics ("buy 5GB MTN for 0803…") first.
@@ -1301,6 +1591,14 @@ export async function handleFreeText(
   // Keyword routing — airtime.
   if (/\b(airtime|recharge|credit)\b/.test(lower)) {
     return handleButtonPayload(conversationId, null, 'start_airtime', {
+      purchaseOrigin: '',
+      authHeader: null,
+    });
+  }
+
+  // Keyword routing — email OTP.
+  if (/\b(email\s*otp|temporary email|temp(orary)? mail|otp email)\b/.test(lower)) {
+    return handleButtonPayload(conversationId, null, 'start_emailotp', {
       purchaseOrigin: '',
       authHeader: null,
     });
