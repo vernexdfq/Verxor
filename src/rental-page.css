@@ -1571,3 +1571,222 @@
   .rsm-type-details p{font-size:10.5px;line-height:1.35}
   .rsm-history-text-link{margin-top:8px;font-size:12px}
 }
+
+/* ---------------- SMS INBOX ---------------- */
+.rsm-history-card-btn {
+  width: 100%;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.rsm-history-card-btn:hover,
+.rsm-history-card-btn:active {
+  border-color: rgba(11, 99, 246, 0.45);
+}
+.rsm-history-chevron {
+  flex: none;
+  color: #9aa8bd;
+}
+.rsm-inbox-summary {
+  background: #fff;
+  border: 1px solid rgba(11, 63, 246, 0.14);
+  border-radius: 14px;
+  padding: 14px;
+  margin-bottom: 16px;
+}
+.dark-theme .rsm-inbox-summary,
+.dark .rsm-inbox-summary {
+  background: #101726;
+  border-color: rgba(255, 255, 255, 0.09);
+}
+.rsm-inbox-summary-top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.rsm-inbox-summary-icon {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: rgba(11, 99, 246, 0.1);
+  color: #0b63f6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.rsm-inbox-summary-copy {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.rsm-inbox-phone {
+  font-size: 15px;
+  font-weight: 700;
+  color: #0d1b2e;
+  letter-spacing: 0.02em;
+}
+.dark-theme .rsm-inbox-phone,
+.dark .rsm-inbox-phone {
+  color: #f2f5fa;
+}
+.rsm-inbox-service {
+  font-size: 11.5px;
+  color: #62708a;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dark-theme .rsm-inbox-service,
+.dark .rsm-inbox-service {
+  color: #93a1b7;
+}
+.rsm-inbox-summary-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px dashed rgba(11, 63, 246, 0.14);
+  flex-wrap: wrap;
+}
+.rsm-inbox-summary-meta > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #62708a;
+}
+.dark-theme .rsm-inbox-summary-meta > span,
+.dark .rsm-inbox-summary-meta > span {
+  color: #93a1b7;
+}
+.rsm-inbox-summary-meta svg {
+  color: #0b63f6;
+}
+.rsm-inbox-refresh {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #0b63f6;
+  background: rgba(11, 99, 246, 0.08);
+  border: 1px solid rgba(11, 99, 246, 0.18);
+  border-radius: 999px;
+  padding: 6px 12px;
+  cursor: pointer;
+}
+.rsm-inbox-refresh:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+.rsm-inbox-loading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #62708a;
+  padding: 18px 4px;
+}
+.dark-theme .rsm-inbox-loading,
+.dark .rsm-inbox-loading {
+  color: #93a1b7;
+}
+.rsm-inbox-state-card {
+  background: #fff;
+  border: 1px solid rgba(11, 63, 246, 0.12);
+  border-radius: 14px;
+  padding: 26px 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  text-align: center;
+}
+.dark-theme .rsm-inbox-state-card,
+.dark .rsm-inbox-state-card {
+  background: #101726;
+  border-color: rgba(255, 255, 255, 0.09);
+}
+.rsm-inbox-state-card > svg {
+  color: #0b63f6;
+}
+.rsm-inbox-state-card p {
+  font-size: 12px;
+  line-height: 1.55;
+  color: #62708a;
+  max-width: 320px;
+  margin: 0;
+}
+.dark-theme .rsm-inbox-state-card p,
+.dark .rsm-inbox-state-card p {
+  color: #93a1b7;
+}
+.rsm-inbox-retry {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #0b63f6;
+  background: rgba(11, 99, 246, 0.08);
+  border: 1px solid rgba(11, 99, 246, 0.18);
+  border-radius: 999px;
+  padding: 7px 16px;
+  cursor: pointer;
+}
+.rsm-inbox-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.rsm-inbox-msg {
+  background: #fff;
+  border: 1px solid rgba(11, 63, 246, 0.12);
+  border-radius: 12px;
+  padding: 12px 14px;
+}
+.dark-theme .rsm-inbox-msg,
+.dark .rsm-inbox-msg {
+  background: #101726;
+  border-color: rgba(255, 255, 255, 0.09);
+}
+.rsm-inbox-msg-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.rsm-inbox-msg-from {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #0b63f6;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rsm-inbox-msg-time {
+  flex: none;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: #9aa8bd;
+}
+.rsm-inbox-msg-text {
+  font-size: 13px;
+  line-height: 1.5;
+  color: #22314a;
+  margin: 0;
+  word-break: break-word;
+}
+.dark-theme .rsm-inbox-msg-text,
+.dark .rsm-inbox-msg-text {
+  color: #cfd8e6;
+}

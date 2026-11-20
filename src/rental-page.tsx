@@ -25,6 +25,7 @@ import {
   History as HistoryIcon,
   Info,
   Loader2,
+  MessageSquare,
   RefreshCw,
   Search,
   ShieldCheck,
@@ -41,7 +42,14 @@ import './rental-page.css';
 
 export type RentalType = 'service' | 'general';
 export type Mode = 'one-time' | 'renewable';
-export type Screen = 'home' | 'flow' | 'history';
+export type Screen = 'home' | 'flow' | 'history' | 'inbox';
+
+export type InboxMsg = {
+  id: string;
+  from: string;
+  text: string;
+  receivedAt: string;
+};
 
 export type Rental = {
   id: string;
@@ -219,6 +227,12 @@ export function RentalPage({
   const [rentals, setRentals] = useState<Rental[]>([]);
   const [rentalsLoaded, setRentalsLoaded] = useState(false);
 
+  /* SMS inbox state */
+  const [inboxRental, setInboxRental] = useState<Rental | null>(null);
+  const [inboxMessages, setInboxMessages] = useState<InboxMsg[] | null>(null);
+  const [inboxLoading, setInboxLoading] = useState(false);
+  const [inboxError, setInboxError] = useState<string | null>(null);
+
   /* Auto-advance promo carousel */
   useEffect(() => {
     const t = setInterval(() => {
@@ -307,9 +321,41 @@ export function RentalPage({
     setScreen('flow');
   };
 
+  const fetchInbox = useCallback(async (reservationId: string) => {
+    setInboxLoading(true);
+    setInboxError(null);
+    try {
+      const headers = await authHeaders();
+      const url = `/api/v1/rent-sms/numbers?res=${encodeURIComponent(reservationId)}`;
+      const res = await fetch(url, { headers, cache: 'no-store' });
+      const data = (await res.json()) as { ok?: boolean; messages?: InboxMsg[]; error?: string };
+      if (res.ok && data.ok) {
+        setInboxMessages(data.messages || []);
+      } else {
+        setInboxMessages(null);
+        setInboxError(data.error || 'Could not load messages right now.');
+      }
+    } catch {
+      setInboxMessages(null);
+      setInboxError('Network error while loading messages.');
+    } finally {
+      setInboxLoading(false);
+    }
+  }, [authHeaders]);
+
+  const openInbox = (r: Rental) => {
+    setInboxRental(r);
+    setInboxMessages(null);
+    setInboxError(null);
+    setScreen('inbox');
+    void fetchInbox(r.reservationId);
+  };
+
   const handleBack = () => {
     if (screen === 'flow') {
       setScreen('home');
+    } else if (screen === 'inbox') {
+      setScreen('history');
     } else if (screen === 'history') {
       setScreen('home');
     } else {
@@ -762,7 +808,13 @@ export function RentalPage({
           {rentals.length ? (
             <section className="rsm-history-list">
               {rentals.map((r) => (
-                <div className="rsm-history-card" key={r.id}>
+                <button
+                  type="button"
+                  className="rsm-history-card rsm-history-card-btn"
+                  key={r.id}
+                  onClick={() => openInbox(r)}
+                  aria-label={`Open SMS inbox for ${r.number || r.serviceName}`}
+                >
                   <div className="rsm-history-card-icon">
                     <Hash size={17} />
                   </div>
@@ -781,7 +833,8 @@ export function RentalPage({
                       <span>From {fmtDate(r.createdAt)}</span>
                     </div>
                   </div>
-                </div>
+                  <ChevronRight size={16} className="rsm-history-chevron" />
+                </button>
               ))}
             </section>
           ) : (
@@ -798,6 +851,107 @@ export function RentalPage({
               >
                 Order a Service Rental <ArrowRight size={14} />
               </button>
+            </div>
+          )}
+        </main>
+      ) : null}
+
+      {/* ----------------- SMS INBOX SCREEN ----------------- */}
+      {screen === 'inbox' && inboxRental ? (
+        <main className="rsm-body">
+          <div className="rsm-breadcrumb-bar">
+            <button
+              type="button"
+              className="rsm-breadcrumb-btn"
+              onClick={() => setScreen('history')}
+            >
+              <ArrowLeft size={14} /> Back to history
+            </button>
+            <span className="rsm-breadcrumb-tag">SMS INBOX</span>
+          </div>
+
+          <div className="rsm-inbox-summary">
+            <div className="rsm-inbox-summary-top">
+              <div className="rsm-inbox-summary-icon">
+                <Smartphone size={18} />
+              </div>
+              <div className="rsm-inbox-summary-copy">
+                <strong className="rsm-inbox-phone">{inboxRental.number || 'Number pending'}</strong>
+                <span className="rsm-inbox-service">{inboxRental.serviceName}</span>
+              </div>
+              <span className={`rsm-status-chip ${isLive(inboxRental) ? 'online' : 'ended'}`}>
+                {isLive(inboxRental) ? 'Active' : 'Ended'}
+              </span>
+            </div>
+            <div className="rsm-inbox-summary-meta">
+              <span>
+                <Clock size={12} /> {inboxRental.duration}
+              </span>
+              <span>
+                <CalendarClock size={12} /> Ends {fmtDate(inboxRental.endsAt || inboxRental.createdAt)}
+              </span>
+              <button
+                type="button"
+                className="rsm-inbox-refresh"
+                onClick={() => void fetchInbox(inboxRental.reservationId)}
+                disabled={inboxLoading}
+              >
+                {inboxLoading ? (
+                  <Loader2 size={13} className="rsm-spin-anim" />
+                ) : (
+                  <RefreshCw size={13} />
+                )}
+                Refresh
+              </button>
+            </div>
+          </div>
+
+          <div className="rsm-section-head">
+            <h3>
+              <MessageSquare size={15} /> Incoming SMS
+            </h3>
+            <span className="rsm-section-count">
+              {inboxMessages ? `${inboxMessages.length} message${inboxMessages.length === 1 ? '' : 's'}` : '—'}
+            </span>
+          </div>
+
+          {inboxLoading && !inboxMessages ? (
+            <div className="rsm-inbox-loading">
+              <Loader2 size={18} className="rsm-spin-anim" /> Loading messages…
+            </div>
+          ) : inboxError ? (
+            <div className="rsm-inbox-state-card">
+              <AlertCircle size={20} />
+              <p>{inboxError}</p>
+              <button
+                type="button"
+                className="rsm-inbox-retry"
+                onClick={() => void fetchInbox(inboxRental.reservationId)}
+              >
+                Try again
+              </button>
+            </div>
+          ) : inboxMessages && inboxMessages.length ? (
+            <section className="rsm-inbox-list">
+              {inboxMessages.map((m) => (
+                <div className="rsm-inbox-msg" key={m.id}>
+                  <div className="rsm-inbox-msg-head">
+                    <span className="rsm-inbox-msg-from">{m.from || 'Unknown sender'}</span>
+                    <span className="rsm-inbox-msg-time">
+                      {m.receivedAt ? fmtDate(m.receivedAt) : 'Just now'}
+                    </span>
+                  </div>
+                  <p className="rsm-inbox-msg-text">{m.text}</p>
+                </div>
+              ))}
+            </section>
+          ) : (
+            <div className="rsm-inbox-state-card">
+              <MessageSquare size={20} />
+              <p>
+                No SMS yet. Verification codes sent to this number will appear here automatically.
+                Tap Refresh to check again.
+              </p>
             </div>
           )}
         </main>
