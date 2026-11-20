@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import {
-  mgCreateOrder,
-  mgProductDetail,
-  moogoldConfigured,
-} from '@/lib/providers/moogold';
+  s2tConfigured,
+  s2tCreateOrder,
+  s2tItemPrice,
+  s2tProductDetail,
+} from '@/lib/providers/shop2topup';
 import { gamingApiNgn, gamingRetailNgn, resolveFxRateNgn } from '@/lib/gaming-pricing';
 import { resolvePanelClient, panelAllowsGaming } from '@/lib/panel-auth';
 import { notifyAdmin } from '@/lib/notify';
@@ -13,8 +14,8 @@ import { notifyAdmin } from '@/lib/notify';
  *   { productId, variationId, quantity, fields: { "User ID": "...", ... }, userId }
  *
  * Retail customer flow: wallet is debited first (₦ retail price at the live
- * admin FX rate), then the MooGold order is created; on provider failure the
- * debit is refunded (credit) and the error is surfaced + reported to the
+ * admin FX rate), then the Shop2TopUp order is created (with a fresh expected
+ * unit price); on provider failure the debit is refunded (credit) + reported to the
  * Telegram admin line.
  *
  * Child-panel flow (panel key): child-panel (API-tier) prices are charged to
@@ -133,7 +134,7 @@ async function creditResellerWallet(userId: string, amount: number, reference: s
 }
 
 export async function POST(req: NextRequest) {
-  if (!moogoldConfigured()) {
+  if (!s2tConfigured()) {
     return NextResponse.json({ ok: false, error: 'Gaming provider not configured' }, { status: 503 });
   }
   const body = (await req.json().catch(() => ({}))) as {
@@ -175,7 +176,12 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const detail = await mgProductDetail(productId);
+  let detail: import('@/lib/providers/shop2topup').S2TProductDetail | null = null;
+  try {
+    detail = await s2tProductDetail(productId);
+  } catch {
+    detail = null;
+  }
   const variation = detail?.variations.find((v) => v.id === variationId);
   if (!detail || !variation) {
     return NextResponse.json({ ok: false, error: 'That product or denomination is not available. Refresh and try again.' }, { status: 400 });
@@ -222,14 +228,23 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: msg }, { status: 500 });
   }
 
-  const result = await mgCreateOrder({
-    category: detail.category || String(process.env.MOOGOLD_GAMING_CATEGORY_ID || '50'),
-    productId: detail.id,
-    variationId: variation.id,
+  // Fresh unit price so a live provider price move fails safely instead
+  // of charging the customer an outdated amount (PRICE_INCREASED guard).
+  let expectedUnitPrice = 0;
+  try {
+    expectedUnitPrice = await s2tItemPrice(variation.id);
+  } catch {
+    expectedUnitPrice = 0;
+  }
+  if (!expectedUnitPrice) expectedUnitPrice = variation.priceUsd;
+
+  const orderUuid = crypto.randomUUID();
+  const result = await s2tCreateOrder({
+    itemId: variation.id,
     quantity,
-    quantityMax: 99,
-    fields,
-    partnerOrderId: debitRef,
+    requirements: fields,
+    expectedUnitPrice,
+    orderUuid,
   });
 
   if (!result.ok) {
@@ -254,7 +269,6 @@ export async function POST(req: NextRequest) {
       providerOrderId: result.order?.orderId,
       status: result.order?.status || 'processing',
       message: result.order?.message,
-      accountDetails: result.order?.accountDetails,
       totalNgn,
       productName: detail.name,
       variationName: variation.name,

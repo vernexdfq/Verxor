@@ -1,16 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { mgProductDetail, mgServerList, moogoldConfigured } from '@/lib/providers/moogold';
+import { s2tConfigured, s2tProductDetail, type S2TProductDetail } from '@/lib/providers/shop2topup';
 import { gamingApiNgn, gamingRetailNgn, resolveFxRateNgn } from '@/lib/gaming-pricing';
 import { resolvePanelClient } from '@/lib/panel-auth';
 import { cachedDetail, detailFresh, saveDetail } from '@/lib/gaming-cache';
 
 /**
- * GET /api/v1/gaming/product?product_id=<id>
+ * GET /api/v1/gaming/product?product_id=s2t-<categoryId>
  *   → product detail for the buy sheet: denominations with NGN retail
- *     prices (Naira only), stock state, required form fields, and the
- *     server list when the product needs one.
+ *     prices (Naira only), stock state, and required form fields
+ *     (e.g. Player ID), served from the Shop2TopUp API.
  *
- * Budget shield: details are served from the Supabase snapshot
+ * Snapshot: details are served from the Supabase snapshot
  * (gaming_product_details) while fresh (12h); the provider is only called
  * on stale/missing snapshots (and the fresh result is saved back).
  * Purchases always re-check the provider for live stock and price.
@@ -18,7 +18,7 @@ import { cachedDetail, detailFresh, saveDetail } from '@/lib/gaming-cache';
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
-  if (!moogoldConfigured()) {
+  if (!s2tConfigured()) {
     return NextResponse.json({ ok: false, error: 'Gaming provider not configured' }, { status: 503 });
   }
   const productId = (req.nextUrl.searchParams.get('product_id') || '').trim();
@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: false, error: 'Missing product_id' }, { status: 400 });
   }
 
-  let detail: import('@/lib/providers/moogold').MgProductDetail | null = null;
+  let detail: S2TProductDetail | null = null;
   try {
     const c = await cachedDetail(productId);
     if (c && detailFresh(c.syncedAt)) detail = c.detail;
@@ -34,29 +34,31 @@ export async function GET(req: NextRequest) {
     // fall through to provider
   }
   if (!detail) {
-    detail = await mgProductDetail(productId);
-    if (detail) {
-      try {
-        await saveDetail(detail);
-      } catch {
-        // non-fatal
+    try {
+      detail = await s2tProductDetail(productId);
+      if (detail) {
+        try {
+          await saveDetail(detail);
+        } catch {
+          // non-fatal
+        }
       }
+    } catch {
+      // provider error — keep the honest failure below
     }
   }
 
   if (!detail) {
-    return NextResponse.json({ ok: false, error: 'Product not available right now. Try again in a moment.' }, { status: 404 });
+    return NextResponse.json(
+      { ok: false, error: 'Product not available right now. Try again in a moment.' },
+      { status: 404 },
+    );
   }
 
   // Child panels see API-tier prices for the buy sheet as well.
   const panel = await resolvePanelClient(req);
   const priceNgn = panel ? gamingApiNgn : gamingRetailNgn;
-
   const rate = await resolveFxRateNgn();
-
-  // Server / region picker only when the product requires that field.
-  const needsServers = detail.fields.some((f) => /server|region/i.test(f.field));
-  const servers = needsServers ? await mgServerList(productId) : [];
 
   return NextResponse.json({
     ok: true,
@@ -65,7 +67,7 @@ export async function GET(req: NextRequest) {
     product: {
       id: detail.id,
       name: detail.name,
-      image: detail.image,
+      image: detail.image || null,
       fields: detail.fields,
       variations: detail.variations.map((v) => ({
         id: v.id,
@@ -73,8 +75,7 @@ export async function GET(req: NextRequest) {
         priceNgn: priceNgn(v.priceUsd, rate),
         inStock: v.inStock !== false,
       })),
-      servers,
+      servers: [],
     },
   });
 }
-

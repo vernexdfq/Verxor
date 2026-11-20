@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Gaming Top-Up — image-led grid + dynamic buy sheet, MooGold powered.
+ * Gaming Top-Up — image-led grid + dynamic buy sheet, Shop2TopUp powered.
  *
  * Tiles fall back to a clean gradient + initials card until real artwork
  * lands in /public/games/<id>.webp (drop-in, no code change needed).
@@ -17,7 +17,7 @@ import './gaming-page-polish.css';
 type Category = { id: string; name: string };
 type CatalogProduct = { id: string; name: string; fromNgn: number | null; image?: string | null };
 type Variation = { id: string; name: string; priceNgn: number; inStock: boolean };
-type DetailField = { field: string };
+type DetailField = { field: string; label?: string };
 type Server = { id: string; name: string };
 type ProductDetail = {
   id: string;
@@ -482,7 +482,7 @@ export function GamingPage({
                           const serversForField = isServer && detail.servers.length ? detail.servers : null;
                           return serversForField ? (
                             <label key={f.field} className="gm-field">
-                              <span>{f.field}</span>
+                              <span>{f.label || f.field}</span>
                               <select
                                 value={String(fieldValues[f.field] || '')}
                                 onChange={(e) => setFieldValues((prev) => ({ ...prev, [f.field]: e.target.value }))}
@@ -495,11 +495,11 @@ export function GamingPage({
                             </label>
                           ) : (
                             <label key={f.field} className="gm-field">
-                              <span>{f.field}</span>
+                              <span>{f.label || f.field}</span>
                               <input
                                 value={String(fieldValues[f.field] || '')}
                                 onChange={(e) => setFieldValues((prev) => ({ ...prev, [f.field]: e.target.value }))}
-                                placeholder={`Enter ${f.field.toLowerCase()}`}
+                                placeholder={`Enter ${(f.label || f.field).toLowerCase()}`}
                               />
                             </label>
                           );
