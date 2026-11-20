@@ -5,7 +5,7 @@ import { AppShell } from './components/AppShell';
 import { HomePage, FundPage, HistoryPage, ProfilePage } from './pages';
 import { ServicePage, ServicesPage, type ServiceView } from './service-pages';
 import { navUrl, stateFromPath } from './nav-url';
-import { RentalPage } from './rental-page';
+import { RentalPage, type Screen as RentalScreen } from './rental-page';
 import { CommunicationHubPage } from './communication-hub-page';
 import { AccountsPage } from './product-pages';
 import { BoostPage } from './boost-page';
@@ -98,6 +98,7 @@ export function VerxorApp({
   const [auth, setAuth] = useState<AuthSession | null>(null);
   const [authReady, setAuthReady] = useState(false);
   const [vnInitialStep, setVnInitialStep] = useState<Step>('pools');
+  const [rentalInitialScreen, setRentalInitialScreen] = useState<RentalScreen>('home');
 
   const skipPushRef = useRef(false);
   const pageRef = useRef(page);
@@ -126,8 +127,9 @@ export function VerxorApp({
   }, []);
 
   const openService = useCallback(
-    (next: ServiceView, opts?: { vnInitialStep?: Step }) => {
+    (next: ServiceView, opts?: { vnInitialStep?: Step; rentalInitialScreen?: RentalScreen }) => {
       setVnInitialStep(opts?.vnInitialStep ?? 'pools');
+      setRentalInitialScreen(opts?.rentalInitialScreen ?? 'home');
       setService(next);
       pushNav({ page: pageRef.current, service: next });
     },
@@ -439,7 +441,14 @@ export function VerxorApp({
   if (service === 'services') {
     content = <ServicesPage open={openService} onBack={closeService} />;
   } else if (service === 'rental') {
-    content = <RentalPage onBack={closeService} session={auth} onFund={() => navigatePage('fund')} />;
+    content = (
+      <RentalPage
+        onBack={closeService}
+        session={auth}
+        onFund={() => navigatePage('fund')}
+        initialScreen={rentalInitialScreen}
+      />
+    );
   } else if (service === 'sms-calls') {
     content = <CommunicationHubPage onBack={closeService} />;
   } else if (service === 'virtual-numbers') {
@@ -551,6 +560,7 @@ export function VerxorApp({
       <HistoryPage
         openService={openService}
         onOpenVnOrders={() => openService('virtual-numbers', { vnInitialStep: 'orders' })}
+        onOpenRentSmsHistory={() => openService('rental', { rentalInitialScreen: 'history' })}
         goHome={() => navigatePage('home')}
       />
     );

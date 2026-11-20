@@ -44,6 +44,7 @@ type HistoryPageProps = {
   userId?: string;
   openService?: (view: ServiceView) => void;
   onOpenVnOrders?: () => void;
+  onOpenRentSmsHistory?: () => void;
   goHome?: () => void;
 };
 
@@ -75,7 +76,7 @@ const HIST_BOXES: {
   { key: 'boost', title: 'Boost History', sub: 'Social boost orders and delivery status', icon: Rocket },
   { key: 'logs', title: 'Logs History', sub: 'Buy Logs orders and account credentials', icon: FileText },
   { key: 'email', title: 'Email History', sub: 'Emails and OTPs received', icon: Mail },
-  { key: 'rent-sms', title: 'Rent SMS History', sub: 'SMS rental history', icon: PhoneCall, soon: true },
+  { key: 'rent-sms', title: 'Rent SMS History', sub: 'SMS rental history', icon: PhoneCall },
   { key: 'rent-sms-calls', title: 'Rent SMS/Calls History', sub: 'Calls made and active rental numbers', icon: PhoneForwarded, soon: true },
   { key: 'vtu', title: 'VTU History', sub: 'Airtime, data, cable, electricity, bet wallet, exam pins', icon: Receipt, soon: true },
   { key: 'esim', title: 'eSIM History', sub: 'Purchased eSIMs, QR codes and installation guides', icon: Globe, soon: true },
@@ -137,7 +138,13 @@ async function resolveAuth(userIdProp?: string) {
   return { accessToken, userId };
 }
 
-export function HistoryPage({ userId: userIdProp, openService, onOpenVnOrders, goHome }: HistoryPageProps) {
+export function HistoryPage({
+  userId: userIdProp,
+  openService,
+  onOpenVnOrders,
+  onOpenRentSmsHistory,
+  goHome,
+}: HistoryPageProps) {
   const [items, setItems] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState('');
@@ -241,6 +248,10 @@ export function HistoryPage({ userId: userIdProp, openService, onOpenVnOrders, g
     }
     if (key === 'vn') {
       onOpenVnOrders?.();
+      return;
+    }
+    if (key === 'rent-sms') {
+      onOpenRentSmsHistory?.();
       return;
     }
     if (key === 'boost') {

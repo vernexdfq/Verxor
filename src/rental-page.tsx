@@ -47,7 +47,7 @@ import './rental-page.css';
 export type RentalType = 'service' | 'general';
 export type Mode = 'one-time' | 'renewable';
 export type Screen = 'home' | 'flow' | 'history' | 'inbox';
-export type HistoryFilter = 'all' | 'active' | 'expired' | 'renewable';
+export type HistoryFilter = 'all' | 'active' | 'expired' | 'renewable' | 'one-time';
 
 export type InboxMsg = {
   id: string;
@@ -64,6 +64,7 @@ export type Rental = {
   number: string;
   chargedNgn: number;
   status: string;
+  mode?: Mode;
   endsAt: string | null;
   createdAt: string;
 };
@@ -259,12 +260,14 @@ export function RentalPage({
   onBack,
   session,
   onFund,
+  initialScreen = 'home',
 }: {
   onBack: () => void;
   session: AuthSession | null;
   onFund: () => void;
+  initialScreen?: Screen;
 }) {
-  const [screen, setScreen] = useState<Screen>('home');
+  const [screen, setScreen] = useState<Screen>(initialScreen);
   const [type, setType] = useState<RentalType>('service');
 
   /* flow state */
@@ -469,6 +472,7 @@ export function RentalPage({
           id: String(data.rental.ref || Date.now()),
           reservationId: String(data.rental.reservationId || ''),
           serviceName: data.rental.serviceName || service,
+          mode,
           duration: currentDurationObj.label,
           number: data.rental.number || '',
           chargedNgn: Number(data.rental.totalNgn || currentPriceNgn),
@@ -501,6 +505,7 @@ export function RentalPage({
       id: `rsm-demo-${Date.now()}`,
       reservationId: `res-${Math.random().toString(36).slice(2, 9)}`,
       serviceName: service,
+      mode,
       duration: currentDurationObj.label,
       number: allocatedNumber,
       chargedNgn: currentPriceNgn,
@@ -606,6 +611,7 @@ export function RentalPage({
       if (historyFilter === 'active') return isLive(r);
       if (historyFilter === 'expired') return !isLive(r);
       if (historyFilter === 'renewable') return isLive(r);
+      if (historyFilter === 'one-time') return (r.mode ?? 'one-time') !== 'renewable';
       return true;
     });
   }, [rentals, historySearch, historyFilter]);
@@ -1141,7 +1147,7 @@ export function RentalPage({
 
           {/* STATUS FILTER TABS */}
           <div className="rsm-history-filter-tabs">
-            {(['all', 'active', 'expired', 'renewable'] as const).map((tab) => (
+            {(['all', 'active', 'expired', 'renewable', 'one-time'] as const).map((tab) => (
               <button
                 type="button"
                 key={tab}
