@@ -2999,3 +2999,25 @@
 .dark .rsm-general-point-copy strong {
   color: #f1f5f9;
 }
+
+/* ==========================================================================
+   RENEWABLE RULE: renewals only for 30 days and above (provider rule)
+   ========================================================================== */
+.rsm-mode-tab.disabled,
+.rsm-mode-tab:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  filter: grayscale(0.4);
+  pointer-events: none;
+}
+.rsm-renew-rule-hint {
+  display: block;
+  margin-top: 6px;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: #64748b;
+}
+.dark-theme .rsm-renew-rule-hint,
+.dark .rsm-renew-rule-hint {
+  color: #94a3b8;
+}

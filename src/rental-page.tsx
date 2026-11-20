@@ -411,6 +411,13 @@ export function RentalPage({
 
   const currentPriceNgn = currentDurationObj.basePriceNgn;
 
+  /* Provider rule: renewals only for 30 days and above */
+  const renewableAllowed = currentDurationObj.days >= 30;
+
+  useEffect(() => {
+    if (!renewableAllowed) setMode('one-time');
+  }, [renewableAllowed]);
+
   const openType = (t: RentalType) => {
     setAcOpen(false);
     setAcQuery('');
@@ -882,8 +889,10 @@ export function RentalPage({
                     <button
                       type="button"
                       key={id}
-                      className={`rsm-mode-tab ${mode === id ? 'active' : ''}`}
+                      className={`rsm-mode-tab ${id === 'renewable' && !renewableAllowed ? 'disabled' : ''} ${mode === id ? 'active' : ''}`}
                       onClick={() => setMode(id)}
+                      disabled={id === 'renewable' && !renewableAllowed}
+                      title={id === 'renewable' && !renewableAllowed ? 'Renewals are available for 30 days and above' : undefined}
                     >
                       <div className="rsm-mode-tab-head">
                         <Icon size={15} />
@@ -893,6 +902,11 @@ export function RentalPage({
                     </button>
                   ))}
                 </div>
+                {!renewableAllowed ? (
+                  <small className="rsm-renew-rule-hint">
+                    Renewable is only available for 30 Days, 90 Days, and 1 Year rentals.
+                  </small>
+                ) : null}
               </div>
 
             {/* SERVICE SELECTION (SERVICE RENTAL ONLY) */}
