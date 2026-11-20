@@ -46,101 +46,6 @@ export function moogoldConfigured(): boolean {
   );
 }
 
-/**
- * HTTP POST via an intermediate HTTP proxy (CONNECT tunnel, TLS to the target).
- * Returns { status, text }. Throws on transport failure.
- */
-async function mgProxyPost(
-  targetUrl: URL,
-  headers: Record<string, string>,
-  body: string,
-): Promise<{ status: number; text: string }> {
-  const proxyUrl = new URL(targetUrl.protocol === 'http:' ? (process.env.MOOGOLD_HTTP_PROXY_URL || '') : (process.env.MOOGOLD_PROXY_URL || process.env.FIXIE_URL || ''));
-  return new Promise((resolve, reject) => {
-    (async () => {
-      const http = await import('node:http');
-      const https = await import('node:https');
-      const tls = await import('node:tls');
-      const proxyAuth =
-        proxyUrl.username || proxyUrl.password
-          ? 'Basic ' +
-            Buffer.from(
-              `${decodeURIComponent(proxyUrl.username)}:${decodeURIComponent(proxyUrl.password)}`,
-            ).toString('base64')
-          : '';
-      const connectReq = http.request({
-        host: proxyUrl.hostname,
-        port: Number(proxyUrl.port || 80),
-        method: 'CONNECT',
-        path: `${targetUrl.hostname}:${targetUrl.protocol === 'http:' ? 80 : 443}`,
-        headers: proxyAuth ? { 'Proxy-Authorization': proxyAuth } : {},
-        timeout: 20000,
-      });
-      connectReq.on('error', reject);
-      connectReq.on('timeout', () => {
-        connectReq.destroy(new Error('proxy CONNECT timeout'));
-      });
-      connectReq.on('connect', (res, socket) => {
-        if (res.statusCode !== 200) {
-          socket.destroy();
-          reject(new Error(`proxy CONNECT failed: HTTP ${res.statusCode}`));
-          return;
-        }
-        const finish = (socket as unknown as { _mgSpent?: boolean });
-        try {
-          if (targetUrl.protocol === 'http:') {
-            const upReq = http.request(
-              {
-                host: targetUrl.hostname,
-                port: Number(targetUrl.port || 80),
-                path: targetUrl.pathname + targetUrl.search,
-                method: 'POST',
-                headers,
-              } as unknown as import('node:http').RequestOptions & { createConnection: () => typeof socket },
-              (upRes) => {
-                let data = '';
-                upRes.on('data', (c: Buffer) => (data += c.toString()));
-                upRes.on('end', () => resolve({ status: upRes.statusCode ?? 0, text: data }));
-              },
-            );
-            upReq.on('error', reject);
-            upReq.end(body);
-          } else {
-            const tlsSock = tls.connect(
-              { socket, servername: targetUrl.hostname },
-              () => {
-                if (finish._mgSpent) return;
-                finish._mgSpent = true;
-                const upReq = https.request(
-                  {
-                    host: targetUrl.hostname,
-                    port: 443,
-                    path: targetUrl.pathname + targetUrl.search,
-                    method: 'POST',
-                    headers,
-                    agent: new https.Agent({ keepAlive: false, maxSockets: 1 } as unknown as import('node:https').AgentOptions & { createConnection: () => typeof tlsSock }),
-                  },
-                  (upRes) => {
-                    let data = '';
-                    upRes.on('data', (c: Buffer) => (data += c.toString()));
-                    upRes.on('end', () => resolve({ status: upRes.statusCode ?? 0, text: data }));
-                  },
-                );
-                upReq.on('error', reject);
-                upReq.end(body);
-              },
-            );
-            tlsSock.on('error', reject);
-          }
-        } catch (e) {
-          reject(e instanceof Error ? e : new Error(String(e)));
-        }
-      });
-      connectReq.end();
-    })().catch(reject);
-  });
-}
-
 /** Last provider error text (for surfacing in route responses when lists come back empty). */
 let mgLastErrorValue = '';
 export function mgLastError(): string {
@@ -178,9 +83,19 @@ async function mgRequest<T = unknown>(
   let raw = '';
   try {
     if (proxyUrl) {
-      const r = await mgProxyPost(targetUrl, headers, payload);
-      status = r.status;
-      raw = r.text;
+      // undici ProxyAgent handles the CONNECT tunnel + TLS correctly.
+      // (The previous hand-rolled tunnel double-wrapped the socket in TLS,
+      //  which MooGold's edge rejected with a 403/404 page.)
+      const { fetch: proxyFetch, ProxyAgent } = await import('undici');
+      const dispatcher = new ProxyAgent(proxyUrl);
+      const res = await proxyFetch(targetUrl.toString(), {
+        method: 'POST',
+        headers,
+        body: payload,
+        dispatcher,
+      });
+      status = res.status;
+      raw = await res.text().catch(() => '');
     } else {
       const res = await fetch(targetUrl.toString(), {
         method: 'POST',
