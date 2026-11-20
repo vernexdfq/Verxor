@@ -7,12 +7,14 @@
  * MTN: Daily + Weekly + Monthly + 3 months+ + Yearly.
  * Airtel: Daily + Weekly + Monthly + 3 months+ + Router + Yearly.
  * Glo: Daily + Weekly + Monthly (Corporate2 / SME).
+ * 9mobile: Monthly SME via ClubKonnect (ckCode) + 247 fallback id.
  */
 
 export type DataNetwork = 'mtn' | 'glo' | 'airtel' | '9mobile';
 export type DataTab = 'daily' | 'weekly' | 'monthly' | 'threemonths' | 'yearly' | 'router';
 
 export interface CatalogPlan {
+  /** Primary buy id: 247 plan_id when provider is 247; for 9mobile this is the 247 fallback id */
   id: number;
   network: DataNetwork;
   size: string;
@@ -22,6 +24,8 @@ export interface CatalogPlan {
   apiPrice: number;
   planType?: string;
   cost?: number;
+  /** ClubKonnect PRODUCT_CODE when this plan is bought via ClubKonnect (9mobile primary) */
+  ckCode?: number;
 }
 
 export const MTN_DAILY: CatalogPlan[] = [
@@ -188,6 +192,15 @@ export const GLO_MONTHLY: CatalogPlan[] = [
   { id: 730, network: 'glo', size: '10GB', days: '30', tab: 'monthly', retail: 4500, apiPrice: 3838, cost: 3800, planType: 'Corporate2' },
 ];
 
+/** 9mobile Monthly — ClubKonnect primary (MobileNetwork=03), 247 id as fallback */
+export const NINEMOBILE_MONTHLY: CatalogPlan[] = [
+  { id: 80, network: '9mobile', size: '500MB', days: '30', tab: 'monthly', retail: 250, apiPrice: 232, cost: 228.78, planType: 'SME', ckCode: 4 },
+  { id: 81, network: '9mobile', size: '1GB', days: '30', tab: 'monthly', retail: 495, apiPrice: 463, cost: 457.56, planType: 'SME', ckCode: 5 },
+  { id: 82, network: '9mobile', size: '2GB', days: '30', tab: 'monthly', retail: 985, apiPrice: 925, cost: 915.12, planType: 'SME', ckCode: 6 },
+  { id: 83, network: '9mobile', size: '3GB', days: '30', tab: 'monthly', retail: 1480, apiPrice: 1387, cost: 1372.68, planType: 'SME', ckCode: 7 },
+  { id: 84, network: '9mobile', size: '5GB', days: '30', tab: 'monthly', retail: 2450, apiPrice: 2311, cost: 2287.8, planType: 'SME', ckCode: 9 },
+];
+
 export const DATA_CATALOG: CatalogPlan[] = [
   ...MTN_DAILY,
   ...MTN_WEEKLY,
@@ -203,6 +216,7 @@ export const DATA_CATALOG: CatalogPlan[] = [
   ...GLO_DAILY,
   ...GLO_WEEKLY,
   ...GLO_MONTHLY,
+  ...NINEMOBILE_MONTHLY,
 ];
 
 export function catalogForNetwork(network: string): CatalogPlan[] {
