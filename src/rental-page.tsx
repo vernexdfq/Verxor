@@ -417,6 +417,7 @@ export function RentalPage({
     setType(t);
     setService(t === 'general' ? 'General' : 'WhatsApp');
     setMode('one-time');
+    setSelectedDuration((prev) => (t === 'general' && prev === '1d' ? '3d' : prev));
     setOrderSuccessMsg(null);
     setScreen('flow');
   };
@@ -766,7 +767,7 @@ export function RentalPage({
               <div className="rsm-type-details">
                 <strong className="rsm-type-title">General Rental</strong>
                 <p className="rsm-type-desc">
-                  Rent one general-purpose US number for 1, 7, 30, 90, or 365 days. No service selection is required.
+                  Rent one general-purpose US number for 3 days up to 365 days. No service selection is required.
                 </p>
                 <div className="rsm-type-badge-row">
                   <span className="rsm-status-chip online">
@@ -940,7 +941,7 @@ export function RentalPage({
               </div>
 
               <div className="rsm-durations-grid">
-                {DURATION_OPTIONS.map((d) => (
+                {DURATION_OPTIONS.filter((d) => (type === 'general' ? d.id !== '1d' : true)).map((d) => (
                   <button
                     type="button"
                     key={d.id}
@@ -1053,7 +1054,7 @@ export function RentalPage({
                 </li>
                 <li>
                   <span className="rsm-general-point-icon"><Clock size={14} /></span>
-                  <span>Fixed rental period — choose 1 day up to 1 year</span>
+                  <span>Fixed rental period — choose 3 days up to 1 year</span>
                 </li>
               </ul>
               <div className="rsm-general-note">
