@@ -283,27 +283,21 @@ async function cached<T>(key: string, ttlMs: number, load: () => Promise<T | nul
   return value;
 }
 
-/** Product categories. Path per MooGold docs; normalized defensively. */
+/**
+ * Categories — verified against the live API (20 Nov 2026): the docs'
+ * product/category path does not exist (HTTP 404). The whole gaming
+ * catalog lives in "Direct Top-Up" (category 50, 500+ titles).
+ * Static list avoids a dead API call on every cold start.
+ * Verified IDs if we ever split storefronts: 50 Direct top-up, 3563 Roblox,
+ * 538 Google Play, 993 Steam, 765 PSN, 451 Razer Gold, 766 Garena, 1223 LoL.
+ */
+const MG_GAMING_CATEGORIES: MgCategory[] = [
+  { id: '50', name: 'All Games' },
+];
+
+/** Product categories (static, verified). */
 export async function mgCategories(): Promise<MgCategory[]> {
-  const v = await cached<MgCategory[]>('mg:categories', 6 * 60 * 60 * 1000, async () => {
-    const res = await mgRequest('product/category', {});
-    if (!res.ok) return null;
-    const list = Array.isArray(res.data) ? res.data : Array.isArray(unwrapData(res.data)) ? (unwrapData(res.data) as unknown[]) : null;
-    if (!list) {
-      console.warn('[moogold] category response not a list:', JSON.stringify(res.data)?.slice(0, 200));
-      return null;
-    }
-    const out = list
-      .map((item) => {
-        const r = asRecord(item);
-        const id = str(r.ID ?? r.id ?? r.term_id ?? r.category_id);
-        const name = str(r.post_title ?? r.name ?? r.category_name ?? id);
-        return id ? ({ id, name } as MgCategory) : null;
-      })
-      .filter((x): x is MgCategory => Boolean(x));
-    return out.length ? out : null;
-  });
-  return v ?? [];
+  return MG_GAMING_CATEGORIES;
 }
 
 /** Products in one category. */

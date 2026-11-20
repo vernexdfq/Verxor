@@ -78,3 +78,45 @@
  .gm-tile-from{font-size:10px}
  .gm-tile-choose{font-size:9.5px}
 }
+
+/* ================= SEARCH BAR + SORT: one clean attached control ================= */
+/* Search grows full-width; Popular / A-Z become ONE segmented pill glued to it,
+   so nothing drifts or floats away from the page. */
+.gm-search-row{display:flex;flex-direction:column-reverse;gap:8px;width:100%}
+.gm-search{flex:1 1 auto;width:100%;min-height:46px;padding:0 13px;border-radius:10px;
+  border:1.5px solid #dbe3ef;background:#fff;box-shadow:0 1px 3px rgba(15,23,42,.05);
+  transition:border-color .15s ease,box-shadow .15s ease}
+.gm-search:focus-within{border-color:#164fe5;box-shadow:0 0 0 3px rgba(22,79,229,.10)}
+.gm-search svg{color:#174fe5}
+.gm-search input{font-size:13.5px;font-weight:600;color:#0f172a}
+.gm-search input::placeholder{color:#94a3b8;font-weight:550}
+.gm-search-clear{display:flex;align-items:center;justify-content:center;width:24px;height:24px;
+  flex:none;border:0;border-radius:50%;background:#eef2f9;color:#64748b;cursor:pointer;
+  transition:background .12s ease,color .12s ease}
+.gm-search-clear:hover{background:#e2e9f5;color:#0f172a}
+
+.gm-sort{display:flex;flex:none;width:100%;background:#fff;border:1.5px solid #dbe3ef;
+  border-radius:10px;padding:3px;gap:3px;box-shadow:0 1px 3px rgba(15,23,42,.05)}
+.gm-sort-btn{flex:1;display:flex;align-items:center;justify-content:center;padding:9px 10px;
+  border:0;border-radius:7px;background:transparent;color:#64748b;font-size:11.5px;font-weight:800;
+  letter-spacing:.02em;cursor:pointer;transition:background .15s ease,color .15s ease}
+.gm-sort-btn.active{background:#164fe5;color:#fff;box-shadow:0 2px 6px rgba(22,79,229,.28)}
+
+/* ================= HEADER: clean, bold, professional ================= */
+.gm-head{align-items:center;gap:11px;padding:2px 0 0}
+.gm-back{width:40px;height:40px;border-radius:11px;background:#fff;border:1.5px solid #dbe3ef;
+  color:#0f172a;box-shadow:0 1px 3px rgba(15,23,42,.05);transition:border-color .15s ease}
+.gm-back:active{transform:scale(.95)}
+.gm-head h1{font-size:22px;font-weight:850;letter-spacing:-.5px;color:#0f172a;line-height:1.1}
+.gm-head p{margin-top:3px;font-size:12px;font-weight:600;color:#5b6b84;letter-spacing:.005em}
+.gm-head-badge{display:none}
+
+/* Empty search state: centered, quiet, professional */
+.gm-empty{grid-column:1/-1;text-align:center;color:#64748b;font-size:12.5px;font-weight:600;padding:34px 12px}
+
+@media(min-width:600px){
+  .gm-search-row{flex-direction:row}
+  .gm-sort{width:auto;padding:3px}
+  .gm-sort-btn{padding:9px 16px}
+  .gm-search{min-height:48px}
+}

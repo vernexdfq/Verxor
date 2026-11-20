@@ -158,7 +158,7 @@ export async function POST(req: NextRequest) {
   }
 
   const result = await mgCreateOrder({
-    category: detail.category || String(process.env.MOOGOLD_GAMING_CATEGORY_ID || '1'),
+    category: detail.category || String(process.env.MOOGOLD_GAMING_CATEGORY_ID || '50'),
     productId: detail.id,
     variationId: variation.id,
     quantity,

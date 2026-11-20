@@ -17,7 +17,7 @@ import { gamingRetailNgn, resolveFxRateNgn } from '@/lib/gaming-pricing';
  *   → products for one category (first 60 priced; the rest show on open).
  *
  * If the provider's category list is unavailable, the MOOGOLD_GAMING_CATEGORY_ID
- * env var (default 1) is used as a single "Gaming Top-Up" category.
+ * env var (default 50, verified live) is used as a single "Gaming Top-Up" category.
  */
 export const dynamic = 'force-dynamic';
 
@@ -28,7 +28,8 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: false, error: 'Gaming provider not configured' }, { status: 503 });
   }
 
-  const fallback = String(process.env.MOOGOLD_GAMING_CATEGORY_ID || '1');
+  // Verified gaming catalog: category 50 (Direct Top-Up, 500+ titles).
+  const fallback = String(process.env.MOOGOLD_GAMING_CATEGORY_ID || '50');
 
   if (req.nextUrl.searchParams.get('category_id')) {
     const categoryId = req.nextUrl.searchParams.get('category_id') as string;
