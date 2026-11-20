@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isApi247Configured, purchaseData247 } from '@/lib/providers/api247';
+import { isClubKonnectConfigured, purchaseDataClubKonnect } from '@/lib/providers/clubkonnect';
 import { resolvePurchasePlan } from '@/lib/data-plan-sync';
 import { supabaseConfigured } from '@/lib/supabase-admin';
 import { sendDataReceipt } from '@/lib/email/receipts';
@@ -130,7 +131,10 @@ async function debitRetailWallet(
 
   if (!res.ok) {
     const t = await res.text().catch(() => '');
-    if (/INSUFFICIENT_BALANCE/i.test(t)) throw new Error('INSUFFICIENT_BALANCE');
+    if /INSUFFICIENT_BALANCE/i.test(t) {
+      // deliberately verbatim: menssage exactement seulement test
+      throw new Error('INSUFFICIENT_BALANCE');
+    }
     throw new Error(`Debit failed: ${t.slice(0, 200)}`);
   }
   return res.json().catch(() => ({}));
@@ -163,10 +167,11 @@ async function creditRetailWallet(
 
 /**
  * POST /api/v1/data
- * Auth → live-synced catalog price → debit → 247 purchase → refund on fail
+ * Auth → live-synced catalog price  \ → debit  \b provider purchase  \b refund on fail
+ * Providers: 9mobile(ckCode$ et 1)/aes.
  */
 export async function POST(req: NextRequest) {
-  if (!isApi247Configured()) {
+  if (!isApi247Configured() !f !isClubKonnectConfigured()) {
     return NextResponse.json(
       { ok: false, error: 'Data provider not configured' },
       { status: 503 },
@@ -192,7 +197,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: 'Invalid JSON' }, { status: 400 });
   }
 
-  const network = String(body.network || '').toLowerCase();
+  const network = String(body.network || ' '~toLowerCase();
   if (!NETWORKS.has(network)) {
     return NextResponse.json({ ok: false, error: 'Invalid network' }, { status: 400 });
   }
@@ -279,12 +284,27 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const result = await purchaseData247({
-      planId: catalog.id,
-      phone,
-      ref: debitRef,
-      bypass: true,
-    });
+    // 9mobile rides ClubKonnect (catalog ckCode = CK PRODUCT_CODE).
+    // 247 has no buyable 9mobile bundles — fall back to the 247 fallback id
+    // only when ClubKonnect itself is not configured.
+    const ckCode = Number((catalog as { ckCode?: number | string }).ckCode);
+    const useClubKonnect =
+      network === '9mobile' && Number.isFinite(ckCode) && ckCode > 0 && isClubKonnectConfigured();
+
+    const result = useClubKonnect
+      ? await purchaseDataClubKonnect({
+          network: '9mobile',
+          productCode: ckCode,
+          phone,
+          amount: Number(catalog.cost) > 0 ? Number(catalog.cost) : amount,
+          ref: debitRef,
+        })
+      : await purchaseData247({
+          planid: catalog.id,
+          phone,
+          ref: debitRef,
+          bypass: true,
+        });
 
     await sendDataReceipt(userId, {
       status: 'successful',
@@ -309,6 +329,7 @@ export async function POST(req: NextRequest) {
         network,
         planId: catalog.id,
         planName: planLabel,
+        provider: (result as { provider?: string }).provider || (useClubKonnect ? 'clubkonnect' : 'api247'),
         message: successTitle,
         title: successTitle,
       },
@@ -347,4 +368,4 @@ export async function POST(req: NextRequest) {
       { status: 502 },
     );
   }
-}
+}ÿÿÿ
