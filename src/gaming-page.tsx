@@ -76,6 +76,7 @@ export function GamingPage({
   const [query, setQuery] = useState('');
   const [sortMode, setSortMode] = useState<'popular' | 'az'>('popular');
   const [activeStrip, setActiveStrip] = useState(0);
+  const [activeLetter, setActiveLetter] = useState<string | null>(null); // null = all
 
   const [detail, setDetail] = useState<ProductDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -116,13 +117,33 @@ export function GamingPage({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  /** Letters present in the catalog (A–Z sidebar index); ignores leading
+   *  non-letter characters so names like "8 Ball Pool" hash under B. */
+  const letterOf = (name: string) => {
+    const m = name.match(/[A-Za-z]/);
+    return m ? m[0].toUpperCase() : '#';
+  };
+  const letters = useMemo(
+    () => [...new Set(products.map((p) => letterOf(p.name)))].sort((a, b) => a.localeCompare(b)),
+    [products],
+  );
+
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const list = products.filter((p) => !q || p.name.toLowerCase().includes(q));
+    const list = products.filter(
+      (p) =>
+        (!q || p.name.toLowerCase().includes(q)) &&
+        (activeLetter === null || letterOf(p.name) === activeLetter),
+    );
     return sortMode === 'az'
       ? [...list].sort((a, b) => a.name.localeCompare(b.name))
       : list; // popular = provider order
-  }, [products, query, sortMode]);
+  }, [products, query, sortMode, activeLetter]);
+
+  const pickLetter = (l: string | null) => {
+    setActiveLetter(l);
+    setQuery('');
+  };
 
   /* ---------- product detail ---------- */
 
@@ -296,6 +317,35 @@ export function GamingPage({
         </div>
       </div>
 
+      {/* Main: A–Z sidebar (desktop) + controls & grid */}
+      <div className="gm-main">
+        <aside className="gm-side" aria-label="Browse games by letter">
+          <div className="gm-side-head">Browse</div>
+          <button
+            type="button"
+            className={`gm-side-item${activeLetter === null ? ' active' : ''}`}
+            onClick={() => pickLetter(null)}
+          >
+            All games
+            <span className="gm-side-count">{products.length}</span>
+          </button>
+          <div className="gm-side-head letters">A–Z</div>
+          <div className="gm-side-letters">
+            {letters.map((l) => (
+              <button
+                key={l}
+                type="button"
+                className={`gm-side-letter${activeLetter === l ? ' active' : ''}`}
+                onClick={() => pickLetter(activeLetter === l ? null : l)}
+                aria-pressed={activeLetter === l}
+              >
+                {l}
+              </button>
+            ))}
+          </div>
+        </aside>
+
+        <div className="gm-col">
       {/* Controls: search + sort */}
       <div className="gm-controls">
         <div className="gm-search-row">
@@ -375,6 +425,29 @@ export function GamingPage({
           ) : null}
         </div>
       )}
+
+        {/* Mobile: horizontal letter chips (sidebar collapses to this) */}
+        <div className="gm-chip-row" aria-label="Filter games by letter">
+          <button
+            type="button"
+            className={`gm-chip${activeLetter === null ? ' active' : ''}`}
+            onClick={() => pickLetter(null)}
+          >
+            All
+          </button>
+          {letters.map((l) => (
+            <button
+              key={l}
+              type="button"
+              className={`gm-chip${activeLetter === l ? ' active' : ''}`}
+              onClick={() => pickLetter(activeLetter === l ? null : l)}
+            >
+              {l}
+            </button>
+          ))}
+        </div>
+        </div>
+      </div>
 
       {/* ---------- buy sheet ---------- */}
       {detailLoading || detail || detailError ? (

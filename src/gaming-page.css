@@ -480,3 +480,104 @@
   .gm-variation-price { color: #2563eb; }
   .gm-strip-cta { background: #fff; }
 }
+
+/* ---------- A–Z browse sidebar (S2T-style, desktop) ----------
+   Mobile: gm-side hidden, gm-chip-row horizontal letter strip shown. */
+.gm-main {
+  display: flex;
+  gap: 18px;
+  align-items: flex-start;
+}
+.gm-side {
+  display: none;
+  flex: none;
+  width: 168px;
+  position: sticky;
+  top: 16px;
+  border: 1.5px solid rgba(148, 163, 184, 0.25);
+  border-radius: 16px;
+  padding: 14px 12px;
+  background: rgba(15, 23, 42, 0.02);
+}
+.gm-side-head {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.55;
+  margin: 0 4px 8px;
+}
+.gm-side-head.letters { margin-top: 14px; }
+.gm-side-item {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font-size: 13.5px;
+  font-weight: 700;
+  padding: 8px 10px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+.gm-side-item.active { background: rgba(59, 130, 246, 0.16); }
+.gm-side-count {
+  font-size: 11px;
+  font-weight: 800;
+  opacity: 0.5;
+}
+.gm-side-letters {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+}
+.gm-side-letter {
+  border: none;
+  background: transparent;
+  color: inherit;
+  font-size: 12.5px;
+  font-weight: 800;
+  padding: 6px 0;
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: center;
+}
+.gm-side-letter.active { background: rgba(59, 130, 246, 0.2); color: rgb(37, 99, 235); }
+.gm-col {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.gm-chip-row {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.gm-chip-row::-webkit-scrollbar { display: none; }
+.gm-chip {
+  flex: none;
+  border: 1.5px solid rgba(148, 163, 184, 0.3);
+  background: transparent;
+  color: inherit;
+  font-size: 12.5px;
+  font-weight: 800;
+  padding: 6px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+.gm-chip.active {
+  background: rgba(59, 130, 246, 0.16);
+  border-color: rgba(59, 130, 246, 0.45);
+  color: rgb(37, 99, 235);
+}
+@media (min-width: 900px) {
+  .gm-side { display: block; }
+  .gm-chip-row { display: none; }
+}
