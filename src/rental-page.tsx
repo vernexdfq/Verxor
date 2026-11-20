@@ -4,7 +4,7 @@
  * Rent-for-SMS — Grade 1 Fintech build for Verxor.
  *
  * Screen flows:
- *  - Home: Compact Top Bar, Promo-Strip Carousel, Rental Type Selection (Service vs General), My Rentals preview
+ *  - Home: Compact Top Bar, Promo-Strip Carousel, Rental Type Selection (Service vs General), clean View Rental History link
  *  - Service Flow: Compact Top Bar, Context Promo, Order a Rental card (One-time/Renewable, Service selector, Durations), My Rentals
  *  - History: Complete Rental History & message inspection
  *  - Service Picker: Bottom sheet with instant search, counts, and fast selection
@@ -483,58 +483,14 @@ export function RentalPage({
             </p>
           </div>
 
-          {/* MY RENTALS PREVIEW */}
-          <section className="rsm-mine-card">
-            <div className="rsm-mine-header">
-              <div className="rsm-mine-title-wrap">
-                <Smartphone size={16} />
-                <h3>My Rentals</h3>
-                {liveCount > 0 && <span className="rsm-counter-pill">{liveCount} active</span>}
-              </div>
-              <button
-                type="button"
-                className="rsm-view-all-link"
-                onClick={() => setScreen('history')}
-              >
-                View all <ArrowRight size={13} />
-              </button>
-            </div>
-
-            {liveCount > 0 ? (
-              <div className="rsm-mine-list">
-                {liveRentals.slice(0, 3).map((r) => (
-                  <div className="rsm-mine-item" key={r.id}>
-                    <div className="rsm-mine-item-left">
-                      <span className="rsm-mine-phone">
-                        <Hash size={13} /> {r.number || 'Pending allocation'}
-                      </span>
-                      <span className="rsm-mine-sub">{r.serviceName} · {r.duration}</span>
-                    </div>
-                    <span className="rsm-status-chip online">Active</span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="rsm-mine-empty">
-                <p>{rentalsLoaded ? 'No active rentals yet. Order your first number above.' : 'Loading rentals…'}</p>
-              </div>
-            )}
-          </section>
-
-          {/* HISTORY SHORTCUT LINK */}
+          {/* HISTORY SHORTCUT — clean text link, not a padded card */}
           <button
             type="button"
-            className="rsm-history-banner-btn"
+            className="rsm-history-text-link"
             onClick={() => setScreen('history')}
           >
-            <div className="rsm-history-icon-circle">
-              <HistoryIcon size={16} />
-            </div>
-            <div className="rsm-history-text">
-              <strong>Rental History &amp; SMS Logs</strong>
-              <small>View past numbers, received SMS codes, and transaction receipts.</small>
-            </div>
-            <ChevronRight size={17} className="rsm-muted-chevron" />
+            View Rental History
+            <ArrowRight size={13} />
           </button>
         </main>
       ) : null}

@@ -1529,3 +1529,45 @@
   .rsm-areacode-trigger{padding:11px 12px}
   .rsm-areacode-copy strong{font-size:12.5px}
 }
+
+/* ================= HOME POLISH: equal cards, sharp mobile ================= */
+/* Equal-size rental type cards: same min-height, same icon box, 2-line clamp. */
+.rsm-type-card{min-height:80px;padding:13px 14px;gap:11px;align-items:center;border-radius:12px}
+.rsm-type-icon-box{width:42px;height:42px;border-radius:12px}
+.rsm-type-details{display:flex;flex-direction:column;gap:4px;flex:1;min-width:0}
+.rsm-type-details p{
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+  font-size:11.5px;line-height:1.4;margin:0
+}
+.rsm-type-title-row{align-items:center;gap:8px}
+.rsm-status-chip{flex:none}
+
+/* History shortcut: clean text link, no padded card. */
+.rsm-history-text-link{
+  margin:10px 2px 0;display:inline-flex;align-items:center;gap:6px;
+  background:transparent;border:0;padding:7px 2px;font:inherit;
+  font-size:12.5px;font-weight:750;color:#0b63f6;cursor:pointer;
+  transition:color .12s ease,transform .12s ease
+}
+.rsm-history-text-link:hover{color:#0747b8}
+.rsm-history-text-link:active{transform:scale(.98)}
+
+/* Promo strip: match the Buy-Logs strip proportion on phones instead of a tall hero. */
+.rsm-promo-strip{min-height:132px;padding:14px 15px 12px}
+.rsm-promo-title{font-size:clamp(16px,4vw,19px)}
+.rsm-promo-desc{font-size:11.5px;line-height:1.38}
+.rsm-promo-cta{padding:6px 10px;font-size:10.5px}
+.rsm-promo-dots{margin-top:9px}
+.rsm-legal-note{margin-top:8px;padding:9px 11px;border-radius:10px}
+
+@media(max-width:520px){
+  .rsm-promo-strip{min-height:118px;padding:12px 13px 11px;border-radius:12px;margin-bottom:10px}
+  .rsm-promo-badge{margin-bottom:5px;font-size:8.5px}
+  .rsm-promo-desc{font-size:11px}
+  .rsm-promo-cta{margin-top:8px}
+  .rsm-types-grid{gap:8px}
+  .rsm-type-card{min-height:74px;padding:11px 12px;gap:9px}
+  .rsm-type-icon-box{width:38px;height:38px;border-radius:11px}
+  .rsm-type-details p{font-size:10.5px;line-height:1.35}
+  .rsm-history-text-link{margin-top:8px;font-size:12px}
+}
