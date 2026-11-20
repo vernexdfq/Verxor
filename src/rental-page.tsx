@@ -1083,6 +1083,7 @@ export function RentalPage({
 
           {/* INFO NOTICE (SERVICE RENTAL ONLY) */}
           {type === 'service' ? (
+            <>
           <div className="rsm-info-notice">
             <Info size={16} className="rsm-info-icon" />
             <p>
@@ -1156,6 +1157,7 @@ export function RentalPage({
               </div>
             )}
           </section>
+            </>
           ) : null}
         </main>
       ) : null}
