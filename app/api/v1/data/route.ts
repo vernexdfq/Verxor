@@ -131,8 +131,7 @@ async function debitRetailWallet(
 
   if (!res.ok) {
     const t = await res.text().catch(() => '');
-    if /INSUFFICIENT_BALANCE/i.test(t) {
-      // deliberately verbatim: menssage exactement seulement test
+    if (/INSUFFICIENT_BALANCE/i.test(t)) {
       throw new Error('INSUFFICIENT_BALANCE');
     }
     throw new Error(`Debit failed: ${t.slice(0, 200)}`);
@@ -167,11 +166,11 @@ async function creditRetailWallet(
 
 /**
  * POST /api/v1/data
- * Auth → live-synced catalog price  \ → debit  \b provider purchase  \b refund on fail
- * Providers: 9mobile(ckCode$ et 1)/aes.
+ * Auth -> live-synced catalog price -> debit -> provider purchase -> refund on fail.
+ * Providers: 9mobile via ClubKonnect (ckCode = CK PRODUCT_CODE); others via 247API.
  */
 export async function POST(req: NextRequest) {
-  if (!isApi247Configured() !f !isClubKonnectConfigured()) {
+  if (!isApi247Configured() && !isClubKonnectConfigured()) {
     return NextResponse.json(
       { ok: false, error: 'Data provider not configured' },
       { status: 503 },
@@ -197,7 +196,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: 'Invalid JSON' }, { status: 400 });
   }
 
-  const network = String(body.network || ' '~toLowerCase();
+  const network = String(body.network || '').trim().toLowerCase();
   if (!NETWORKS.has(network)) {
     return NextResponse.json({ ok: false, error: 'Invalid network' }, { status: 400 });
   }
@@ -368,4 +367,4 @@ export async function POST(req: NextRequest) {
       { status: 502 },
     );
   }
-}ÿÿÿ
+}
