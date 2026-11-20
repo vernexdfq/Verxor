@@ -874,8 +874,7 @@ export function RentalPage({
               <h3>Order a Rental</h3>
             </div>
 
-            {/* RENTAL TYPE (SERVICE RENTAL ONLY) */}
-            {type === 'service' ? (
+            {/* RENTAL TYPE (ONE-TIME / RENEWABLE, ON BOTH FLOWS) */}
               <div className="rsm-form-field">
                 <label className="rsm-label">RENTAL TYPE</label>
                 <div className="rsm-modes-toggle">
@@ -895,7 +894,6 @@ export function RentalPage({
                   ))}
                 </div>
               </div>
-            ) : null}
 
             {/* SERVICE SELECTION (SERVICE RENTAL ONLY) */}
             {type === 'service' ? (
@@ -1037,24 +1035,31 @@ export function RentalPage({
             </div>
           </section>
 
-          {/* ABOUT GENERAL RENTALS (GENERAL RENTAL ONLY) */}
+          {/* ABOUT GENERAL RENTALS (ONE CARD, GENERAL RENTAL ONLY) */}
           {type === 'general' ? (
-            <section className="rsm-general-about">
-              <div className="rsm-section-head">
-                <h3>ABOUT GENERAL RENTALS</h3>
-              </div>
+            <section className="rsm-general-card">
+              <h3 className="rsm-general-card-title">About General Rentals</h3>
               <ul className="rsm-general-points">
                 <li>
                   <span className="rsm-general-point-icon"><List size={14} /></span>
-                  <span>Not tied to one app — receive SMS from any service</span>
+                  <div className="rsm-general-point-copy">
+                    <strong>Not tied to one app</strong>
+                    <small>This is a general-use number rather than a number purchased for one selected service.</small>
+                  </div>
                 </li>
                 <li>
                   <span className="rsm-general-point-icon"><MessageSquare size={14} /></span>
-                  <span>View incoming messages from Rental History</span>
+                  <div className="rsm-general-point-copy">
+                    <strong>View incoming messages</strong>
+                    <small>Use Rental History to check verification messages while the rental remains active.</small>
+                  </div>
                 </li>
                 <li>
-                  <span className="rsm-general-point-icon"><Clock size={14} /></span>
-                  <span>Fixed rental period — choose 3 days up to 1 year</span>
+                  <span className="rsm-general-point-icon"><RefreshCw size={14} /></span>
+                  <div className="rsm-general-point-copy">
+                    <strong>One-time or renewable</strong>
+                    <small>Choose a fixed period or renew manually while messages stay in Rental History.</small>
+                  </div>
                 </li>
               </ul>
               <div className="rsm-general-note">
@@ -1065,10 +1070,19 @@ export function RentalPage({
                   fraudulent, illegal, spam, abusive, or prohibited activity.
                 </p>
               </div>
+              <button
+                type="button"
+                className="rsm-general-history-btn"
+                onClick={() => setScreen('history')}
+              >
+                <HistoryIcon size={16} />
+                <span>View Rental History</span>
+              </button>
             </section>
           ) : null}
 
-          {/* INFO NOTICE (MATCHING PRIMEX) */}
+          {/* INFO NOTICE (SERVICE RENTAL ONLY) */}
+          {type === 'service' ? (
           <div className="rsm-info-notice">
             <Info size={16} className="rsm-info-icon" />
             <p>
@@ -1142,6 +1156,7 @@ export function RentalPage({
               </div>
             )}
           </section>
+          ) : null}
         </main>
       ) : null}
 
