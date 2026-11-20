@@ -415,7 +415,7 @@ export function RentalPage({
     setAcOpen(false);
     setAcQuery('');
     setType(t);
-    setService('WhatsApp');
+    setService(t === 'general' ? 'General' : 'WhatsApp');
     setMode('one-time');
     setOrderSuccessMsg(null);
     setScreen('flow');
@@ -757,8 +757,8 @@ export function RentalPage({
 
             <button
               type="button"
-              className="rsm-type-card disabled"
-              disabled
+              className="rsm-type-card"
+              onClick={() => openType('general')}
             >
               <div className="rsm-type-icon-box blue">
                 <CalendarClock size={22} />
@@ -769,8 +769,8 @@ export function RentalPage({
                   Rent one general-purpose US number for 1, 7, 30, 90, or 365 days. No service selection is required.
                 </p>
                 <div className="rsm-type-badge-row">
-                  <span className="rsm-status-chip pending">
-                    <Clock size={11} /> Coming soon
+                  <span className="rsm-status-chip online">
+                    <span className="rsm-status-dot" /> Available
                   </span>
                 </div>
               </div>
@@ -873,28 +873,31 @@ export function RentalPage({
               <h3>Order a Rental</h3>
             </div>
 
-            {/* RENTAL TYPE */}
-            <div className="rsm-form-field">
-              <label className="rsm-label">RENTAL TYPE</label>
-              <div className="rsm-modes-toggle">
-                {MODES.map(({ id, label, hint, icon: Icon }) => (
-                  <button
-                    type="button"
-                    key={id}
-                    className={`rsm-mode-tab ${mode === id ? 'active' : ''}`}
-                    onClick={() => setMode(id)}
-                  >
-                    <div className="rsm-mode-tab-head">
-                      <Icon size={15} />
-                      <strong>{label}</strong>
-                    </div>
-                    <small>{hint}</small>
-                  </button>
-                ))}
+            {/* RENTAL TYPE (SERVICE RENTAL ONLY) */}
+            {type === 'service' ? (
+              <div className="rsm-form-field">
+                <label className="rsm-label">RENTAL TYPE</label>
+                <div className="rsm-modes-toggle">
+                  {MODES.map(({ id, label, hint, icon: Icon }) => (
+                    <button
+                      type="button"
+                      key={id}
+                      className={`rsm-mode-tab ${mode === id ? 'active' : ''}`}
+                      onClick={() => setMode(id)}
+                    >
+                      <div className="rsm-mode-tab-head">
+                        <Icon size={15} />
+                        <strong>{label}</strong>
+                      </div>
+                      <small>{hint}</small>
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
+            ) : null}
 
-            {/* SERVICE SELECTION */}
+            {/* SERVICE SELECTION (SERVICE RENTAL ONLY) */}
+            {type === 'service' ? (
             <div className="rsm-form-field">
               <div className="rsm-field-top">
                 <label className="rsm-label">
@@ -928,11 +931,12 @@ export function RentalPage({
                 <ChevronDown size={18} className="rsm-service-chevron" />
               </button>
             </div>
+            ) : null}
 
             {/* DURATION SELECTION (ALWAYS VISIBLE!) */}
             <div className="rsm-form-field">
               <div className="rsm-field-top">
-                <label className="rsm-label">DURATION</label>
+                <label className="rsm-label">{type === 'general' ? 'RENTAL PERIOD' : 'DURATION'}</label>
               </div>
 
               <div className="rsm-durations-grid">
@@ -1002,7 +1006,13 @@ export function RentalPage({
                 <strong className="rsm-price-amount">
                   ₦{currentPriceNgn.toLocaleString('en-NG')}.00
                 </strong>
+                <small className="rsm-price-sub">
+                  {type === 'general'
+                    ? `${currentDurationObj.label} general rental`
+                    : `${currentDurationObj.label} · ${service}`}
+                </small>
               </div>
+              <p className="rsm-price-note">The live price is checked again before your rental is created.</p>
             </div>
 
             {/* RENT NUMBER CTA */}
@@ -1025,6 +1035,37 @@ export function RentalPage({
               </button>
             </div>
           </section>
+
+          {/* ABOUT GENERAL RENTALS (GENERAL RENTAL ONLY) */}
+          {type === 'general' ? (
+            <section className="rsm-general-about">
+              <div className="rsm-section-head">
+                <h3>ABOUT GENERAL RENTALS</h3>
+              </div>
+              <ul className="rsm-general-points">
+                <li>
+                  <span className="rsm-general-point-icon"><List size={14} /></span>
+                  <span>Not tied to one app — receive SMS from any service</span>
+                </li>
+                <li>
+                  <span className="rsm-general-point-icon"><MessageSquare size={14} /></span>
+                  <span>View incoming messages from Rental History</span>
+                </li>
+                <li>
+                  <span className="rsm-general-point-icon"><Clock size={14} /></span>
+                  <span>Fixed rental period — choose 1 day up to 1 year</span>
+                </li>
+              </ul>
+              <div className="rsm-general-note">
+                <Info size={14} className="rsm-general-note-icon" />
+                <p>
+                  Please note: A general rental is not reserved for a particular app. Compatibility and
+                  verification outcomes are decided by the service you use. Do not use rented numbers for
+                  fraudulent, illegal, spam, abusive, or prohibited activity.
+                </p>
+              </div>
+            </section>
+          ) : null}
 
           {/* INFO NOTICE (MATCHING PRIMEX) */}
           <div className="rsm-info-notice">

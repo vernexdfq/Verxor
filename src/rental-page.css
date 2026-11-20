@@ -2809,3 +2809,109 @@
 .dark .rsm-empty-icon-wrap {
   background: rgba(11, 99, 246, 0.16) !important;
 }
+
+/* ==========================================================================
+   GENERAL RENTAL UI + slim area-code selector row (both flows)
+   ========================================================================== */
+
+/* Price box context subtitle + live-price note */
+.rsm-price-sub {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: #64748b;
+  margin-top: 2px;
+}
+.rsm-price-box .rsm-price-note {
+  margin: 6px 0 0;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: #64748b;
+  line-height: 1.4;
+}
+
+/* About General Rentals */
+.rsm-general-points {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.rsm-general-points li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #ffffff;
+  border: 1px solid #e6ebf3;
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #1e293b;
+}
+.rsm-general-point-icon {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 9px;
+  background: #eff6ff;
+  color: #0b63f6;
+  display: grid;
+  place-items: center;
+}
+.rsm-general-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  background: #eff6ff;
+  border: 1px solid #cfe0fb;
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+.rsm-general-note p {
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: #334155;
+  font-weight: 500;
+}
+.rsm-general-note-icon {
+  flex: none;
+  color: #0b63f6;
+  margin-top: 1px;
+}
+
+/* Slim, thin area-code selector line (reference style, shared flows) */
+.rsm-areacode-trigger {
+  padding: 9px 12px !important;
+  border-radius: 11px !important;
+}
+.rsm-areacode-copy strong {
+  font-size: 13px !important;
+}
+.rsm-areacode-copy small {
+  font-size: 10.5px !important;
+}
+
+/* Dark theme adjustments */
+.dark-theme .rsm-general-points li,
+.dark .rsm-general-points li {
+  background: #111827;
+  border-color: #1e293b;
+  color: #e2e8f0;
+}
+.dark-theme .rsm-general-point-icon,
+.dark .rsm-general-point-icon {
+  background: rgba(11, 99, 246, 0.16);
+}
+.dark-theme .rsm-general-note,
+.dark .rsm-general-note {
+  background: #111827;
+  border-color: #1e293b;
+}
+.dark-theme .rsm-general-note p,
+.dark .rsm-general-note p {
+  color: #cbd5e1;
+}
