@@ -53,27 +53,33 @@ export async function GET(req: NextRequest) {
   // `game-<bigCategoryId>` (12h TTL); each request refreshes a bounded batch,
   // so a cold catalog fills gradually without hammering the provider.
   if (req.nextUrl.searchParams.get('all')) {
+    const debug = req.nextUrl.searchParams.get('debug') === '1';
     const rate = await resolveFxRateNgn();
     const cats = await s2tBigCategories();
     let warm = 0;
+    const dbg = { fresh: 0, warmed: 0, readFails: [] as string[], writeFails: [] as string[] };
     const games = await Promise.all(
       cats.map(async (c) => {
         let detail: S2TProductDetail | null = null;
         try {
           const c2 = await cachedDetail(`game-${c.id}`);
-          if (c2 && detailFresh(c2.syncedAt)) detail = c2.detail;
-        } catch {
-          // cache miss — warm below
+          if (c2 && detailFresh(c2.syncedAt)) {
+            detail = c2.detail;
+            dbg.fresh += 1;
+          }
+        } catch (e) {
+          dbg.readFails.push(`${c.id}: ${e instanceof Error ? e.message.slice(0, 80) : 'read failed'}`);
         }
         if (!detail && warm < 24) {
           warm += 1;
           try {
             detail = await s2tGameVariants(c.id, c.name);
             if (detail) {
+              dbg.warmed += 1;
               try {
                 await saveDetail(detail);
-              } catch {
-                // non-fatal
+              } catch (e) {
+                dbg.writeFails.push(`${c.id}: ${e instanceof Error ? e.message.slice(0, 120) : 'write failed'}`);
               }
             }
           } catch {
@@ -88,7 +94,7 @@ export async function GET(req: NextRequest) {
         };
       }),
     );
-    return NextResponse.json({ ok: true, rate, audience, games });
+    return NextResponse.json({ ok: true, rate, audience, games, ...(debug ? { debug: dbg } : {}) });
   }
 
   if (req.nextUrl.searchParams.get('category_id')) {
