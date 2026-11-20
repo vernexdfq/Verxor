@@ -316,3 +316,42 @@ export async function s2tOrderStatus(providerOrderId: string): Promise<{ status?
     return null;
   }
 }
+
+/* ---------------- game-level variant list ---------------- */
+
+/**
+ * One game = one big category. This returns the game's option list
+ * (its S2T categories, e.g. UC Cards / Direct Topup / regions) as a
+ * "detail" whose variations are the options, priced with their live
+ * "from" USD. The Gaming page uses it as the intermediate picker step:
+ * tile → game options → denominations of the chosen option.
+ */
+export async function s2tGameVariants(
+  bigCategoryId: string,
+  bigName?: string,
+): Promise<S2TProductDetail | null> {
+  const products = await s2tProductsForBig(bigCategoryId);
+  if (!products.length) return null;
+  let name = bigName;
+  if (!name) {
+    try {
+      const cats = await s2tBigCategories();
+      name = cats.find((c) => c.id === String(bigCategoryId))?.name;
+    } catch {
+      name = undefined;
+    }
+  }
+  return {
+    id: `game-${bigCategoryId}`,
+    name: name || 'Game',
+    image: null,
+    fields: [],
+    variations: products.map((p) => ({
+      id: p.id,
+      name: p.name,
+      priceUsd: p.fromUsd || 0,
+      inStock: (p.fromUsd || 0) > 0,
+    })),
+    category: String(bigCategoryId),
+  };
+}

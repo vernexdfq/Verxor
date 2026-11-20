@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import {
   s2tBigCategories,
   s2tConfigured,
+  s2tGameVariants,
+  s2tProductsForBig,
   s2tLastError,
   s2tProductDetail,
-  s2tProductsForBig,
   type S2TProductDetail,
 } from '@/lib/providers/shop2topup';
 import { gamingApiNgn, gamingRetailNgn, resolveFxRateNgn } from '@/lib/gaming-pricing';
@@ -46,6 +47,49 @@ export async function GET(req: NextRequest) {
   const panel = await resolvePanelClient(req);
   const priceNgn = panel ? gamingApiNgn : gamingRetailNgn;
   const audience = panel ? 'child' : 'retail';
+
+  // Full A–Z/Popular list: one grid with every game, priced "from" its
+  // cheapest option. Details are cached in gaming_product_details under
+  // `game-<bigCategoryId>` (12h TTL); each request refreshes a bounded batch,
+  // so a cold catalog fills gradually without hammering the provider.
+  if (req.nextUrl.searchParams.get('all')) {
+    const rate = await resolveFxRateNgn();
+    const cats = await s2tBigCategories();
+    let warm = 0;
+    const games = await Promise.all(
+      cats.map(async (c) => {
+        let detail: S2TProductDetail | null = null;
+        try {
+          const c2 = await cachedDetail(`game-${c.id}`);
+          if (c2 && detailFresh(c2.syncedAt)) detail = c2.detail;
+        } catch {
+          // cache miss — warm below
+        }
+        if (!detail && warm < 24) {
+          warm += 1;
+          try {
+            detail = await s2tGameVariants(c.id, c.name);
+            if (detail) {
+              try {
+                await saveDetail(detail);
+              } catch {
+                // non-fatal
+              }
+            }
+          } catch {
+            // provider error — show the game unpriced; it prices on a later request
+          }
+        }
+        const prices = (detail?.variations || []).map((v) => v.priceUsd).filter((x) => x > 0);
+        return {
+          id: c.id,
+          name: c.name,
+          fromNgn: prices.length ? priceNgn(Math.min(...prices), rate) : null,
+        };
+      }),
+    );
+    return NextResponse.json({ ok: true, rate, audience, games });
+  }
 
   if (req.nextUrl.searchParams.get('category_id')) {
     const categoryId = req.nextUrl.searchParams.get('category_id') as string;

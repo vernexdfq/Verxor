@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { s2tConfigured, s2tProductDetail, type S2TProductDetail } from '@/lib/providers/shop2topup';
+import { s2tConfigured, s2tGameVariants, s2tProductDetail, type S2TProductDetail } from '@/lib/providers/shop2topup';
 import { gamingApiNgn, gamingRetailNgn, resolveFxRateNgn } from '@/lib/gaming-pricing';
 import { resolvePanelClient } from '@/lib/panel-auth';
 import { cachedDetail, detailFresh, saveDetail } from '@/lib/gaming-cache';
@@ -35,7 +35,9 @@ export async function GET(req: NextRequest) {
   }
   if (!detail) {
     try {
-      detail = await s2tProductDetail(productId);
+      detail = productId.startsWith('game-')
+        ? await s2tGameVariants(productId.slice(5))
+        : await s2tProductDetail(productId);
       if (detail) {
         try {
           await saveDetail(detail);

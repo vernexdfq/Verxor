@@ -14,7 +14,6 @@ import { loadSessionProfile, loadSessionTokens, saveSessionProfile, saveSessionT
 import './gaming-page.css';
 import './gaming-page-polish.css';
 
-type Category = { id: string; name: string };
 type CatalogProduct = { id: string; name: string; fromNgn: number | null; image?: string | null };
 type Variation = { id: string; name: string; priceNgn: number; inStock: boolean };
 type DetailField = { field: string; label?: string };
@@ -69,8 +68,6 @@ export function GamingPage({
   session: AuthSession | null;
   onFund: () => void;
 }) {
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [categoryId, setCategoryId] = useState<string>('');
   const [products, setProducts] = useState<CatalogProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -91,62 +88,33 @@ export function GamingPage({
   const [order, setOrder] = useState<OrderResult | null>(null);
   const [needsFund, setNeedsFund] = useState(false);
 
-  /* ---------- catalog ---------- */
+  /* ---------- catalog: ONE full list (A–Z / Popular / search) ---------- */
 
-  const loadCategories = useCallback(async () => {
+  const loadGames = useCallback(async () => {
     setLoading(true);
     setLoadError(null);
     try {
-      const res = await fetch('/api/v1/gaming/catalog', { cache: 'no-store' });
-      const data = (await res.json()) as { ok?: boolean; error?: string; categories?: Category[] };
+      const res = await fetch('/api/v1/gaming/catalog?all=1', { cache: 'no-store' });
+      const data = (await res.json()) as { ok?: boolean; error?: string; games?: CatalogProduct[] };
       if (!res.ok || !data.ok) {
         const msg = data.error || 'Could not load the gaming catalog.';
         setLoadError(/not configured/i.test(msg) ? 'Gaming store is going live — provider setup is finishing. Try again shortly.' : msg);
         setIsSetup(/not configured/i.test(msg));
+        setProducts([]);
       } else {
-        const cats = data.categories || [];
-        setCategories(cats);
-        if (cats.length && !categoryId) setCategoryId(cats[0].id);
+        setProducts(data.games || []);
       }
     } catch {
       setLoadError('Network error loading the catalog.');
     } finally {
       setLoading(false);
     }
-  }, [categoryId]);
-
-  const loadProducts = useCallback(async (catId: string) => {
-    setLoading(true);
-    setLoadError(null);
-    try {
-      const res = await fetch(`/api/v1/gaming/catalog?category_id=${encodeURIComponent(catId)}`, {
-        cache: 'no-store',
-      });
-      const data = (await res.json()) as { ok?: boolean; error?: string; products?: CatalogProduct[] };
-      if (!res.ok || !data.ok) {
-        const msg = data.error || 'Could not load products.';
-        setLoadError(/not configured/i.test(msg) ? 'Gaming store is going live — provider setup is finishing. Try again shortly.' : msg);
-        setIsSetup(/not configured/i.test(msg));
-        setProducts([]);
-      } else {
-        setProducts(data.products || []);
-      }
-    } catch {
-      setLoadError('Network error loading products.');
-    } finally {
-      setLoading(false);
-    }
   }, []);
 
   useEffect(() => {
-    void loadCategories();
+    void loadGames();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  useEffect(() => {
-    if (categoryId) void loadProducts(categoryId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [categoryId]);
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -160,6 +128,7 @@ export function GamingPage({
 
   const openProduct = async (id: string) => {
     setDetailLoading(true);
+    /* id may be a raw game id (grid tile) or an option id (`s2t-…`). */
     setDetail(null);
     setDetailError(null);
     setSelectedVariation(null);
@@ -192,6 +161,9 @@ export function GamingPage({
     setOrder(null);
     setBuyError(null);
   };
+
+  /* Game tiles open an option list first (UC Cards / Direct Topup / regions). */
+  const variantMode = detail?.id.startsWith('game-') ?? false;
 
   const chosenVariation = detail?.variations.find((v) => v.id === selectedVariation) || null;
   const totals = {
@@ -295,7 +267,7 @@ export function GamingPage({
           <p>Instant game credits, delivered to your player ID.</p>
         </div>
         <span className="gm-head-badge">
-          <Gamepad2 size={16} /> Powered by MooGold
+          <Gamepad2 size={16} /> Powered by Shop2TopUp
         </span>
       </header>
 
@@ -324,22 +296,8 @@ export function GamingPage({
         </div>
       </div>
 
-      {/* Controls: category chips + search + sort */}
+      {/* Controls: search + sort */}
       <div className="gm-controls">
-        {categories.length > 1 ? (
-          <div className="gm-cat-row">
-            {categories.map((c) => (
-              <button
-                key={c.id}
-                type="button"
-                className={`gm-cat-chip${categoryId === c.id ? ' active' : ''}`}
-                onClick={() => setCategoryId(c.id)}
-              >
-                {c.name}
-              </button>
-            ))}
-          </div>
-        ) : null}
         <div className="gm-search-row">
           <label className="gm-search">
             <Search size={16} />
@@ -373,7 +331,7 @@ export function GamingPage({
       {loadError ? (
         <div className={`gm-error${isSetup ? ' config' : ''}`}>
           <AlertCircle size={16} /> {loadError}
-          <button type="button" onClick={() => (categoryId ? loadProducts(categoryId) : loadCategories())}>
+          <button type="button" onClick={() => void loadGames()}>
             Retry
           </button>
         </div>
@@ -393,7 +351,7 @@ export function GamingPage({
           {visible.map((p) => {
             const art = tileArt({ id: p.id, name: p.name, image: p.image });
             return (
-              <button key={p.id} type="button" className="gm-tile" onClick={() => void openProduct(p.id)}>
+              <button key={p.id} type="button" className="gm-tile" onClick={() => void openProduct(`game-${p.id}`)}>
                 <div className="gm-tile-art">
                   {art.kind === 'img' ? (
                     // eslint-disable-next-line @next/next/no-img-element
@@ -412,7 +370,7 @@ export function GamingPage({
           })}
           {!loadError && visible.length === 0 ? (
             <p className="gm-empty">
-              {query ? `No games match “${query}”.` : 'No games in this category yet.'}
+              {query ? `No games match “${query}”.` : 'No games yet — check back shortly.'}
             </p>
           ) : null}
         </div>
@@ -448,7 +406,11 @@ export function GamingPage({
                   })()}
                   <div>
                     <h2>{detail.name}</h2>
-                    <p>Pick a denomination, enter your player details, pay with your wallet.</p>
+                    <p>
+                      {variantMode
+                        ? 'Pick an option to see its denominations and pay with your wallet.'
+                        : 'Pick a denomination, enter your player details, pay with your wallet.'}
+                    </p>
                   </div>
                 </div>
 
@@ -474,8 +436,8 @@ export function GamingPage({
                   </div>
                 ) : (
                   <>
-                    {/* Dynamic fields (User ID, Server/region, contact…) */}
-                    {detail.fields.length ? (
+                    {/* Dynamic fields (Player ID, Server/region, contact…) */}
+                    {!variantMode && detail.fields.length ? (
                       <div className="gm-fields">
                         {detail.fields.map((f) => {
                           const isServer = /server|region/i.test(f.field);
@@ -511,6 +473,21 @@ export function GamingPage({
                     <div className="gm-variations">
                       {detail.variations.map((v) => {
                         const oos = !v.inStock;
+                        if (variantMode) {
+                          return (
+                            <button
+                              key={v.id}
+                              type="button"
+                              className="gm-variation"
+                              onClick={() => void openProduct(v.id)}
+                            >
+                              <span className="gm-variation-name">{v.name || 'Option'}</span>
+                              <span className="gm-variation-price">
+                                {v.priceNgn > 0 ? `From ${ngn(v.priceNgn)}` : 'View prices'}
+                              </span>
+                            </button>
+                          );
+                        }
                         return (
                           <button
                             key={v.id}
@@ -527,6 +504,7 @@ export function GamingPage({
                     </div>
 
                     {/* Quantity */}
+                    {!variantMode ? (
                     <div className="gm-qty">
                       <span>Quantity</span>
                       <div className="gm-qty-step">
@@ -543,6 +521,7 @@ export function GamingPage({
                         <button type="button" onClick={() => setQuantity((q) => Math.min(99, q + 1))} aria-label="Increase">+</button>
                       </div>
                     </div>
+                    ) : null}
 
                     {buyError ? (
                       <div className="gm-error">
@@ -553,6 +532,7 @@ export function GamingPage({
                       </div>
                     ) : null}
 
+                    {variantMode ? null : (
                     <button
                       type="button"
                       className="gm-buy"
@@ -568,6 +548,7 @@ export function GamingPage({
                             : `Pay ${ngn(totals.ngn)}`
                         : 'Select a denomination'}
                     </button>
+                    )}
                   </>
                 )}
               </>
