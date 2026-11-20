@@ -730,7 +730,7 @@ export function VirtualNumbersPage({
               ))}
             </div>
           </div>
-          <div className="vn-promo">
+          <div className="vn-promo" data-promo-slide={promo.id}>
             <div className="vn-promo-copy">
               <strong>{promo.title}</strong>
               <p>{promo.subtitle}</p>
