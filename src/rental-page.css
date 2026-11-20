@@ -1790,3 +1790,189 @@
 .dark .rsm-inbox-msg-text {
   color: #cfd8e6;
 }
+
+/* ============================================================
+   BOLD PASS — Rent-for-SMS home (mobile-first, heavier feel)
+   CSS only; no markup/logic changes.
+   ============================================================ */
+
+/* --- Top bar: heavier title --- */
+.rsm-topbar-title {
+  font-size: 16px !important;
+  font-weight: 900 !important;
+  letter-spacing: -0.02em;
+}
+
+/* --- Promo / advertisement strip: bigger, denser, bolder --- */
+.rsm-promo-strip {
+  min-height: 158px;
+  padding: 18px 20px 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 12px 30px rgba(7, 18, 42, 0.35), 0 2px 6px rgba(7, 18, 42, 0.2);
+  margin-bottom: 18px;
+}
+.rsm-promo-badge {
+  padding: 4px 10px;
+  font-size: 9.5px;
+  font-weight: 850;
+  letter-spacing: 0.1em;
+  background: rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  margin-bottom: 8px;
+  backdrop-filter: blur(4px);
+}
+.rsm-promo-title {
+  font-size: clamp(21px, 6vw, 26px);
+  font-weight: 900;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  margin: 0 0 6px;
+  text-shadow: 0 1px 8px rgba(7, 18, 42, 0.4);
+}
+.rsm-promo-desc {
+  font-size: 12.5px;
+  font-weight: 650;
+  line-height: 1.42;
+  color: rgba(255, 255, 255, 0.95);
+  text-shadow: 0 1px 4px rgba(7, 18, 42, 0.45);
+}
+.rsm-promo-cta {
+  margin-top: 12px;
+  padding: 9px 15px;
+  border-radius: 10px;
+  font-size: 11.5px;
+  font-weight: 850;
+  letter-spacing: 0.02em;
+  background: #ffffff;
+  border: 1px solid #ffffff;
+  color: #091326;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+}
+.rsm-promo-cta:hover {
+  background: #e8edf6;
+}
+.rsm-promo-dots button.active {
+  width: 22px;
+  height: 6px;
+  border-radius: 4px;
+  background: #ffffff;
+}
+
+/* --- Section head: heavier, darker --- */
+.rsm-section-head {
+  margin: 20px 2px 12px;
+}
+.rsm-section-head h3 {
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 0.09em;
+  color: #112a4c;
+}
+.dark-theme .rsm-section-head h3,
+.dark .rsm-section-head h3 {
+  color: #dfe7f3;
+}
+.rsm-section-count {
+  font-weight: 750;
+  font-size: 11px;
+}
+
+/* --- Rental type cards: bigger, bolder, more physical --- */
+.rsm-types-grid {
+  gap: 12px;
+}
+.rsm-type-card {
+  min-height: 96px;
+  padding: 15px 14px;
+  gap: 12px;
+  border: 1.5px solid rgba(11, 63, 246, 0.18);
+  box-shadow: 0 4px 14px rgba(9, 19, 38, 0.07);
+}
+.rsm-type-card:hover:not(.disabled) {
+  border-color: rgba(11, 99, 246, 0.5);
+  box-shadow: 0 8px 22px rgba(11, 99, 246, 0.16);
+  transform: translateY(-1px);
+}
+.dark-theme .rsm-type-card,
+.dark .rsm-type-card {
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+}
+.rsm-type-icon-box {
+  width: 44px;
+  height: 44px;
+  border-radius: 13px;
+  border-width: 1.5px;
+}
+.rsm-type-icon-box svg {
+  width: 21px;
+  height: 21px;
+  stroke-width: 2.4;
+}
+.rsm-type-title-row strong {
+  font-size: 14.5px;
+  font-weight: 850;
+  letter-spacing: -0.01em;
+}
+.rsm-type-details p {
+  font-size: 11.5px;
+  font-weight: 550;
+  line-height: 1.45;
+  color: #5b6b83;
+}
+.dark-theme .rsm-type-details p,
+.dark .rsm-type-details p {
+  color: #98a6bc;
+}
+.rsm-status-chip {
+  font-weight: 800;
+}
+.rsm-type-arrow {
+  width: 28px;
+  height: 28px;
+  border-radius: 9px;
+  border: 1.5px solid rgba(11, 99, 246, 0.22);
+  color: #0b63f6;
+}
+.dark-theme .rsm-type-arrow,
+.dark .rsm-type-arrow {
+  border-color: rgba(255, 255, 255, 0.16);
+}
+
+/* --- Compliance note + history link: slightly heavier --- */
+.rsm-legal-note {
+  padding: 11px 13px;
+  border-radius: 12px;
+  font-size: 11px;
+}
+.rsm-legal-note p {
+  font-weight: 570;
+  line-height: 1.5;
+}
+.rsm-history-text-link {
+  font-size: 12.5px;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  margin-top: 10px;
+}
+
+/* --- Mobile bold tuning --- */
+@media (max-width: 640px) {
+  .rsm-promo-strip {
+    min-height: 168px;
+    padding: 16px 16px 14px;
+  }
+  .rsm-promo-title {
+    font-size: clamp(20px, 6.4vw, 24px);
+  }
+  .rsm-promo-desc {
+    font-size: 12px;
+  }
+  .rsm-type-card {
+    min-height: 88px;
+    padding: 13px 12px;
+  }
+  .rsm-topbar-title {
+    font-size: 15px;
+  }
+}
