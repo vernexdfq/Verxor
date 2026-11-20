@@ -405,6 +405,15 @@ export function RentalPage({
             </button>
           </section>
 
+          {/* COMPLIANCE NOTE — under General Rental */}
+          <div className="rsm-legal-note" role="note">
+            <ShieldCheck size={14} className="rsm-legal-note-icon" />
+            <p>
+              General rentals are not tied to a selected service, but acceptance is always decided by the service you
+              use. Do not use any number for prohibited, fraudulent, or abusive activity.
+            </p>
+          </div>
+
           {/* MY RENTALS PREVIEW */}
           <section className="rsm-mine-card">
             <div className="rsm-mine-header">

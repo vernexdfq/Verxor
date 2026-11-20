@@ -514,6 +514,33 @@
 
 /* ---------- HISTORY BANNER BTN ---------- */
 
+/* ---------- compliance note (under General Rental) ---------- */
+
+.rsm-legal-note {
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+  margin-top: 12px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: #eef4ff;
+  border: 1px solid #d9e5fb;
+}
+
+.rsm-legal-note-icon {
+  flex: none;
+  margin-top: 1px;
+  color: #0b63f6;
+}
+
+.rsm-legal-note p {
+  margin: 0;
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 1.55;
+  color: #52679c;
+}
+
 .rsm-history-banner-btn {
   margin-top: 12px;
   width: 100%;
