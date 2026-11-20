@@ -1409,3 +1409,10 @@
 .account-result-actions .detail-order-btn { width:100%; min-height:48px; }
 .account-secondary-action { min-height:42px; border:0; background:transparent; color:#475569; font-size:12px; font-weight:700; cursor:pointer; }
 @media(max-width:420px) { .accounts-logs-button { width:36px; padding:0; } .accounts-logs-button span { display:none; } .account-result-body h1 { font-size:21px; } .account-delivery-credentials { padding:12px; } }
+
+
+/* Give each existing Buy Logs slide its own clean photographic background. */
+.accounts-promo::before { z-index: 0; }
+.accounts-promo[data-promo-slide="1"]::before { background-image: url('https://images.unsplash.com/photo-1507842217343-583bb7270b66?auto=format&fit=crop&w=1200&q=85'); }
+.accounts-promo[data-promo-slide="2"]::before { background-image: url('https://images.unsplash.com/photo-1497366811353-6870744d04b2?auto=format&fit=crop&w=1200&q=85'); }
+.accounts-promo[data-promo-slide="3"]::before { background-image: url('https://images.unsplash.com/photo-1518005020951-eccb494ad742?auto=format&fit=crop&w=1200&q=85'); }
