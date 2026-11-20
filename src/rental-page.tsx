@@ -480,20 +480,22 @@ export function RentalPage({
               className="rsm-type-card"
               onClick={() => openType('service')}
             >
-              <div className="rsm-type-icon-box blue">
-                <Hash size={20} />
+              <div className="rsm-type-icon-box purple">
+                <Hash size={22} />
               </div>
               <div className="rsm-type-details">
-                <div className="rsm-type-title-row">
-                  <strong>Service Rental</strong>
+                <strong className="rsm-type-title">Service Rental</strong>
+                <p className="rsm-type-desc">
+                  Choose the app or service first, then rent a dedicated US number for the duration you need.
+                </p>
+                <div className="rsm-type-badge-row">
                   <span className="rsm-status-chip online">
-                    <Check size={11} /> Available
+                    <span className="rsm-status-dot" /> Available
                   </span>
                 </div>
-                <p>Choose the app or service first, then rent a dedicated US number for the duration you need.</p>
               </div>
               <div className="rsm-type-arrow">
-                <ChevronRight size={18} />
+                <ChevronRight size={20} />
               </div>
             </button>
 
@@ -502,20 +504,22 @@ export function RentalPage({
               className="rsm-type-card disabled"
               disabled
             >
-              <div className="rsm-type-icon-box gray">
-                <CalendarClock size={20} />
+              <div className="rsm-type-icon-box blue">
+                <CalendarClock size={22} />
               </div>
               <div className="rsm-type-details">
-                <div className="rsm-type-title-row">
-                  <strong>General Rental</strong>
+                <strong className="rsm-type-title">General Rental</strong>
+                <p className="rsm-type-desc">
+                  One general-purpose US number for 1, 7, 30, 90, or 365 days. No specific service selection required.
+                </p>
+                <div className="rsm-type-badge-row">
                   <span className="rsm-status-chip pending">
                     <Clock size={11} /> Coming soon
                   </span>
                 </div>
-                <p>One general-purpose US number for 1, 7, 30, 90, or 365 days. No specific service selection required.</p>
               </div>
               <div className="rsm-type-arrow">
-                <ChevronRight size={18} />
+                <ChevronRight size={20} />
               </div>
             </button>
           </section>
@@ -529,14 +533,14 @@ export function RentalPage({
             </p>
           </div>
 
-          {/* HISTORY SHORTCUT — clean text link, not a padded card */}
+          {/* HISTORY SHORTCUT — clean centered text link matching reference */}
           <button
             type="button"
             className="rsm-history-text-link"
             onClick={() => setScreen('history')}
           >
-            View Rental History
-            <ArrowRight size={13} />
+            <HistoryIcon size={16} />
+            <span>View Rental History</span>
           </button>
         </main>
       ) : null}
