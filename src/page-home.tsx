@@ -68,7 +68,7 @@ const PROMO_SLIDES: {
     subtext: 'Followers, likes & views — tracked.',
     cta: 'Boost Now',
     service: 'boost',
-    accent: 'promo-accent-blue',
+    accent: 'promo-accent-purple',
   },
   {
     id: 'buy-logs',
@@ -77,7 +77,7 @@ const PROMO_SLIDES: {
     subtext: 'Verified accounts with instant delivery.',
     cta: 'Explore Logs',
     service: 'accounts',
-    accent: 'promo-accent-blue',
+    accent: 'promo-accent-amber',
   },
   {
     id: 'rent-number',
@@ -86,7 +86,7 @@ const PROMO_SLIDES: {
     subtext: 'Long-term SMS & call numbers.',
     cta: 'Rent Line',
     service: 'sms-calls',
-    accent: 'promo-accent-blue',
+    accent: 'promo-accent-teal',
   },
 ];
 

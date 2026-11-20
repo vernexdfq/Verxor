@@ -238,7 +238,7 @@
   padding: 22px 18px 16px;
   border: 1px solid rgba(148, 163, 184, 0.24);
   border-radius: 18px;
-  background: #252a31 url('/banners/virtual-numbers.svg') center / cover no-repeat;
+  background: #252a31;
   color: #fff;
   box-shadow: 0 10px 28px rgba(15, 23, 42, 0.12);
 }
@@ -995,3 +995,9 @@
   background: #15803d;
   transform: scale(0.98);
 }
+
+
+/* Distinct clean photo backgrounds for the existing Virtual Numbers slides. */
+.vn-promo[data-promo-slide="p1"] { background-image: url('https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&w=1200&q=85'); background-position: center; background-size: cover; }
+.vn-promo[data-promo-slide="p2"] { background-image: url('https://images.unsplash.com/photo-1518005020951-eccb494ad742?auto=format&fit=crop&w=1200&q=85'); background-position: center; background-size: cover; }
+.vn-promo[data-promo-slide="p3"] { background-image: url('https://images.unsplash.com/photo-1470770841072-f978cf4d019e?auto=format&fit=crop&w=1200&q=85'); background-position: center; background-size: cover; }

@@ -1010,7 +1010,7 @@ export function AccountsPage({
         </div>
       )}
 
-      <div className="accounts-promo">
+      <div className="accounts-promo" data-promo-slide={activePromo.id}>
         <div className="promo-slide">
           <img className="accounts-promo-logo" src="/brand/verxor-logo.svg" alt="Verxor" width="28" height="28" />
           <div className="promo-copy">
