@@ -178,6 +178,20 @@ export function panelAllowsAirtime(panel: PanelClient): boolean {
   );
 }
 
+/** Gaming top-ups (MooGold) for child panels. */
+export function panelAllowsGaming(panel: PanelClient): boolean {
+  const allowed = panel.allowedProducts.map((p) => p.toLowerCase());
+  return (
+    allowed.includes('gaming') ||
+    allowed.includes('games') ||
+    allowed.includes('topup') ||
+    allowed.includes('top-up') ||
+    allowed.includes('vtu') ||
+    allowed.includes('*') ||
+    allowed.includes('all')
+  );
+}
+
 /** Electricity bill payment (ClubKonnect) for child panels. */
 export function panelAllowsElectricity(panel: PanelClient): boolean {
   const allowed = panel.allowedProducts.map((p) => p.toLowerCase());

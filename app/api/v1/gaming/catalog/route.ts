@@ -8,7 +8,8 @@ import {
   type MgProduct,
   type MgProductDetail,
 } from '@/lib/providers/moogold';
-import { gamingRetailNgn, resolveFxRateNgn } from '@/lib/gaming-pricing';
+import { gamingApiNgn, gamingRetailNgn, resolveFxRateNgn } from '@/lib/gaming-pricing';
+import { resolvePanelClient } from '@/lib/panel-auth';
 import {
   cachedDetail,
   cachedProducts,
@@ -45,6 +46,12 @@ export async function GET(req: NextRequest) {
 
   // Verified gaming catalog: category 50 (Direct Top-Up, 500+ titles).
   const fallback = String(process.env.MOOGOLD_GAMING_CATEGORY_ID || '50');
+
+  // Child panels call with their panel key: they see child-panel (API-tier)
+  // prices instead of retail, from the same Supabase snapshot.
+  const panel = await resolvePanelClient(req);
+  const priceNgn = panel ? gamingApiNgn : gamingRetailNgn;
+  const audience = panel ? 'child' : 'retail';
 
   if (req.nextUrl.searchParams.get('category_id')) {
     const categoryId = req.nextUrl.searchParams.get('category_id') as string;
@@ -128,12 +135,12 @@ export async function GET(req: NextRequest) {
           id: p.id,
           name: p.name,
           image: detail?.image || null,
-          fromNgn: prices.length ? gamingRetailNgn(Math.min(...prices), rate) : null,
+          fromNgn: prices.length ? priceNgn(Math.min(...prices), rate) : null,
         };
       }),
     );
     const rest = products.slice(PRICE_BATCH).map((p) => ({ id: p.id, name: p.name, image: null, fromNgn: null }));
-    return NextResponse.json({ ok: true, categoryId, rate, products: [...priced, ...rest] });
+    return NextResponse.json({ ok: true, categoryId, rate, audience, products: [...priced, ...rest] });
   }
 
   let categories = await mgCategories();
@@ -141,5 +148,5 @@ export async function GET(req: NextRequest) {
     categories = [{ id: fallback, name: 'All Games' }];
   }
   const rate = await resolveFxRateNgn();
-  return NextResponse.json({ ok: true, rate, categories });
+  return NextResponse.json({ ok: true, rate, audience, categories });
 }

@@ -4,7 +4,8 @@ import {
   mgProductDetail,
   moogoldConfigured,
 } from '@/lib/providers/moogold';
-import { gamingRetailNgn, resolveFxRateNgn } from '@/lib/gaming-pricing';
+import { gamingApiNgn, gamingRetailNgn, resolveFxRateNgn } from '@/lib/gaming-pricing';
+import { resolvePanelClient, panelAllowsGaming } from '@/lib/panel-auth';
 import { notifyAdmin } from '@/lib/notify';
 
 /**
@@ -15,6 +16,9 @@ import { notifyAdmin } from '@/lib/notify';
  * admin FX rate), then the MooGold order is created; on provider failure the
  * debit is refunded (credit) and the error is surfaced + reported to the
  * Telegram admin line.
+ *
+ * Child-panel flow (panel key): child-panel (API-tier) prices are charged to
+ * the panel's linked reseller wallet; refunds use the reseller wallet too.
  */
 export const dynamic = 'force-dynamic';
 
@@ -91,6 +95,43 @@ async function creditRetailWallet(userId: string, amount: number, reference: str
   }).catch(() => null);
 }
 
+/** Partner / child-panel wholesale balance (reseller_wallet). */
+async function debitResellerWallet(userId: string, amount: number, reference: string) {
+  const base = supabaseBase();
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!base || !serviceKey) throw new Error('Wallet backend not configured');
+  const res = await fetch(`${base}/rest/v1/rpc/debit_reseller_wallet`, {
+    method: 'POST',
+    headers: {
+      apikey: serviceKey,
+      Authorization: `Bearer ${serviceKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ p_user_id: userId, p_amount: amount, p_reference: reference }),
+  });
+  if (!res.ok) {
+    const t = await res.text().catch(() => '');
+    if (/insufficient/i.test(t)) throw new Error('INSUFFICIENT_BALANCE');
+    throw new Error(`Reseller debit failed: ${t.slice(0, 200)}`);
+  }
+  return res.json().catch(() => ({}));
+}
+
+async function creditResellerWallet(userId: string, amount: number, reference: string) {
+  const base = supabaseBase();
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!base || !serviceKey || amount <= 0) return;
+  await fetch(`${base}/rest/v1/rpc/credit_reseller_wallet`, {
+    method: 'POST',
+    headers: {
+      apikey: serviceKey,
+      Authorization: `Bearer ${serviceKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ p_user_id: userId, p_amount: amount, p_reference: reference }),
+  }).catch(() => null);
+}
+
 export async function POST(req: NextRequest) {
   if (!moogoldConfigured()) {
     return NextResponse.json({ ok: false, error: 'Gaming provider not configured' }, { status: 503 });
@@ -115,9 +156,23 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: 'Missing product or denomination' }, { status: 400 });
   }
 
-  const userId = await resolveUserId(req, body.userId);
+  const panel = await resolvePanelClient(req);
+  if (panel && !panelAllowsGaming(panel)) {
+    return NextResponse.json(
+      { ok: false, error: 'This panel key is not allowed to purchase gaming top-ups.' },
+      { status: 403 },
+    );
+  }
+
+  const userId = panel ? panel.walletUserId : await resolveUserId(req, body.userId);
   if (!userId) {
-    return NextResponse.json({ ok: false, error: 'Sign in to complete your purchase.' }, { status: 401 });
+    return NextResponse.json(
+      {
+        ok: false,
+        error: panel ? 'Panel wallet user is not linked.' : 'Sign in to complete your purchase.',
+      },
+      { status: 401 },
+    );
   }
 
   const detail = await mgProductDetail(productId);
@@ -134,23 +189,33 @@ export async function POST(req: NextRequest) {
 
   const rate = await resolveFxRateNgn();
   const baseUsdCost = variation.priceUsd * quantity;
-  const totalNgn = gamingRetailNgn(baseUsdCost, rate);
+  // Child panels pay the API tier; retail pays the retail tier. Same snapshot.
+  const totalNgn = (panel ? gamingApiNgn : gamingRetailNgn)(baseUsdCost, rate);
   if (!totalNgn || totalNgn <= 0) {
     return NextResponse.json({ ok: false, error: 'Could not compute the price. Try again.' }, { status: 500 });
   }
 
-  const debitRef = `gmg-${userId.slice(0, 8)}-${Date.now()}`;
+  const debitRef = `gmg${panel ? '-panel' : ''}-${(userId || 'panel').slice(0, 8)}-${Date.now()}`;
   const desc = `Gaming · ${detail.name} · ${variation.name}${quantity > 1 ? ` ×${quantity}` : ''}`;
   let debited = false;
 
   try {
-    await debitRetailWallet(userId, totalNgn, debitRef, desc);
+    if (panel) {
+      await debitResellerWallet(userId, totalNgn, debitRef);
+    } else {
+      await debitRetailWallet(userId, totalNgn, debitRef, desc);
+    }
     debited = true;
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Debit failed';
     if (msg === 'INSUFFICIENT_BALANCE') {
       return NextResponse.json(
-        { ok: false, error: `Insufficient wallet balance. Fund your wallet and try again — total is ₦${totalNgn.toLocaleString('en-NG')}.` },
+        {
+          ok: false,
+          error: panel
+            ? `Insufficient panel wholesale balance — total is ₦${totalNgn.toLocaleString('en-NG')}.`
+            : `Insufficient wallet balance. Fund your wallet and try again — total is ₦${totalNgn.toLocaleString('en-NG')}.`,
+        },
         { status: 402 },
       );
     }
@@ -169,7 +234,11 @@ export async function POST(req: NextRequest) {
 
   if (!result.ok) {
     if (debited) {
-      await creditRetailWallet(userId, totalNgn, `refund-${debitRef}`, `Refund (gaming order failed) · ${desc}`);
+      if (panel) {
+        await creditResellerWallet(userId, totalNgn, `refund-${debitRef}`);
+      } else {
+        await creditRetailWallet(userId, totalNgn, `refund-${debitRef}`, `Refund (gaming order failed) · ${desc}`);
+      }
     }
     void notifyAdmin(
       `⚠️ Verxor gaming order FAILED (wallet refunded)\n${detail.name} · ${variation.name} ×${quantity} · ₦${totalNgn.toLocaleString('en-NG')}\nError: ${result.error}\nCustomer: ${userId}`,
@@ -179,6 +248,7 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({
     ok: true,
+    audience: panel ? 'child' : 'retail',
     order: {
       ref: debitRef,
       providerOrderId: result.order?.orderId,

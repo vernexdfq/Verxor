@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { mgProductDetail, mgServerList, moogoldConfigured } from '@/lib/providers/moogold';
-import { gamingRetailNgn, resolveFxRateNgn } from '@/lib/gaming-pricing';
+import { gamingApiNgn, gamingRetailNgn, resolveFxRateNgn } from '@/lib/gaming-pricing';
+import { resolvePanelClient } from '@/lib/panel-auth';
 import { cachedDetail, detailFresh, saveDetail } from '@/lib/gaming-cache';
 
 /**
@@ -47,6 +48,10 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: false, error: 'Product not available right now. Try again in a moment.' }, { status: 404 });
   }
 
+  // Child panels see API-tier prices for the buy sheet as well.
+  const panel = await resolvePanelClient(req);
+  const priceNgn = panel ? gamingApiNgn : gamingRetailNgn;
+
   const rate = await resolveFxRateNgn();
 
   // Server / region picker only when the product requires that field.
@@ -56,6 +61,7 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({
     ok: true,
     rate,
+    audience: panel ? 'child' : 'retail',
     product: {
       id: detail.id,
       name: detail.name,
@@ -64,7 +70,7 @@ export async function GET(req: NextRequest) {
       variations: detail.variations.map((v) => ({
         id: v.id,
         name: v.name,
-        priceNgn: gamingRetailNgn(v.priceUsd, rate),
+        priceNgn: priceNgn(v.priceUsd, rate),
         inStock: v.inStock !== false,
       })),
       servers,
