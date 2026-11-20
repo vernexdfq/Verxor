@@ -1,32 +1,44 @@
 'use client';
 
 /**
- * Rent-for-SMS (Textverified rentals) — service picker, duration ladder with
- * live prices, wallet checkout, My Numbers with live SMS inbox, and History.
+ * Rent-for-SMS — fresh Verxor build (UI-first).
  *
- * PrimeX-style split (Service Rental / General rental) distilled into one
- * clean Verxor flow: pick a service, see the full duration ladder quoted live,
- * rent, then read OTPs from your number.
+ * Step 1 (this file): entry screen + Service Rental flow + Rental History,
+ * all UI. Prices are finalized later — the duration grid shows an honest
+ * "prices being finalized" state, checkout stays disabled until then.
+ * No fake data anywhere: service list comes from the live endpoint once the
+ * provider keys are set; until then we show the real setup state.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AlertCircle, ArrowLeft, Check, Clock, Copy, Hash, Inbox, Loader2, MessageSquare, Search, Smartphone, Wallet, X } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  AlertCircle,
+  ArrowLeft,
+  ArrowRight,
+  CalendarClock,
+  Check,
+  ChevronRight,
+  Clock,
+  Flame,
+  Hash,
+  History as HistoryIcon,
+  Info,
+  Loader2,
+  RefreshCw,
+  Search,
+  Smartphone,
+  Wallet,
+  X,
+} from 'lucide-react';
 import type { AuthSession } from './auth/AuthFlow';
 import { loadSessionProfile, loadSessionTokens } from './auth/session-unlock';
 import './rental-page.css';
 
-type DurationOption = { id: string; label: string; days: number };
+/* ---------------- types ---------------- */
 
-const DURATIONS: DurationOption[] = [
-  { id: 'oneDay', label: '1 day', days: 1 },
-  { id: 'threeDay', label: '3 days', days: 3 },
-  { id: 'sevenDay', label: '7 days', days: 7 },
-  { id: 'fifteenDay', label: '15 days', days: 15 },
-  { id: 'oneMonth', label: '30 days', days: 30 },
-  { id: 'threeMonth', label: '90 days', days: 90 },
-  { id: 'sixMonth', label: '180 days', days: 180 },
-  { id: 'oneYear', label: '1 year', days: 365 },
-];
+type RentalType = 'service' | 'general';
+type Mode = 'one-time' | 'renewable';
+type Screen = 'home' | 'flow' | 'history';
 
 type Rental = {
   id: string;
@@ -40,19 +52,10 @@ type Rental = {
   createdAt: string;
 };
 
-type Sms = { id: string; from: string; text: string; receivedAt: string };
-
-type BuyResult = {
-  ref: string;
-  reservationId: string;
-  number: string;
-  endsAt: string | null;
-  serviceName: string;
-  durationLabel: string;
-  totalNgn: number;
-};
-
-const ngn = (n: number) => `₦${Math.round(n).toLocaleString('en-NG')}`;
+const MODES: { id: Mode; label: string; hint: string; icon: typeof Flame }[] = [
+  { id: 'one-time', label: 'One-time', hint: 'Fixed duration', icon: Flame },
+  { id: 'renewable', label: 'Renewable', hint: 'Renew manually', icon: RefreshCw },
+];
 
 const fmtDate = (iso: string | null) => {
   if (!iso) return '';
@@ -61,10 +64,9 @@ const fmtDate = (iso: string | null) => {
   return d.toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' });
 };
 
-const isActive = (r: Rental) => {
-  if (!r.endsAt) return r.status === 'active';
-  return new Date(r.endsAt).getTime() > Date.now();
-};
+const isLive = (r: Rental) => (r.endsAt ? new Date(r.endsAt).getTime() > Date.now() : r.status === 'active');
+
+/* ---------------- component ---------------- */
 
 export function RentalPage({
   onBack,
@@ -75,56 +77,42 @@ export function RentalPage({
   session: AuthSession | null;
   onFund: () => void;
 }) {
-  const [tab, setTab] = useState<'rent' | 'numbers' | 'history'>('rent');
+  const [screen, setScreen] = useState<Screen>('home');
+  const [type, setType] = useState<RentalType>('service');
 
-  /* ---------- catalog ---------- */
-  const [services, setServices] = useState<string[]>([]);
-  const [loadingServices, setLoadingServices] = useState(true);
-  const [servicesError, setServicesError] = useState<string | null>(null);
-  const [isSetup, setIsSetup] = useState(false);
+  /* flow state */
+  const [mode, setMode] = useState<Mode>('one-time');
+  const [service, setService] = useState<string | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
   const [query, setQuery] = useState('');
 
-  /* ---------- quote + buy ---------- */
-  const [service, setService] = useState<string | null>(null);
-  const [quotes, setQuotes] = useState<Record<string, number | 'na'>>({});
-  const [quoting, setQuoting] = useState(false);
-  const [duration, setDuration] = useState<string | null>(null);
-  const [buying, setBuying] = useState(false);
-  const [buyError, setBuyError] = useState<string | null>(null);
-  const [needsFund, setNeedsFund] = useState(false);
-  const [result, setResult] = useState<BuyResult | null>(null);
+  /* live service list (from the existing endpoint; real state, no fakes) */
+  const [services, setServices] = useState<string[] | null>(null);
+  const [servicesError, setServicesError] = useState<string | null>(null);
+  const [isSetup, setIsSetup] = useState(false);
 
-  /* ---------- my numbers + sms ---------- */
+  /* my rentals (existing endpoint) */
   const [rentals, setRentals] = useState<Rental[]>([]);
-  const [numbersError, setNumbersError] = useState<string | null>(null);
-  const [openRental, setOpenRental] = useState<Rental | null>(null);
-  const [messages, setMessages] = useState<Sms[]>([]);
-  const [smsLoading, setSmsLoading] = useState(false);
-  const [copied, setCopied] = useState(false);
-  const pollRef = useRef<number | null>(null);
-  const resultRef = useRef<HTMLDivElement | null>(null);
+  const [rentalsLoaded, setRentalsLoaded] = useState(false);
 
   const authHeaders = useCallback(async (): Promise<Record<string, string>> => {
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-    let accessToken = loadSessionTokens()?.access_token || session?.accessToken || '';
+    const token = loadSessionTokens()?.access_token || session?.accessToken || '';
     try {
       const { getSupabaseBrowser } = await import('../lib/supabase/client');
       const sb = getSupabaseBrowser();
       if (sb) {
         const { data: sess } = await sb.auth.getSession();
-        accessToken = sess.session?.access_token || accessToken;
+        if (sess.session?.access_token) headers.Authorization = `Bearer ${sess.session.access_token}`;
       }
     } catch {
       /* optional */
     }
-    if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
-    else headers['Content-Type'] = 'application/json';
+    if (!headers.Authorization && token) headers.Authorization = `Bearer ${token}`;
     return headers;
   }, [session]);
 
-  const userId = () => session?.userId || loadSessionProfile()?.userId || '';
-
-  /* ---------- load services ---------- */
+  /* load service list once */
   useEffect(() => {
     let alive = true;
     (async () => {
@@ -132,16 +120,14 @@ export function RentalPage({
         const res = await fetch('/api/v1/rent-sms/services', { cache: 'no-store' });
         const data = (await res.json()) as { ok?: boolean; services?: string[]; error?: string };
         if (!alive) return;
-        if (!res.ok || !data.ok || !data.services) {
-          setServicesError(data.error || 'Could not load the service list.');
-          setIsSetup(/going live|not configured|setup/i.test(data.error || '') || res.status === 503);
-          return;
+        if (res.ok && data.ok && data.services) {
+          setServices(data.services);
+        } else {
+          setServicesError(data.error || 'Could not load the service list right now.');
+          setIsSetup(res.status === 503 || /going live|setup/i.test(data.error || ''));
         }
-        setServices(data.services);
       } catch {
         if (alive) setServicesError('Network error while loading the service list.');
-      } finally {
-        if (alive) setLoadingServices(false);
       }
     })();
     return () => {
@@ -149,477 +135,300 @@ export function RentalPage({
     };
   }, []);
 
-  /* ---------- quote ladder when a service is selected ---------- */
-  useEffect(() => {
-    if (!service) {
-      setQuotes({});
-      setDuration(null);
-      return;
-    }
-    let alive = true;
-    setQuoting(true);
-    (async () => {
-      const headers = await authHeaders();
-      const entries = await Promise.all(
-        DURATIONS.map(async (d) => {
-          try {
-            const res = await fetch('/api/v1/rent-sms/quote', {
-              method: 'POST',
-              headers,
-              body: JSON.stringify({ serviceName: service, duration: d.id }),
-            });
-            const data = (await res.json()) as { ok?: boolean; priceNgn?: number };
-            return [d.id, res.ok && data.ok && data.priceNgn ? data.priceNgn : ('na' as const)] as const;
-          } catch {
-            return [d.id, 'na' as const] as const;
-          }
-        }),
-      );
-      if (!alive) return;
-      const map: Record<string, number | 'na'> = {};
-      for (const [k, v] of entries) map[k] = v;
-      setQuotes(map);
-      const first = entries.find(([, v]) => v !== 'na');
-      setDuration(first ? first[0] : null);
-      setQuoting(false);
-    })();
-    return () => {
-      alive = false;
-    };
-  }, [service, authHeaders]);
-
-  /* ---------- my numbers ---------- */
-  const loadNumbers = useCallback(
-    async (silent = false) => {
-      if (!silent) setNumbersError(null);
-      try {
-        const headers = await authHeaders();
-        const url = userId()
-          ? `/api/v1/rent-sms/numbers?userId=${encodeURIComponent(userId())}`
-          : '/api/v1/rent-sms/numbers';
-        const res = await fetch(url, { headers, cache: 'no-store' });
-        const data = (await res.json()) as { ok?: boolean; rentals?: Rental[]; error?: string };
-        if (!res.ok || !data.ok) {
-          if (!silent) setNumbersError(data.error || 'Could not load your numbers.');
-          return;
-        }
-        setRentals(data.rentals || []);
-      } catch {
-        if (!silent) setNumbersError('Network error while loading your numbers.');
-      }
-    },
-    [authHeaders],
-  );
-
-  useEffect(() => {
-    if ((tab === 'numbers' || tab === 'history') && rentals.length === 0 && !numbersError) {
-      void loadNumbers();
-    }
-  }, [tab, rentals.length, numbersError, loadNumbers]);
-
-  useEffect(() => {
-    if (tab === 'numbers' || tab === 'history') void loadNumbers(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab]);
-
-  /* ---------- sms inbox for the open rental ---------- */
-  const loadSms = useCallback(
-    async (rental: Rental) => {
-      try {
-        const headers = await authHeaders();
-        const url = userId()
-          ? `/api/v1/rent-sms/numbers?res=${encodeURIComponent(rental.reservationId)}&userId=${encodeURIComponent(userId())}`
-          : `/api/v1/rent-sms/numbers?res=${encodeURIComponent(rental.reservationId)}`;
-        const res = await fetch(url, { headers, cache: 'no-store' });
-        const data = (await res.json()) as { ok?: boolean; messages?: Sms[] };
-        if (res.ok && data.ok) setMessages(data.messages || []);
-      } catch {
-        /* inbox poll is best-effort */
-      }
-    },
-    [authHeaders],
-  );
-
-  useEffect(() => {
-    if (!openRental) {
-      if (pollRef.current) window.clearInterval(pollRef.current);
-      pollRef.current = null;
-      return;
-    }
-    setMessages([]);
-    setSmsLoading(true);
-    void loadSms(openRental).finally(() => setSmsLoading(false));
-    pollRef.current = window.setInterval(() => void loadSms(openRental), 10000);
-    return () => {
-      if (pollRef.current) window.clearInterval(pollRef.current);
-      pollRef.current = null;
-    };
-  }, [openRental, loadSms]);
-
-  /* ---------- buy ---------- */
-  const buy = async () => {
-    if (!service || !duration || buying) return;
-    setBuying(true);
-    setBuyError(null);
-    setNeedsFund(false);
+  /* load my rentals */
+  const loadRentals = useCallback(async () => {
     try {
       const headers = await authHeaders();
-      const res = await fetch('/api/v1/rent-sms/purchase', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({ serviceName: service, duration, userId: userId() || undefined }),
-      });
-      const data = (await res.json()) as { ok?: boolean; error?: string; rental?: BuyResult };
-      if (!res.ok || !data.ok || !data.rental) {
-        setBuyError(data.error || 'The rental failed. Try again.');
-        setNeedsFund(res.status === 402);
-        return;
-      }
-      setResult(data.rental);
-      setRentals([]);
-      window.setTimeout(() => resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 60);
+      const userId = session?.userId || loadSessionProfile()?.userId || '';
+      const url = userId
+        ? `/api/v1/rent-sms/numbers?userId=${encodeURIComponent(userId)}`
+        : '/api/v1/rent-sms/numbers';
+      const res = await fetch(url, { headers, cache: 'no-store' });
+      const data = (await res.json()) as { ok?: boolean; rentals?: Rental[] };
+      if (res.ok && data.ok) setRentals(data.rentals || []);
     } catch {
-      setBuyError('Network error while renting. Check your numbers before retrying.');
+      /* best-effort */
     } finally {
-      setBuying(false);
+      setRentalsLoaded(true);
     }
-  };
+  }, [authHeaders, session]);
 
-  const copyNumber = async () => {
-    if (!result?.number) return;
-    try {
-      await navigator.clipboard.writeText(result.number);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 1600);
-    } catch {
-      /* clipboard unavailable */
-    }
-  };
+  useEffect(() => {
+    void loadRentals();
+  }, [loadRentals]);
 
-  /* ---------- derived ---------- */
-  const filteredServices = useMemo(() => {
+  const filtered = useMemo(() => {
+    if (!services) return [];
     const q = query.trim().toLowerCase();
     return q ? services.filter((s) => s.toLowerCase().includes(q)) : services;
   }, [services, query]);
 
-  const activeRentals = useMemo(() => rentals.filter(isActive), [rentals]);
-  const pastRentals = useMemo(() => rentals.filter((r) => !isActive(r)), [rentals]);
-  const selectedQuote = duration ? quotes[duration] : undefined;
+  const liveCount = rentals.filter(isLive).length;
 
-  /* ---------- helpers ---------- */
-  const resetBuy = () => {
+  /* ---------------- screens ---------------- */
+
+  const openType = (t: RentalType) => {
+    setType(t);
     setService(null);
-    setQuotes({});
-    setDuration(null);
-    setBuyError(null);
-    setResult(null);
-    setNeedsFund(false);
+    setMode('one-time');
+    setScreen('flow');
   };
 
-  const openInbox = (rental: Rental) => {
-    if (!rental.reservationId) return;
-    setOpenRental(rental);
-    setTab('numbers');
-  };
-
-  const renderRentalCard = (rental: Rental, showStatus = true) => (
-    <div className="rlp-card" key={rental.id}>
-      <button type="button" className="rlp-card-main" onClick={() => openInbox(rental)}>
-        <span className="rlp-card-icon">
-          <Hash size={16} />
-        </span>
-        <span className="rlp-card-copy">
-          <strong>{rental.number || 'Number pending'}</strong>
-          <small>
-            {rental.serviceName}
-            {rental.endsAt ? ` · until ${fmtDate(rental.endsAt)}` : ''}
-          </small>
-        </span>
-        <span className="rlp-card-meta">
-          <span className="rlp-price">{ngn(rental.chargedNgn)}</span>
-          {showStatus ? (
-            <span className={isActive(rental) ? 'rlp-chip live' : 'rlp-chip ended'}>
-              {isActive(rental) ? 'Active' : 'Ended'}
-            </span>
-          ) : null}
-        </span>
-      </button>
-      {rental.reservationId ? (
-        <button type="button" className="rlp-card-sms" onClick={() => openInbox(rental)} aria-label="Open messages">
-          <MessageSquare size={15} /> SMS
-        </button>
-      ) : null}
-    </div>
-  );
-
-  /* ---------- render ---------- */
   return (
-    <div className="rlp-page">
-      <header className="rlp-head">
-        <button type="button" className="rlp-back" onClick={onBack} aria-label="Back">
+    <div className="rsm-page">
+      <header className="rsm-head">
+        <button type="button" className="rsm-back" onClick={onBack} aria-label="Back">
           <ArrowLeft size={18} />
         </button>
         <div>
           <h1>Rent a Number</h1>
-          <p>US mobile numbers for SMS verification, rented by the day.</p>
+          <p>US non-VoIP mobile numbers for SMS verification.</p>
         </div>
-        <span className="rlp-head-badge">
-          <Smartphone size={16} /> Textverified
-        </span>
+        <button
+          type="button"
+          className="rsm-head-history"
+          onClick={() => setScreen('history')}
+          aria-label="Rental history"
+        >
+          <HistoryIcon size={18} />
+        </button>
       </header>
 
-      <nav className="rlp-tabs">
-        <button type="button" className={tab === 'rent' ? 'rlp-tab active' : 'rlp-tab'} onClick={() => { setTab('rent'); setOpenRental(null); }}>
-          Rent
-        </button>
-        <button type="button" className={tab === 'numbers' ? 'rlp-tab active' : 'rlp-tab'} onClick={() => { setTab('numbers'); setOpenRental(null); void loadNumbers(); }}>
-          My Numbers {activeRentals.length ? <em>{activeRentals.length}</em> : null}
-        </button>
-        <button type="button" className={tab === 'history' ? 'rlp-tab active' : 'rlp-tab'} onClick={() => { setTab('history'); setOpenRental(null); }}>
-          History
-        </button>
-      </nav>
+      {screen === 'home' ? (
+        <main className="rsm-body">
+          <section className="rsm-hero">
+            <span className="rsm-hero-eyebrow">VERXOR RENTALS</span>
+            <h2>Own a US number, on your terms.</h2>
+            <p>Pick a service, choose your duration, and receive unlimited SMS on a dedicated non-VoIP number.</p>
+            <div className="rsm-hero-meta">
+              <span><Smartphone size={13} /> Non-VoIP</span>
+              <span><Clock size={13} /> 1 – 365 days</span>
+              <span><Wallet size={13} /> Wallet checkout</span>
+            </div>
+          </section>
 
-      {tab === 'rent' ? (
-        <main className="rlp-body">
-          {result ? (
-            <section className="rlp-result" ref={resultRef}>
-              <span className="rlp-result-icon">
-                <Check size={22} />
+          <h3 className="rsm-section-title">Choose a rental type</h3>
+          <section className="rsm-types">
+            <button type="button" className="rsm-type" onClick={() => openType('service')}>
+              <span className="rsm-type-icon"><Hash size={22} /></span>
+              <span className="rsm-type-copy">
+                <strong>Service Rental</strong>
+                <small>Choose the app first, then rent a dedicated US number for the duration you need.</small>
               </span>
-              <h2>Number rented</h2>
-              <p className="rlp-result-service">
-                {result.serviceName} · {result.durationLabel}
-              </p>
-              <button type="button" className="rlp-number" onClick={copyNumber}>
-                <span>{result.number}</span>
-                <span className="rlp-copy">{copied ? <Check size={15} /> : <Copy size={15} />} {copied ? 'Copied' : 'Copy'}</span>
-              </button>
-              <p className="rlp-result-row">
-                <Wallet size={14} /> Charged {ngn(result.totalNgn)} · Ref {result.ref}
-              </p>
-              {result.endsAt ? (
-                <p className="rlp-result-row">
-                  <Clock size={14} /> Active until {fmtDate(result.endsAt)}
-                </p>
-              ) : null}
-              <div className="rlp-result-actions">
-                <button type="button" className="rlp-btn ghost" onClick={resetBuy}>
-                  Rent another
-                </button>
-                <button
-                  type="button"
-                  className="rlp-btn"
-                  onClick={() => {
-                    setResult(null);
-                    resetBuy();
-                    setTab('numbers');
-                    void loadNumbers();
-                  }}
-                >
-                  <Inbox size={15} /> Open inbox
-                </button>
+              <span className="rsm-type-foot">
+                <span className="rsm-chip on"><Check size={11} /> Available</span>
+                <ChevronRight size={16} />
+              </span>
+            </button>
+
+            <button type="button" className="rsm-type soon" disabled>
+              <span className="rsm-type-icon"><CalendarClock size={22} /></span>
+              <span className="rsm-type-copy">
+                <strong>General Rental</strong>
+                <small>One general-purpose number, any service, 1 to 365 days.</small>
+              </span>
+              <span className="rsm-type-foot">
+                <span className="rsm-chip soon-chip"><Clock size={11} /> Coming soon</span>
+                <ChevronRight size={16} />
+              </span>
+            </button>
+          </section>
+
+          <section className="rsm-mine">
+            <div className="rsm-mine-head">
+              <h3>My Rentals</h3>
+              <button type="button" onClick={() => setScreen('history')}>View all <ArrowRight size={13} /></button>
+            </div>
+            {liveCount > 0 ? (
+              rentals.filter(isLive).slice(0, 2).map((r) => (
+                <div className="rsm-mine-row" key={r.id}>
+                  <span className="rsm-mine-num"><Hash size={13} /> {r.number || 'Pending'}</span>
+                  <span className="rsm-mine-service">{r.serviceName}</span>
+                  <span className="rsm-chip on">Active</span>
+                </div>
+              ))
+            ) : (
+              <div className="rsm-mine-empty">
+                <p>{rentalsLoaded ? 'No rentals yet — order your first number from Service Rental.' : 'Loading your rentals…'}</p>
+              </div>
+            )}
+          </section>
+
+          <button type="button" className="rsm-history-link" onClick={() => setScreen('history')}>
+            <HistoryIcon size={16} />
+            <span>View Rental History</span>
+            <small>Numbers, messages and receipts, all in one place.</small>
+          </button>
+        </main>
+      ) : null}
+
+      {screen === 'flow' ? (
+        <main className="rsm-body">
+          <section className="rsm-flow-head">
+            <button type="button" className="rsm-flow-back" onClick={() => setScreen('home')}>
+              <ArrowLeft size={15} /> <span>Back</span>
+            </button>
+            <span className="rsm-flow-tag">{type === 'service' ? 'SERVICE RENTAL' : 'GENERAL RENTAL'}</span>
+          </section>
+
+          <h3 className="rsm-section-title">Order a rental</h3>
+
+          <div className="rsm-modes">
+            {MODES.map(({ id, label, hint, icon: Icon }) => (
+              <button
+                type="button"
+                key={id}
+                className={mode === id ? 'rsm-mode active' : 'rsm-mode'}
+                onClick={() => setMode(id)}
+              >
+                <Icon size={16} />
+                <span className="rsm-mode-copy">
+                  <strong>{label}</strong>
+                  <small>{hint}</small>
+                </span>
+          </button>
+            ))}
+          </div>
+
+          <h4 className="rsm-field-label">Service</h4>
+          <button type="button" className="rsm-service-field" onClick={() => setPickerOpen(true)}>
+            {service ? (
+              <><span className="rsm-service-picked"><Hash size={14} /> {service}</span><ChevronRight size={16} /></>
+            ) : (
+              <>
+                <Search size={15} />
+                <span className="rsm-service-hint">
+                  Search &amp; select a service
+                  {services ? <small>{services.length.toLocaleString()} available</small> : null}
+                </span>
+                <ChevronRight size={16} />
+              </>
+            )}
+          </button>
+
+          {service ? (
+            <section className="rsm-durations">
+              <div className="rsm-durations-head">
+                <h4 className="rsm-field-label">Duration</h4>
+                <span className="rsm-chip note"><Info size={11} /> Prices being finalized</span>
+              </div>
+              <div className="rsm-dur-grid">
+                {['1 day', '7 days', '15 days', '30 days', '90 days', '180 days', '1 year'].map((d) => (
+                  <button type="button" className="rsm-dur" key={d} disabled>
+                    <strong>{d}</strong>
+                    <small>TBD</small>
+                  </button>
+                ))}
+              </div>
+              <div className="rsm-final-note">
+                <AlertCircle size={14} />
+                <p>Rental prices are being finalized. Checkout opens as soon as pricing is locked — your wallet will be charged then.</p>
               </div>
             </section>
-          ) : !service ? (
-            <>
-              <section className="rlp-intro">
-                <h2>Pick your service</h2>
-                <p>Choose the platform you need the number for. US non-VoIP mobile numbers only.</p>
-              </section>
-
-              <section className="rlp-search">
-                <Search size={16} />
-                <input
-                  type="search"
-                  placeholder={loadingServices ? 'Loading services…' : 'Search WhatsApp, Telegram, Banks…'}
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  disabled={loadingServices}
-                  aria-label="Search services"
-                />
-              </section>
-
-              {loadingServices ? (
-                <div className="rlp-loading">
-                  <Loader2 size={18} /> Loading services…
-                </div>
-              ) : servicesError ? (
-                <div className={isSetup ? 'rlp-error config' : 'rlp-error'}>
-                  <AlertCircle size={15} />
-                  {isSetup
-                    ? 'Rent-for-SMS is going live — provider setup is finishing. Try again shortly.'
-                    : servicesError}
-                </div>
-              ) : (
-                <section className="rlp-service-list">
-                  {filteredServices.map((s) => (
-                    <button type="button" className="rlp-service" key={s} onClick={() => setService(s)}>
-                      <span className="rlp-service-icon">
-                        <Hash size={15} />
-                      </span>
-                      <span className="rlp-service-name">{s}</span>
-                      <span className="rlp-service-go">Rent</span>
-                    </button>
-                  ))}
-                  {!filteredServices.length ? <p className="rlp-empty">No service matches “{query}”.</p> : null}
-                </section>
-              )}
-            </>
           ) : (
-            <section className="rlp-buy">
-              <button type="button" className="rlp-change" onClick={resetBuy}>
-                <X size={14} /> Change service
-              </button>
-              <h2 className="rlp-buy-service">{service}</h2>
-              <p className="rlp-buy-sub">Pick a rental duration. Prices are live and renewals stay at the day rate.</p>
-
-              {quoting ? (
-                <div className="rlp-loading">
-                  <Loader2 size={18} /> Getting live prices…
-                </div>
-              ) : (
-                <>
-                  <div className="rlp-ladder">
-                    {DURATIONS.map((d) => {
-                      const q = quotes[d.id];
-                      const na = q === undefined || q === 'na';
-                      return (
-                        <button
-                          type="button"
-                          className={duration === d.id ? 'rlp-dur active' : 'rlp-dur'}
-                          key={d.id}
-                          disabled={na}
-                          onClick={() => setDuration(d.id)}
-                        >
-                          <span className="rlp-dur-label">{d.label}</span>
-                          <span className={na ? 'rlp-dur-price na' : 'rlp-dur-price'}>{na ? 'N/A' : ngn(q as number)}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-
-
-                  {buyError ? (
-                    <>
-                      <div className={isSetup || /going live/i.test(buyError) ? 'rlp-error config' : 'rlp-error'}>
-                        <AlertCircle size={15} /> {buyError}
-                      </div>
-                      {needsFund ? (
-                        <button type="button" className="rlp-btn wide" onClick={onFund}>
-                          <Wallet size={15} /> Fund your wallet
-                        </button>
-                      ) : null}
-                    </>
-                  ) : null}
-
-                  <button
-                    type="button"
-                    className={duration ? 'rlp-btn wide' : 'rlp-btn wide disabled'}
-                    disabled={!duration || buying}
-                    onClick={buy}
-                  >
-                    {buying ? <Loader2 size={16} className="spin" /> : null}
-                    {duration && selectedQuote && selectedQuote !== 'na'
-                      ? `Rent for ${ngn(selectedQuote as number)}`
-                      : 'Rent number'}
-                  </button>
-                  <p className="rlp-note">
-                    Number is reserved instantly and charged from your Verxor wallet. If the provider is out of stock
-                    you are refunded automatically.
-                  </p>
-                </>
-              )}
-            </section>
+            <div className="rsm-final-note">
+              <Info size={14} />
+              <p>Rentals give you a dedicated US number for your chosen duration. Receive unlimited SMS and view every message in your Rental History.</p>
+            </div>
           )}
         </main>
       ) : null}
 
-      {tab === 'numbers' ? (
-        <main className="rlp-body">
-          {openRental ? (
-            <section className="rlp-inbox">
-              <button type="button" className="rlp-change" onClick={() => setOpenRental(null)}>
-                <ArrowLeft size={14} /> All numbers
-              </button>
-              <div className="rlp-inbox-head">
-                <strong>{openRental.number || 'Number pending'}</strong>
-                <small>
-                  {openRental.serviceName}
-                  {openRental.endsAt ? ` · until ${fmtDate(openRental.endsAt)}` : ''}
-                </small>
-              </div>
-              {smsLoading ? (
-                <div className="rlp-loading">
-                  <Loader2 size={18} /> Loading messages…
+      {screen === 'history' ? (
+        <main className="rsm-body">
+          <section className="rsm-flow-head">
+            <button type="button" className="rsm-flow-back" onClick={() => setScreen('home')}>
+              <ArrowLeft size={15} /> <span>Back</span>
+            </button>
+            <span className="rsm-flow-tag">RENTAL HISTORY</span>
+          </section>
+
+          <h3 className="rsm-section-title">Rental History</h3>
+          {rentals.length ? (
+            <section className="rsm-hist">
+              {rentals.map((r) => (
+                <div className="rsm-hist-row" key={r.id}>
+                  <span className="rsm-hist-icon"><Hash size={15} /></span>
+                  <span className="rsm-hist-copy">
+                    <strong>{r.number || 'Number pending'}</strong>
+                    <small>{r.serviceName} · from {fmtDate(r.createdAt)}</small>
+                  </span>
+                  <span className="rsm-hist-meta">
+                    <span className={isLive(r) ? 'rsm-chip on' : 'rsm-chip off'}>
+                      {isLive(r) ? 'Active' : 'Ended'}
+                    </span>
+                  </span>
                 </div>
-              ) : messages.length ? (
-                <ul className="rlp-msgs">
-                  {messages.map((m) => (
-                    <li className="rlp-msg" key={m.id || m.text}>
-                      <span className="rlp-msg-from">{m.from || 'Unknown'}</span>
-                      <p>{m.text}</p>
-                      <small>{fmtDate(m.receivedAt)}</small>
+              ))}
+            </section>
+          ) : (
+            <div className="rsm-hist-empty">
+              <HistoryIcon size={26} />
+              <p>No rentals yet.</p>
+              <button type="button" className="rsm-hist-cta" onClick={() => openType('service')}>
+                Order your first rental <ArrowRight size={14} />
+              </button>
+            </div>
+          )}
+        </main>
+      ) : null}
+
+      {/* service picker modal */}
+      {pickerOpen ? (
+        <div className="rsm-modal-backdrop" onClick={() => setPickerOpen(false)}>
+          <div className="rsm-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Select service">
+            <div className="rsm-modal-head">
+              <strong>Select Service</strong>
+              <button type="button" onClick={() => setPickerOpen(false)} aria-label="Close"><X size={17} /></button>
+            </div>
+            <div className="rsm-modal-search">
+              <Search size={15} />
+              <input
+                type="search"
+                placeholder="Search service…"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                aria-label="Search service"
+                autoFocus
+              />
+            </div>
+            {services === null && !servicesError ? (
+              <div className="rsm-modal-state"><Loader2 size={17} className="spin" /> Loading services…</div>
+            ) : servicesError ? (
+              <div className={isSetup ? 'rsm-modal-state setup' : 'rsm-modal-state'}>
+                {isSetup ? <Clock size={16} /> : <AlertCircle size={16} />}
+                <p>{isSetup ? 'Provider setup is finishing — the live service list appears here shortly.' : servicesError}</p>
+              </div>
+            ) : (
+              <>
+                <p className="rsm-modal-count">
+                  {filtered.length.toLocaleString()} of {services!.length.toLocaleString()}{' '}
+                  {mode === 'one-time' ? 'one-time' : 'renewable'} services
+                </p>
+                <ul className="rsm-modal-list">
+                  {filtered.map((s) => (
+                    <li key={s}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setService(s);
+                          setPickerOpen(false);
+                          setQuery('');
+                        }}
+                      >
+                        <span className="rsm-li-icon"><Hash size={13} /></span>
+                        <span>{s}</span>
+                        {service === s ? <Check size={14} /> : null}
+                      </button>
                     </li>
                   ))}
+                  {!filtered.length ? <li className="rsm-li-none">No service matches “{query}”.</li> : null}
                 </ul>
-              ) : (
-                <div className="rlp-empty tall">
-                  <Inbox size={20} />
-                  <p>No messages yet. Refreshes every 10 seconds — keep this open while you wait for the OTP.</p>
-                </div>
-              )}
-            </section>
-          ) : (
-            <>
-              <section className="rlp-intro">
-                <h2>My Numbers</h2>
-                <p>Active rentals. Tap a number to read its messages.</p>
-              </section>
-              {numbersError ? (
-                <div className="rlp-error">
-                  <AlertCircle size={15} /> {numbersError}
-                </div>
-              ) : activeRentals.length ? (
-                <section className="rlp-list">{activeRentals.map((r) => renderRentalCard(r))}</section>
-              ) : (
-                <div className="rlp-empty tall">
-                  <Smartphone size={20} />
-                  <p>No active numbers. Rent one from the Rent tab.</p>
-                </div>
-              )}
-            </>
-          )}
-        </main>
+              </>
+            )}
+          </div>
+        </div>
       ) : null}
-
-      {tab === 'history' ? (
-        <main className="rlp-body">
-          <section className="rlp-intro">
-            <h2>Rental History</h2>
-            <p>Everything you have rented, newest first.</p>
-          </section>
-          {numbersError ? (
-            <div className="rlp-error">
-              <AlertCircle size={15} /> {numbersError}
-            </div>
-          ) : pastRentals.length ? (
-            <section className="rlp-list">{pastRentals.map((r) => renderRentalCard(r, true))}</section>
-          ) : (
-            <div className="rlp-empty tall">
-              <Clock size={20} />
-              <p>No past rentals yet.</p>
-            </div>
-          )}
-        </main>
-      ) : null}
-
-      <footer className="rlp-foot">
-        <p>
-          <AlertCircle size={13} /> US non-VoIP mobile numbers. Some platforms restrict rented numbers — if a service
-          is not listed, it is not supported. Verxor policy: misuse for fraud terminates the rental without refund.
-        </p>
-      </footer>
     </div>
   );
 }

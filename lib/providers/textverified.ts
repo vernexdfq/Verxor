@@ -217,7 +217,7 @@ export async function tvCreateRental(opts: {
   serviceName: string;
   duration: TvRentalDuration;
   isRenewable: boolean;
-}): Promise<{ ok: boolean; reservationId?: string; e164?: string; error?: string }> {
+}): Promise<{ ok: boolean; reservationId?: string; e164?: string; endsAt?: string; state?: string; error?: string }> {
   const res = await tvRequest<Record<string, unknown>>('/api/pub/v2/reservations/rental', {
     method: 'POST',
     body: {
@@ -245,6 +245,8 @@ export async function tvCreateRental(opts: {
     ok: true,
     reservationId: String(d.id ?? reservationId),
     e164: String(d.number ?? ''),
+    endsAt: d.endsAt ? String(d.endsAt) : '',
+    state: d.state ? String(d.state) : '',
   };
 }
 
