@@ -1,12 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { mgProductDetail, mgServerList, moogoldConfigured } from '@/lib/providers/moogold';
 import { gamingRetailNgn, resolveFxRateNgn } from '@/lib/gaming-pricing';
+import { cachedDetail, detailFresh, saveDetail } from '@/lib/gaming-cache';
 
 /**
  * GET /api/v1/gaming/product?product_id=<id>
  *   → product detail for the buy sheet: denominations with NGN retail
  *     prices (Naira only), stock state, required form fields, and the
  *     server list when the product needs one.
+ *
+ * Budget shield: details are served from the Supabase snapshot
+ * (gaming_product_details) while fresh (12h); the provider is only called
+ * on stale/missing snapshots (and the fresh result is saved back).
+ * Purchases always re-check the provider for live stock and price.
  */
 export const dynamic = 'force-dynamic';
 
@@ -19,7 +25,24 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: false, error: 'Missing product_id' }, { status: 400 });
   }
 
-  const detail = await mgProductDetail(productId);
+  let detail: import('@/lib/providers/moogold').MgProductDetail | null = null;
+  try {
+    const c = await cachedDetail(productId);
+    if (c && detailFresh(c.syncedAt)) detail = c.detail;
+  } catch {
+    // fall through to provider
+  }
+  if (!detail) {
+    detail = await mgProductDetail(productId);
+    if (detail) {
+      try {
+        await saveDetail(detail);
+      } catch {
+        // non-fatal
+      }
+    }
+  }
+
   if (!detail) {
     return NextResponse.json({ ok: false, error: 'Product not available right now. Try again in a moment.' }, { status: 404 });
   }
@@ -48,3 +71,4 @@ export async function GET(req: NextRequest) {
     },
   });
 }
+
