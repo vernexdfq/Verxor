@@ -28,6 +28,7 @@ import {
   Hash,
   History as HistoryIcon,
   Info,
+  List,
   Loader2,
   MessageSquare,
   RefreshCw,
@@ -736,7 +737,7 @@ export function RentalPage({
               onClick={() => openType('service')}
             >
               <div className="rsm-type-icon-box purple">
-                <Hash size={22} />
+                <List size={22} />
               </div>
               <div className="rsm-type-details">
                 <strong className="rsm-type-title">Service Rental</strong>
@@ -908,7 +909,7 @@ export function RentalPage({
               >
                 <div className="rsm-service-trigger-left">
                   <div className="rsm-service-icon-box">
-                    {service ? <Hash size={16} /> : <Search size={16} />}
+                    {service ? <MessageSquare size={16} /> : <Search size={16} />}
                   </div>
                   <div className="rsm-service-trigger-copy">
                     {service ? (
@@ -1169,7 +1170,7 @@ export function RentalPage({
                   onClick={() => openInbox(r)}
                 >
                   <div className="rsm-history-card-icon">
-                    <Hash size={18} />
+                    <MessageSquare size={18} />
                   </div>
                   <div className="rsm-history-card-details">
                     <div className="rsm-history-card-row">
@@ -1558,7 +1559,7 @@ export function RentalPage({
                     >
                       <div className="rsm-service-item-left">
                         <span className="rsm-service-item-icon">
-                          <Hash size={14} />
+                          <MessageSquare size={14} />
                         </span>
                         <span className="rsm-service-item-name">{s}</span>
                       </div>
