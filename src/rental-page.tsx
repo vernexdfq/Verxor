@@ -1,13 +1,13 @@
 'use client';
 
 /**
- * Rent-for-SMS — fresh Verxor build (UI-first).
+ * Rent-for-SMS — Grade 1 Fintech build for Verxor.
  *
- * Step 1 (this file): entry screen + Service Rental flow + Rental History,
- * all UI. Prices are finalized later — the duration grid shows an honest
- * "prices being finalized" state, checkout stays disabled until then.
- * No fake data anywhere: service list comes from the live endpoint once the
- * provider keys are set; until then we show the real setup state.
+ * Screen flows:
+ *  - Home: Compact Top Bar, Promo-Strip Carousel, Rental Type Selection (Service vs General), My Rentals preview
+ *  - Service Flow: Compact Top Bar, Context Promo, Order a Rental card (One-time/Renewable, Service selector, Durations), My Rentals
+ *  - History: Complete Rental History & message inspection
+ *  - Service Picker: Bottom sheet with instant search, counts, and fast selection
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -17,6 +17,7 @@ import {
   ArrowRight,
   CalendarClock,
   Check,
+  ChevronDown,
   ChevronRight,
   Clock,
   Flame,
@@ -26,7 +27,9 @@ import {
   Loader2,
   RefreshCw,
   Search,
+  ShieldCheck,
   Smartphone,
+  Sparkles,
   Wallet,
   X,
 } from 'lucide-react';
@@ -36,11 +39,11 @@ import './rental-page.css';
 
 /* ---------------- types ---------------- */
 
-type RentalType = 'service' | 'general';
-type Mode = 'one-time' | 'renewable';
-type Screen = 'home' | 'flow' | 'history';
+export type RentalType = 'service' | 'general';
+export type Mode = 'one-time' | 'renewable';
+export type Screen = 'home' | 'flow' | 'history';
 
-type Rental = {
+export type Rental = {
   id: string;
   reservationId: string;
   serviceName: string;
@@ -52,9 +55,55 @@ type Rental = {
   createdAt: string;
 };
 
+export interface PromoSlide {
+  id: string;
+  badge: string;
+  title: string;
+  subtitle: string;
+  ctaText?: string;
+  action?: 'picker' | 'history' | 'info';
+}
+
+export const RENTAL_PROMO_SLIDES: PromoSlide[] = [
+  {
+    id: 'promo-1',
+    badge: 'NON-VOIP REAL CARRIER',
+    title: 'Dedicated US SMS Numbers',
+    subtitle: 'Private carrier lines for WhatsApp, Telegram, Google, PayPal & 2,200+ services.',
+    ctaText: 'Select Service',
+    action: 'picker',
+  },
+  {
+    id: 'promo-2',
+    badge: 'FLEXIBLE DURATION',
+    title: 'One-Time or Renewable Leases',
+    subtitle: 'Keep your dedicated number from 1 to 365 days. Unlimited SMS with no message drops.',
+    ctaText: 'View Options',
+    action: 'info',
+  },
+  {
+    id: 'promo-3',
+    badge: 'PROMO SLOT',
+    title: 'High-Impact Advertisement Strip',
+    subtitle: 'Clean banner strip reserved for real-time promotions, discounts, and brand campaigns.',
+    ctaText: 'Learn More',
+    action: 'info',
+  },
+];
+
 const MODES: { id: Mode; label: string; hint: string; icon: typeof Flame }[] = [
   { id: 'one-time', label: 'One-time', hint: 'Fixed duration', icon: Flame },
   { id: 'renewable', label: 'Renewable', hint: 'Renew manually', icon: RefreshCw },
+];
+
+const DURATION_OPTIONS = [
+  { id: '1d', label: '1 Day', days: 1 },
+  { id: '7d', label: '7 Days', days: 7 },
+  { id: '15d', label: '15 Days', days: 15 },
+  { id: '30d', label: '30 Days', days: 30 },
+  { id: '90d', label: '90 Days', days: 90 },
+  { id: '180d', label: '180 Days', days: 180 },
+  { id: '365d', label: '1 Year', days: 365 },
 ];
 
 const fmtDate = (iso: string | null) => {
@@ -83,17 +132,29 @@ export function RentalPage({
   /* flow state */
   const [mode, setMode] = useState<Mode>('one-time');
   const [service, setService] = useState<string | null>(null);
+  const [selectedDuration, setSelectedDuration] = useState<string>('30d');
   const [pickerOpen, setPickerOpen] = useState(false);
   const [query, setQuery] = useState('');
 
-  /* live service list (from the existing endpoint; real state, no fakes) */
+  /* promo carousel state */
+  const [promoIdx, setPromoIdx] = useState(0);
+
+  /* live service list */
   const [services, setServices] = useState<string[] | null>(null);
   const [servicesError, setServicesError] = useState<string | null>(null);
   const [isSetup, setIsSetup] = useState(false);
 
-  /* my rentals (existing endpoint) */
+  /* my rentals */
   const [rentals, setRentals] = useState<Rental[]>([]);
   const [rentalsLoaded, setRentalsLoaded] = useState(false);
+
+  /* Auto-advance promo carousel */
+  useEffect(() => {
+    const t = setInterval(() => {
+      setPromoIdx((prev) => (prev + 1) % RENTAL_PROMO_SLIDES.length);
+    }, 5000);
+    return () => clearInterval(t);
+  }, []);
 
   const authHeaders = useCallback(async (): Promise<Record<string, string>> => {
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
@@ -163,9 +224,8 @@ export function RentalPage({
     return q ? services.filter((s) => s.toLowerCase().includes(q)) : services;
   }, [services, query]);
 
-  const liveCount = rentals.filter(isLive).length;
-
-  /* ---------------- screens ---------------- */
+  const liveRentals = useMemo(() => rentals.filter(isLive), [rentals]);
+  const liveCount = liveRentals.length;
 
   const openType = (t: RentalType) => {
     setType(t);
@@ -174,258 +234,602 @@ export function RentalPage({
     setScreen('flow');
   };
 
+  const handleBack = () => {
+    if (screen === 'flow') {
+      setScreen('home');
+    } else if (screen === 'history') {
+      setScreen('home');
+    } else {
+      onBack();
+    }
+  };
+
+  const activePromo = RENTAL_PROMO_SLIDES[promoIdx];
+
+  const handlePromoCta = (slide: PromoSlide) => {
+    if (slide.action === 'picker') {
+      if (screen !== 'flow') setScreen('flow');
+      setPickerOpen(true);
+    } else if (slide.action === 'history') {
+      setScreen('history');
+    } else {
+      if (screen !== 'flow') setScreen('flow');
+    }
+  };
+
   return (
     <div className="rsm-page">
-      <header className="rsm-head">
-        <button type="button" className="rsm-back" onClick={onBack} aria-label="Back">
-          <ArrowLeft size={18} />
-        </button>
-        <div>
-          <h1>Rent a Number</h1>
-          <p>US non-VoIP mobile numbers for SMS verification.</p>
-        </div>
+      {/* ----------------- COMPACT TOP BAR ----------------- */}
+      <header className="rsm-topbar">
         <button
           type="button"
-          className="rsm-head-history"
-          onClick={() => setScreen('history')}
-          aria-label="Rental history"
+          className="rsm-topbar-btn"
+          onClick={handleBack}
+          aria-label="Back"
         >
-          <HistoryIcon size={18} />
+          <ArrowLeft size={18} />
         </button>
+
+        <div className="rsm-topbar-center">
+          <h1 className="rsm-topbar-title">
+            {screen === 'history'
+              ? 'Rental History'
+              : screen === 'flow'
+              ? type === 'service' ? 'Service Rental' : 'General Rental'
+              : 'Rent a Number'}
+          </h1>
+          <span className="rsm-topbar-sub">
+            {screen === 'history'
+              ? 'Numbers, logs & active leases'
+              : screen === 'flow'
+              ? 'Dedicated US non-VoIP lines'
+              : 'US non-VoIP SMS verification'}
+          </span>
+        </div>
+
+        <div className="rsm-topbar-right">
+          {session?.balanceNgn !== undefined && (
+            <button
+              type="button"
+              className="rsm-topbar-bal"
+              onClick={onFund}
+              title="Wallet balance — click to fund"
+            >
+              <Wallet size={12} />
+              <span>₦{session.balanceNgn.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+            </button>
+          )}
+
+          <button
+            type="button"
+            className={`rsm-topbar-btn ${screen === 'history' ? 'active' : ''}`}
+            onClick={() => setScreen(screen === 'history' ? 'home' : 'history')}
+            aria-label="Rental History"
+            title="Rental History"
+          >
+            <HistoryIcon size={17} />
+            {liveCount > 0 && <span className="rsm-badge-dot" />}
+          </button>
+        </div>
       </header>
 
+      {/* ----------------- HOME SCREEN ----------------- */}
       {screen === 'home' ? (
         <main className="rsm-body">
-          <section className="rsm-hero">
-            <span className="rsm-hero-eyebrow">VERXOR RENTALS</span>
-            <h2>Own a US number, on your terms.</h2>
-            <p>Pick a service, choose your duration, and receive unlimited SMS on a dedicated non-VoIP number.</p>
-            <div className="rsm-hero-meta">
-              <span><Smartphone size={13} /> Non-VoIP</span>
-              <span><Clock size={13} /> 1 – 365 days</span>
-              <span><Wallet size={13} /> Wallet checkout</span>
+          {/* COMPACT PROMO STRIP PLACEHOLDER */}
+          <section className="rsm-promo-strip" aria-label="Promotion banner">
+            <div className="rsm-promo-content">
+              <div className="rsm-promo-badge">
+                <Sparkles size={11} />
+                <span>{activePromo.badge}</span>
+              </div>
+              <h2 className="rsm-promo-title">{activePromo.title}</h2>
+              <p className="rsm-promo-desc">{activePromo.subtitle}</p>
+              {activePromo.ctaText && (
+                <button
+                  type="button"
+                  className="rsm-promo-cta"
+                  onClick={() => handlePromoCta(activePromo)}
+                >
+                  {activePromo.ctaText} <ArrowRight size={12} />
+                </button>
+              )}
+            </div>
+
+            <div className="rsm-promo-dots">
+              {RENTAL_PROMO_SLIDES.map((s, i) => (
+                <button
+                  key={s.id}
+                  type="button"
+                  className={i === promoIdx ? 'active' : ''}
+                  onClick={() => setPromoIdx(i)}
+                  aria-label={`Show slide ${i + 1}`}
+                />
+              ))}
             </div>
           </section>
 
-          <h3 className="rsm-section-title">Choose a rental type</h3>
-          <section className="rsm-types">
-            <button type="button" className="rsm-type" onClick={() => openType('service')}>
-              <span className="rsm-type-icon"><Hash size={22} /></span>
-              <span className="rsm-type-copy">
-                <strong>Service Rental</strong>
-                <small>Choose the app first, then rent a dedicated US number for the duration you need.</small>
-              </span>
-              <span className="rsm-type-foot">
-                <span className="rsm-chip on"><Check size={11} /> Available</span>
-                <ChevronRight size={16} />
-              </span>
-            </button>
+          {/* RENTAL TYPES */}
+          <div className="rsm-section-head">
+            <h3>Choose a rental type</h3>
+            <span className="rsm-section-count">2 routes available</span>
+          </div>
 
-            <button type="button" className="rsm-type soon" disabled>
-              <span className="rsm-type-icon"><CalendarClock size={22} /></span>
-              <span className="rsm-type-copy">
-                <strong>General Rental</strong>
-                <small>One general-purpose number, any service, 1 to 365 days.</small>
-              </span>
-              <span className="rsm-type-foot">
-                <span className="rsm-chip soon-chip"><Clock size={11} /> Coming soon</span>
-                <ChevronRight size={16} />
-              </span>
-            </button>
-          </section>
-
-          <section className="rsm-mine">
-            <div className="rsm-mine-head">
-              <h3>My Rentals</h3>
-              <button type="button" onClick={() => setScreen('history')}>View all <ArrowRight size={13} /></button>
-            </div>
-            {liveCount > 0 ? (
-              rentals.filter(isLive).slice(0, 2).map((r) => (
-                <div className="rsm-mine-row" key={r.id}>
-                  <span className="rsm-mine-num"><Hash size={13} /> {r.number || 'Pending'}</span>
-                  <span className="rsm-mine-service">{r.serviceName}</span>
-                  <span className="rsm-chip on">Active</span>
+          <section className="rsm-types-grid">
+            <button
+              type="button"
+              className="rsm-type-card"
+              onClick={() => openType('service')}
+            >
+              <div className="rsm-type-icon-box blue">
+                <Hash size={20} />
+              </div>
+              <div className="rsm-type-details">
+                <div className="rsm-type-title-row">
+                  <strong>Service Rental</strong>
+                  <span className="rsm-status-chip online">
+                    <Check size={11} /> Available
+                  </span>
                 </div>
-              ))
+                <p>Choose the app or service first, then rent a dedicated US number for the duration you need.</p>
+              </div>
+              <div className="rsm-type-arrow">
+                <ChevronRight size={18} />
+              </div>
+            </button>
+
+            <button
+              type="button"
+              className="rsm-type-card disabled"
+              disabled
+            >
+              <div className="rsm-type-icon-box gray">
+                <CalendarClock size={20} />
+              </div>
+              <div className="rsm-type-details">
+                <div className="rsm-type-title-row">
+                  <strong>General Rental</strong>
+                  <span className="rsm-status-chip pending">
+                    <Clock size={11} /> Coming soon
+                  </span>
+                </div>
+                <p>One general-purpose US number for 1, 7, 30, 90, or 365 days. No specific service selection required.</p>
+              </div>
+              <div className="rsm-type-arrow">
+                <ChevronRight size={18} />
+              </div>
+            </button>
+          </section>
+
+          {/* MY RENTALS PREVIEW */}
+          <section className="rsm-mine-card">
+            <div className="rsm-mine-header">
+              <div className="rsm-mine-title-wrap">
+                <Smartphone size={16} />
+                <h3>My Rentals</h3>
+                {liveCount > 0 && <span className="rsm-counter-pill">{liveCount} active</span>}
+              </div>
+              <button
+                type="button"
+                className="rsm-view-all-link"
+                onClick={() => setScreen('history')}
+              >
+                View all <ArrowRight size={13} />
+              </button>
+            </div>
+
+            {liveCount > 0 ? (
+              <div className="rsm-mine-list">
+                {liveRentals.slice(0, 3).map((r) => (
+                  <div className="rsm-mine-item" key={r.id}>
+                    <div className="rsm-mine-item-left">
+                      <span className="rsm-mine-phone">
+                        <Hash size={13} /> {r.number || 'Pending allocation'}
+                      </span>
+                      <span className="rsm-mine-sub">{r.serviceName} · {r.duration}</span>
+                    </div>
+                    <span className="rsm-status-chip online">Active</span>
+                  </div>
+                ))}
+              </div>
             ) : (
               <div className="rsm-mine-empty">
-                <p>{rentalsLoaded ? 'No rentals yet — order your first number from Service Rental.' : 'Loading your rentals…'}</p>
+                <p>{rentalsLoaded ? 'No active rentals yet. Order your first number above.' : 'Loading rentals…'}</p>
               </div>
             )}
           </section>
 
-          <button type="button" className="rsm-history-link" onClick={() => setScreen('history')}>
-            <HistoryIcon size={16} />
-            <span>View Rental History</span>
-            <small>Numbers, messages and receipts, all in one place.</small>
+          {/* HISTORY SHORTCUT LINK */}
+          <button
+            type="button"
+            className="rsm-history-banner-btn"
+            onClick={() => setScreen('history')}
+          >
+            <div className="rsm-history-icon-circle">
+              <HistoryIcon size={16} />
+            </div>
+            <div className="rsm-history-text">
+              <strong>Rental History &amp; SMS Logs</strong>
+              <small>View past numbers, received SMS codes, and transaction receipts.</small>
+            </div>
+            <ChevronRight size={17} className="rsm-muted-chevron" />
           </button>
         </main>
       ) : null}
 
+      {/* ----------------- SERVICE RENTAL FLOW ----------------- */}
       {screen === 'flow' ? (
         <main className="rsm-body">
-          <section className="rsm-flow-head">
-            <button type="button" className="rsm-flow-back" onClick={() => setScreen('home')}>
-              <ArrowLeft size={15} /> <span>Back</span>
-            </button>
-            <span className="rsm-flow-tag">{type === 'service' ? 'SERVICE RENTAL' : 'GENERAL RENTAL'}</span>
+          {/* COMPACT PROMO STRIP IN FLOW */}
+          <section className="rsm-promo-strip compact" aria-label="Promotion banner">
+            <div className="rsm-promo-content">
+              <div className="rsm-promo-badge">
+                <Sparkles size={11} />
+                <span>{activePromo.badge}</span>
+              </div>
+              <h2 className="rsm-promo-title">{activePromo.title}</h2>
+              <p className="rsm-promo-desc">{activePromo.subtitle}</p>
+            </div>
+            <div className="rsm-promo-dots">
+              {RENTAL_PROMO_SLIDES.map((s, i) => (
+                <button
+                  key={s.id}
+                  type="button"
+                  className={i === promoIdx ? 'active' : ''}
+                  onClick={() => setPromoIdx(i)}
+                  aria-label={`Show slide ${i + 1}`}
+                />
+              ))}
+            </div>
           </section>
 
-          <h3 className="rsm-section-title">Order a rental</h3>
-
-          <div className="rsm-modes">
-            {MODES.map(({ id, label, hint, icon: Icon }) => (
-              <button
-                type="button"
-                key={id}
-                className={mode === id ? 'rsm-mode active' : 'rsm-mode'}
-                onClick={() => setMode(id)}
-              >
-                <Icon size={16} />
-                <span className="rsm-mode-copy">
-                  <strong>{label}</strong>
-                  <small>{hint}</small>
-                </span>
-          </button>
-            ))}
+          {/* BACK BREADCRUMB */}
+          <div className="rsm-breadcrumb-bar">
+            <button
+              type="button"
+              className="rsm-breadcrumb-btn"
+              onClick={() => setScreen('home')}
+            >
+              <ArrowLeft size={14} /> Back to rental types
+            </button>
+            <span className="rsm-breadcrumb-tag">
+              {type === 'service' ? 'SERVICE RENTAL' : 'GENERAL RENTAL'}
+            </span>
           </div>
 
-          <h4 className="rsm-field-label">Service</h4>
-          <button type="button" className="rsm-service-field" onClick={() => setPickerOpen(true)}>
-            {service ? (
-              <><span className="rsm-service-picked"><Hash size={14} /> {service}</span><ChevronRight size={16} /></>
-            ) : (
-              <>
-                <Search size={15} />
-                <span className="rsm-service-hint">
-                  Search &amp; select a service
-                  {services ? <small>{services.length.toLocaleString()} available</small> : null}
-                </span>
-                <ChevronRight size={16} />
-              </>
-            )}
-          </button>
+          {/* ORDER A RENTAL CARD */}
+          <section className="rsm-order-card">
+            <div className="rsm-order-card-header">
+              <h3>Order a Rental</h3>
+              <p>Configure your rental duration and choose an SMS service.</p>
+            </div>
 
-          {service ? (
-            <section className="rsm-durations">
-              <div className="rsm-durations-head">
-                <h4 className="rsm-field-label">Duration</h4>
-                <span className="rsm-chip note"><Info size={11} /> Prices being finalized</span>
+            {/* MODE SWITCHER */}
+            <div className="rsm-modes-toggle">
+              {MODES.map(({ id, label, hint, icon: Icon }) => (
+                <button
+                  type="button"
+                  key={id}
+                  className={`rsm-mode-tab ${mode === id ? 'active' : ''}`}
+                  onClick={() => setMode(id)}
+                >
+                  <div className="rsm-mode-tab-head">
+                    <Icon size={15} />
+                    <strong>{label}</strong>
+                  </div>
+                  <small>{hint}</small>
+                </button>
+              ))}
+            </div>
+
+            {/* SERVICE SELECTION FIELD */}
+            <div className="rsm-form-field">
+              <div className="rsm-field-top">
+                <label className="rsm-label">SERVICE</label>
+                {services ? (
+                  <span className="rsm-field-count-chip">
+                    {services.length.toLocaleString()} available
+                  </span>
+                ) : null}
               </div>
-              <div className="rsm-dur-grid">
-                {['1 day', '7 days', '15 days', '30 days', '90 days', '180 days', '1 year'].map((d) => (
-                  <button type="button" className="rsm-dur" key={d} disabled>
-                    <strong>{d}</strong>
-                    <small>TBD</small>
+
+              <button
+                type="button"
+                className={`rsm-service-trigger ${service ? 'selected' : ''}`}
+                onClick={() => setPickerOpen(true)}
+              >
+                <div className="rsm-service-trigger-left">
+                  <div className="rsm-service-icon-box">
+                    {service ? <Hash size={16} /> : <Search size={16} />}
+                  </div>
+                  <div className="rsm-service-trigger-copy">
+                    {service ? (
+                      <>
+                        <strong className="rsm-selected-name">{service}</strong>
+                        <small>US non-VoIP route</small>
+                      </>
+                    ) : (
+                      <>
+                        <strong className="rsm-placeholder-name">Search &amp; select a service</strong>
+                        <small>Tap to view supported apps</small>
+                      </>
+                    )}
+                  </div>
+                </div>
+                <ChevronDown size={18} className="rsm-service-chevron" />
+              </button>
+            </div>
+
+            {/* DURATION SELECTION */}
+            <div className="rsm-form-field">
+              <div className="rsm-field-top">
+                <label className="rsm-label">DURATION</label>
+                <span className="rsm-field-pill-note">
+                  <Info size={11} /> Prices being finalized
+                </span>
+              </div>
+
+              <div className="rsm-durations-grid">
+                {DURATION_OPTIONS.map((d) => (
+                  <button
+                    type="button"
+                    key={d.id}
+                    className={`rsm-duration-pill ${selectedDuration === d.id ? 'active' : ''}`}
+                    onClick={() => setSelectedDuration(d.id)}
+                  >
+                    <span className="rsm-dur-label">{d.label}</span>
+                    <span className="rsm-dur-state">TBD</span>
                   </button>
                 ))}
               </div>
-              <div className="rsm-final-note">
-                <AlertCircle size={14} />
-                <p>Rental prices are being finalized. Checkout opens as soon as pricing is locked — your wallet will be charged then.</p>
-              </div>
-            </section>
-          ) : (
-            <div className="rsm-final-note">
-              <Info size={14} />
-              <p>Rentals give you a dedicated US number for your chosen duration. Receive unlimited SMS and view every message in your Rental History.</p>
             </div>
-          )}
+
+            {/* FINTECH ASSURANCE NOTE */}
+            <div className="rsm-assurance-callout">
+              <ShieldCheck size={18} />
+              <div className="rsm-callout-text">
+                <strong>Dedicated &amp; Private Number</strong>
+                <p>
+                  Rentals give you a dedicated US number for your chosen duration.
+                  Receive unlimited SMS verification codes with messages stored securely in your Rental History.
+                </p>
+              </div>
+            </div>
+
+            {/* ACTION CTA BUTTON */}
+            <div className="rsm-order-footer">
+              <button
+                type="button"
+                className="rsm-order-cta-disabled"
+                disabled
+              >
+                {service ? 'Pricing being finalized — Checkout opening shortly' : 'Select a service to proceed'}
+              </button>
+            </div>
+          </section>
+
+          {/* MY RENTALS SECTION IN FLOW */}
+          <section className="rsm-mine-card">
+            <div className="rsm-mine-header">
+              <div className="rsm-mine-title-wrap">
+                <Smartphone size={16} />
+                <h3>My Rentals</h3>
+                {liveCount > 0 && <span className="rsm-counter-pill">{liveCount} active</span>}
+              </div>
+              <button
+                type="button"
+                className="rsm-view-all-link"
+                onClick={() => setScreen('history')}
+              >
+                View all <ArrowRight size={13} />
+              </button>
+            </div>
+
+            {liveCount > 0 ? (
+              <div className="rsm-mine-list">
+                {liveRentals.slice(0, 2).map((r) => (
+                  <div className="rsm-mine-item" key={r.id}>
+                    <div className="rsm-mine-item-left">
+                      <span className="rsm-mine-phone">
+                        <Hash size={13} /> {r.number || 'Pending allocation'}
+                      </span>
+                      <span className="rsm-mine-sub">{r.serviceName} · {r.duration}</span>
+                    </div>
+                    <span className="rsm-status-chip online">Active</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="rsm-mine-empty">
+                <p>{rentalsLoaded ? 'No active rentals yet. Select a service above to get started.' : 'Loading rentals…'}</p>
+              </div>
+            )}
+          </section>
         </main>
       ) : null}
 
+      {/* ----------------- RENTAL HISTORY SCREEN ----------------- */}
       {screen === 'history' ? (
         <main className="rsm-body">
-          <section className="rsm-flow-head">
-            <button type="button" className="rsm-flow-back" onClick={() => setScreen('home')}>
-              <ArrowLeft size={15} /> <span>Back</span>
+          <div className="rsm-breadcrumb-bar">
+            <button
+              type="button"
+              className="rsm-breadcrumb-btn"
+              onClick={() => setScreen('home')}
+            >
+              <ArrowLeft size={14} /> Back to rentals
             </button>
-            <span className="rsm-flow-tag">RENTAL HISTORY</span>
-          </section>
+            <span className="rsm-breadcrumb-tag">RENTAL HISTORY</span>
+          </div>
 
-          <h3 className="rsm-section-title">Rental History</h3>
+          <div className="rsm-section-head">
+            <h3>Rental History</h3>
+            <span className="rsm-section-count">{rentals.length} total records</span>
+          </div>
+
           {rentals.length ? (
-            <section className="rsm-hist">
+            <section className="rsm-history-list">
               {rentals.map((r) => (
-                <div className="rsm-hist-row" key={r.id}>
-                  <span className="rsm-hist-icon"><Hash size={15} /></span>
-                  <span className="rsm-hist-copy">
-                    <strong>{r.number || 'Number pending'}</strong>
-                    <small>{r.serviceName} · from {fmtDate(r.createdAt)}</small>
-                  </span>
-                  <span className="rsm-hist-meta">
-                    <span className={isLive(r) ? 'rsm-chip on' : 'rsm-chip off'}>
-                      {isLive(r) ? 'Active' : 'Ended'}
-                    </span>
-                  </span>
+                <div className="rsm-history-card" key={r.id}>
+                  <div className="rsm-history-card-icon">
+                    <Hash size={17} />
+                  </div>
+                  <div className="rsm-history-card-details">
+                    <div className="rsm-history-card-row">
+                      <strong className="rsm-history-phone">{r.number || 'Number pending'}</strong>
+                      <span className={`rsm-status-chip ${isLive(r) ? 'online' : 'ended'}`}>
+                        {isLive(r) ? 'Active' : 'Ended'}
+                      </span>
+                    </div>
+                    <div className="rsm-history-meta-sub">
+                      <span>{r.serviceName}</span>
+                      <span>•</span>
+                      <span>{r.duration}</span>
+                      <span>•</span>
+                      <span>From {fmtDate(r.createdAt)}</span>
+                    </div>
+                  </div>
                 </div>
               ))}
             </section>
           ) : (
-            <div className="rsm-hist-empty">
-              <HistoryIcon size={26} />
-              <p>No rentals yet.</p>
-              <button type="button" className="rsm-hist-cta" onClick={() => openType('service')}>
-                Order your first rental <ArrowRight size={14} />
+            <div className="rsm-history-empty-card">
+              <div className="rsm-empty-icon-wrap">
+                <HistoryIcon size={28} />
+              </div>
+              <h4>No rentals recorded</h4>
+              <p>When you rent a dedicated number, your lease details, expiration dates, and incoming SMS codes appear here.</p>
+              <button
+                type="button"
+                className="rsm-primary-btn"
+                onClick={() => openType('service')}
+              >
+                Order a Service Rental <ArrowRight size={14} />
               </button>
             </div>
           )}
         </main>
       ) : null}
 
-      {/* service picker modal */}
+      {/* ----------------- SERVICE PICKER BOTTOM SHEET ----------------- */}
       {pickerOpen ? (
         <div className="rsm-modal-backdrop" onClick={() => setPickerOpen(false)}>
-          <div className="rsm-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Select service">
+          <div
+            className="rsm-modal-sheet"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-label="Select Service"
+          >
+            {/* DRAG HANDLE */}
+            <div className="rsm-modal-handle" />
+
+            {/* MODAL HEADER */}
             <div className="rsm-modal-head">
-              <strong>Select Service</strong>
-              <button type="button" onClick={() => setPickerOpen(false)} aria-label="Close"><X size={17} /></button>
-            </div>
-            <div className="rsm-modal-search">
-              <Search size={15} />
-              <input
-                type="search"
-                placeholder="Search service…"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                aria-label="Search service"
-                autoFocus
-              />
-            </div>
-            {services === null && !servicesError ? (
-              <div className="rsm-modal-state"><Loader2 size={17} className="spin" /> Loading services…</div>
-            ) : servicesError ? (
-              <div className={isSetup ? 'rsm-modal-state setup' : 'rsm-modal-state'}>
-                {isSetup ? <Clock size={16} /> : <AlertCircle size={16} />}
-                <p>{isSetup ? 'Provider setup is finishing — the live service list appears here shortly.' : servicesError}</p>
+              <div className="rsm-modal-head-titles">
+                <strong>Select Service</strong>
+                <small>Choose an app for dedicated SMS verification</small>
               </div>
-            ) : (
-              <>
-                <p className="rsm-modal-count">
-                  {filtered.length.toLocaleString()} of {services!.length.toLocaleString()}{' '}
+              <button
+                type="button"
+                className="rsm-modal-close-btn"
+                onClick={() => setPickerOpen(false)}
+                aria-label="Close service selector"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* SEARCH INPUT */}
+            <div className="rsm-modal-search-wrapper">
+              <div className="rsm-modal-search-bar">
+                <Search size={16} />
+                <input
+                  type="search"
+                  placeholder="Search app or service (e.g. WhatsApp, Google, Telegram)…"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  aria-label="Search service"
+                  autoFocus
+                />
+                {query ? (
+                  <button
+                    type="button"
+                    className="rsm-search-clear-btn"
+                    onClick={() => setQuery('')}
+                    aria-label="Clear search"
+                  >
+                    <X size={14} />
+                  </button>
+                ) : null}
+              </div>
+            </div>
+
+            {/* SERVICE COUNT INDICATOR */}
+            {services && !servicesError ? (
+              <div className="rsm-modal-count-row">
+                <span>
+                  Showing {filtered.length.toLocaleString()} of {services.length.toLocaleString()}{' '}
                   {mode === 'one-time' ? 'one-time' : 'renewable'} services
-                </p>
-                <ul className="rsm-modal-list">
+                </span>
+              </div>
+            ) : null}
+
+            {/* SERVICE LIST */}
+            <div className="rsm-modal-body">
+              {services === null && !servicesError ? (
+                <div className="rsm-modal-status-box">
+                  <Loader2 size={20} className="rsm-spin-anim" />
+                  <p>Loading available services…</p>
+                </div>
+              ) : servicesError ? (
+                <div className={`rsm-modal-status-box ${isSetup ? 'setup' : 'error'}`}>
+                  {isSetup ? <Clock size={20} /> : <AlertCircle size={20} />}
+                  <p>{isSetup ? 'Provider setup is finalizing — live services will appear shortly.' : servicesError}</p>
+                </div>
+              ) : (
+                <ul className="rsm-service-list">
                   {filtered.map((s) => (
                     <li key={s}>
                       <button
                         type="button"
+                        className={`rsm-service-item-btn ${service === s ? 'active' : ''}`}
                         onClick={() => {
                           setService(s);
                           setPickerOpen(false);
                           setQuery('');
                         }}
                       >
-                        <span className="rsm-li-icon"><Hash size={13} /></span>
-                        <span>{s}</span>
-                        {service === s ? <Check size={14} /> : null}
+                        <div className="rsm-service-item-left">
+                          <span className="rsm-service-item-icon">
+                            <Hash size={14} />
+                          </span>
+                          <span className="rsm-service-item-name">{s}</span>
+                        </div>
+                        {service === s ? (
+                          <span className="rsm-service-selected-check">
+                            <Check size={16} />
+                          </span>
+                        ) : (
+                          <ChevronRight size={15} className="rsm-service-item-chevron" />
+                        )}
                       </button>
                     </li>
                   ))}
-                  {!filtered.length ? <li className="rsm-li-none">No service matches “{query}”.</li> : null}
+                  {!filtered.length ? (
+                    <li className="rsm-service-empty-item">
+                      <p>No service matches “{query}”.</p>
+                      <button
+                        type="button"
+                        className="rsm-clear-query-btn"
+                        onClick={() => setQuery('')}
+                      >
+                        Reset search
+                      </button>
+                    </li>
+                  ) : null}
                 </ul>
-              </>
-            )}
+              )}
+            </div>
           </div>
         </div>
       ) : null}
