@@ -3,6 +3,8 @@
  *
  * Rules:
  *  1. Plan missing from 247 live list → hide (never sell a dead plan).
+ *     Exception: 9mobile plans with a ClubKonnect ckCode are kept —
+ *     9mobile rides ClubKonnect, not 247, and its catalog cost is the CK baseline.
  *  2. 247 cost changes → adjust retail by the same ₦ delta so margin stays fixed:
  *       retail = round(liveCost + (catalog.retail - catalog.cost))
  *  3. Child / API wholesale ≈ liveCost + 0.5% / +1% (ceil).
@@ -110,6 +112,12 @@ export function applyLiveToPlan(
   }
   const live = liveById.get(plan.id);
   if (!live) {
+    // 9mobile buys via ClubKonnect (ckCode) — keep the catalog plan and its
+    // locked CK cost instead of hiding it for missing 247 entries.
+    const ckCode = Number((plan as { ckCode?: number | string }).ckCode);
+    if (plan.network === '9mobile' && Number.isFinite(ckCode) && ckCode > 0) {
+      return { ...plan };
+    }
     // Dead / removed on 247 — hide
     return null;
   }
@@ -205,4 +213,4 @@ export async function resolvePurchasePlan(planId: number): Promise<{
     amount,
     source: liveById ? 'live' : 'catalog-fallback',
   };
-}
+ÿÿÿ
