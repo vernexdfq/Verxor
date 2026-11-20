@@ -112,7 +112,7 @@ export const RENTAL_PROMO_SLIDES: PromoSlide[] = [
 
 const MODES: { id: Mode; label: string; hint: string; icon: typeof Flame }[] = [
   { id: 'one-time', label: 'One-time', hint: 'Fixed duration', icon: Flame },
-  { id: 'renewable', label: 'Renewable', hint: 'Renew manually', icon: RefreshCw },
+  { id: 'renewable', label: 'Renewable', hint: 'Renews automatically', icon: RefreshCw },
 ];
 
 export const DURATION_OPTIONS = [
@@ -1072,7 +1072,7 @@ export function RentalPage({
                   <span className="rsm-general-point-icon"><RefreshCw size={14} /></span>
                   <div className="rsm-general-point-copy">
                     <strong>One-time or renewable</strong>
-                    <small>Choose a fixed period or renew manually while messages stay in Rental History.</small>
+                    <small>Choose a fixed period or let it renew automatically while messages stay in Rental History.</small>
                   </div>
                 </li>
               </ul>
