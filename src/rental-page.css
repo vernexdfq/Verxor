@@ -1391,3 +1391,81 @@
 .dark .rsm-callout-text p {
   color: #93c5fd;
 }
+
+
+/* ---------- PHOTO PROMO CAROUSELS + MOBILE FINISH ---------- */
+.rsm-page{width:100%;max-width:100%;min-width:0;overflow-x:clip}
+.rsm-page *{box-sizing:border-box;min-width:0}
+.rsm-body{width:100%;max-width:640px;padding:12px 14px 34px}
+.rsm-promo-strip{
+  position:relative;isolation:isolate;width:100%;min-height:160px;padding:17px 17px 13px;
+  border:0;border-radius:14px;background-color:#0b1732;background-size:cover;background-position:center 48%;
+  box-shadow:0 5px 16px rgba(15,23,42,.10);margin:0 0 14px;overflow:hidden;
+}
+.rsm-promo-strip::before{
+  content:"";position:absolute;inset:0;z-index:-1;
+  background:linear-gradient(90deg,rgba(7,18,42,.14),rgba(7,18,42,.02));pointer-events:none
+}
+.rsm-promo-content{position:relative;z-index:1;max-width:78%}
+.rsm-promo-badge{margin-bottom:7px;font-size:9px;letter-spacing:.07em}
+.rsm-promo-title{font-size:clamp(17px,4.5vw,21px);font-weight:850;line-height:1.16;letter-spacing:-.035em;margin:0 0 5px}
+.rsm-promo-desc{font-size:12px;line-height:1.4;font-weight:650;max-width:100%;color:rgba(255,255,255,.9)}
+.rsm-promo-cta{margin-top:10px;padding:7px 11px;border-radius:8px;font-size:11px;font-weight:850}
+.rsm-promo-dots{margin-top:10px;gap:6px}
+.rsm-promo-dots button{width:6px;height:6px}
+.rsm-promo-dots button.active{width:17px}
+
+/* Service Rental uses Gaming Top-Up's 76px image strip, not the full hero. */
+.rsm-promo-strip.compact{
+  min-height:76px;height:76px;padding:9px 11px;margin-bottom:8px;border-radius:10px;
+  display:flex;flex-direction:row;align-items:center;justify-content:space-between;gap:8px
+}
+.rsm-promo-strip.compact .rsm-promo-content{max-width:calc(100% - 44px);display:grid;gap:2px}
+.rsm-promo-strip.compact .rsm-promo-badge{display:none}
+.rsm-promo-strip.compact .rsm-promo-title{font-size:13px;line-height:1.2;margin:0;font-weight:850}
+.rsm-promo-strip.compact .rsm-promo-desc{
+  display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden;
+  font-size:10px;line-height:1.2;font-weight:650;max-width:100%
+}
+.rsm-promo-strip.compact .rsm-promo-dots{flex:none;margin:0;align-self:center;gap:4px}
+.rsm-promo-strip.compact .rsm-promo-dots button{width:5px;height:5px}
+.rsm-promo-strip.compact .rsm-promo-dots button.active{width:13px}
+
+/* Strong, compact controls without changing the rental flow or API behaviour. */
+.rsm-section-head{margin:14px 2px 8px}
+.rsm-section-head h3,.rsm-order-card-header h3,.rsm-mine-title-wrap h3{font-weight:850}
+.rsm-type-card,.rsm-mine-card,.rsm-order-card{border-radius:12px}
+.rsm-type-card{padding:12px;gap:10px}
+.rsm-type-title-row strong,.rsm-label,.rsm-service-trigger strong,.rsm-mode-tab strong{font-weight:850}
+.rsm-order-card{padding:14px}
+.rsm-form-field{gap:6px}
+.rsm-service-trigger{min-height:48px}
+.rsm-page button{max-width:100%}
+@media(max-width:520px){
+  .rsm-topbar{gap:8px;padding:8px 10px}
+  .rsm-topbar-btn{width:36px;height:36px}
+  .rsm-topbar-bal{padding:6px 7px;font-size:10px}
+  .rsm-body{padding:10px 11px 28px}
+  .rsm-promo-strip{min-height:176px;padding:16px 14px 12px;border-radius:12px;margin-bottom:12px}
+  .rsm-promo-content{max-width:88%}
+  .rsm-promo-title{font-size:18px}
+  .rsm-promo-desc{font-size:11px;line-height:1.35}
+  .rsm-promo-strip.compact{height:76px;min-height:76px;padding:9px 10px;margin-bottom:7px}
+  .rsm-promo-strip.compact .rsm-promo-content{max-width:calc(100% - 39px)}
+  .rsm-promo-strip.compact .rsm-promo-title{font-size:12px}
+  .rsm-promo-strip.compact .rsm-promo-desc{font-size:9.5px}
+  .rsm-types-grid{gap:8px}
+  .rsm-type-card{padding:10px;gap:8px}
+  .rsm-type-details p{font-size:11px;line-height:1.35}
+  .rsm-order-card{padding:12px}
+}
+@media(max-width:360px){
+  .rsm-body{padding-left:9px;padding-right:9px}
+  .rsm-topbar{padding-left:8px;padding-right:8px}
+  .rsm-topbar-title{font-size:14px}
+  .rsm-topbar-sub{font-size:10px}
+  .rsm-promo-content{max-width:92%}
+  .rsm-promo-strip.compact .rsm-promo-content{max-width:calc(100% - 34px)}
+  .rsm-promo-strip.compact .rsm-promo-title{font-size:11.5px}
+  .rsm-promo-strip.compact .rsm-promo-desc{font-size:9px}
+}

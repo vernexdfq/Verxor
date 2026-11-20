@@ -62,6 +62,7 @@ export interface PromoSlide {
   subtitle: string;
   ctaText?: string;
   action?: 'picker' | 'history' | 'info';
+  image: string;
 }
 
 export const RENTAL_PROMO_SLIDES: PromoSlide[] = [
@@ -72,6 +73,7 @@ export const RENTAL_PROMO_SLIDES: PromoSlide[] = [
     subtitle: 'Private carrier lines for WhatsApp, Telegram, Google, PayPal & 2,200+ services.',
     ctaText: 'Select Service',
     action: 'picker',
+    image: 'https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&w=1400&q=85',
   },
   {
     id: 'promo-2',
@@ -80,14 +82,16 @@ export const RENTAL_PROMO_SLIDES: PromoSlide[] = [
     subtitle: 'Keep your dedicated number from 1 to 365 days. Unlimited SMS with no message drops.',
     ctaText: 'View Options',
     action: 'info',
+    image: 'https://images.unsplash.com/photo-1518005020951-eccb494ad742?auto=format&fit=crop&w=1400&q=85',
   },
   {
     id: 'promo-3',
     badge: 'PROMO SLOT',
     title: 'High-Impact Advertisement Strip',
-    subtitle: 'Clean banner strip reserved for real-time promotions, discounts, and brand campaigns.',
+    subtitle: 'A dedicated line for the services you use, with flexible rental periods.',
     ctaText: 'Learn More',
     action: 'info',
+    image: 'https://images.unsplash.com/photo-1470770841072-f978cf4d019e?auto=format&fit=crop&w=1400&q=85',
   },
 ];
 
@@ -317,7 +321,7 @@ export function RentalPage({
       {screen === 'home' ? (
         <main className="rsm-body">
           {/* COMPACT PROMO STRIP PLACEHOLDER */}
-          <section className="rsm-promo-strip" aria-label="Promotion banner">
+          <section className="rsm-promo-strip" data-promo-slide={activePromo.id} style={{ backgroundImage: `linear-gradient(90deg, rgba(7,18,42,.92) 0%, rgba(7,18,42,.76) 52%, rgba(7,18,42,.30) 100%), url("${activePromo.image}")` }} aria-label="Promotion banner">
             <div className="rsm-promo-content">
               <div className="rsm-promo-badge">
                 <Sparkles size={11} />
@@ -461,7 +465,7 @@ export function RentalPage({
       {screen === 'flow' ? (
         <main className="rsm-body">
           {/* COMPACT PROMO STRIP IN FLOW */}
-          <section className="rsm-promo-strip compact" aria-label="Promotion banner">
+          <section className="rsm-promo-strip compact" data-promo-slide={activePromo.id} style={{ backgroundImage: `linear-gradient(90deg, rgba(7,18,42,.92) 0%, rgba(7,18,42,.72) 58%, rgba(7,18,42,.24) 100%), url("${activePromo.image}")` }} aria-label="Promotion banner">
             <div className="rsm-promo-content">
               <div className="rsm-promo-badge">
                 <Sparkles size={11} />
