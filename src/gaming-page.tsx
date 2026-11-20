@@ -346,6 +346,27 @@ export function GamingPage({
         </aside>
 
         <div className="gm-col">
+          {/* Mobile: horizontal letter chips (sidebar collapses to this) */}
+          <div className="gm-chip-row" aria-label="Filter games by letter">
+            <button
+              type="button"
+              className={`gm-chip${activeLetter === null ? ' active' : ''}`}
+              onClick={() => pickLetter(null)}
+            >
+              All
+            </button>
+            {letters.map((l) => (
+              <button
+                key={l}
+                type="button"
+                className={`gm-chip${activeLetter === l ? ' active' : ''}`}
+                onClick={() => pickLetter(activeLetter === l ? null : l)}
+              >
+                {l}
+              </button>
+            ))}
+          </div>
+
       {/* Controls: search + sort */}
       <div className="gm-controls">
         <div className="gm-search-row">
@@ -425,27 +446,6 @@ export function GamingPage({
           ) : null}
         </div>
       )}
-
-        {/* Mobile: horizontal letter chips (sidebar collapses to this) */}
-        <div className="gm-chip-row" aria-label="Filter games by letter">
-          <button
-            type="button"
-            className={`gm-chip${activeLetter === null ? ' active' : ''}`}
-            onClick={() => pickLetter(null)}
-          >
-            All
-          </button>
-          {letters.map((l) => (
-            <button
-              key={l}
-              type="button"
-              className={`gm-chip${activeLetter === l ? ' active' : ''}`}
-              onClick={() => pickLetter(activeLetter === l ? null : l)}
-            >
-              {l}
-            </button>
-          ))}
-        </div>
         </div>
       </div>
 
