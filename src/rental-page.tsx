@@ -110,6 +110,68 @@ const DURATION_OPTIONS = [
   { id: '365d', label: '1 Year', days: 365 },
 ];
 
+/**
+ * Real US area codes (NANP) — provider grade list arrives with the API step;
+ * these are the actual public codes so the picker is genuine today.
+ */
+const US_AREA_CODES: { code: string; place: string }[] = [
+  { code: '205', place: 'Birmingham, AL' }, { code: '251', place: 'Mobile, AL' },
+  { code: '907', place: 'Anchorage, AK' }, { code: '602', place: 'Phoenix, AZ' },
+  { code: '520', place: 'Tucson, AZ' }, { code: '214', place: 'Dallas, TX' },
+  { code: '281', place: 'Houston, TX' }, { code: '512', place: 'Austin, TX' },
+  { code: '713', place: 'Houston, TX' }, { code: '817', place: 'Fort Worth, TX' },
+  { code: '915', place: 'El Paso, TX' }, { code: '972', place: 'Dallas, TX' },
+  { code: '310', place: 'Los Angeles, CA' }, { code: '323', place: 'Los Angeles, CA' },
+  { code: '408', place: 'San Jose, CA' }, { code: '415', place: 'San Francisco, CA' },
+  { code: '510', place: 'Oakland, CA' }, { code: '619', place: 'San Diego, CA' },
+  { code: '626', place: 'Pasadena, CA' }, { code: '650', place: 'San Mateo, CA' },
+  { code: '707', place: 'Napa/Santa Rosa, CA' }, { code: '714', place: 'Anaheim, CA' },
+  { code: '760', place: 'Palm Springs, CA' }, { code: '805', place: 'Santa Barbara, CA' },
+  { code: '818', place: 'San Fernando Valley, CA' }, { code: '858', place: 'San Diego, CA' },
+  { code: '949', place: 'Irvine, CA' }, { code: '303', place: 'Denver, CO' },
+  { code: '719', place: 'Colorado Springs, CO' }, { code: '970', place: 'Fort Collins, CO' },
+  { code: '202', place: 'Washington, DC' }, { code: '305', place: 'Miami, FL' },
+  { code: '321', place: 'Orlando, FL' }, { code: '407', place: 'Orlando, FL' },
+  { code: '813', place: 'Tampa, FL' }, { code: '904', place: 'Jacksonville, FL' },
+  { code: '941', place: 'Sarasota, FL' }, { code: '954', place: 'Fort Lauderdale, FL' },
+  { code: '404', place: 'Atlanta, GA' }, { code: '470', place: 'Atlanta, GA' },
+  { code: '706', place: 'Augusta, GA' }, { code: '770', place: 'Marietta, GA' },
+  { code: '808', place: 'Honolulu, HI' }, { code: '312', place: 'Chicago, IL' },
+  { code: '630', place: 'Naperville, IL' }, { code: '773', place: 'Chicago, IL' },
+  { code: '815', place: 'Rockford, IL' }, { code: '317', place: 'Indianapolis, IN' },
+  { code: '574', place: 'South Bend, IN' }, { code: '316', place: 'Wichita, KS' },
+  { code: '502', place: 'Louisville, KY' }, { code: '225', place: 'Baton Rouge, LA' },
+  { code: '410', place: 'Baltimore, MD' }, { code: '617', place: 'Boston, MA' },
+  { code: '781', place: 'Waltham, MA' }, { code: '313', place: 'Detroit, MI' },
+  { code: '616', place: 'Grand Rapids, MI' }, { code: '651', place: 'St Paul, MN' },
+  { code: '314', place: 'St Louis, MO' }, { code: '702', place: 'Las Vegas, NV' },
+  { code: '603', place: 'Manchester, NH' }, { code: '201', place: 'Jersey City, NJ' },
+  { code: '609', place: 'Trenton, NJ' }, { code: '212', place: 'New York, NY' },
+  { code: '315', place: 'Syracuse, NY' }, { code: '347', place: 'New York, NY' },
+  { code: '516', place: 'Nassau County, NY' }, { code: '518', place: 'Albany, NY' },
+  { code: '585', place: 'Rochester, NY' }, { code: '646', place: 'Manhattan, NY' },
+  { code: '718', place: 'Brooklyn/Queens, NY' }, { code: '914', place: 'Westchester, NY' },
+  { code: '917', place: 'New York, NY' }, { code: '704', place: 'Charlotte, NC' },
+  { code: '919', place: 'Raleigh, NC' }, { code: '216', place: 'Cleveland, OH' },
+  { code: '419', place: 'Toledo, OH' }, { code: '513', place: 'Cincinnati, OH' },
+  { code: '614', place: 'Columbus, OH' }, { code: '405', place: 'Oklahoma City, OK' },
+  { code: '215', place: 'Philadelphia, PA' }, { code: '267', place: 'Philadelphia, PA' },
+  { code: '412', place: 'Pittsburgh, PA' }, { code: '401', place: 'Providence, RI' },
+  { code: '803', place: 'Columbia, SC' }, { code: '843', place: 'Charleston, SC' },
+  { code: '615', place: 'Nashville, TN' }, { code: '901', place: 'Memphis, TN' },
+  { code: '210', place: 'San Antonio, TX' }, { code: '254', place: 'Waco, TX' },
+  { code: '361', place: 'Corpus Christi, TX' }, { code: '469', place: 'Dallas, TX' },
+  { code: '682', place: 'Fort Worth, TX' }, { code: '806', place: 'Amarillo, TX' },
+  { code: '936', place: 'Conroe, TX' }, { code: '956', place: 'Laredo, TX' },
+  { code: '435', place: 'St George, UT' }, { code: '801', place: 'Salt Lake City, UT' },
+  { code: '703', place: 'Arlington, VA' }, { code: '757', place: 'Norfolk, VA' },
+  { code: '804', place: 'Richmond, VA' }, { code: '206', place: 'Seattle, WA' },
+  { code: '253', place: 'Tacoma, WA' }, { code: '360', place: 'Olympia, WA' },
+  { code: '425', place: 'Bellevue, WA' }, { code: '509', place: 'Spokane, WA' },
+  { code: '262', place: 'Kenosha, WI' }, { code: '414', place: 'Milwaukee, WI' },
+  { code: '608', place: 'Madison, WI' }, { code: '304', place: 'Charleston, WV' },
+];
+
 const fmtDate = (iso: string | null) => {
   if (!iso) return '';
   const d = new Date(iso);
@@ -142,6 +204,11 @@ export function RentalPage({
 
   /* promo carousel state */
   const [promoIdx, setPromoIdx] = useState(0);
+
+  /* area code state */
+  const [areaCode, setAreaCode] = useState<{ code: string; place: string } | null>(null);
+  const [acOpen, setAcOpen] = useState(false);
+  const [acQuery, setAcQuery] = useState('');
 
   /* live service list */
   const [services, setServices] = useState<string[] | null>(null);
@@ -232,6 +299,8 @@ export function RentalPage({
   const liveCount = liveRentals.length;
 
   const openType = (t: RentalType) => {
+    setAcOpen(false);
+    setAcQuery('');
     setType(t);
     setService(null);
     setMode('one-time');
@@ -573,29 +642,83 @@ export function RentalPage({
               </button>
             </div>
 
-            {/* DURATION SELECTION */}
-            <div className="rsm-form-field">
-              <div className="rsm-field-top">
-                <label className="rsm-label">DURATION</label>
-                <span className="rsm-field-pill-note">
-                  <Info size={11} /> Prices being finalized
-                </span>
-              </div>
+            {service ? (
+              <>
+                {/* DURATION SELECTION (appears only once a service is selected) */}
+                <div className="rsm-form-field">
+                  <div className="rsm-field-top">
+                    <label className="rsm-label">DURATION</label>
+                    <span className="rsm-field-pill-note">
+                      <Info size={11} /> Prices being finalized
+                    </span>
+                  </div>
 
-              <div className="rsm-durations-grid">
-                {DURATION_OPTIONS.map((d) => (
+                  <div className="rsm-durations-grid">
+                    {DURATION_OPTIONS.map((d) => (
+                      <button
+                        type="button"
+                        key={d.id}
+                        className={`rsm-duration-pill ${selectedDuration === d.id ? 'active' : ''}`}
+                        onClick={() => setSelectedDuration(d.id)}
+                      >
+                        <span className="rsm-dur-label">{d.label}</span>
+                        <span className="rsm-dur-state">TBD</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* AREA CODE (optional — popup picker) */}
+                <div className="rsm-form-field">
+                  <div className="rsm-field-top">
+                    <label className="rsm-label">AREA CODE</label>
+                    <span className="rsm-field-hint">Optional</span>
+                  </div>
+
                   <button
                     type="button"
-                    key={d.id}
-                    className={`rsm-duration-pill ${selectedDuration === d.id ? 'active' : ''}`}
-                    onClick={() => setSelectedDuration(d.id)}
+                    className={`rsm-areacode-trigger ${areaCode ? 'selected' : ''}`}
+                    onClick={() => setAcOpen(true)}
                   >
-                    <span className="rsm-dur-label">{d.label}</span>
-                    <span className="rsm-dur-state">TBD</span>
+                    <div className="rsm-areacode-left">
+                      <Hash size={16} />
+                      <div className="rsm-areacode-copy">
+                        {areaCode ? (
+                          <>
+                            <strong>{areaCode.code}</strong>
+                            <small>{areaCode.place}</small>
+                          </>
+                        ) : (
+                          <>
+                            <strong className="rsm-areacode-placeholder">No Area Code Selected (Optional)</strong>
+                            <small>Tap to pick a US area code</small>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                    {areaCode ? (
+                      <span
+                        className="rsm-areacode-clear"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setAreaCode(null);
+                        }}
+                        aria-label="Clear area code"
+                      >
+                        <X size={14} />
+                      </span>
+                    ) : (
+                      <ChevronDown size={18} className="rsm-service-chevron" />
+                    )}
                   </button>
-                ))}
+                </div>
+              </>
+            ) : (
+              <div className="rsm-gated-hint">
+                <Info size={14} />
+                <p>Select a service to see available durations, area codes and pricing.</p>
               </div>
-            </div>
+            )}
 
             {/* FINTECH ASSURANCE NOTE */}
             <div className="rsm-assurance-callout">
@@ -722,6 +845,129 @@ export function RentalPage({
             </div>
           )}
         </main>
+      ) : null}
+
+      {/* ----------------- AREA CODE PICKER BOTTOM SHEET ----------------- */}
+      {acOpen ? (
+        <div className="rsm-modal-backdrop" onClick={() => setAcOpen(false)}>
+          <div
+            className="rsm-modal-sheet"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-label="Select Area Code"
+          >
+            <div className="rsm-modal-handle" />
+
+            <div className="rsm-modal-head">
+              <div className="rsm-modal-head-titles">
+                <strong>Select Area Code</strong>
+                <small>Optional — leave blank for any available US code</small>
+              </div>
+              <button
+                type="button"
+                className="rsm-modal-close-btn"
+                onClick={() => setAcOpen(false)}
+                aria-label="Close area code selector"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="rsm-modal-search-wrapper">
+              <div className="rsm-modal-search-bar">
+                <Search size={16} />
+                <input
+                  type="search"
+                  placeholder="Search code or city (e.g. 415, New York)…"
+                  value={acQuery}
+                  onChange={(e) => setAcQuery(e.target.value)}
+                  aria-label="Search area code"
+                  autoFocus
+                />
+                {acQuery ? (
+                  <button
+                    type="button"
+                    className="rsm-search-clear-btn"
+                    onClick={() => setAcQuery('')}
+                    aria-label="Clear search"
+                  >
+                    <X size={14} />
+                  </button>
+                ) : null}
+              </div>
+            </div>
+
+            {areaCode ? (
+              <div className="rsm-ac-selected-row">
+                <span className="rsm-ac-selected-copy">
+                  <Check size={13} /> Any area code (clear selection)
+                </span>
+                <button
+                  type="button"
+                  className="rsm-ac-any-btn"
+                  onClick={() => {
+                    setAreaCode(null);
+                    setAcOpen(false);
+                  }}
+                >
+                  Use any
+                </button>
+              </div>
+            ) : null}
+
+            <div className="rsm-modal-body">
+              <ul className="rsm-service-list">
+                {US_AREA_CODES
+                  .filter((a) => {
+                    const q = acQuery.trim().toLowerCase();
+                    if (!q) return true;
+                    return a.code.includes(q) || a.place.toLowerCase().includes(q);
+                  })
+                  .map((a) => (
+                    <li key={a.code}>
+                      <button
+                        type="button"
+                        className={`rsm-service-item-btn ${areaCode?.code === a.code ? 'active' : ''}`}
+                        onClick={() => {
+                          setAreaCode(a);
+                          setAcOpen(false);
+                          setAcQuery('');
+                        }}
+                      >
+                        <div className="rsm-service-item-left">
+                          <span className="rsm-service-item-icon rsm-ac-icon">
+                            <Hash size={14} />
+                          </span>
+                          <span className="rsm-service-item-name rsm-ac-code">{a.code}</span>
+                          <span className="rsm-ac-place">{a.place}</span>
+                        </div>
+                        {areaCode?.code === a.code ? (
+                          <span className="rsm-service-selected-check">
+                            <Check size={16} />
+                          </span>
+                        ) : null}
+                      </button>
+                    </li>
+                  ))}
+                {!US_AREA_CODES.filter((a) => {
+                  const q = acQuery.trim().toLowerCase();
+                  return !q || a.code.includes(q) || a.place.toLowerCase().includes(q);
+                }).length ? (
+                  <li className="rsm-service-empty-item">
+                    <p>No area code matches “{acQuery}”.</p>
+                    <button
+                      type="button"
+                      className="rsm-clear-query-btn"
+                      onClick={() => setAcQuery('')}
+                    >
+                      Reset search
+                    </button>
+                  </li>
+                ) : null}
+              </ul>
+            </div>
+          </div>
+        </div>
       ) : null}
 
       {/* ----------------- SERVICE PICKER BOTTOM SHEET ----------------- */}

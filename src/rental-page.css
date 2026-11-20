@@ -1496,3 +1496,36 @@
   .rsm-promo-strip.compact .rsm-promo-title{font-size:11.5px}
   .rsm-promo-strip.compact .rsm-promo-desc{font-size:9px}
 }
+
+/* ================= AREA CODE FIELD & PICKER ================= */
+.rsm-gated-hint{display:flex;align-items:center;gap:10px;padding:14px;border:1px dashed #c9d6f2;background:#f6f9ff;border-radius:12px;color:#42526e}
+.rsm-gated-hint p{font-size:12.5px;font-weight:500;margin:0;color:#42526e}
+.rsm-gated-hint svg{color:#0b63f6;flex-shrink:0}
+
+.rsm-field-hint{font-size:10px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:#8a97ad}
+
+.rsm-areacode-trigger{width:100%;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px;background:#fff;border:1.5px solid #dfe6f1;border-radius:12px;cursor:pointer;text-align:left;transition:border-color .15s ease,box-shadow .15s ease}
+.rsm-areacode-trigger:hover{border-color:#b9cbf3}
+.rsm-areacode-trigger.selected{border-color:#0b63f6;box-shadow:0 0 0 3px rgba(11,99,246,.10)}
+.rsm-areacode-left{display:flex;align-items:center;gap:10px;min-width:0}
+.rsm-areacode-left>svg{color:#0b63f6;flex-shrink:0}
+.rsm-areacode-copy{display:flex;flex-direction:column;gap:1px;min-width:0}
+.rsm-areacode-copy strong{font-size:13.5px;font-weight:700;color:#0e1726;letter-spacing:.02em}
+.rsm-areacode-copy small{font-size:11px;color:#7c8aa1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rsm-areacode-placeholder{color:#7c8aa1!important;font-weight:600!important}
+.rsm-areacode-clear{display:flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:#eef2fb;color:#42526e;flex-shrink:0;transition:background .15s ease}
+.rsm-areacode-clear:hover{background:#e2e9f9;color:#0b63f6}
+
+.rsm-ac-selected-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 14px;border-bottom:1px solid #eef2f8}
+.rsm-ac-selected-copy{display:flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:#42526e}
+.rsm-ac-selected-copy svg{color:#0b63f6}
+.rsm-ac-any-btn{font-size:11px;font-weight:700;color:#0b63f6;background:rgba(11,99,246,.08);border:none;border-radius:8px;padding:5px 12px;cursor:pointer;transition:background .15s ease}
+.rsm-ac-any-btn:hover{background:rgba(11,99,246,.16)}
+.rsm-ac-code{font-weight:800;letter-spacing:.03em}
+.rsm-ac-place{font-size:12px;color:#7c8aa1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rsm-ac-icon{background:rgba(11,99,246,.08)!important}
+
+@media(max-width:420px){
+  .rsm-areacode-trigger{padding:11px 12px}
+  .rsm-areacode-copy strong{font-size:12.5px}
+}
