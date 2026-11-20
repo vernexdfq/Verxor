@@ -415,7 +415,7 @@ export function RentalPage({
               title="Wallet balance — click to fund"
             >
               <Wallet size={12} />
-              <span>₦{session.balanceNgn.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+              <span>₦{Math.round(session.balanceNgn).toLocaleString('en-NG')}</span>
             </button>
           )}
 
