@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { s2tConfigured, s2tGameVariants, s2tProductDetail, type S2TProductDetail } from '@/lib/providers/shop2topup';
-import { gamingApiNgn, gamingRetailNgn, resolveFxRateNgn } from '@/lib/gaming-pricing';
-import { resolvePanelClient } from '@/lib/panel-auth';
+import { gamingAudienceNgn, loadGamingMarkups, resolveFxRateNgn, resolveGamingAudience } from '@/lib/gaming-pricing';
 import { cachedDetail, detailFresh, saveDetail } from '@/lib/gaming-cache';
 
 /**
@@ -57,15 +56,16 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  // Child panels see API-tier prices for the buy sheet as well.
-  const panel = await resolvePanelClient(req);
-  const priceNgn = panel ? gamingApiNgn : gamingRetailNgn;
+  // Audience-aware pricing (retail / child panel / API) from admin_settings.
+  const audience = await resolveGamingAudience(req);
+  const markups = await loadGamingMarkups();
+  const priceNgn = (usd: number, rate: number) => gamingAudienceNgn(usd, audience, markups, rate);
   const rate = await resolveFxRateNgn();
 
   return NextResponse.json({
     ok: true,
     rate,
-    audience: panel ? 'child' : 'retail',
+    audience,
     product: {
       id: detail.id,
       name: detail.name,

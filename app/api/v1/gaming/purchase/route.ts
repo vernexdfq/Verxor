@@ -5,7 +5,7 @@ import {
   s2tItemPrice,
   s2tProductDetail,
 } from '@/lib/providers/shop2topup';
-import { gamingApiNgn, gamingRetailNgn, resolveFxRateNgn } from '@/lib/gaming-pricing';
+import { gamingAudienceNgn, loadGamingMarkups, resolveFxRateNgn, resolveGamingAudience } from '@/lib/gaming-pricing';
 import { resolvePanelClient, panelAllowsGaming } from '@/lib/panel-auth';
 import { notifyAdmin } from '@/lib/notify';
 
@@ -195,8 +195,10 @@ export async function POST(req: NextRequest) {
 
   const rate = await resolveFxRateNgn();
   const baseUsdCost = variation.priceUsd * quantity;
-  // Child panels pay the API tier; retail pays the retail tier. Same snapshot.
-  const totalNgn = (panel ? gamingApiNgn : gamingRetailNgn)(baseUsdCost, rate);
+  // Audience-aware tiers (retail / child / API) from admin_settings gaming_markups.
+  const audience = await resolveGamingAudience(req);
+  const markups = await loadGamingMarkups();
+  const totalNgn = gamingAudienceNgn(baseUsdCost, audience, markups, rate);
   if (!totalNgn || totalNgn <= 0) {
     return NextResponse.json({ ok: false, error: 'Could not compute the price. Try again.' }, { status: 500 });
   }
@@ -263,7 +265,7 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({
     ok: true,
-    audience: panel ? 'child' : 'retail',
+    audience,
     order: {
       ref: debitRef,
       providerOrderId: result.order?.orderId,

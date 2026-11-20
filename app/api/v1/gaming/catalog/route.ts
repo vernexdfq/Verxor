@@ -8,8 +8,7 @@ import {
   s2tProductDetail,
   type S2TProductDetail,
 } from '@/lib/providers/shop2topup';
-import { gamingApiNgn, gamingRetailNgn, resolveFxRateNgn } from '@/lib/gaming-pricing';
-import { resolvePanelClient } from '@/lib/panel-auth';
+import { gamingAudienceNgn, loadGamingMarkups, resolveFxRateNgn, resolveGamingAudience } from '@/lib/gaming-pricing';
 import {
   cachedDetail,
   cachedProducts,
@@ -42,11 +41,11 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: false, error: 'Gaming provider not configured' }, { status: 503 });
   }
 
-  // Child panels call with their panel key: they see child-panel (API-tier)
-  // prices instead of retail, from the same Supabase snapshot.
-  const panel = await resolvePanelClient(req);
-  const priceNgn = panel ? gamingApiNgn : gamingRetailNgn;
-  const audience = panel ? 'child' : 'retail';
+  // Audience-aware pricing (retail / child panel / API) from admin_settings
+  // 'gaming_markups' — same snapshot, different tier multipliers.
+  const audience = await resolveGamingAudience(req);
+  const markups = await loadGamingMarkups();
+  const priceNgn = (usd: number, rate: number) => gamingAudienceNgn(usd, audience, markups, rate);
 
   // Full A–Z/Popular list: one grid with every game, priced "from" its
   // cheapest option. Details are cached in gaming_product_details under
