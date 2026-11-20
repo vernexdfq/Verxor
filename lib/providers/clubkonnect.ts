@@ -1,5 +1,5 @@
 /**
- * ClubKonnect (Nellobyte Systems) — airtime + electricity + cable TV provider.
+ * ClubKonnect (Nellobyte Systems) — airtime + data + electricity + cable TV provider.
  * Auth: UserID + APIKey query params
  * Base: CLUBKONNECT_BASE_URL (default https://www.nellobytesystems.com)
  *
@@ -434,7 +434,7 @@ export async function purchaseElectricity(opts: {
   throw new Error(`${base}${balNote}`);
 }
 
-/* ─── Cable TV (DStv / GOtv / StarTimes) ─────────────────────────────── */
+/* ─── Cable TV (DStv / GOtv / StarTimes) ────────────────────────────── */
 
 export type CkCableProvider = 'dstv' | 'gotv' | 'startimes';
 
@@ -588,3 +588,86 @@ export async function purchaseCable(opts: {
   const balNote = walletBal != null ? ` (wallet ₦${walletBal.toFixed(2)})` : '';
   throw new Error(`${base}${balNote}`);
 }
+
+/* ─── Data bundles (9mobile primary path) ────────────────────────────── */
+
+/**
+ * Purchase a data bundle — ClubKonnect APIDatabundleV1.asp.
+ * Params: MobileNetwork, DataPlan (PRODUCT_CODE, catalog ckCode), MobileNumber, RequestID.
+ * Used as the primary provider for 9mobile data (247 has no 9mobile bundles).
+ */
+export async function purchaseDataClubKonnect(opts: {
+  network: CkNetworkSlug;
+  /** DataPlan PRODUCT_CODE (data catalog `ckCode`) */
+  productCode: number | string;
+  phone: string;
+  /** Expected ₦ cost — wallet pre-check only */
+  amount?: number;
+  ref?: string;
+}) {
+  const mobileNetwork = CK_NETWORK_ID[opts.network];
+  if (!mobileNetwork) throw new Error('Invalid network');
+
+  const dataPlan = String(opts.productCode ?? '').trim();
+  if (!dataPlan) throw new Error('Data plan code is required');
+
+  const phone = normalizeNgPhone(opts.phone);
+  const requestId = opts.ref || makeRef('DB');
+
+  let walletBal: number | null = null;
+  const amount = Number(opts.amount);
+  if (Number.isFinite(amount) && amount > 0) {
+    try {
+      const w = await getClubKonnectBalance();
+      walletBal = w.balance;
+      if (walletBal < amount * 0.9) {
+        throw new Error(
+          `ClubKonnect wallet too low (₦${walletBal.toFixed(2)}). Need about ₦${Math.round(amount)} for this purchase — fund wallet first`,
+        );
+      }
+    } catch (e) {
+      if (e instanceof Error && e.message.includes('wallet too low')) throw e;
+      if (e instanceof Error && /invalid|credential|apikey|userid/i.test(e.message)) throw e;
+    }
+  }
+
+  const params = {
+    MobileNetwork: mobileNetwork,
+    DataPlan: dataPlan,
+    MobileNumber: phone,
+    RequestID: requestId,
+  };
+
+  let data: any = (await ckGet('APIDatabundleV1.asp', params)).data;
+  let status = pickStatus(data);
+  let statusCode = data?.statuscode ?? data?.statusCode;
+
+  if (isPaymentNotConfirmed(status)) {
+    await sleep(1500);
+    data = (await ckGet('APIDatabundleV1.asp', params)).data;
+    status = pickStatus(data);
+    statusCode = data?.statuscode ?? data?.statusCode;
+  }
+
+  if (isSuccessStatus(status) || String(statusCode) === '100' || String(statusCode) === '200') {
+    return {
+      ref: String(data?.requestid || data?.RequestID || data?.orderid || data?.orderId || requestId),
+      orderId: String(data?.orderid || data?.orderId || ''),
+      status: 'successful' as const,
+      phone,
+      network: opts.network,
+      productCode: dataPlan,
+      provider: 'clubkonnect' as const,
+      message: String(data?.remark || data?.orderremark || data?.message || 'Data purchase successful'),
+      raw: data,
+    };
+  }
+
+  const base = errorFromStatus(
+    status,
+    `Data purchase failed (${JSON.stringify(data).slice(0, 160)})`,
+  );
+  const balNote = walletBal != null ? ` (wallet ₦${walletBal.toFixed(2)})` : '';
+  throw new Error(`${base}${balNote}`);
+}
+
