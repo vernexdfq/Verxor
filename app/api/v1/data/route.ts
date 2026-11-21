@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isApi247Configured, purchaseData247 } from '@/lib/providers/api247';
 import { isClubKonnectConfigured, purchaseDataClubKonnect } from '@/lib/providers/clubkonnect';
-import { resolvePurchasePlan } from '@/lib/data-plan-sync';
+import { resolvePurchasePlan, childPriceFromCost } from '@/lib/data-plan-sync';
 import { supabaseConfigured } from '@/lib/supabase-admin';
-import { sendDataReceipt } from '@/lib/email/receipts';
+import { sendDataReceipt, sendPanelAdminOrderAlert } from '@/lib/email/receipts';
+import {
+  resolvePanelClient,
+  panelAllowsData,
+  getPanelAdminEmails,
+} from '@/lib/panel-auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,7 +27,6 @@ function supabaseBase() {
     .replace(/\/$/, '');
 }
 
-/** Resolve user from Bearer JWT only (never trust body.userId alone). */
 async function resolveUserIdFromJwt(req: NextRequest): Promise<string | null> {
   const auth = req.headers.get('authorization') || '';
   const token = auth.startsWith('Bearer ') ? auth.slice(7).trim() : '';
@@ -162,11 +166,51 @@ async function creditRetailWallet(
   });
 }
 
-/**
- * POST /api/v1/data
- * Auth → catalog price → debit → provider purchase → refund on fail
- * 9mobile: ClubKonnect (ckCode) first, 247 plan_id as fallback
- */
+async function debitResellerWallet(userId: string, amount: number, reference: string) {
+  const base = supabaseBase();
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!base || !serviceKey) throw new Error('Wallet backend not configured');
+  const res = await fetch(`${base}/rest/v1/rpc/debit_reseller_wallet`, {
+    method: 'POST',
+    headers: {
+      apikey: serviceKey,
+      Authorization: `Bearer ${serviceKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      p_user_id: userId,
+      p_amount: amount,
+      p_reference: reference,
+    }),
+  });
+  if (!res.ok) {
+    const errText = await res.text().catch(() => '');
+    if (/insufficient/i.test(errText)) throw new Error('INSUFFICIENT_BALANCE');
+    throw new Error(`Reseller debit failed: ${errText.slice(0, 200)}`);
+  }
+  return res.json().catch(() => ({}));
+}
+
+async function creditResellerWallet(userId: string, amount: number, reference: string) {
+  const base = supabaseBase();
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!base || !serviceKey || amount <= 0) return;
+  await fetch(`${base}/rest/v1/rpc/credit_reseller_wallet`, {
+    method: 'POST',
+    headers: {
+      apikey: serviceKey,
+      Authorization: `Bearer ${serviceKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      p_user_id: userId,
+      p_amount: amount,
+      p_reference: reference,
+    }),
+  }).catch(() => null);
+}
+
+/** POST /api/v1/data — retail or child-panel data purchase */
 export async function POST(req: NextRequest) {
   if (!isApi247Configured() && !isClubKonnectConfigured()) {
     return NextResponse.json(
@@ -215,15 +259,37 @@ export async function POST(req: NextRequest) {
   const catalog = resolved.plan;
   if (catalog.network !== network) {
     return NextResponse.json(
-      { ok: false, error: 'Plan does not match selected network. Open the correct network tab and try again.' },
+      {
+        ok: false,
+        error: 'Plan does not match selected network. Open the correct network tab and try again.',
+      },
       { status: 400 },
     );
   }
 
-  const amount = resolved.amount;
+  const retailAmount = resolved.amount;
   const phone = String(body.phone || '');
 
+  const panel = await resolvePanelClient(req);
+  if (panel && !panelAllowsData(panel)) {
+    return NextResponse.json(
+      { ok: false, error: 'This panel key is not allowed to purchase data.' },
+      { status: 403 },
+    );
+  }
+
+  const cost = Number(catalog.cost);
+  const childAmount =
+    Number.isFinite(cost) && cost > 0
+      ? childPriceFromCost(cost)
+      : Math.round(Number(catalog.apiPrice) || retailAmount);
+  const useReseller = Boolean(panel);
+  const amount = useReseller ? childAmount : retailAmount;
+
   let userId = await resolveUserIdFromJwt(req);
+  if (panel) {
+    userId = panel.walletUserId || userId;
+  }
   if (!userId) {
     const contactStr = String(body.contact || '').trim();
     const emailStr = String(body.email || '').trim();
@@ -245,7 +311,12 @@ export async function POST(req: NextRequest) {
 
   if (!userId) {
     return NextResponse.json(
-      { ok: false, error: 'Your session expired. Please sign in again to buy data.' },
+      {
+        ok: false,
+        error: panel
+          ? 'Panel wallet user is not linked.'
+          : 'Your session expired. Please sign in again to buy data.',
+      },
       { status: 401 },
     );
   }
@@ -259,19 +330,30 @@ export async function POST(req: NextRequest) {
 
   const netLabel = NETWORK_LABEL[network] || network.toUpperCase();
   const planLabel = `${catalog.size} (${catalog.days} day${catalog.days === '1' ? '' : 's'})`;
-  const successTitle = `${netLabel} data ${planLabel} purchase of ${formatNaira(amount)} was successful`;
-  const debitDesc = `${netLabel} data ${planLabel} of ${formatNaira(amount)}`;
-  const debitRef = body.ref || `dt-${userId.slice(0, 8)}-${Date.now()}`;
+  const successTitle = `${netLabel} data ${planLabel} purchase of ${formatNaira(retailAmount)} was successful`;
+  const debitDesc = useReseller
+    ? `${netLabel} data ${planLabel} wholesale ${formatNaira(amount)}`
+    : `${netLabel} data ${planLabel} of ${formatNaira(amount)}`;
+  const debitRef = String(body.ref || `dt-${userId.slice(0, 8)}-${Date.now()}`);
   let debited = false;
 
   try {
-    await debitRetailWallet(userId, amount, debitRef, debitDesc);
+    if (useReseller) {
+      await debitResellerWallet(userId, amount, debitRef);
+    } else {
+      await debitRetailWallet(userId, amount, debitRef, debitDesc);
+    }
     debited = true;
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Debit failed';
     if (msg === 'INSUFFICIENT_BALANCE') {
       return NextResponse.json(
-        { ok: false, error: 'Insufficient wallet balance. Fund your wallet first.' },
+        {
+          ok: false,
+          error: useReseller
+            ? 'Insufficient reseller wallet balance. Fund your panel wallet first.'
+            : 'Insufficient wallet balance. Fund your wallet first.',
+        },
         { status: 402 },
       );
     }
@@ -286,7 +368,6 @@ export async function POST(req: NextRequest) {
       ckCode > 0 &&
       isClubKonnectConfigured();
 
-    // 9mobile: ClubKonnect first (DataPlan = ckCode, MobileNetwork=03), then 247 plan_id fallback.
     let result: {
       ref: string;
       status: string;
@@ -332,18 +413,45 @@ export async function POST(req: NextRequest) {
       usedProvider = 'api247';
     }
 
-    await sendDataReceipt(userId, {
-      status: 'successful',
-      amountNgn: amount,
-      reference: result.ref || debitRef,
-      details: [
-        { label: 'Network', value: netLabel },
-        { label: 'Mobile number', value: phone },
-        { label: 'Bundle', value: planLabel },
-      ],
-    }).then((mail) => {
-      if (!mail.ok) console.warn('[email] Data receipt not sent:', mail.error);
-    });
+    if (!useReseller) {
+      await sendDataReceipt(userId, {
+        status: 'successful',
+        amountNgn: retailAmount,
+        reference: result.ref || debitRef,
+        details: [
+          { label: 'Network', value: netLabel },
+          { label: 'Mobile number', value: phone },
+          { label: 'Bundle', value: planLabel },
+        ],
+      }).then((mail) => {
+        if (!mail.ok) console.warn('[email] Data receipt not sent:', mail.error);
+      });
+    } else if (panel) {
+      try {
+        const adminEmails = await getPanelAdminEmails(panel);
+        await sendPanelAdminOrderAlert(adminEmails, {
+          panelName: panel.name,
+          adminEmail: adminEmails,
+          service: `Data (${netLabel})`,
+          orderId: result.ref || debitRef,
+          wholesaleAmountNgn: amount,
+          customerPaidNgn: retailAmount,
+          details: [
+            { label: 'Network', value: netLabel },
+            { label: 'Mobile number', value: phone },
+            { label: 'Bundle', value: planLabel },
+            { label: 'Plan ID', value: String(catalog.id) },
+            { label: 'Wholesale (child)', value: formatNaira(amount) },
+            { label: 'Retail face', value: formatNaira(retailAmount) },
+          ],
+          date: new Date(),
+        }).then((mail) => {
+          if (!mail.ok) console.warn('[email] Data panel admin alert not sent:', mail.error);
+        });
+      } catch (err) {
+        console.warn('[email] Data panel admin alert failed:', err);
+      }
+    }
 
     return NextResponse.json({
       ok: true,
@@ -351,7 +459,7 @@ export async function POST(req: NextRequest) {
         ref: result.ref,
         status: result.status,
         phone: result.phone,
-        amount,
+        amount: retailAmount,
         network,
         planId: catalog.id,
         planName: planLabel,
@@ -360,16 +468,24 @@ export async function POST(req: NextRequest) {
         title: successTitle,
       },
       balanceDebited: amount,
+      faceAmount: retailAmount,
+      childPrice: childAmount,
+      walletMode: useReseller ? 'reseller_wallet' : 'retail',
+      panel: panel ? { id: panel.id, name: panel.name } : null,
       priceSource: resolved.source,
     });
   } catch (err) {
     if (debited) {
-      await creditRetailWallet(
-        userId,
-        amount,
-        `refund-${debitRef}`,
-        `Refund — ${debitDesc}`,
-      );
+      if (useReseller) {
+        await creditResellerWallet(userId, amount, `refund-${debitRef}`);
+      } else {
+        await creditRetailWallet(
+          userId,
+          amount,
+          `refund-${debitRef}`,
+          `Refund — ${debitDesc}`,
+        );
+      }
     }
     const rawMessage = err instanceof Error ? err.message : 'Data purchase failed';
     let cleanMessage =
