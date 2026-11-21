@@ -443,7 +443,6 @@ export function GamingPage({
       ) : (
         <div className="gm-grid">
           {visible.map((p) => {
-            const art = tileArt({ id: p.id, name: p.name, image: p.image });
             return (
               <button key={p.id} type="button" className="gm-tile" onClick={() => void openProduct(`game-${p.id}`, p.image)}>
                 <div className="gm-tile-art">
