@@ -179,7 +179,7 @@ function DataPricingRow({ row, saving, saved, onSave }: {
     border: val.trim() ? '1px solid #2563eb' : '1px solid #e2e8f0',
   });
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr 1fr 1fr 90px', minWidth: 620,, gap: 8, alignItems: 'center', padding: '10px 14px', borderTop: '1px solid #f1f5f9', fontSize: 13 }}>
+    <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr 1fr 1fr 90px', minWidth: 620, gap: 8, alignItems: 'center', padding: '10px 14px', borderTop: '1px solid #f1f5f9', fontSize: 13 }}>
       <div style={{ minWidth: 0 }}>
         <strong style={{ display: 'block', color: '#0f172a' }}>{row.size}</strong>
         <span style={{ fontSize: 11, color: '#94a3b8' }}>#{row.planId} · {row.days}d{row.planType ? ' · ' + row.planType : ''}{row.hasOverride ? ' · edited' : ''}</span>
@@ -290,7 +290,7 @@ function DataPricingSection() {
 
       {!loading && !err ? (
         <div style={{ border: '1px solid #e2e8f0', borderRadius: 14, overflowX: 'auto', background: '#fff' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr 1fr 1fr 90px', minWidth: 620,, gap: 8, padding: '10px 14px', background: '#f8fafc', fontSize: 11, fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr 1fr 1fr 90px', minWidth: 620, gap: 8, padding: '10px 14px', background: '#f8fafc', fontSize: 11, fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>
             <span>Bundle</span><span>Cost (own)</span><span>Retail</span><span>API</span><span>Child</span><span></span>
           </div>
           {filtered.map((r) => (
