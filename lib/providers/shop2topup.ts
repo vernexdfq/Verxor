@@ -153,9 +153,8 @@ export async function s2tBigCategories(): Promise<S2TCategory[]> {
     image_url?: string | null;
     image?: string | null;
   };
-  const rows = await s2tRequest<Row[]>('/catalog/big-categories?for_ui=true').catch(
-    () => bigCategoriesCache?.value || [],
-  );
+  const rows = await s2tRequest<Row[]>('/catalog/big-categories?for_ui=true').catch(() => null);
+  if (!rows && bigCategoriesCache) return bigCategoriesCache.value;
   const raw = (Array.isArray(rows) ? rows : []).map((r) => {
     const supplied = String(r.image_url || r.image || '').trim();
     const image = supplied.startsWith('//')
