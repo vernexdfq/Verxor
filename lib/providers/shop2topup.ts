@@ -31,7 +31,7 @@
 
 const S2T_BASE = 'https://shop2topup.com/api/endpoints/v1';
 
-export type S2TCategory = { id: string; name: string };
+export type S2TCategory = { id: string; name: string; image?: string | null };
 
 export type S2TProduct = { id: string; name: string };
 
@@ -139,11 +139,12 @@ function popularWeight(name: string): number {
 
 /** All big categories (UI category chips), trending first then A–Z. */
 export async function s2tBigCategories(): Promise<S2TCategory[]> {
-  type Row = { id: number; name: string };
-  const rows = await s2tRequest<{ id: number; name: string }[]>('/catalog/big-categories').catch(() => [] as Row[]);
+  type Row = { id: number; name: string; image_url?: string | null; image?: string | null };
+  const rows = await s2tRequest<Row[]>('/catalog/big-categories').catch(() => [] as Row[]);
   const raw = (Array.isArray(rows) ? rows : []).map((r) => ({
     id: String(r.id),
     name: String(r.name || 'Game'),
+    image: r.image_url || r.image || null,
   }));
   return raw.sort(
     (a, b) => popularWeight(a.name) - popularWeight(b.name) || a.name.localeCompare(b.name),
@@ -329,6 +330,7 @@ export async function s2tOrderStatus(providerOrderId: string): Promise<{ status?
 export async function s2tGameVariants(
   bigCategoryId: string,
   bigName?: string,
+  bigImage?: string | null,
 ): Promise<S2TProductDetail | null> {
   const products = await s2tProductsForBig(bigCategoryId);
   if (!products.length) return null;
@@ -344,7 +346,7 @@ export async function s2tGameVariants(
   return {
     id: `game-${bigCategoryId}`,
     name: name || 'Game',
-    image: null,
+    image: bigImage || null,
     fields: [],
     variations: products.map((p) => ({
       id: p.id,
