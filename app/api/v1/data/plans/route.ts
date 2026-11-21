@@ -7,15 +7,20 @@ export const dynamic = 'force-dynamic';
 
 const NETWORKS = new Set(['mtn', 'glo', '9mobile', 'airtel']);
 
+function childPriceOf(cost: number | undefined, apiPrice: number, retail: number): number {
+  const c = Number(cost);
+  if (Number.isFinite(c) && c > 0) return Math.ceil(c * 1.005);
+  const a = Number(apiPrice);
+  if (Number.isFinite(a) && a > 0) return Math.round(a);
+  return Math.round(retail);
+}
+
 /**
  * GET /api/v1/data/plans?network=mtn|glo|airtel|9mobile
- * Optional: omit network → all networks.
+ * Omit network → all networks.
  *
- * Auth:
- *  - Public / retail session: returns retail prices (price / retail).
- *  - Child panel (Bearer vx_panel_… or X-Api-Key): also returns childPrice + apiPrice;
- *    price is set to childPrice for convenience.
- *
+ * Public: retail prices.
+ * Panel (Bearer vx_panel_… / X-Api-Key): price = childPrice (cost+0.5% ceil).
  * Never exposes provider cost.
  */
 export async function GET(req: NextRequest) {
@@ -29,9 +34,10 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  const networks = networkParam && NETWORKS.has(networkParam)
-    ? [networkParam]
-    : ['mtn', 'airtel', 'glo', '9mobile'];
+  const networks =
+    networkParam && NETWORKS.has(networkParam)
+      ? [networkParam]
+      : ['mtn', 'airtel', 'glo', '9mobile'];
 
   const byNetwork: Record<string, unknown[]> = {};
   let total = 0;
@@ -44,15 +50,20 @@ export async function GET(req: NextRequest) {
     hiddenTotal += hidden;
     const mapped = plans.map((p) => {
       const live = toLivePlan(p);
+      const childPrice = childPriceOf(p.cost, p.apiPrice, p.retail);
+      const row = {
+        ...live,
+        network: p.network,
+        size: p.size,
+        retail: p.retail,
+        childPrice,
+        apiPrice: p.apiPrice,
+        tab: p.tab,
+      };
       if (panel) {
-        return {
-          ...live,
-          /** Panel convenience: price = child wholesale */
-          price: live.childPrice,
-          walletMode: 'reseller' as const,
-        };
+        return { ...row, price: childPrice, walletMode: 'reseller' as const };
       }
-      return live;
+      return row;
     });
     byNetwork[network] = mapped;
     total += mapped.length;
