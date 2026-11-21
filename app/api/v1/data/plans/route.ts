@@ -50,7 +50,11 @@ export async function GET(req: NextRequest) {
     hiddenTotal += hidden;
     const mapped = plans.map((p) => {
       const live = toLivePlan(p);
-      const childPrice = childPriceOf(p.cost, p.apiPrice, p.retail);
+      const ovChild = Number(p.childPriceOverride);
+      const childPrice =
+        Number.isFinite(ovChild) && ovChild > 0
+          ? Math.round(ovChild)
+          : childPriceOf(p.cost, p.apiPrice, p.retail);
       const row = {
         ...live,
         network: p.network,
