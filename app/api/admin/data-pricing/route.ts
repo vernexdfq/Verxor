@@ -69,6 +69,7 @@ export async function GET(req: NextRequest) {
       overrideCost: null, // not editable
       overrideRetail: o?.retail ?? null,
       overrideApi: o?.apiPrice ?? null,
+      overrideChild: o?.childPrice ?? null,
       hasOverride: Boolean(o),
     };
   });
@@ -87,6 +88,7 @@ export async function PUT(req: NextRequest) {
     cost?: number | null;
     retail?: number | null;
     apiPrice?: number | null;
+    childPrice?: number | null;
   };
   try {
     body = await req.json();
@@ -109,10 +111,11 @@ export async function PUT(req: NextRequest) {
     override_cost: null, // provider cost is live-synced, never overridden
     override_retail: clean(body.retail),
     override_api_price: clean(body.apiPrice),
+    override_child_price: clean(body.childPrice),
     active: true,
     updated_at: new Date().toISOString(),
   };
-  if (value.override_retail === null && value.override_api_price === null) {
+  if (value.override_retail === null && value.override_api_price === null && value.override_child_price === null) {
     const del = await fetch(`${base}/rest/v1/data_plan_overrides?plan_id=eq.${planId}`, {
       method: 'DELETE', headers: hdr, cache: 'no-store',
     });
