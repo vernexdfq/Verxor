@@ -1,4 +1,4 @@
-/** Existing supplier/publisher game artwork mapped to the live Shop2TopUp big-category IDs. */
+/** Existing supplier/publisher game artwork mapped to live Shop2TopUp big-category IDs. */
 export const S2T_GAME_ARTWORK: Record<string, string> = {
   "1": "https://shop2topup.com/api/public/img/bigctg_pubg_mobile.webp?w=512&q=80",
   "2": "https://shop2topup.com/api/public/img/ctg_free_fire.webp?w=512&q=80",
