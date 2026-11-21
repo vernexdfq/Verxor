@@ -88,9 +88,44 @@ async function creditResellerWallet(userId: string, amount: number, reference: s
 }
 
 /**
+ * Look up the exact amount a wallet was debited for an order by its
+ * debit reference, so a cancel refund matches the original charge
+ * (customer retail charge, or the exact child-panel wholesale charge).
+ */
+async function lookupChargeByRef(debitRef: string): Promise<number | null> {
+  const base = supabaseBase();
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!base || !serviceKey) return null;
+  try {
+    const res = await fetch(
+      `${base}/rest/v1/wallet_ledger?reference=eq.${encodeURIComponent(debitRef)}&select=amount_ngn,amount,amount_usd,meta&limit=1`,
+      {
+        headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}`, Accept: 'application/json' },
+        cache: 'no-store',
+      },
+    );
+    if (!res.ok) return null;
+    const rows = (await res.json().catch(() => [])) as Array<{
+      amount_ngn?: number | null;
+      amount?: number | null;
+      meta?: Record<string, unknown> | null;
+    }>;
+    const row = rows?.[0];
+    if (!row) return null;
+    const raw = Number(row.amount_ngn ?? row.amount ?? (row.meta as Record<string, unknown> | null)?.amountNgn);
+    const charge = Math.abs(Number(raw) || 0);
+    return Number.isFinite(charge) && charge > 0 ? charge : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * POST /api/v1/boost/cancel
  * Auth: retail JWT or panel key. Body: { orderId, amount?, userId?, walletMode? }
  * walletMode 'reseller_wallet' credits partner balance (panel path).
+ * debitRef: original debit reference — when provided the refund base is the
+ * exact charged amount from the ledger instead of a client-supplied amount.
  */
 export async function POST(req: NextRequest) {
   if (!isSmmConfigured()) {
@@ -106,6 +141,7 @@ export async function POST(req: NextRequest) {
     quantity?: number;
     userId?: string;
     walletMode?: string;
+    debitRef?: string;
   };
   try {
     body = await req.json();
@@ -175,10 +211,20 @@ export async function POST(req: NextRequest) {
     const amount = Number(body.amount);
     const quantity = Number(body.quantity);
 
+    // Exact refund base: prefer the original debit charge from the ledger
+    // (works for retail users and child panels alike). Only fall back to the
+    // client-supplied amount when no ledger row is found.
+    let refundBase = amount;
+    const debitRef = String(body.debitRef || '').trim();
+    if (debitRef) {
+      const charge = await lookupChargeByRef(debitRef);
+      if (charge != null) refundBase = charge;
+    }
+
     // Provider-exact refund: JAP charges only for what was delivered, so we
     // refund only the undelivered part. After the cancel is accepted, the
     // status endpoint reports `remains` = quantity not delivered.
-    let refundAmount = amount;
+    let refundAmount = refundBase;
     let remains: number | null = null;
     try {
       const st2 = await smmGetStatus(orderId);
@@ -190,7 +236,7 @@ export async function POST(req: NextRequest) {
     }
     if (remains != null && Number.isFinite(quantity) && quantity > 0) {
       const undelivered = Math.min(Math.max(remains, 0), quantity);
-      refundAmount = Math.round(amount * (undelivered / quantity) * 100) / 100;
+      refundAmount = Math.round(refundBase * (undelivered / quantity) * 100) / 100;
     }
 
     let refunded = false;
