@@ -104,18 +104,21 @@ export async function GET(req: NextRequest) {
 
     // Boost-first queries so boost orders can never be pushed out of view by
     // newer non-boost ledger rows (the old single 150-row all-kinds fetch did that).
+    // Reference prefixes cover every boost row family:
+    //   boost-<uid>-<ts> (retail/panel debit), boost-order-<japId> (provider row),
+    //   boost-cancel-<id> (cancel refunds), refund-boost-... (auto refunds).
     const qsBoost = new URLSearchParams({
       user_id: `eq.${userId}`,
-      or: '(reference.like.boost-*,(meta->>type).eq.boost,(meta->>product).eq.boost)',
+      or: '(reference.like.boost-*,reference.like.refund-boost-*)',
       order: 'created_at.desc',
-      limit: '200',
+      limit: '1000',
       select,
     });
     const qsKind = new URLSearchParams({
       user_id: `eq.${userId}`,
       kind: 'in.(boost,panel_boost_debit,panel_boost_refund)',
       order: 'created_at.desc',
-      limit: '200',
+      limit: '1000',
       select,
     });
 
