@@ -1469,6 +1469,35 @@ function AccountsPricingSection() {
     } catch { setMsg('Network error'); } finally { setBusy(false); }
   };
 
+  const groups: { id: 'retail' | 'wholesale'; label: string; hint: string }[] = [
+    { id: 'retail', label: 'Retail', hint: 'Customers buying on verxor.com — naira price rounds up' },
+    { id: 'wholesale', label: 'API users & Child Panel', hint: 'vx_panel_* keys and API users — whole naira' },
+  ];
+
+  return (
+    <>
+      {msg ? <div className="vxa-action-msg">{msg}</div> : null}
+
+      {loadError ? (
+        <div className="vxa-empty tall">
+          <strong>Could not load Buy Logs pricing settings</strong>
+          <p>Check that the server can reach the database, then reload.</p>
+        </div>
+      ) : (
+        <>
+          <div className="vxa-duo">
+            <div className="vxa-tile">
+              <span className="vxa-tile-label"><Percent size={14} /> GLOBAL NAIRA RATE</span>
+              <div className="vxa-rate-row">
+                <strong>₦{rate.toLocaleString('en-NG')}</strong>
+                <span className="vxa-rate-per">/ $1</span>
+              </div>
+              <p>Shared with all services — change it in the Overview daily rate. Applies to both Retail and API / Child Panel account prices.</p>
+            </div>
+            <div className="vxa-tile">
+              <span className="vxa-tile-label"><FileText size={14} /> HOW BUY LOGS PRICING WORKS</span>
+              <p className="vxa-price-formula">
+                Retail price = provider USD cost × retail multiplier × rate, then rounded up to the
                 nearest ₦{roundUp}. API and Child Panel price = provider USD cost × wholesale
                 multiplier × rate, whole naira. Everything is recomputed on the server at order
                 time — the customer can never send their own price.
