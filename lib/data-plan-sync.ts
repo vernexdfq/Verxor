@@ -34,6 +34,8 @@ export type SyncedPlan = CatalogPlan & {
   priceAdjusted?: boolean;
   /** Live 247 cost used for this response */
   liveCost?: number;
+  /** Optional admin override for the child-panel (wholesale) price */
+  childPriceOverride?: number;
 };
 
 let cache: { at: number; byId: Map<number, LivePlanRow> } | null = null;
@@ -168,7 +170,7 @@ export async function getSyncedPlansForNetwork(network: string): Promise<{
     if (o.cost) p.cost = o.cost;
     if (o.retail) p.retail = o.retail;
     if (o.apiPrice) p.apiPrice = o.apiPrice;
-    if (o.childPrice) p.price = o.childPrice;
+    if (o.childPrice) p.childPriceOverride = o.childPrice;
   }
   return { plans, source: 'live', hidden };
 }
@@ -219,7 +221,7 @@ export async function resolvePurchasePlan(planId: number): Promise<{
     if (o.cost) synced.cost = o.cost;
     if (o.retail) synced.retail = o.retail;
     if (o.apiPrice) synced.apiPrice = o.apiPrice;
-    if (o.childPrice) synced.price = o.childPrice;
+    if (o.childPrice) synced.childPriceOverride = o.childPrice;
   }
   const amount = Math.round(synced.retail);
   if (amount < 50) {
