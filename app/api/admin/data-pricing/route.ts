@@ -66,7 +66,7 @@ export async function GET(req: NextRequest) {
       defaultRetail: p.retail,
       defaultApiPrice: p.apiPrice,
       childPrice: childPriceOf(cost, p.apiPrice, p.retail),
-      overrideCost: o?.cost ?? null,
+      overrideCost: null, // not editable
       overrideRetail: o?.retail ?? null,
       overrideApi: o?.apiPrice ?? null,
       hasOverride: Boolean(o),
@@ -106,13 +106,13 @@ export async function PUT(req: NextRequest) {
   const value = {
     plan_id: planId,
     network: plan.network,
-    override_cost: clean(body.cost),
+    override_cost: null, // provider cost is live-synced, never overridden
     override_retail: clean(body.retail),
     override_api_price: clean(body.apiPrice),
     active: true,
     updated_at: new Date().toISOString(),
   };
-  if (value.override_cost === null && value.override_retail === null && value.override_api_price === null) {
+  if (value.override_retail === null && value.override_api_price === null) {
     const del = await fetch(`${base}/rest/v1/data_plan_overrides?plan_id=eq.${planId}`, {
       method: 'DELETE', headers: hdr, cache: 'no-store',
     });
