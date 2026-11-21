@@ -185,6 +185,7 @@ export async function fetchBoostOrders(): Promise<{
     startCount?: string;
     currency?: string;
   }>;
+  error?: string;
 }> {
   try {
     const { headers } = await authHeaders();
@@ -194,11 +195,18 @@ export async function fetchBoostOrders(): Promise<{
     });
     const data = await res.json().catch(() => ({} as any));
     if (!res.ok || !data.ok) {
-      return { ok: false, orders: [] };
+      // Surface the server's honest reason (or the HTTP status) so the page
+      // can tell the user apart from "no orders yet".
+      const error =
+        String(data?.error || '').trim() ||
+        (res.status === 401
+          ? 'Sign in to see your boost orders'
+          : `Could not load orders (${res.status})`);
+      return { ok: false, orders: [], error };
     }
     const orders = Array.isArray(data.orders) ? data.orders : [];
     return { ok: true, orders };
   } catch {
-    return { ok: false, orders: [] };
+    return { ok: false, orders: [], error: 'Network error while loading orders. Showing locally saved orders.' };
   }
 }

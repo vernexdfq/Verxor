@@ -70,39 +70,75 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: false, error: 'Sign in required', orders: [] }, { status: 401 });
   }
   if (!supabaseConfigured()) {
-    return NextResponse.json({ ok: true, orders: [], message: 'Wallet backend not configured' });
+    // Honest failure: the client keeps its local cache and shows an error,
+    // instead of silently rendering an empty history.
+    return NextResponse.json(
+      { ok: false, error: 'Wallet backend not configured', orders: [] },
+      { status: 503 },
+    );
   }
 
   const base = supabaseBase();
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!base || !serviceKey) {
-    return NextResponse.json({ ok: true, orders: [] });
+    return NextResponse.json(
+      { ok: false, error: 'Wallet backend not configured', orders: [] },
+      { status: 503 },
+    );
   }
 
   try {
-    const qs = new URLSearchParams({
+    const hdr = {
+      apikey: serviceKey,
+      Authorization: `Bearer ${serviceKey}`,
+      Accept: 'application/json',
+    };
+    const select = 'id,kind,amount_ngn,amount_usd,reference,meta,created_at';
+
+    // Boost-first queries so boost orders can never be pushed out of view by
+    // newer non-boost ledger rows (the old single 150-row all-kinds fetch did that).
+    const qsBoost = new URLSearchParams({
       user_id: `eq.${userId}`,
+      or: '(reference.like.boost-*,(meta->>type).eq.boost,(meta->>product).eq.boost)',
       order: 'created_at.desc',
-      limit: '150',
-      select: 'id,kind,amount_ngn,amount_usd,reference,meta,created_at',
+      limit: '200',
+      select,
     });
-    const url = `${base}/rest/v1/wallet_ledger?${qs.toString()}`;
-    const res = await fetch(url, {
-      headers: {
-        apikey: serviceKey,
-        Authorization: `Bearer ${serviceKey}`,
-        Accept: 'application/json',
-      },
-      cache: 'no-store',
+    const qsKind = new URLSearchParams({
+      user_id: `eq.${userId}`,
+      kind: 'in.(boost,panel_boost_debit,panel_boost_refund)',
+      order: 'created_at.desc',
+      limit: '200',
+      select,
     });
-    if (!res.ok) {
-      const t = await res.text().catch(() => '');
-      console.warn('[boost/orders] ledger fetch failed', res.status, t.slice(0, 200));
-      return NextResponse.json({ ok: true, orders: [] });
+
+    const [boostRes, kindRes] = await Promise.all([
+      fetch(`${base}/rest/v1/wallet_ledger?${qsBoost.toString()}`, { headers: hdr, cache: 'no-store' })
+        .catch(() => null),
+      fetch(`${base}/rest/v1/wallet_ledger?${qsKind.toString()}`, { headers: hdr, cache: 'no-store' })
+        .catch(() => null),
+    ]);
+    if (!boostRes?.ok && !kindRes?.ok) {
+      const failed = boostRes ?? kindRes;
+      const t = failed ? await failed.text().catch(() => '') : '';
+      console.warn('[boost/orders] ledger fetch failed', t.slice(0, 200));
+      return NextResponse.json(
+        { ok: false, error: 'Could not load your boost orders right now', orders: [] },
+        { status: 502 },
+      );
     }
-    const rows = (await res.json()) as LedgerRow[];
+    const boostRows = boostRes?.ok ? ((await boostRes.json().catch(() => [])) as LedgerRow[]) : [];
+    const kindRows = kindRes?.ok ? ((await kindRes.json().catch(() => [])) as LedgerRow[]) : [];
+    const byLedgerId = new Map<string, LedgerRow>();
+    for (const r of [...boostRows, ...kindRows]) {
+      if (r && !byLedgerId.has(String(r.id))) byLedgerId.set(String(r.id), r);
+    }
+    const rows = Array.from(byLedgerId.values()) as LedgerRow[];
     if (!Array.isArray(rows)) {
-      return NextResponse.json({ ok: true, orders: [] });
+      return NextResponse.json(
+        { ok: false, error: 'Could not load your boost orders right now', orders: [] },
+        { status: 502 },
+      );
     }
 
     type OrderOut = {

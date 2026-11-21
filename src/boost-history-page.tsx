@@ -94,6 +94,7 @@ export function BoostHistoryPage({
   const [refreshingId, setRefreshingId] = useState<string | null>(null);
   const [refreshingAll, setRefreshingAll] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const showToast = useCallback((msg: string) => {
     setToast(msg);
@@ -112,10 +113,16 @@ export function BoostHistoryPage({
     const res = await fetchBoostOrders();
     const local = readLocalOrders();
     if (!res.ok || !Array.isArray(res.orders)) {
-      if (local.length) setOrders(sortOrders(local));
+      // Honest state: show the real reason instead of a silently empty list.
+      setLoadError(res.error || 'Could not load your boost orders right now.');
+      if (local.length) {
+        setOrders(sortOrders(local));
+        setLoadError((res.error || 'Could not load your boost orders right now.') + ' Showing locally saved orders.');
+      }
       setLoading(false);
       return;
     }
+    setLoadError(null);
     const byId = new Map<string, HistoryOrder>();
     for (const o of local) {
       if (o && String(o.id || '')) byId.set(String(o.id), o);
@@ -282,6 +289,12 @@ export function BoostHistoryPage({
           </button>
         )}
       </header>
+
+      {loadError ? (
+        <div className="bh-load-error" role="alert">
+          {loadError}
+        </div>
+      ) : null}
 
       <div className="bh-toolbar">
         <button type="button" className="bh-refresh-all" onClick={refreshAll} disabled={refreshingAll}>
