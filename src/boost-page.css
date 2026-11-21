@@ -573,6 +573,7 @@
 .boost-order-badge.st-processing { background: #EFF6FF; color: #1D4ED8; }
 .boost-order-badge.st-completed { background: #ECFDF5; color: #047857; }
 .boost-order-badge.st-canceled { background: #FEE2E2; color: #B91C1C; }
+.boost-order-badge.st-unresolved { background: #F1F5F9; color: #475569; }
 .boost-order-details {
   display: grid;
   grid-template-columns: 1fr 1fr;

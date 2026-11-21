@@ -45,6 +45,7 @@ const STATUS_LABEL: Record<OrderStatus, string> = {
   partial: 'Partial',
   completed: 'Completed',
   canceled: 'Cancelled',
+  unresolved: 'Unresolved',
 };
 
 function formatNaira(n: number): string {

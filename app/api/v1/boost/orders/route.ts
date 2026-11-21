@@ -50,8 +50,9 @@ type LedgerRow = {
   description?: string | null;
 };
 
-function mapStatus(raw: unknown): 'pending' | 'processing' | 'partial' | 'completed' | 'canceled' {
+function mapStatus(raw: unknown): 'pending' | 'processing' | 'partial' | 'completed' | 'canceled' | 'unresolved' {
   const s = String(raw || '').toLowerCase();
+  if (s.includes('unresolved')) return 'unresolved';
   if (s.includes('partial')) return 'partial';
   if (s.includes('complete')) return 'completed';
   if (s.includes('cancel') || s.includes('refund')) return 'canceled';

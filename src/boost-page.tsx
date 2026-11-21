@@ -37,7 +37,7 @@ import {
 } from './boost/live-orders';
 import type { BoostPlatform, BoostService, BoostCategory, BoostCatalog } from '@/lib/providers/smm';
 
-export type OrderStatus = 'pending' | 'processing' | 'partial' | 'completed' | 'canceled';
+export type OrderStatus = 'pending' | 'processing' | 'partial' | 'completed' | 'canceled' | 'unresolved';
 
 export interface BoostOrder {
   id: string;

@@ -282,6 +282,7 @@
 .bh-badge.st-partial { background: #FFEDD5; color: #C2410C; }
 .bh-badge.st-completed { background: #ECFDF5; color: #047857; }
 .bh-badge.st-canceled { background: #FEE2E2; color: #B91C1C; }
+.bh-badge.st-unresolved { background: #F1F5F9; color: #475569; }
 
 .bh-grid {
   display: grid;
