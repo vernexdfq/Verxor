@@ -11,20 +11,27 @@ function supabaseBase() {
     .replace(/\/$/, '');
 }
 
-async function resolveUserId(req: NextRequest, bodyUserId?: string): Promise<string | null> {
-  if (bodyUserId) return bodyUserId;
+async function resolveUserId(req: NextRequest, queryUserId?: string): Promise<string | null> {
   const auth = req.headers.get('authorization') || '';
   const token = auth.startsWith('Bearer ') ? auth.slice(7).trim() : '';
-  if (!token || token.startsWith('vx_panel_')) return null;
+  // Soft session (same trust model as /api/v1/wallet/balance): a valid token
+  // always wins; the stored userId covers users whose access token expired
+  // while the 30-day "remember me" session is still active.
+  const fallback =
+    String(queryUserId || '').trim() ||
+    req.nextUrl.searchParams.get('userId')?.trim() ||
+    '';
+  if (!token) return fallback || null;
+  if (token.startsWith('vx_panel_')) return fallback || null;
   const base = supabaseBase();
   const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
-  if (!base || !anon) return null;
+  if (!base || !anon) return fallback || null;
   try {
     const res = await fetch(`${base}/auth/v1/user`, {
       headers: { apikey: anon, Authorization: `Bearer ${token}` },
       cache: 'no-store',
     });
-    if (!res.ok) return null;
+    if (!res.ok) return fallback || null;
     const u = (await res.json()) as { id?: string };
     return u.id || null;
   } catch {

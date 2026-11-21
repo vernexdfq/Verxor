@@ -188,8 +188,9 @@ export async function fetchBoostOrders(): Promise<{
   error?: string;
 }> {
   try {
-    const { headers } = await authHeaders();
-    const res = await fetch('/api/v1/boost/orders', {
+    const { headers, userId } = await authHeaders();
+    const qs = userId ? `?userId=${encodeURIComponent(userId)}` : '';
+    const res = await fetch(`/api/v1/boost/orders${qs}`, {
       headers,
       cache: 'no-store',
     });
