@@ -18,6 +18,7 @@ import {
   toLivePlan,
 } from '@/lib/data-catalog';
 import { fetchLiveDataPlans247, isApi247Configured } from '@/lib/providers/api247';
+import { loadOverrides } from '@/lib/data-overrides';
 
 export type LivePlanRow = {
   plan_id: number;
@@ -160,6 +161,14 @@ export async function getSyncedPlansForNetwork(network: string): Promise<{
     }
     plans.push(s);
   }
+  const ov = await loadOverrides();
+  for (const p of plans) {
+    const o = ov.get(p.id);
+    if (!o) continue;
+    if (o.cost) p.cost = o.cost;
+    if (o.retail) p.retail = o.retail;
+    if (o.apiPrice) p.apiPrice = o.apiPrice;
+  }
   return { plans, source: 'live', hidden };
 }
 
@@ -203,6 +212,12 @@ export async function resolvePurchasePlan(planId: number): Promise<{
       error: 'This plan is temporarily unavailable. Please choose another bundle.',
       status: 410,
     };
+  }
+  const o = (await loadOverrides()).get(catalog.id);
+  if (o) {
+    if (o.cost) synced.cost = o.cost;
+    if (o.retail) synced.retail = o.retail;
+    if (o.apiPrice) synced.apiPrice = o.apiPrice;
   }
   const amount = Math.round(synced.retail);
   if (amount < 50) {
