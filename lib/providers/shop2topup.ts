@@ -31,7 +31,7 @@
 
 const S2T_BASE = 'https://shop2topup.com/api/endpoints/v1';
 
-export type S2TCategory = { id: string; name: string };
+export type S2TCategory = { id: string; name: string; image?: string | null };
 
 export type S2TProduct = { id: string; name: string };
 
@@ -67,6 +67,11 @@ export type S2TOrderResult = {
 export type S2TAccount = { email?: string; wallet?: number };
 
 let lastError = '';
+
+// Cache the image-enabled category list briefly so artwork requests never add
+// repeated provider traffic while users browse or open a game option sheet.
+let bigCategoriesCache: { value: S2TCategory[]; at: number } | null = null;
+const BIG_CATEGORIES_TTL_MS = 10 * 60 * 1000;
 
 export function s2tConfigured(): boolean {
   return Boolean(process.env.SHOP2TOPUP_API_KEY);
@@ -137,17 +142,45 @@ function popularWeight(name: string): number {
   return i === -1 ? S2T_POPULAR.length + 1 : i;
 }
 
-/** All big categories (UI category chips), trending first then A–Z. */
+/** All big categories, including the provider's real cover artwork. */
 export async function s2tBigCategories(): Promise<S2TCategory[]> {
-  type Row = { id: number; name: string };
-  const rows = await s2tRequest<{ id: number; name: string }[]>('/catalog/big-categories').catch(() => [] as Row[]);
-  const raw = (Array.isArray(rows) ? rows : []).map((r) => ({
-    id: String(r.id),
-    name: String(r.name || 'Game'),
-  }));
-  return raw.sort(
+  if (bigCategoriesCache && Date.now() - bigCategoriesCache.at < BIG_CATEGORIES_TTL_MS) {
+    return bigCategoriesCache.value;
+  }
+  type Row = {
+    id: number;
+    name: string;
+    image_url?: string | null;
+    image?: string | null;
+  };
+  const rows = await s2tRequest<Row[]>('/catalog/big-categories?for_ui=true').catch(() => null);
+  if (!rows && bigCategoriesCache) return bigCategoriesCache.value;
+  const raw = (Array.isArray(rows) ? rows : []).map((r) => {
+    const supplied = String(r.image_url || r.image || '').trim();
+    const image = supplied.startsWith('//')
+      ? `https:${supplied}`
+      : supplied.startsWith('/')
+        ? `https://shop2topup.com${supplied}`
+        : /^https:\/\//i.test(supplied)
+          ? supplied
+          : null;
+    return {
+      id: String(r.id),
+      name: String(r.name || 'Game'),
+      image,
+    };
+  });
+  const sorted = raw.sort(
     (a, b) => popularWeight(a.name) - popularWeight(b.name) || a.name.localeCompare(b.name),
   );
+  if (sorted.length) bigCategoriesCache = { value: sorted, at: Date.now() };
+  return sorted;
+}
+
+/** Existing cover image for a game, keyed by the provider's category ID. */
+export async function s2tBigCategoryImage(bigCategoryId: string): Promise<string | null> {
+  const category = (await s2tBigCategories()).find((c) => c.id === String(bigCategoryId));
+  return category?.image || null;
 }
 
 /** Products (S2T categories) of one big category, with a live "from" USD price. */

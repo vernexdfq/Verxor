@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { s2tConfigured, s2tGameVariants, s2tProductDetail, type S2TProductDetail } from '@/lib/providers/shop2topup';
+import { s2tBigCategoryImage, s2tConfigured, s2tGameVariants, s2tProductDetail, type S2TProductDetail } from '@/lib/providers/shop2topup';
 import { gamingAudienceNgn, loadGamingMarkups, resolveFxRateNgn, resolveGamingAudience } from '@/lib/gaming-pricing';
 import { cachedDetail, detailFresh, saveDetail } from '@/lib/gaming-cache';
 
@@ -46,6 +46,16 @@ export async function GET(req: NextRequest) {
       }
     } catch {
       // provider error — keep the honest failure below
+    }
+  }
+
+  // Old cached game rows were stored before image URLs were included. Resolve
+  // the current provider cover for those rows as well, then refresh the cache.
+  if (detail && productId.startsWith('game-') && !detail.image) {
+    const image = await s2tBigCategoryImage(productId.slice(5));
+    if (image) {
+      detail = { ...detail, image };
+      try { await saveDetail(detail); } catch { /* artwork cache is non-fatal */ }
     }
   }
 

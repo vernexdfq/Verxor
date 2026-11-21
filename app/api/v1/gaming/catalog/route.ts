@@ -89,6 +89,7 @@ export async function GET(req: NextRequest) {
         return {
           id: c.id,
           name: c.name,
+          image: c.image || null,
           fromNgn: prices.length ? priceNgn(Math.min(...prices), rate) : null,
         };
       }),
