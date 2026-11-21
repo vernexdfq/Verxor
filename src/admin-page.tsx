@@ -171,8 +171,10 @@ function DataPricingRow({ row, saving, saved, onSave }: {
 }) {
   const [retail, setRetail] = useState(row.overrideRetail != null ? String(row.overrideRetail) : '');
   const [apiPrice, setApiPrice] = useState(row.overrideApi != null ? String(row.overrideApi) : '');
+  const [child, setChild] = useState(row.overrideChild != null ? String(row.overrideChild) : '');
   const effCost = row.defaultCost;
   const effRetail = Number(retail) > 0 ? Number(retail) : row.defaultRetail;
+  const effChild = Number(child) > 0 ? Number(child) : (Number(effCost) > 0 ? Math.ceil(Number(effCost) * 1.005) : Math.round(effRetail));
   const inputStyle = (val: string): React.CSSProperties => ({
     height: 30, borderRadius: 8, padding: '0 8px', fontSize: 12, width: '100%',
     border: val.trim() ? '1px solid #2563eb' : '1px solid #e2e8f0',
@@ -186,8 +188,8 @@ function DataPricingRow({ row, saving, saved, onSave }: {
       <span style={{ fontSize: 12, fontWeight: 600, color: '#334155', textAlign: 'center' }}>{row.defaultCost ? '₦' + row.defaultCost.toLocaleString('en-NG') : '—'}</span>
       <input value={retail} onChange={(e) => setRetail(e.target.value)} placeholder={String(row.defaultRetail)} inputMode="decimal" style={inputStyle(retail)} />
       <input value={apiPrice} onChange={(e) => setApiPrice(e.target.value)} placeholder={String(row.defaultApiPrice)} inputMode="decimal" style={inputStyle(apiPrice)} />
-      <span style={{ fontSize: 12, color: '#64748b' }}>₦{childPreview(row, effCost, effRetail)}</span>
-      <button type="button" disabled={saving} onClick={() => onSave(row, { cost: '', retail, apiPrice })}
+      <input value={child} onChange={(e) => setChild(e.target.value)} placeholder={String(effChild)} inputMode="decimal" style={inputStyle(child)} />
+      <button type="button" disabled={saving} onClick={() => onSave(row, { cost: '', retail, apiPrice, child })}
         style={{ height: 30, borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: saved ? '#16a34a' : '#2563eb', color: '#fff', border: 'none' }}>
         {saving ? '…' : saved ? 'Saved' : 'Save'}
       </button>
@@ -290,7 +292,7 @@ function DataPricingSection() {
       {!loading && !err ? (
         <div style={{ border: '1px solid #e2e8f0', borderRadius: 14, overflowX: 'auto', background: '#fff' }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr 1fr 1fr 90px', minWidth: 620, gap: 8, padding: '10px 14px', background: '#f8fafc', fontSize: 11, fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>
-            <span>Bundle</span><span>Cost (live)</span><span>Retail</span><span>API</span><span>Child</span><span></span>
+            <span>Bundle</span><span>Provider</span><span>Retail</span><span>API (users)</span><span>Child</span><span></span>
           </div>
           {filtered.map((r) => (
             <DataPricingRow key={r.planId} row={r} saving={savingId === r.planId} saved={savedId === r.planId} onSave={save} />
