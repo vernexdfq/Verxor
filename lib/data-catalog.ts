@@ -195,11 +195,11 @@ export const GLO_MONTHLY: CatalogPlan[] = [
 
 /** 9mobile Monthly — ClubKonnect primary (MobileNetwork=03, DataPlan=ckCode), 247 id fallback */
 export const NINEMOBILE_MONTHLY: CatalogPlan[] = [
-  { id: 9845, network: '9mobile', size: '500MB', days: '30', tab: 'monthly', retail: 250, apiPrice: 232, cost: 228.78, planType: 'SME', ckCode: 4 },
-  { id: 9846, network: '9mobile', size: '1GB', days: '30', tab: 'monthly', retail: 495, apiPrice: 463, cost: 457.56, planType: 'SME', ckCode: 5 },
-  { id: 9847, network: '9mobile', size: '2GB', days: '30', tab: 'monthly', retail: 985, apiPrice: 925, cost: 915.12, planType: 'SME', ckCode: 6 },
-  { id: 9848, network: '9mobile', size: '3GB', days: '30', tab: 'monthly', retail: 1480, apiPrice: 1387, cost: 1372.68, planType: 'SME', ckCode: 7 },
-  { id: 9849, network: '9mobile', size: '5GB', days: '30', tab: 'monthly', retail: 2450, apiPrice: 2311, cost: 2287.8, planType: 'SME', ckCode: 9 },
+  { id: 80, network: '9mobile', size: '500MB', days: '30', tab: 'monthly', retail: 250, apiPrice: 232, cost: 228.78, planType: 'SME', ckCode: 4 },
+  { id: 81, network: '9mobile', size: '1GB', days: '30', tab: 'monthly', retail: 495, apiPrice: 463, cost: 457.56, planType: 'SME', ckCode: 5 },
+  { id: 82, network: '9mobile', size: '2GB', days: '30', tab: 'monthly', retail: 985, apiPrice: 925, cost: 915.12, planType: 'SME', ckCode: 6 },
+  { id: 83, network: '9mobile', size: '3GB', days: '30', tab: 'monthly', retail: 1480, apiPrice: 1387, cost: 1372.68, planType: 'SME', ckCode: 7 },
+  { id: 84, network: '9mobile', size: '5GB', days: '30', tab: 'monthly', retail: 2450, apiPrice: 2311, cost: 2287.8, planType: 'SME', ckCode: 9 },
 ];
 
 /**
