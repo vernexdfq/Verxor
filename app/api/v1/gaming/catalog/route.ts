@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { S2T_GAME_ARTWORK } from '@/lib/gaming-artwork';
 import {
   s2tBigCategories,
   s2tConfigured,
@@ -72,7 +73,7 @@ export async function GET(req: NextRequest) {
         if (!detail && warm < 24) {
           warm += 1;
           try {
-            detail = await s2tGameVariants(c.id, c.name, c.image);
+            detail = await s2tGameVariants(c.id, c.name, c.image || S2T_GAME_ARTWORK[c.id]);
             if (detail) {
               dbg.warmed += 1;
               try {
@@ -89,7 +90,7 @@ export async function GET(req: NextRequest) {
         return {
           id: c.id,
           name: c.name,
-          image: c.image || detail?.image || null,
+          image: c.image || S2T_GAME_ARTWORK[c.id] || detail?.image || null,
           fromNgn: prices.length ? priceNgn(Math.min(...prices), rate) : null,
         };
       }),
