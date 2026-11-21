@@ -99,7 +99,7 @@ const SECTION_META: Record<AdminSection, { title: string; sub: string }> = {
   accounts: { title: 'Buy Logs pricing', sub: 'Account multipliers for Retail and API / Child Panel' },
   'gift-cards': { title: 'Gift Card rates', sub: 'Standalone FX rates decoupled from the global daily rate' },
   'rent-sms': { title: 'Rent-for-SMS pricing', sub: 'Multipliers on the Textverified USD cost, using the global daily rate' },
-  'data-pricing': { title: 'Data pricing', sub: 'Override provider cost, retail and API price per bundle — blank = catalog default' },
+  'data-pricing': { title: 'Data pricing', sub: 'Provider cost syncs automatically from the live provider — edit retail and API price per bundle (blank = catalog default)' },
   providers: { title: 'Providers', sub: 'Upstream provider health and keys' },
   settings: { title: 'Settings', sub: 'Service switches and announcements' },
 };
@@ -169,10 +169,9 @@ function DataPricingRow({ row, saving, saved, onSave }: {
   saved: boolean;
   onSave: (row: DataPlanRow, drafts: Record<string, string>) => void;
 }) {
-  const [cost, setCost] = useState(row.overrideCost != null ? String(row.overrideCost) : '');
   const [retail, setRetail] = useState(row.overrideRetail != null ? String(row.overrideRetail) : '');
   const [apiPrice, setApiPrice] = useState(row.overrideApi != null ? String(row.overrideApi) : '');
-  const effCost = Number(cost) > 0 ? Number(cost) : row.defaultCost;
+  const effCost = row.defaultCost;
   const effRetail = Number(retail) > 0 ? Number(retail) : row.defaultRetail;
   const inputStyle = (val: string): React.CSSProperties => ({
     height: 30, borderRadius: 8, padding: '0 8px', fontSize: 12, width: '100%',
@@ -184,11 +183,11 @@ function DataPricingRow({ row, saving, saved, onSave }: {
         <strong style={{ display: 'block', color: '#0f172a' }}>{row.size}</strong>
         <span style={{ fontSize: 11, color: '#94a3b8' }}>#{row.planId} · {row.days}d{row.planType ? ' · ' + row.planType : ''}{row.hasOverride ? ' · edited' : ''}</span>
       </div>
-      <input value={cost} onChange={(e) => setCost(e.target.value)} placeholder={row.defaultCost ? String(row.defaultCost) : '—'} inputMode="decimal" style={inputStyle(cost)} />
+      <span style={{ fontSize: 12, fontWeight: 600, color: '#334155', textAlign: 'center' }}>{row.defaultCost ? '₦' + row.defaultCost.toLocaleString('en-NG') : '—'}</span>
       <input value={retail} onChange={(e) => setRetail(e.target.value)} placeholder={String(row.defaultRetail)} inputMode="decimal" style={inputStyle(retail)} />
       <input value={apiPrice} onChange={(e) => setApiPrice(e.target.value)} placeholder={String(row.defaultApiPrice)} inputMode="decimal" style={inputStyle(apiPrice)} />
       <span style={{ fontSize: 12, color: '#64748b' }}>₦{childPreview(row, effCost, effRetail)}</span>
-      <button type="button" disabled={saving} onClick={() => onSave(row, { cost, retail, apiPrice })}
+      <button type="button" disabled={saving} onClick={() => onSave(row, { cost: '', retail, apiPrice })}
         style={{ height: 30, borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: saved ? '#16a34a' : '#2563eb', color: '#fff', border: 'none' }}>
         {saving ? '…' : saved ? 'Saved' : 'Save'}
       </button>
@@ -291,7 +290,7 @@ function DataPricingSection() {
       {!loading && !err ? (
         <div style={{ border: '1px solid #e2e8f0', borderRadius: 14, overflowX: 'auto', background: '#fff' }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr 1fr 1fr 90px', minWidth: 620, gap: 8, padding: '10px 14px', background: '#f8fafc', fontSize: 11, fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>
-            <span>Bundle</span><span>Cost (own)</span><span>Retail</span><span>API</span><span>Child</span><span></span>
+            <span>Bundle</span><span>Cost (live)</span><span>Retail</span><span>API</span><span>Child</span><span></span>
           </div>
           {filtered.map((r) => (
             <DataPricingRow key={r.planId} row={r} saving={savingId === r.planId} saved={savedId === r.planId} onSave={save} />
