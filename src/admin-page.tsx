@@ -31,10 +31,11 @@ import {
   Wallet,
   X,
   Gamepad2,
+  Wifi,
 } from 'lucide-react';
 import './admin-page.css';
 
-type AdminSection = 'overview' | 'users' | 'chats' | 'pricing' | 'email-otp' | 'boost' | 'gaming' | 'accounts' | 'gift-cards' | 'rent-sms' | 'providers' | 'settings';
+type AdminSection = 'overview' | 'users' | 'chats' | 'pricing' | 'email-otp' | 'boost' | 'gaming' | 'accounts' | 'gift-cards' | 'rent-sms' | 'data-pricing' | 'providers' | 'settings';
 
 type AdminUserTab = 'all' | 'customers' | 'api' | 'panels';
 
@@ -81,6 +82,7 @@ const NAV: { id: AdminSection; label: string; icon: typeof LayoutDashboard }[] =
   { id: 'accounts', label: 'Buy Logs', icon: FileText },
   { id: 'gift-cards', label: 'Gift Cards', icon: Gift },
   { id: 'rent-sms', label: 'Rent SMS', icon: MessageCircle },
+  { id: 'data-pricing', label: 'Data Pricing', icon: Wifi },
   { id: 'providers', label: 'Providers', icon: Plug },
   { id: 'settings', label: 'Settings', icon: KeyRound },
 ];
@@ -97,6 +99,7 @@ const SECTION_META: Record<AdminSection, { title: string; sub: string }> = {
   accounts: { title: 'Buy Logs pricing', sub: 'Account multipliers for Retail and API / Child Panel' },
   'gift-cards': { title: 'Gift Card rates', sub: 'Standalone FX rates decoupled from the global daily rate' },
   'rent-sms': { title: 'Rent-for-SMS pricing', sub: 'Multipliers on the Textverified USD cost, using the global daily rate' },
+  'data-pricing': { title: 'Data pricing', sub: 'Override provider cost, retail and API price per bundle — blank = catalog default' },
   providers: { title: 'Providers', sub: 'Upstream provider health and keys' },
   settings: { title: 'Settings', sub: 'Service switches and announcements' },
 };
@@ -133,6 +136,176 @@ function serviceEnabled(u: AdminUser, id: string): boolean {
 function displayName(u: AdminUser): string {
   const label = (u.name || u.email || u.phone || u.id).trim();
   return label.length > 22 ? label.slice(0, 20) + '…' : label;
+}
+
+/* ---------- Data Pricing (catalog overrides) ---------- */
+
+type DataPlanRow = {
+  planId: number;
+  network: string;
+  size: string;
+  days: string;
+  tab: string;
+  planType: string | null;
+  defaultCost: number | null;
+  defaultRetail: number;
+  defaultApiPrice: number;
+  childPrice: number;
+  overrideCost: number | null;
+  overrideRetail: number | null;
+  overrideApi: number | null;
+  hasOverride: boolean;
+};
+
+function childPreview(row: DataPlanRow, effCost: number | null, effRetail: number): string {
+  const c = Number(effCost) > 0 ? Number(effCost) : 0;
+  const child = c > 0 ? Math.ceil(c * 1.005) : Math.round(effRetail);
+  return child.toLocaleString('en-NG');
+}
+
+function DataPricingRow({ row, saving, saved, onSave }: {
+  row: DataPlanRow;
+  saving: boolean;
+  saved: boolean;
+  onSave: (row: DataPlanRow, drafts: Record<string, string>) => void;
+}) {
+  const [cost, setCost] = useState(row.overrideCost != null ? String(row.overrideCost) : '');
+  const [retail, setRetail] = useState(row.overrideRetail != null ? String(row.overrideRetail) : '');
+  const [apiPrice, setApiPrice] = useState(row.overrideApi != null ? String(row.overrideApi) : '');
+  const effCost = Number(cost) > 0 ? Number(cost) : row.defaultCost;
+  const effRetail = Number(retail) > 0 ? Number(retail) : row.defaultRetail;
+  const inputStyle = (val: string): React.CSSProperties => ({
+    height: 30, borderRadius: 8, padding: '0 8px', fontSize: 12, width: '100%',
+    border: val.trim() ? '1px solid #2563eb' : '1px solid #e2e8f0',
+  });
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr 1fr 1fr 90px', gap: 8, alignItems: 'center', padding: '10px 14px', borderTop: '1px solid #f1f5f9', fontSize: 13 }}>
+      <div style={{ minWidth: 0 }}>
+        <strong style={{ display: 'block', color: '#0f172a' }}>{row.size}</strong>
+        <span style={{ fontSize: 11, color: '#94a3b8' }}>#{row.planId} · {row.days}d{row.planType ? ' · ' + row.planType : ''}{row.hasOverride ? ' · edited' : ''}</span>
+      </div>
+      <input value={cost} onChange={(e) => setCost(e.target.value)} placeholder={row.defaultCost ? String(row.defaultCost) : '—'} inputMode="decimal" style={inputStyle(cost)} />
+      <input value={retail} onChange={(e) => setRetail(e.target.value)} placeholder={String(row.defaultRetail)} inputMode="decimal" style={inputStyle(retail)} />
+      <input value={apiPrice} onChange={(e) => setApiPrice(e.target.value)} placeholder={String(row.defaultApiPrice)} inputMode="decimal" style={inputStyle(apiPrice)} />
+      <span style={{ fontSize: 12, color: '#64748b' }}>₦{childPreview(row, effCost, effRetail)}</span>
+      <button type="button" disabled={saving} onClick={() => onSave(row, { cost, retail, apiPrice })}
+        style={{ height: 30, borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: saved ? '#16a34a' : '#2563eb', color: '#fff', border: 'none' }}>
+        {saving ? '…' : saved ? 'Saved' : 'Save'}
+      </button>
+    </div>
+  );
+}
+
+function DataPricingSection() {
+  const NETWORKS = ['all', 'mtn', 'airtel', 'glo', '9mobile'];
+  const [rows, setRows] = useState<DataPlanRow[]>([]);
+  const [net, setNet] = useState('all');
+  const [q, setQ] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState('');
+  const [savingId, setSavingId] = useState<number | null>(null);
+  const [savedId, setSavedId] = useState<number | null>(null);
+
+  const load = async () => {
+    setLoading(true);
+    setErr('');
+    try {
+      const res = await fetch('/api/admin/data-pricing', { headers: adminHeaders(), cache: 'no-store' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data.ok === false) {
+        setErr(String(data.error || 'Could not load data pricing.'));
+        setRows([]);
+      } else {
+        setRows(data.rows as DataPlanRow[]);
+      }
+    } catch {
+      setErr('Could not load data pricing.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { void load(); }, []);
+
+  const save = async (row: DataPlanRow, drafts: Record<string, string>) => {
+    setSavingId(row.planId);
+    setSavedId(null);
+    try {
+      const parse = (v: string | undefined) => {
+        const s = (v ?? '').trim();
+        if (!s) return null;
+        const n = Number(s.replace(/[^0-9.]/g, ''));
+        return Number.isFinite(n) && n > 0 ? n : null;
+      };
+      const res = await fetch('/api/admin/data-pricing', {
+        method: 'PUT',
+        headers: adminHeaders(),
+        body: JSON.stringify({
+          planId: row.planId,
+          network: row.network,
+          cost: parse(drafts.cost),
+          retail: parse(drafts.retail),
+          apiPrice: parse(drafts.apiPrice),
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data.ok === false) {
+        setErr(String(data.error || 'Save failed.'));
+      } else {
+        setSavedId(row.planId);
+        await load();
+        setTimeout(() => setSavedId(null), 2000);
+      }
+    } catch {
+      setErr('Save failed.');
+    } finally {
+      setSavingId(null);
+    }
+  };
+
+  const filtered = rows.filter((r) =>
+    (net === 'all' || r.network === net) &&
+    (!q.trim() || (r.size + ' ' + r.planId).toLowerCase().includes(q.trim().toLowerCase())),
+  );
+
+  return (
+    <div style={{ maxWidth: 880, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+        {NETWORKS.map((n) => (
+          <button key={n} type="button" onClick={() => setNet(n)}
+            style={{
+              padding: '6px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer',
+              border: net === n ? '1px solid #2563eb' : '1px solid #e2e8f0',
+              background: net === n ? '#2563eb' : '#fff', color: net === n ? '#fff' : '#475569',
+            }}>
+            {n === 'all' ? 'All networks' : n === '9mobile' ? '9mobile' : n.toUpperCase()}
+          </button>
+        ))}
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search size or plan id"
+          style={{ marginLeft: 'auto', height: 34, borderRadius: 10, border: '1px solid #e2e8f0', padding: '0 12px', fontSize: 13 }} />
+      </div>
+
+      {err ? <p style={{ color: '#b91c1c', fontSize: 13 }}>{err}</p> : null}
+      {loading ? <p style={{ color: '#64748b', fontSize: 13 }}>Loading catalog…</p> : null}
+
+      {!loading && !err ? (
+        <div style={{ border: '1px solid #e2e8f0', borderRadius: 14, overflow: 'hidden', background: '#fff' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr 1fr 1fr 90px', gap: 8, padding: '10px 14px', background: '#f8fafc', fontSize: 11, fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>
+            <span>Bundle</span><span>Cost (own)</span><span>Retail</span><span>API</span><span>Child</span><span></span>
+          </div>
+          {filtered.map((r) => (
+            <DataPricingRow key={r.planId} row={r} saving={savingId === r.planId} saved={savedId === r.planId} onSave={save} />
+          ))}
+          {filtered.length === 0 ? <p style={{ padding: 16, fontSize: 13, color: '#94a3b8' }}>No plans match.</p> : null}
+        </div>
+      ) : null}
+
+      <p style={{ fontSize: 12, color: '#94a3b8' }}>
+        Leave a field blank to use the catalog default. Child price auto-follows the cost (+0.5%).
+        Changes take effect immediately on the shop, the public API and all child panels.
+      </p>
+    </div>
+  );
 }
 
 /* ---------- Live Chats (admin inbox / conversation continuation) ---------- */
@@ -2343,6 +2516,12 @@ export function AdminPage({
         {section === 'rent-sms' && (
           <section className="vxa-body">
             <RentSmsSection />
+          </section>
+        )}
+
+        {section === 'data-pricing' && (
+          <section className="vxa-body">
+            <DataPricingSection />
           </section>
         )}
 
