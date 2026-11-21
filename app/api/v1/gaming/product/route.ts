@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { S2T_GAME_ARTWORK } from '@/lib/gaming-artwork';
 import { s2tConfigured, s2tGameVariants, s2tProductDetail, type S2TProductDetail } from '@/lib/providers/shop2topup';
 import { gamingAudienceNgn, loadGamingMarkups, resolveFxRateNgn, resolveGamingAudience } from '@/lib/gaming-pricing';
 import { cachedDetail, detailFresh, saveDetail } from '@/lib/gaming-cache';
@@ -54,6 +55,10 @@ export async function GET(req: NextRequest) {
       { ok: false, error: 'Product not available right now. Try again in a moment.' },
       { status: 404 },
     );
+  }
+
+  if (productId.startsWith('game-') && !detail.image) {
+    detail.image = S2T_GAME_ARTWORK[productId.slice(5)] || null;
   }
 
   // Audience-aware pricing (retail / child panel / API) from admin_settings.
