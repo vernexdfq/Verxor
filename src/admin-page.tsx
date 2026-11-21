@@ -154,14 +154,9 @@ type DataPlanRow = {
   overrideCost: number | null;
   overrideRetail: number | null;
   overrideApi: number | null;
+  overrideChild: number | null;
   hasOverride: boolean;
 };
-
-function childPreview(row: DataPlanRow, effCost: number | null, effRetail: number): string {
-  const c = Number(effCost) > 0 ? Number(effCost) : 0;
-  const child = c > 0 ? Math.ceil(c * 1.005) : Math.round(effRetail);
-  return child.toLocaleString('en-NG');
-}
 
 function DataPricingRow({ row, saving, saved, onSave }: {
   row: DataPlanRow;
@@ -247,6 +242,7 @@ function DataPricingSection() {
           cost: parse(drafts.cost),
           retail: parse(drafts.retail),
           apiPrice: parse(drafts.apiPrice),
+          childPrice: parse(drafts.child),
         }),
       });
       const data = await res.json().catch(() => ({}));
