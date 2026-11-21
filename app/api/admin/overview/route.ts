@@ -94,11 +94,9 @@ export async function GET(req: NextRequest) {
 
   const since = lagosDayStart(13);
   const dayKeys: string[] = [];
-  for (let i = 13; i >= 0; i--) {
-    const lagosNow = new Date(Date.now() + 60 * 60 * 1000);
-    const d = new Date(lagosDayStart(i));
-    void lagosNow;
-    dayKeys.push(d.toISOString().slice(0, 10));
+  for (let i = 0; i <= 13; i++) {
+    // Today first, then going back — matches the child-panel daily-earnings layout.
+    dayKeys.push(new Date(lagosDayStart(i)).toISOString().slice(0, 10));
   }
 
   const days = new Map<string, { orders: number; sales: number; refunds: number; net: number }>();
@@ -180,13 +178,13 @@ export async function GET(req: NextRequest) {
     const b = days.get(k)!;
     return { date: k, orders: b.orders, sales: Math.round(b.sales * 100) / 100, net: Math.round(b.net * 100) / 100 };
   });
-  const today = dayList[dayList.length - 1];
+  const today = dayList[0];
 
   return NextResponse.json({
     ok: true,
     todaySales: today.sales,
     todayOrders: today.orders,
-    todayRefunds: dayList[dayList.length - 1] ? days.get(dayKeys[dayKeys.length - 1])!.refunds : 0,
+    todayRefunds: days.get(dayKeys[0])?.refunds ?? 0,
     todayNet: today.net,
     newUsers,
     days: dayList,
