@@ -279,10 +279,13 @@ export async function POST(req: NextRequest) {
   }
 
   const cost = Number(catalog.cost);
+  const childOverride = Number((catalog as { childPriceOverride?: number }).childPriceOverride);
   const childAmount =
-    Number.isFinite(cost) && cost > 0
-      ? childPriceFromCost(cost)
-      : Math.round(Number(catalog.apiPrice) || retailAmount);
+    Number.isFinite(childOverride) && childOverride > 0
+      ? Math.round(childOverride)
+      : Number.isFinite(cost) && cost > 0
+        ? childPriceFromCost(cost)
+        : Math.round(Number(catalog.apiPrice) || retailAmount);
   const useReseller = Boolean(panel);
   const amount = useReseller ? childAmount : retailAmount;
 
