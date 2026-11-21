@@ -168,6 +168,7 @@ export async function getSyncedPlansForNetwork(network: string): Promise<{
     if (o.cost) p.cost = o.cost;
     if (o.retail) p.retail = o.retail;
     if (o.apiPrice) p.apiPrice = o.apiPrice;
+    if (o.childPrice) p.price = o.childPrice;
   }
   return { plans, source: 'live', hidden };
 }
@@ -218,6 +219,7 @@ export async function resolvePurchasePlan(planId: number): Promise<{
     if (o.cost) synced.cost = o.cost;
     if (o.retail) synced.retail = o.retail;
     if (o.apiPrice) synced.apiPrice = o.apiPrice;
+    if (o.childPrice) synced.price = o.childPrice;
   }
   const amount = Math.round(synced.retail);
   if (amount < 50) {
