@@ -55,8 +55,31 @@ function initialsFor(name: string): string {
 
 /** Artwork resolution: real image → id-based public path → gradient initials. */
 function tileArt(p: { id: string; name: string; image?: string | null }) {
-  if (p.image && /^https?:\/\//.test(p.image)) return { kind: 'img' as const, src: p.image };
+  if (p.image && /^https:\/\//i.test(p.image)) return { kind: 'img' as const, src: p.image };
   return { kind: 'initials' as const, gradient: gradientFor(p.id), label: initialsFor(p.name) };
+}
+
+/** Real provider cover with a graceful initials fallback if the URL is unavailable. */
+function GameArtwork({
+  product,
+  imageClassName,
+  fallbackClassName,
+}: {
+  product: { id: string; name: string; image?: string | null };
+  imageClassName?: string;
+  fallbackClassName?: string;
+}) {
+  const [failed, setFailed] = useState(false);
+  const art = tileArt(product);
+  if (art.kind === 'img' && !failed) {
+    // eslint-disable-next-line @next/next/no-img-element
+    return <img src={art.src} alt={product.name} className={imageClassName} loading="lazy" onError={() => setFailed(true)} />;
+  }
+  return (
+    <span className={fallbackClassName || 'gm-tile-initials'} style={{ background: gradientFor(product.id) }}>
+      {initialsFor(product.name)}
+    </span>
+  );
 }
 
 export function GamingPage({
@@ -147,7 +170,7 @@ export function GamingPage({
 
   /* ---------- product detail ---------- */
 
-  const openProduct = async (id: string) => {
+  const openProduct = async (id: string, imageFallback?: string | null) => {
     setDetailLoading(true);
     /* id may be a raw game id (grid tile) or an option id (`s2t-…`). */
     setDetail(null);
@@ -166,7 +189,7 @@ export function GamingPage({
       if (!res.ok || !data.ok || !data.product) {
         setDetailError(data.error || 'Could not load this product.');
       } else {
-        setDetail(data.product);
+        setDetail({ ...data.product, image: data.product.image || imageFallback || null });
         const inStock = data.product.variations.find((v) => v.inStock && v.priceNgn > 0);
         if (inStock) setSelectedVariation(inStock.id);
       }
@@ -422,14 +445,9 @@ export function GamingPage({
           {visible.map((p) => {
             const art = tileArt({ id: p.id, name: p.name, image: p.image });
             return (
-              <button key={p.id} type="button" className="gm-tile" onClick={() => void openProduct(`game-${p.id}`)}>
+              <button key={p.id} type="button" className="gm-tile" onClick={() => void openProduct(`game-${p.id}`, p.image)}>
                 <div className="gm-tile-art">
-                  {art.kind === 'img' ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={art.src} alt={p.name} loading="lazy" />
-                  ) : (
-                    <span className="gm-tile-initials" style={{ background: art.gradient }}>{art.label}</span>
-                  )}
+                  <GameArtwork product={p} />
                 </div>
                 <div className="gm-tile-body">
                   <strong>{p.name}</strong>
@@ -466,17 +484,11 @@ export function GamingPage({
             ) : detail ? (
               <>
                 <div className="gm-sheet-head">
-                  {(() => {
-                    const art = tileArt({ id: detail.id, name: detail.name, image: detail.image });
-                    return art.kind === 'img' ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={art.src} alt={detail.name} className="gm-sheet-img" />
-                    ) : (
-                      <span className="gm-sheet-initials" style={{ background: art.gradient }}>
-                        {initialsFor(detail.name)}
-                      </span>
-                    );
-                  })()}
+                  <GameArtwork
+                    product={{ id: detail.id, name: detail.name, image: detail.image }}
+                    imageClassName="gm-sheet-img"
+                    fallbackClassName="gm-sheet-initials"
+                  />
                   <div>
                     <h2>{detail.name}</h2>
                     <p>
