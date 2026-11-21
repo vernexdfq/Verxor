@@ -72,7 +72,7 @@ export async function GET(req: NextRequest) {
         if (!detail && warm < 24) {
           warm += 1;
           try {
-            detail = await s2tGameVariants(c.id, c.name);
+            detail = await s2tGameVariants(c.id, c.name, c.image);
             if (detail) {
               dbg.warmed += 1;
               try {
@@ -89,6 +89,7 @@ export async function GET(req: NextRequest) {
         return {
           id: c.id,
           name: c.name,
+          image: c.image || detail?.image || null,
           fromNgn: prices.length ? priceNgn(Math.min(...prices), rate) : null,
         };
       }),
