@@ -270,7 +270,10 @@ export function BoostHistoryPage({
           <ArrowLeft size={18} strokeWidth={2.4} />
         </button>
         <div className="bh-title-wrap">
-          <h1 className="bh-title">Boost History</h1>
+          <h1 className="bh-title">
+            Boost History
+            <span className="bh-count-badge">{orders.length}</span>
+          </h1>
           <p className="bh-subtitle">All your boost orders and live delivery status</p>
         </div>
         {onNewOrder && (
@@ -281,9 +284,6 @@ export function BoostHistoryPage({
       </header>
 
       <div className="bh-toolbar">
-        <div className="bh-count">
-          {orders.length} order{orders.length === 1 ? '' : 's'}
-        </div>
         <button type="button" className="bh-refresh-all" onClick={refreshAll} disabled={refreshingAll}>
           <RefreshCw size={13} className={refreshingAll ? 'spin' : ''} />
           <span>Refresh</span>

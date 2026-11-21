@@ -90,8 +90,24 @@
 .bh-toolbar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
 }
+.bh-count-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: #2563EB;
+  color: #FFFFFF;
+  font-size: 11px;
+  font-weight: 800;
+  margin-left: 8px;
+  vertical-align: middle;
+}
+
 .bh-count {
   font-size: 12px;
   font-weight: 800;
