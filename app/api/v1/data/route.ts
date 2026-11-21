@@ -131,9 +131,7 @@ async function debitRetailWallet(
 
   if (!res.ok) {
     const t = await res.text().catch(() => '');
-    if (/INSUFFICIENT_BALANCE/i.test(t)) {
-      throw new Error('INSUFFICIENT_BALANCE');
-    }
+    if (/INSUFFICIENT_BALANCE/i.test(t)) throw new Error('INSUFFICIENT_BALANCE');
     throw new Error(`Debit failed: ${t.slice(0, 200)}`);
   }
   return res.json().catch(() => ({}));
@@ -166,8 +164,8 @@ async function creditRetailWallet(
 
 /**
  * POST /api/v1/data
- * Auth -> live-synced catalog price -> debit -> provider purchase -> refund on fail.
- * Providers: 9mobile via ClubKonnect (ckCode = CK PRODUCT_CODE); others via 247API.
+ * Auth → catalog price → debit → provider purchase → refund on fail
+ * 9mobile: ClubKonnect (ckCode) first, 247 plan_id as fallback
  */
 export async function POST(req: NextRequest) {
   if (!isApi247Configured() && !isClubKonnectConfigured()) {
@@ -225,7 +223,6 @@ export async function POST(req: NextRequest) {
   const amount = resolved.amount;
   const phone = String(body.phone || '');
 
-  // 1) Supabase JWT  2) profile email/phone  — never trust body.userId alone
   let userId = await resolveUserIdFromJwt(req);
   if (!userId) {
     const contactStr = String(body.contact || '').trim();
@@ -234,7 +231,6 @@ export async function POST(req: NextRequest) {
     const effPhone = !contactStr.includes('@') ? contactStr : '';
     userId = (await profileIdByEmailOrPhone(effEmail, effPhone)) || null;
   }
-  // Optional: if client sent userId and it matches profile contact, accept
   if (!userId && body.userId) {
     const claimed = String(body.userId).trim();
     const contactStr = String(body.contact || body.email || '').trim();
@@ -283,27 +279,58 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    // 9mobile rides ClubKonnect (catalog ckCode = CK PRODUCT_CODE).
-    // 247 has no buyable 9mobile bundles — fall back to the 247 fallback id
-    // only when ClubKonnect itself is not configured.
     const ckCode = Number((catalog as { ckCode?: number | string }).ckCode);
-    const useClubKonnect =
-      network === '9mobile' && Number.isFinite(ckCode) && ckCode > 0 && isClubKonnectConfigured();
+    const preferClubKonnect =
+      network === '9mobile' &&
+      Number.isFinite(ckCode) &&
+      ckCode > 0 &&
+      isClubKonnectConfigured();
 
-    const result = useClubKonnect
-      ? await purchaseDataClubKonnect({
+    // 9mobile: ClubKonnect first (DataPlan = ckCode, MobileNetwork=03), then 247 plan_id fallback.
+    let result: {
+      ref: string;
+      status: string;
+      phone: string;
+      provider?: string;
+    };
+    let usedProvider: 'clubkonnect' | 'api247' = preferClubKonnect ? 'clubkonnect' : 'api247';
+
+    if (preferClubKonnect) {
+      try {
+        result = await purchaseDataClubKonnect({
           network: '9mobile',
           productCode: ckCode,
           phone,
           amount: Number(catalog.cost) > 0 ? Number(catalog.cost) : amount,
           ref: debitRef,
-        })
-      : await purchaseData247({
-          planid: catalog.id,
+        });
+        usedProvider = 'clubkonnect';
+      } catch (ckErr) {
+        console.warn(
+          '[data] ClubKonnect 9mobile failed, trying 247 fallback:',
+          ckErr instanceof Error ? ckErr.message : ckErr,
+        );
+        if (!isApi247Configured()) throw ckErr;
+        result = await purchaseData247({
+          planId: catalog.id,
           phone,
-          ref: debitRef,
+          ref: `${debitRef}-247`.slice(0, 36),
           bypass: true,
         });
+        usedProvider = 'api247';
+      }
+    } else {
+      if (!isApi247Configured()) {
+        throw new Error('Data provider not configured for this network');
+      }
+      result = await purchaseData247({
+        planId: catalog.id,
+        phone,
+        ref: debitRef,
+        bypass: true,
+      });
+      usedProvider = 'api247';
+    }
 
     await sendDataReceipt(userId, {
       status: 'successful',
@@ -328,7 +355,7 @@ export async function POST(req: NextRequest) {
         network,
         planId: catalog.id,
         planName: planLabel,
-        provider: (result as { provider?: string }).provider || (useClubKonnect ? 'clubkonnect' : 'api247'),
+        provider: result.provider || usedProvider,
         message: successTitle,
         title: successTitle,
       },
@@ -350,7 +377,6 @@ export async function POST(req: NextRequest) {
         .replace(/(api247|clubkonnect|smeplug|provider|upstream):\s*/gi, '')
         .trim() || 'Data purchase failed. Please try again shortly.';
 
-    // Friendlier Airtel / phone messages
     if (/invalid\s+airtel\s+phone/i.test(cleanMessage)) {
       cleanMessage =
         'This number was rejected for Airtel data. Confirm it is an Airtel line (or ported to Airtel), then try again.';
