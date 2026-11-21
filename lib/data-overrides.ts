@@ -9,6 +9,7 @@ export type DataOverride = {
   cost: number | null;
   retail: number | null;
   apiPrice: number | null;
+  childPrice: number | null;
   active: boolean;
 };
 
@@ -54,6 +55,7 @@ export async function loadOverrides(force = false): Promise<Map<number, DataOver
             cost: numOrNull(r.override_cost),
             retail: numOrNull(r.override_retail),
             apiPrice: numOrNull(r.override_api_price),
+            childPrice: numOrNull(r.override_child_price),
             active: true,
           });
         }
