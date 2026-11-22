@@ -109,10 +109,10 @@ export function applyLiveToPlan(
   plan: CatalogPlan,
   liveById: Map<number, LivePlanRow> | null,
 ): SyncedPlan | null {
-  // 9mobile primary is ClubKonnect (ckCode). Never reprice from 247 live list —
-  // catalog cost is the CK net baseline and retail margin is locked against it.
+  // ClubKonnect-primary plans (9mobile SME, Glo large Corporate2): never reprice
+  // or hide from the 247 live list — catalog cost is the CK net baseline.
   const ckCode = Number((plan as { ckCode?: number | string }).ckCode);
-  if (plan.network === '9mobile' && Number.isFinite(ckCode) && ckCode > 0) {
+  if (Number.isFinite(ckCode) && ckCode > 0) {
     return { ...plan };
   }
 
