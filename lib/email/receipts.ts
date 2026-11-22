@@ -6,6 +6,9 @@ import {
   buildPanelAdminAlertHtml,
   panelAdminAlertSubject,
   type PanelAdminAlertOptions,
+  buildAccountDeliveryReceiptHtml,
+  accountDeliveryReceiptSubject,
+  type AccountDeliveryReceiptOptions,
 } from './receipt-template';
 import { sendEmail, type SendEmailResult } from './resend';
 
@@ -165,4 +168,50 @@ export async function sendVirtualNumberDeliveredReceipt(
       ...(options.country ? [{ label: 'Country', value: options.country }] : []),
     ],
   });
+}
+
+
+export async function sendAccountDeliveryReceipt(
+  options: AccountDeliveryReceiptOptions & { userId?: string; customerEmail?: string },
+): Promise<SendEmailResult> {
+  let toEmail = (options.customerEmail || "").trim().toLowerCase();
+  let customerName = (options.customerName || "").trim();
+
+  if ((!toEmail || !toEmail.includes("@")) && options.userId) {
+    try {
+      const rows = (await sbSelect(
+        "profiles",
+        `select=email,full_name&id=eq.${encodeURIComponent(options.userId)}&limit=1`,
+      )) as Array<{ email?: string | null; full_name?: string | null }>;
+      const profile = rows?.[0];
+      if (profile?.email) {
+        toEmail = profile.email.trim().toLowerCase();
+      }
+      if (!customerName && profile?.full_name) {
+        customerName = profile.full_name.trim();
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+
+  if (!toEmail || !toEmail.includes("@")) {
+    return { ok: false, error: "Customer email not found" };
+  }
+
+  try {
+    return await sendEmail({
+      to: toEmail,
+      subject: accountDeliveryReceiptSubject(options),
+      html: buildAccountDeliveryReceiptHtml({
+        ...options,
+        customerName: customerName || undefined,
+      }),
+    });
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "Account delivery receipt dispatch failed",
+    };
+  }
 }

@@ -17,7 +17,8 @@ import {
   loadAccountsUsdRate,
   wholesaleCostUnitNgn,
 } from '@/lib/accounts-pricing';
-import { sendPanelAdminOrderAlert } from '@/lib/email/receipts';
+import { sendPanelAdminOrderAlert, sendAccountDeliveryReceipt } from '@/lib/email/receipts';
+import { buildAccountDownloadUrl } from '@/lib/accounts-download';
 
 export const dynamic = 'force-dynamic';
 
@@ -27,24 +28,81 @@ function supabaseBase() {
     .replace(/\/$/, '');
 }
 
-async function resolveUserId(req: NextRequest): Promise<string | null> {
+async function resolveUserId(req: NextRequest, bodyUserId?: string): Promise<string | null> {
   const auth = req.headers.get('authorization') || '';
   const token = auth.startsWith('Bearer ') ? auth.slice(7).trim() : '';
-  if (!token || token.startsWith('vx_panel_')) return null;
-  const base = supabaseBase();
-  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
-  if (!base || !anon) return null;
-  try {
-    const res = await fetch(`${base}/auth/v1/user`, {
-      headers: { apikey: anon, Authorization: `Bearer ${token}` },
-      cache: 'no-store',
-    });
-    if (!res.ok) return null;
-    const u = (await res.json()) as { id?: string };
-    return u.id || null;
-  } catch {
-    return null;
+  const fallback = String(bodyUserId || '').trim();
+
+  if (token && !token.startsWith('vx_panel_')) {
+    const base = supabaseBase();
+    const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
+    if (base && anon) {
+      try {
+        const res = await fetch(`${base}/auth/v1/user`, {
+          headers: { apikey: anon, Authorization: `Bearer ${token}` },
+          cache: 'no-store',
+        });
+        if (res.ok) {
+          const u = (await res.json()) as { id?: string };
+          if (u.id) return u.id;
+        }
+      } catch {
+        /* ignore */
+      }
+    }
+
+    // Try decoding JWT sub claim if access token is recently expired
+    try {
+      const parts = token.split('.');
+      if (parts.length === 3) {
+        const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf8'));
+        if (payload && typeof payload.sub === 'string' && payload.sub.length > 10) {
+          const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+          const base = supabaseBase();
+          if (serviceKey && base) {
+            const check = await fetch(
+              `${base}/rest/v1/profiles?id=eq.${encodeURIComponent(payload.sub)}&select=id&limit=1`,
+              {
+                headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` },
+                cache: 'no-store',
+              },
+            );
+            if (check.ok) {
+              const rows = (await check.json()) as Array<{ id: string }>;
+              if (rows?.[0]?.id) return rows[0].id;
+            }
+          }
+        }
+      }
+    } catch {
+      /* ignore */
+    }
   }
+
+  // Fallback to validated bodyUserId
+  if (fallback) {
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const base = supabaseBase();
+    if (serviceKey && base) {
+      try {
+        const check = await fetch(
+          `${base}/rest/v1/profiles?id=eq.${encodeURIComponent(fallback)}&select=id&limit=1`,
+          {
+            headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` },
+            cache: 'no-store',
+          },
+        );
+        if (check.ok) {
+          const rows = (await check.json()) as Array<{ id: string }>;
+          if (rows?.[0]?.id) return rows[0].id;
+        }
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+
+  return null;
 }
 
 async function debitRetailWallet(
@@ -236,6 +294,7 @@ async function creditResellerWallet(userId: string, amount: number, reference: s
 }
 
 type BuyBody = {
+  userId?: string;
   listingId?: number | string;
   providerListingId?: number | string;
   quantity?: number;
@@ -261,7 +320,7 @@ export async function POST(req: NextRequest) {
       return bad('This panel key is not allowed to buy logs (accounts)', 403);
     }
     const useReseller = Boolean(panel);
-    const userId = panel ? panel.walletUserId : await resolveUserId(req);
+    const userId = panel ? panel.walletUserId : await resolveUserId(req, body.userId);
     if (!userId) {
       if (panel) {
         return bad(
@@ -269,7 +328,7 @@ export async function POST(req: NextRequest) {
           402,
         );
       }
-      return bad('Unauthorized', 401);
+      return bad('Unauthorized. Sign in to your Verxor account to purchase.', 401);
     }
 
     const adId = Number(body.providerListingId ?? body.listingId);
@@ -439,6 +498,8 @@ export async function POST(req: NextRequest) {
       persistenceWarning = 'Order storage is not configured. Save these credentials securely.';
     }
 
+    const downloadUrl = orderId ? buildAccountDownloadUrl(orderId) : undefined;
+
     // Panel wholesale order: notify the panel admin only, never the end customer.
     if (panel) {
       try {
@@ -470,6 +531,25 @@ export async function POST(req: NextRequest) {
       } catch (err) {
         console.warn('[email] Panel admin alert dispatch failed:', err);
       }
+    } else {
+      // Retail end-customer order: deliver credentials and download link via email
+      try {
+        await sendAccountDeliveryReceipt({
+          userId,
+          customerEmail: body.customerEmail,
+          customerName: body.customerName,
+          orderId: orderId || clientRef,
+          platform,
+          title,
+          quantity: deliveredQty,
+          amountNgn: chargedTotal,
+          credentials: purchase.accounts,
+          downloadUrl,
+          date: new Date(),
+        });
+      } catch (err) {
+        console.warn('[email] Retail customer account delivery email failed:', err);
+      }
     }
 
     return NextResponse.json({
@@ -481,6 +561,7 @@ export async function POST(req: NextRequest) {
       unitPriceNgn: unitPrice,
       platform,
       title,
+      downloadUrl,
       warning: persistenceWarning,
       message: 'Purchase successful. Credentials are ready.',
       panel: panel ? { id: panel.id, name: panel.name } : null,

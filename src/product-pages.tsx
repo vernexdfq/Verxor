@@ -14,6 +14,8 @@ import {
   Minus,
   Plus,
   ChevronDown,
+  Download,
+  ExternalLink,
 } from 'lucide-react';
 import { Card, PrimaryButton } from './components/ui';
 import './product-pages.css';
@@ -21,7 +23,13 @@ import type { AuthSession } from './auth/AuthFlow';
 import type { AccountProduct } from './accounts-types';
 import { DescriptionBody } from './accounts-description';
 import { MyLogsPage } from './MyLogsPage';
-import { loadSessionTokens } from './auth/session-unlock';
+import {
+  loadSessionTokens,
+  saveSessionTokens,
+  loadSessionProfile,
+  saveSessionProfile,
+  isSessionUnlocked,
+} from './auth/session-unlock';
 
 /**
  * Buy Accounts & Logs — Verxor marketplace
@@ -816,6 +824,7 @@ export function AccountsPage({
       <AccountDetail
         product={selected}
         wallet={walletBalance}
+        session={session}
         onClose={() => setSelected(null)}
         onCheckoutBlocked={(msg) => setToast(msg)}
         onOpenLogs={() => setShowMyLogs(true)}
@@ -1099,15 +1108,71 @@ export function AccountsPage({
   );
 }
 
+function downloadCredentialsTxt(
+  orderRef: string,
+  platform: string,
+  title: string,
+  credentials: string[],
+) {
+  const dateStr = new Date().toLocaleString('en-NG', { timeZone: 'Africa/Lagos' });
+  const lines = [
+    '============================================================',
+    'VERXOR DIGITAL GOODS & ACCOUNTS — ORDER DELIVERED',
+    '============================================================',
+    `Order Reference : ${orderRef}`,
+    `Platform        : ${platform}`,
+    `Listing         : ${title}`,
+    `Quantity        : ${credentials.length}`,
+    `Delivery Date   : ${dateStr}`,
+    `Status          : Delivered`,
+    '------------------------------------------------------------',
+    'DELIVERED CREDENTIALS (KEEP PRIVATE):',
+    '------------------------------------------------------------',
+    ...credentials,
+    '------------------------------------------------------------',
+    'USAGE INSTRUCTIONS:',
+    '• Account Format: login:password (see listing details).',
+    '• 2FA Security: If a 2FA secret key is included, enter it at',
+    '  https://2fa.live or into your Google Authenticator app to generate',
+    '  the 6-digit one-time login code.',
+    '• Cookies: If cookies are provided, use a browser cookie editor',
+    '  extension to import them before logging in.',
+    '------------------------------------------------------------',
+    '24-HOUR REPLACEMENT POLICY:',
+    '• All accounts are covered by a 24-hour replacement window for any',
+    '  credentials that are invalid on first login.',
+    '• To claim a replacement, contact Verxor support within 24 hours with',
+    `  your Order Reference: ${orderRef}`,
+    '------------------------------------------------------------',
+    'CUSTOMER SUPPORT CHANNELS:',
+    '• Email    : support@verxor.com',
+    '• WhatsApp : 08141620644 | 08062362896',
+    '• Custom app / web development: admin@verxor.com',
+    '============================================================',
+  ];
+  const blob = new Blob([lines.join('\r\n')], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  const safePlatform = platform.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+  a.download = `verxor-${safePlatform}-order-${orderRef.slice(0, 8)}.txt`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
 function AccountDetail({
   product,
   wallet,
+  session,
   onClose,
   onCheckoutBlocked,
   onOpenLogs,
 }: {
   product: AccountProduct;
   wallet: number;
+  session?: AuthSession | null;
   onClose: () => void;
   onCheckoutBlocked: (msg: string) => void;
   onOpenLogs: () => void;
@@ -1115,8 +1180,15 @@ function AccountDetail({
   const [qty, setQty] = useState(1);
   const [buying, setBuying] = useState(false);
   const [buyError, setBuyError] = useState<string | null>(null);
-  const [purchase, setPurchase] = useState<{ orderId: string | null; credentials: string[]; totalNgn: number; warning?: string } | null>(null);
+  const [purchase, setPurchase] = useState<{
+    orderId: string | null;
+    credentials: string[];
+    totalNgn: number;
+    downloadUrl?: string;
+    warning?: string;
+  } | null>(null);
   const [copied, setCopied] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
   const total = product.price * qty;
   const LIVE_CHECKOUT_SET = useMemo(
     () => new Set(['Facebook', 'Instagram', 'TikTok', 'X / Twitter', 'Telegram', 'X', 'Gmail', 'YouTube', 'Threads', 'WhatsApp', 'Mobile Proxies', 'Google Voice', 'Odnoklassniki', 'LinkedIn', 'Reddit', 'Indeed', 'Truth Social', 'AI Accounts', 'Google Ads', 'Bluesky', 'Snapchat', 'Discord', 'Twitch', 'Trustpilot', 'Quora', 'Dating Apps', 'Grindr', 'eHarmony', 'Badoo', 'Gaming', 'Premium Subscriptions', 'Mastercard', 'Apple', 'E-Commerce', 'Spotify', 'VPN', 'Netflix', 'Pinterest', 'Yahoo', 'CapCut', 'Phone & Messaging', 'Roblox', 'GitHub', 'Outlook']),
@@ -1131,24 +1203,96 @@ function AccountDetail({
       setBuyError('Live checkout is currently available for Facebook, Instagram, TikTok, X / Twitter, Telegram, Gmail, YouTube, Threads, WhatsApp, Mobile Proxies, Google Voice, Odnoklassniki, LinkedIn, Reddit, Indeed, Truth Social, AI Accounts, Google Ads, Bluesky, Snapchat, Discord, Twitch, Trustpilot, Quora, Dating Apps, Grindr, eHarmony, Badoo, Gaming, Premium Subscriptions, Mastercard, Apple, E-Commerce, Spotify, VPN, Netflix, Pinterest, Yahoo, CapCut, Phone & Messaging, Roblox, GitHub, and Outlook.');
       return;
     }
-    const token = loadSessionTokens()?.access_token;
-    if (!token) {
+    let token = loadSessionTokens()?.access_token || session?.accessToken || '';
+    let userId = session?.userId || loadSessionProfile()?.userId || '';
+    let customerEmail = session?.email || loadSessionProfile()?.email || '';
+    let customerName = session?.name || loadSessionProfile()?.name || '';
+
+    // Refresh Supabase session if expired
+    try {
+      const { getSupabaseBrowser } = await import('../lib/supabase/client');
+      const sb = getSupabaseBrowser();
+      if (sb) {
+        let { data: sess } = await sb.auth.getSession();
+        if (!sess.session && token) {
+          const tokens = loadSessionTokens();
+          if (tokens?.refresh_token) {
+            const { data: refreshed } = await sb.auth
+              .setSession({
+                access_token: tokens.access_token || token,
+                refresh_token: tokens.refresh_token,
+              })
+              .catch(() => ({ data: { session: null } }));
+            if (refreshed?.session) sess = refreshed;
+          }
+        }
+        if (sess.session?.access_token) {
+          token = sess.session.access_token;
+          saveSessionTokens({
+            access_token: sess.session.access_token,
+            refresh_token: sess.session.refresh_token,
+          });
+        }
+        if (sess.session?.user?.id) {
+          userId = sess.session.user.id;
+          if (sess.session.user.email) customerEmail = sess.session.user.email;
+          const existingProf = loadSessionProfile();
+          if (existingProf) {
+            saveSessionProfile({ ...existingProf, userId });
+          }
+        }
+      }
+    } catch {
+      /* ignore */
+    }
+
+    if (!token && !userId && !isSessionUnlocked()) {
       setBuyError('Your secure session has expired. Sign in again before purchasing.');
       return;
     }
+
     setBuying(true);
     setBuyError(null);
     try {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) headers.Authorization = `Bearer ${token}`;
+
       const res = await fetch('/api/v1/accounts/buy', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ providerListingId: product.providerListingId, quantity: qty, platform: product.platform }),
+        headers,
+        body: JSON.stringify({
+          providerListingId: product.providerListingId,
+          quantity: qty,
+          platform: product.platform,
+          userId: userId || undefined,
+          customerEmail: customerEmail || undefined,
+          customerName: customerName || undefined,
+        }),
       });
+
       const data = await res.json().catch(() => ({}));
-      if (!res.ok || !data?.ok) throw new Error(data?.error || 'Purchase could not be completed.');
+      if (!res.ok || !data?.ok) {
+        if (res.status === 401) {
+          throw new Error('Your login session has expired. Please sign in again to complete your purchase.');
+        }
+        throw new Error(data?.error || 'Purchase could not be completed.');
+      }
+
       const credentials = Array.isArray(data.credentials) ? data.credentials.map(String) : [];
-      if (!credentials.length) throw new Error('The provider confirmed the purchase, but no account details were returned. Contact support before retrying.');
-      setPurchase({ orderId: data.orderId ? String(data.orderId) : null, credentials, totalNgn: Number(data.totalNgn) || total, warning: data.warning || undefined });
+      if (!credentials.length) {
+        throw new Error(
+          'The provider confirmed the purchase, but no account details were returned. Contact support before retrying.',
+        );
+      }
+
+      setPurchase({
+        orderId: data.orderId ? String(data.orderId) : null,
+        credentials,
+        totalNgn: Number(data.totalNgn) || total,
+        downloadUrl: data.downloadUrl ? String(data.downloadUrl) : undefined,
+        warning: data.warning || undefined,
+      });
+
       if (typeof window !== 'undefined') window.dispatchEvent(new Event('verxor:balance-refresh'));
     } catch (error) {
       setBuyError(error instanceof Error ? error.message : 'Purchase failed. Please try again.');
@@ -1180,9 +1324,92 @@ function AccountDetail({
           {purchase.orderId && <p className="account-result-reference">Order reference <code>{purchase.orderId}</code></p>}
           {purchase.warning && <p className="account-result-warning" role="status">{purchase.warning}</p>}
           <section className="account-delivery-credentials" aria-label="Delivered account credentials">
-            <div className="account-credentials-heading"><div><strong>Delivered credentials</strong><span>Keep these details private and secure.</span></div><button type="button" onClick={async () => { try { await navigator.clipboard.writeText(purchase.credentials.join('\n')); setCopied(true); setTimeout(() => setCopied(false), 1600); } catch { setBuyError('Clipboard access is unavailable. Select and copy the credentials manually.'); } }}>{copied ? <Check size={15} /> : <Copy size={15} />} {copied ? 'Copied' : 'Copy all'}</button></div>
-            <div className="account-credential-list">{purchase.credentials.map((line, index) => <code key={`${index}-${line}`}>{line}</code>)}</div>
+            <div className="account-credentials-heading">
+              <div>
+                <strong>Delivered credentials</strong>
+                <span>Keep these details private and secure.</span>
+              </div>
+              <div className="account-credentials-actions">
+                <button
+                  type="button"
+                  className="account-download-btn"
+                  onClick={() =>
+                    downloadCredentialsTxt(
+                      purchase.orderId || 'order',
+                      product.platform,
+                      product.title,
+                      purchase.credentials,
+                    )
+                  }
+                  title="Download .txt file"
+                >
+                  <Download size={14} />
+                  <span>Download (.txt)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      await navigator.clipboard.writeText(purchase.credentials.join('\n'));
+                      setCopied(true);
+                      setTimeout(() => setCopied(false), 1600);
+                    } catch {
+                      setBuyError('Clipboard access is unavailable. Select and copy the credentials manually.');
+                    }
+                  }}
+                >
+                  {copied ? <Check size={14} /> : <Copy size={14} />} {copied ? 'Copied' : 'Copy all'}
+                </button>
+              </div>
+            </div>
+            <div className="account-credential-list">
+              {purchase.credentials.map((line, index) => (
+                <code key={`${index}-${line}`}>{line}</code>
+              ))}
+            </div>
           </section>
+
+          {purchase.downloadUrl && (
+            <div className="account-download-link-box">
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 6 }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '.06em' }}>
+                  Direct download link
+                </span>
+                <button
+                  type="button"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: 'none', border: 0, color: '#382080', fontSize: 11, fontWeight: 700, cursor: 'pointer', padding: 0 }}
+                  onClick={async () => {
+                    try {
+                      await navigator.clipboard.writeText(purchase.downloadUrl!);
+                      setCopiedLink(true);
+                      setTimeout(() => setCopiedLink(false), 1600);
+                    } catch {
+                      /* ignore */
+                    }
+                  }}
+                >
+                  {copiedLink ? <Check size={13} /> : <Copy size={13} />}
+                  <span>{copiedLink ? 'Copied' : 'Copy link'}</span>
+                </button>
+              </div>
+              <code style={{ display: 'block', fontSize: 11, color: '#382080', background: '#f1f5f9', padding: '6px 8px', borderRadius: 6, wordBreak: 'break-all' }}>
+                {purchase.downloadUrl}
+              </code>
+            </div>
+          )}
+
+          <div className="account-instructions-card">
+            <strong style={{ display: 'block', color: '#0f172a', marginBottom: 6 }}>Important instructions & 24-hour guarantee</strong>
+            <ul style={{ margin: 0, paddingLeft: 18, display: 'grid', gap: 4 }}>
+              <li><strong>Account Format:</strong> Credentials typically follow <code>login:password</code> format.</li>
+              <li><strong>2FA Secret:</strong> If a 2FA code is included, visit <a href="https://2fa.live" target="_blank" rel="noreferrer" style={{ color: '#382080', fontWeight: 600 }}>2fa.live</a> to generate your 6-digit login code.</li>
+              <li><strong>24-Hour Replacement:</strong> Test login credentials immediately. Any invalid login reported within 24 hours is covered under policy.</li>
+            </ul>
+          </div>
+
+          <p className="account-delivery-email-notice">
+            ✓ A copy of your credentials and download link has also been sent to your registered email.
+          </p>
           {buyError && <p className="account-checkout-error" role="alert">{buyError}</p>}
           <div className="account-result-actions"><PrimaryButton className="detail-order-btn" onClick={onOpenLogs}>View My Logs <ArrowRight size={16} /></PrimaryButton><button type="button" className="account-secondary-action" onClick={onClose}>Continue browsing</button></div>
         </main>

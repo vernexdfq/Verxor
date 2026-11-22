@@ -1,9 +1,9 @@
 'use client';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { ArrowLeft, Copy, Check, Package, RefreshCw, ShoppingBag } from 'lucide-react';
+import { ArrowLeft, Copy, Check, Package, RefreshCw, ShoppingBag, Download, ExternalLink } from 'lucide-react';
 import type { AuthSession } from './auth/AuthFlow';
-import { loadSessionTokens, isSessionUnlocked } from './auth/session-unlock';
+import { loadSessionTokens, saveSessionTokens, loadSessionProfile, isSessionUnlocked } from './auth/session-unlock';
 import type { AccountOrder } from './accounts-types';
 import './product-pages.css';
 
@@ -26,8 +26,41 @@ export function MyLogsPage({
 
   const load = useCallback(async () => {
     const tokens = loadSessionTokens();
-    const token = tokens?.access_token;
-    if (!token && !sessionRef.current && !isSessionUnlocked()) {
+    let token = tokens?.access_token || sessionRef.current?.accessToken || '';
+    const profile = loadSessionProfile();
+    let userId = sessionRef.current?.userId || profile?.userId || '';
+
+    // Refresh Supabase browser token if needed
+    try {
+      const { getSupabaseBrowser } = await import('../lib/supabase/client');
+      const sb = getSupabaseBrowser();
+      if (sb) {
+        let { data: sess } = await sb.auth.getSession();
+        if (!sess.session && token && tokens?.refresh_token) {
+          const { data: refreshed } = await sb.auth
+            .setSession({
+              access_token: token,
+              refresh_token: tokens.refresh_token,
+            })
+            .catch(() => ({ data: { session: null } }));
+          if (refreshed?.session) sess = refreshed;
+        }
+        if (sess.session?.access_token) {
+          token = sess.session.access_token;
+          saveSessionTokens({
+            access_token: sess.session.access_token,
+            refresh_token: sess.session.refresh_token,
+          });
+        }
+        if (sess.session?.user?.id) {
+          userId = sess.session.user.id;
+        }
+      }
+    } catch {
+      /* ignore */
+    }
+
+    if (!token && !userId && !isSessionUnlocked()) {
       setError('Your session has expired. Sign in again to view your logs.');
       setLoading(false);
       return;
@@ -37,7 +70,10 @@ export function MyLogsPage({
     try {
       const headers: Record<string, string> = {};
       if (token) headers.Authorization = `Bearer ${token}`;
-      const res = await fetch('/api/v1/accounts/orders', {
+      const url = userId
+        ? `/api/v1/accounts/orders?userId=${encodeURIComponent(userId)}`
+        : '/api/v1/accounts/orders';
+      const res = await fetch(url, {
         cache: 'no-store',
         headers,
       });
@@ -141,18 +177,53 @@ export function MyLogsPage({
 
         {!loading &&
           orders.map((o) => (
-            <article key={o.id} className="delivery-card" style={{ margin: '0 0 14px' }}>
-              <div className="delivery-success-badge">
-                <Check size={14} />
-                <span>{o.status || 'Delivered'}</span>
+            <article key={o.id} className="delivery-card" style={{ margin: '0 0 16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 8 }}>
+                <div className="delivery-success-badge">
+                  <Check size={14} />
+                  <span>{o.status || 'Delivered'}</span>
+                </div>
+                <span style={{ fontSize: 11, color: '#64748b', fontFamily: 'monospace' }}>
+                  #{o.id.slice(0, 8)}
+                </span>
               </div>
+
               <h2 className="delivery-title" style={{ fontSize: 16 }}>
                 {o.title}
               </h2>
               <p className="delivery-sub">
                 {o.platform} · Qty {o.quantity} · {money(o.total_ngn)} ·{' '}
-                {o.created_at ? new Date(o.created_at).toLocaleString() : ''}
+                {o.created_at ? new Date(o.created_at).toLocaleString('en-NG') : ''}
               </p>
+
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8, margin: '10px 0 6px' }}>
+                <button
+                  type="button"
+                  className="account-download-btn"
+                  style={{ padding: '6px 10px', fontSize: 11 }}
+                  onClick={() =>
+                    downloadCredentialsTxt(
+                      o.id,
+                      o.platform,
+                      o.title,
+                      o.credentials || [],
+                    )
+                  }
+                  title="Download credentials as .txt file"
+                >
+                  <Download size={13} />
+                  <span>Download (.txt)</span>
+                </button>
+                <button
+                  type="button"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '6px 10px', borderRadius: 8, border: '1px solid #dbe3ef', background: '#fff', color: '#334155', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}
+                  onClick={() => void copyText((o.credentials || []).join('\n'), `all-${o.id}`)}
+                >
+                  {copied === `all-${o.id}` ? <Check size={13} /> : <Copy size={13} />}
+                  <span>{copied === `all-${o.id}` ? 'Copied' : 'Copy all'}</span>
+                </button>
+              </div>
+
               <div className="delivery-creds">
                 {(o.credentials || []).map((line, i) => (
                   <div key={`${o.id}-${i}`} className="delivery-cred-row">
@@ -167,6 +238,21 @@ export function MyLogsPage({
                     </button>
                   </div>
                 ))}
+              </div>
+
+              <div style={{ marginTop: 10, paddingTop: 8, borderTop: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 11, color: '#64748b' }}>
+                <span>✓ 24-hour replacement coverage</span>
+                {o.downloadUrl && (
+                  <a
+                    href={o.downloadUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{ color: '#382080', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 3, textDecoration: 'none' }}
+                  >
+                    <span>Direct file</span>
+                    <ExternalLink size={11} />
+                  </a>
+                )}
               </div>
             </article>
           ))}

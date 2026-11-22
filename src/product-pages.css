@@ -1416,3 +1416,10 @@
 .accounts-promo[data-promo-slide="1"]::before { background-image: url('https://images.unsplash.com/photo-1507842217343-583bb7270b66?auto=format&fit=crop&w=1200&q=85'); }
 .accounts-promo[data-promo-slide="2"]::before { background-image: url('https://images.unsplash.com/photo-1497366811353-6870744d04b2?auto=format&fit=crop&w=1200&q=85'); }
 .accounts-promo[data-promo-slide="3"]::before { background-image: url('https://images.unsplash.com/photo-1518005020951-eccb494ad742?auto=format&fit=crop&w=1200&q=85'); }
+
+.account-credentials-actions { display:flex; align-items:center; gap:8px; }
+.account-download-btn { display:inline-flex; align-items:center; gap:5px; padding:7px 11px; border:1px solid #382080 !important; border-radius:8px; background:#382080 !important; color:#fff !important; font-size:11px; font-weight:700; cursor:pointer; transition:opacity .15s ease; }
+.account-download-btn:hover { opacity:.92; }
+.account-download-link-box { width:100%; margin-top:12px; padding:12px 14px; border-radius:12px; background:#f8fafc; border:1px solid #e2e8f0; text-align:left; box-sizing:border-box; }
+.account-instructions-card { width:100%; margin-top:12px; padding:12px 14px; border-radius:12px; background:#f8fafc; border:1px solid #e2e8f0; text-align:left; font-size:12px; line-height:1.6; color:#475569; box-sizing:border-box; }
+.account-delivery-email-notice { margin:10px 0 0; color:#059669; font-size:12px; font-weight:600; text-align:center; }

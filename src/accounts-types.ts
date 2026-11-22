@@ -36,4 +36,5 @@ export type AccountOrder = {
   credentials: string[];
   status: 'delivered' | 'pending' | 'failed' | 'refunded';
   created_at: string;
+  downloadUrl?: string;
 };

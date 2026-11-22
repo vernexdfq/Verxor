@@ -397,3 +397,70 @@ export function buildPanelAdminAlertHtml(options: PanelAdminAlertOptions): strin
     customerDisplay,
   )}</strong> was fulfilled successfully via your child panel.</p>${pricingBox}<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-top:18px">${detailsHtml}</table>${privacyGuarantee}${contactBlock}</td></tr><tr><td style="padding:18px 28px;background:#fafbfc;border-top:1px solid #edf0f4;color:#667085;font-size:12px;line-height:1.6">This is an automated partner notification for child panel administrators. Please do not reply with sensitive account secrets.</td></tr></table><div style="padding:16px;color:#98a2b3;font-size:11px">© ${new Date().getFullYear()} Verxor Partner Network</div></td></tr></table></body></html>`;
 }
+
+
+export type AccountDeliveryReceiptOptions = {
+  orderId: string | number;
+  platform: string;
+  title: string;
+  quantity: number;
+  amountNgn: number;
+  credentials: string[];
+  downloadUrl?: string;
+  customerName?: string;
+  balanceAfterNgn?: number;
+  date?: Date | string;
+};
+
+export function accountDeliveryReceiptSubject(options: AccountDeliveryReceiptOptions): string {
+  return `Your ${options.platform} account credentials are ready · #${options.orderId}`;
+}
+
+export function buildAccountDeliveryReceiptHtml(options: AccountDeliveryReceiptOptions): string {
+  const date = options.date ? new Date(options.date) : new Date();
+  const dateLabel = Number.isNaN(date.getTime())
+    ? "—"
+    : date.toLocaleString("en-NG", {
+        dateStyle: "medium",
+        timeStyle: "short",
+        timeZone: "Africa/Lagos",
+      });
+
+  const greeting = options.customerName ? `Hello ${escapeHtml(options.customerName)},` : "Hello,";
+  const safeRef = escapeHtml(String(options.orderId));
+  const safePlatform = escapeHtml(options.platform);
+  const safeTitle = escapeHtml(options.title);
+
+  const credLines = options.credentials
+    .map(
+      (c) =>
+        `<div style="padding:6px 0;border-bottom:1px solid #1e293b;word-break:break-all">${escapeHtml(c)}</div>`,
+    )
+    .join("");
+
+  const downloadBlock = options.downloadUrl
+    ? `
+      <div style="margin-top:22px;padding:20px;background:#f8f7fc;border:1px solid #ece8f7;border-radius:12px;text-align:center">
+        <div style="font-size:13px;font-weight:700;color:#172033;margin-bottom:6px">Download credentials as text file</div>
+        <p style="margin:0 0 14px;font-size:12px;color:#667085">Keep a secure offline copy of your credentials on your device.</p>
+        <a href="${escapeHtml(options.downloadUrl)}" style="display:inline-block;padding:12px 28px;background:#382080;color:#ffffff;text-decoration:none;font-weight:700;border-radius:9px;font-size:13px">Download Credentials (.txt)</a>
+        <div style="margin-top:12px;font-size:11px;color:#64748b;word-break:break-all">Direct link: <a href="${escapeHtml(options.downloadUrl)}" style="color:#382080;word-break:break-all">${escapeHtml(options.downloadUrl)}</a></div>
+      </div>
+    `
+    : "";
+
+  const instructionsBlock = `
+    <div style="margin-top:20px;padding:16px 18px;background:#f8fafc;border:1px solid #e8ebef;border-radius:12px">
+      <div style="font-size:13px;font-weight:700;color:#172033;margin-bottom:8px">Important Account Instructions</div>
+      <ul style="margin:0;padding-left:18px;font-size:12px;line-height:1.7;color:#475467">
+        <li><strong>Account Format:</strong> Credentials typically follow <code>login:password</code> or <code>login:password:email:2fa</code> format as described in the listing title.</li>
+        <li><strong>2FA Codes:</strong> If a 2FA secret key is included, enter it at <a href="https://2fa.live" style="color:#382080;font-weight:600">2fa.live</a> or add it to Google Authenticator to generate your 6-digit login verification code.</li>
+        <li><strong>24-Hour Replacement Guarantee:</strong> All accounts have a 24-hour replacement window for invalid credentials upon first login. Report any issues to Verxor support within 24 hours with your order reference.</li>
+      </ul>
+    </div>
+  `;
+
+  const contactBlock = `<div style="margin-top:22px;padding:16px 18px;background:#f8fafc;border:1px solid #e8ebef;border-radius:12px"><div style="font-size:13px;font-weight:700;color:#172033;margin-bottom:8px">Customer support</div><div style="font-size:12px;line-height:1.7;color:#475467">Email: <a href="mailto:support@verxor.com" style="color:#382080;font-weight:600">support@verxor.com</a><br>WhatsApp: <a href="https://wa.me/2348141620644" style="color:#087443">08141620644</a> · <a href="https://wa.me/2348062362896" style="color:#087443">08062362896</a></div><div style="margin-top:12px;padding-top:12px;border-top:1px solid #e8ebef;font-size:12px;line-height:1.6;color:#475467"><strong style="color:#172033">Need a custom website or app like Verxor?</strong><br>Contact <a href="mailto:admin@verxor.com" style="color:#382080;font-weight:700">admin@verxor.com</a>.</div></div>`;
+
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Your ${safePlatform} Account Credentials Are Ready</title></head><body style="margin:0;background:#f4f6f8;font-family:Arial,Helvetica,sans-serif;color:#172033"><div style="display:none;max-height:0;overflow:hidden;opacity:0">Your ${safePlatform} account credentials · Delivered · Reference #${safeRef} · ${formatCurrency(options.amountNgn)}</div><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f4f6f8;padding:32px 12px"><tr><td align="center"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:560px;background:#fff;border:1px solid #e8ebef;border-radius:16px;overflow:hidden"><tr><td style="padding:24px 28px;border-bottom:1px solid #edf0f4"><div style="font-size:20px;letter-spacing:.04em;font-weight:800;color:#382080">VERXOR</div><div style="margin-top:4px;font-size:12px;color:#667085">A secure record of your transaction</div></td></tr><tr><td style="padding:28px"><p style="margin:0 0 12px;font-size:15px">${greeting}</p><h1 style="margin:0 0 10px;font-size:22px;line-height:1.3;color:#172033">Your ${safePlatform} account is ready</h1><p style="margin:0 0 22px;font-size:14px;line-height:1.6;color:#667085">Your purchase was completed successfully. Your login credentials have been delivered below and saved to your Verxor account.</p><div style="padding:18px 20px;border-radius:12px;background:#f8f7fc;border:1px solid #ece8f7"><div style="font-size:12px;color:#667085">Amount paid</div><div style="margin-top:5px;font-size:28px;font-weight:750;letter-spacing:-.4px;color:#172033">${formatCurrency(options.amountNgn)}</div><div style="margin-top:12px"><span style="display:inline-block;padding:5px 10px;border-radius:999px;background:#08744314;color:#087443;font-size:12px;font-weight:700">Delivered</span></div></div><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-top:18px"><tr><td style="padding:12px 0;color:#667085;font-size:14px;border-bottom:1px solid #edf0f4">Platform</td><td style="padding:12px 0;color:#172033;font-size:14px;text-align:right;border-bottom:1px solid #edf0f4;font-weight:600">${safePlatform}</td></tr><tr><td style="padding:12px 0;color:#667085;font-size:14px;border-bottom:1px solid #edf0f4">Listing</td><td style="padding:12px 0;color:#172033;font-size:14px;text-align:right;border-bottom:1px solid #edf0f4;font-weight:600">${safeTitle}</td></tr><tr><td style="padding:12px 0;color:#667085;font-size:14px;border-bottom:1px solid #edf0f4">Quantity</td><td style="padding:12px 0;color:#172033;font-size:14px;text-align:right;border-bottom:1px solid #edf0f4;font-weight:600">${Number(options.quantity).toLocaleString("en-NG")}</td></tr><tr><td style="padding:12px 0;color:#667085;font-size:14px;border-bottom:1px solid #edf0f4">Order reference</td><td style="padding:12px 0;color:#172033;font-size:14px;text-align:right;border-bottom:1px solid #edf0f4;font-weight:600;word-break:break-all">${safeRef}</td></tr><tr><td style="padding:12px 0;color:#667085;font-size:14px;border-bottom:1px solid #edf0f4">Date</td><td style="padding:12px 0;color:#172033;font-size:14px;text-align:right;border-bottom:1px solid #edf0f4">${escapeHtml(dateLabel)}</td></tr></table><div style="margin-top:22px;padding:16px 20px;background:#0f172a;border-radius:12px;border:1px solid #1e293b"><div style="font-size:11px;font-weight:700;letter-spacing:.08em;color:#94a3b8;text-transform:uppercase;margin-bottom:10px">Delivered Credentials (Keep Private)</div><div style="font-family:'Courier New',Courier,monospace;font-size:13px;color:#38bdf8;line-height:1.7">${credLines}</div></div>${downloadBlock}${instructionsBlock}${contactBlock}<div style="margin-top:24px;padding:14px 16px;background:#f8fafc;border-radius:10px;color:#667085;font-size:12px;line-height:1.6">Verxor will never ask you to share your password, PIN, or one-time verification code by email. Keep this receipt for your records.</div></td></tr><tr><td style="padding:18px 28px;background:#fafbfc;border-top:1px solid #edf0f4;color:#667085;font-size:12px;line-height:1.6">Need help? Contact Verxor support. You can also view and download your full order history in the <strong>My Orders</strong> tab of your Verxor account.</td></tr></table><div style="padding:16px;color:#98a2b3;font-size:11px">© ${new Date().getFullYear()} Verxor</div></td></tr></table></body></html>`;
+}
