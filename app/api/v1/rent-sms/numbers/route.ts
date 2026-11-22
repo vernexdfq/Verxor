@@ -56,15 +56,20 @@ export async function GET(req: NextRequest) {
 
   const base = supabaseBase();
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  const userId = await resolveUserId(req);
-  if (!userId) return NextResponse.json({ ok: false, error: 'Sign in to see your numbers.' }, { status: 401 });
+  // Panel key: the SMS inbox (?res=) may be read with the panel key alone
+  // (reservation ids are provider-side and unique); the listing path still
+  // requires a user id.
+  const res = req.nextUrl.searchParams.get('res');
+  const userId = res && panel ? null : await resolveUserId(req);
+  if (!userId && !(res && panel)) {
+    return NextResponse.json({ ok: false, error: 'Sign in to see your numbers.' }, { status: 401 });
+  }
 
   const headers = serviceKey
     ? { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` }
     : undefined;
   if (!base || !headers) return NextResponse.json({ ok: false, error: 'Backend not configured' }, { status: 500 });
 
-  const res = req.nextUrl.searchParams.get('res');
   if (res) {
     // SMS inbox for one reservation (live from Textverified).
     const rows = await tvSms({ reservationId: res });
