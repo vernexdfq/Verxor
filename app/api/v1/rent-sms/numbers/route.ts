@@ -77,8 +77,15 @@ export async function GET(req: NextRequest) {
       { headers, cache: 'no-store' },
     );
     if (!r.ok) {
+      const detail = await r.text().catch(() => '');
       return NextResponse.json(
-        { ok: false, error: 'Your rentals list is not available yet (history table still setting up).' },
+        {
+          ok: false,
+          error:
+            'Your rentals list is not available (' +
+            (detail ? detail.slice(0, 160) : `history query failed with HTTP ${r.status}`) +
+            ').',
+        },
         { status: 503 },
       );
     }

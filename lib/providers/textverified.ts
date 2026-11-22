@@ -169,6 +169,23 @@ export async function tvServices(): Promise<{ services: TvService[]; error?: str
   return { services };
 }
 
+/** Available US area codes for rentals (live from the provider). */
+export type TvAreaCode = { code: string; place: string };
+
+export async function tvAreaCodes(): Promise<{ areaCodes: TvAreaCode[]; error?: string }> {
+  const rows = await tvListAll<Record<string, unknown>>('/api/pub/v2/area-codes');
+  const areaCodes = rows
+    .map((r) => ({
+      code: String(r.areaCode ?? r.area_code ?? ''),
+      place: String(r.state ?? r.place ?? ''),
+    }))
+    .filter((a) => a.code && /^\d{3}$/.test(a.code));
+  if (!areaCodes.length) {
+    return { areaCodes: [], error: tvLastError() || 'no area codes returned' };
+  }
+  return { areaCodes };
+}
+
 /* ---------- pricing & rentals ---------- */
 
 export type TvRentalDuration =

@@ -211,26 +211,9 @@ export const DEFAULT_SERVICES = [
 ];
 
 /**
- * Real US area codes (NANP)
+ * Area codes come live from the provider (/api/v1/rent-sms/area-codes).
+ * No hardcoded list — if the provider list is unavailable, honest empty state.
  */
-const US_AREA_CODES: { code: string; place: string }[] = [
-  { code: '212', place: 'New York, NY' }, { code: '310', place: 'Los Angeles, CA' },
-  { code: '305', place: 'Miami, FL' }, { code: '214', place: 'Dallas, TX' },
-  { code: '312', place: 'Chicago, IL' }, { code: '415', place: 'San Francisco, CA' },
-  { code: '404', place: 'Atlanta, GA' }, { code: '702', place: 'Las Vegas, NV' },
-  { code: '202', place: 'Washington, DC' }, { code: '206', place: 'Seattle, WA' },
-  { code: '617', place: 'Boston, MA' }, { code: '713', place: 'Houston, TX' },
-  { code: '408', place: 'San Jose, CA' }, { code: '512', place: 'Austin, TX' },
-  { code: '323', place: 'Los Angeles, CA' }, { code: '646', place: 'Manhattan, NY' },
-  { code: '718', place: 'Brooklyn/Queens, NY' }, { code: '917', place: 'New York, NY' },
-  { code: '347', place: 'New York, NY' }, { code: '407', place: 'Orlando, FL' },
-  { code: '813', place: 'Tampa, FL' }, { code: '954', place: 'Fort Lauderdale, FL' },
-  { code: '215', place: 'Philadelphia, PA' }, { code: '303', place: 'Denver, CO' },
-  { code: '602', place: 'Phoenix, AZ' }, { code: '619', place: 'San Diego, CA' },
-  { code: '704', place: 'Charlotte, NC' }, { code: '615', place: 'Nashville, TN' },
-  { code: '314', place: 'St Louis, MO' }, { code: '504', place: 'New Orleans, LA' },
-  { code: '808', place: 'Honolulu, HI' }, { code: '907', place: 'Anchorage, AK' },
-];
 
 const fmtDate = (iso: string | null) => {
   if (!iso) return '';
@@ -293,6 +276,8 @@ export function RentalPage({
   const [areaCode, setAreaCode] = useState<{ code: string; place: string } | null>(null);
   const [acOpen, setAcOpen] = useState(false);
   const [acQuery, setAcQuery] = useState('');
+  const [areaCodes, setAreaCodes] = useState<{ code: string; place: string }[]>([]);
+  const [areaCodesNote, setAreaCodesNote] = useState<string | null>(null);
 
   /* service list */
   const [services, setServices] = useState<string[]>(DEFAULT_SERVICES);
@@ -356,6 +341,33 @@ export function RentalPage({
     };
   }, []);
 
+  /* Load the live provider area-code list (everything comes from the provider). */
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const res = await fetch('/api/v1/rent-sms/area-codes', { cache: 'no-store' });
+        const data = (await res.json().catch(() => ({}))) as { ok?: boolean; areaCodes?: { code: string; place: string }[]; error?: string };
+        if (!alive) return;
+        if (res.ok && data.ok && data.areaCodes && data.areaCodes.length) {
+          setAreaCodes(data.areaCodes);
+          setAreaCodesNote(null);
+        } else {
+          setAreaCodes([]);
+          setAreaCodesNote(data.error || 'Area codes unavailable right now — "Any area code" still works.');
+        }
+      } catch {
+        if (alive) {
+          setAreaCodes([]);
+          setAreaCodesNote('Area codes unavailable right now — "Any area code" still works.');
+        }
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
+
   /* Load rentals from the backend (live orders only) */
   const loadRentals = useCallback(async () => {
     let backendRentals: Rental[] = [];
@@ -405,7 +417,8 @@ export function RentalPage({
 
   useEffect(() => {
     let alive = true;
-    const svc = service;
+    // General rental = provider special-case service 'allservices'.
+    const svc = type === 'general' || service === 'Any Other App (All Services)' ? 'allservices' : service;
     (async () => {
       setPricesLoading(true);
       setPricesNote(null);
@@ -442,7 +455,7 @@ export function RentalPage({
     return () => {
       alive = false;
     };
-  }, [service, areaCode]);
+  }, [service, areaCode, type]);
 
   const currentPriceNgn = prices[selectedDuration] || 0;
 
@@ -457,7 +470,7 @@ export function RentalPage({
     setAcOpen(false);
     setAcQuery('');
     setType(t);
-    setService(t === 'general' ? 'General' : 'WhatsApp');
+    setService(t === 'general' ? 'Any Other App (All Services)' : 'WhatsApp');
     setMode('one-time');
     setSelectedDuration((prev) => (t === 'general' && prev === '1d' ? '3d' : prev));
     setOrderSuccessMsg(null);
@@ -493,7 +506,7 @@ export function RentalPage({
         method: 'POST',
         headers,
         body: JSON.stringify({
-          serviceName: service,
+          serviceName: type === 'general' || service === 'Any Other App (All Services)' ? 'allservices' : service,
           duration: durationId,
           userId: session?.userId,
           areaCode: areaCode?.code || null,
@@ -1490,7 +1503,7 @@ export function RentalPage({
 
             <div className="rsm-modal-body">
               <ul className="rsm-service-list">
-                {US_AREA_CODES.filter((a) => {
+                {areaCodes.filter((a) => {
                   const q = acQuery.trim().toLowerCase();
                   if (!q) return true;
                   return a.code.includes(q) || a.place.toLowerCase().includes(q);
@@ -1520,10 +1533,15 @@ export function RentalPage({
                     </button>
                   </li>
                 ))}
-                {!US_AREA_CODES.filter((a) => {
+                {!areaCodes.length ? (
+                  <li className="rsm-service-empty-item">
+                    <p>{areaCodesNote || 'Area codes unavailable right now — "Any area code" still works.'}</p>
+                  </li>
+                ) : null}
+                {!areaCodes.filter((a) => {
                   const q = acQuery.trim().toLowerCase();
                   return !q || a.code.includes(q) || a.place.toLowerCase().includes(q);
-                }).length ? (
+                }).length && areaCodes.length ? (
                   <li className="rsm-service-empty-item">
                     <p>No area code matches “{acQuery}”.</p>
                     <button
