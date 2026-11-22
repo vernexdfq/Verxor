@@ -1411,3 +1411,58 @@ html {
     text-align: left;
   }
 }
+
+/* Support & Address in Landing Footer */
+
+.mk-footer-contact-link {
+  display: inline-flex;
+  align-items: center;
+  font-size: 13px;
+  font-weight: 700 !important;
+  color: var(--vx-primary, #0B63F6) !important;
+  margin-top: 2px;
+}
+
+.mk-footer-address-text {
+  display: inline-flex;
+  align-items: flex-start;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #64748B;
+  margin-top: 2px;
+}
+
+.mk-footer-bottom-info {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: left;
+}
+
+.mk-footer-support-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  font-size: 12px;
+  color: #475569;
+}
+
+.mk-footer-support-bar strong {
+  font-weight: 700;
+  color: #0F172A;
+}
+
+.mk-footer-support-bar a {
+  color: var(--vx-primary, #0B63F6);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.mk-footer-support-bar a:hover {
+  text-decoration: underline;
+}
+
+.mk-sep {
+  color: #CBD5E1;
+}

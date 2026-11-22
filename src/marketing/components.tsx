@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import type { LucideIcon } from 'lucide-react';
-import { ArrowRight, ChevronDown, Menu } from 'lucide-react';
+import { ArrowRight, ChevronDown, MapPin, Menu, Phone } from 'lucide-react';
 
 export function ButtonLink({
   href,
@@ -164,11 +164,19 @@ export function MarketingFooter() {
 
           {/* Col 4: Platform & Support */}
           <div className="mk-footer-col">
-            <b>Developers & Legal</b>
+            <b>Developers & Support</b>
             <a href="/api-partnership">API Partnerships</a>
             <a href="/child-panels">Child Panels</a>
             <a href="/dashboard">Launch Workspace</a>
             <a href="/privacy-policy">Privacy Policy</a>
+            <a href="tel:+2348141620644" className="mk-footer-contact-link" title="Call Verxor Support">
+              <Phone size={13} style={{ display: 'inline', marginRight: 6, verticalAlign: -1 }} />
+              +2348141620644
+            </a>
+            <span className="mk-footer-address-text">
+              <MapPin size={13} style={{ display: 'inline', marginRight: 6, verticalAlign: -2 }} />
+              No 2 Ugbaike Road, Edem Nsukka, Enugu State, Nigeria
+            </span>
             {/* Discreet operator entry — same pattern as child partner panel; separate from /workspace user login */}
             <a
               href="/admin"
@@ -181,8 +189,19 @@ export function MarketingFooter() {
         </div>
 
         <div className="mk-footer-bottom">
-          <span>&copy; {new Date().getFullYear()} Verxor. All rights reserved.</span>
-          <span>Official Verxor Digital Platform &middot; Lagos, Nigeria &middot; Global Operations</span>
+          <div className="mk-footer-bottom-info">
+            <span>&copy; {new Date().getFullYear()} Verxor. All rights reserved.</span>
+            <div className="mk-footer-support-bar">
+              <span>
+                <strong>Support:</strong> <a href="tel:+2348141620644">+2348141620644</a>
+              </span>
+              <span className="mk-sep">&middot;</span>
+              <span>
+                <strong>Address:</strong> No 2 Ugbaike Road, Edem Nsukka, Enugu State, Nigeria
+              </span>
+            </div>
+          </div>
+          <span>Official Verxor Digital Platform &middot; Enugu &amp; Lagos, Nigeria &middot; Global Operations</span>
         </div>
       </div>
     </footer>

@@ -26,6 +26,14 @@ const organizationSchema = {
   logo: 'https://www.verxor.com/brand/verxor-logo.svg',
   description:
     'Global digital infrastructure for Africa’s digital economy: virtual numbers, eSIM, VTU data, USD cards, SMM marketplace, and developer APIs.',
+  telephone: '+2348141620644',
+  address: {
+    '@type': 'PostalAddress',
+    streetAddress: 'No 2 Ugbaike Road, Edem',
+    addressLocality: 'Nsukka',
+    addressRegion: 'Enugu State',
+    addressCountry: 'NG',
+  },
 };
 
 const websiteSchema = {
