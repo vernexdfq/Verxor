@@ -199,10 +199,12 @@ export async function tvRentalPriceUsd(opts: {
   isRenewable: boolean;
   areaCode?: boolean;
 }): Promise<{ ok: boolean; priceUsd?: number; error?: string }> {
+  // Textverified service names are lowercase slugs; normalize any casing.
+  const serviceName = opts.serviceName.trim().toLowerCase();
   const res = await tvRequest<{ price?: number } & Record<string, unknown>>('/api/pub/v2/pricing/rentals', {
     method: 'POST',
     body: {
-      serviceName: opts.serviceName,
+      serviceName,
       areaCode: Boolean(opts.areaCode),
       numberType: 'mobile',
       capability: 'sms',
@@ -229,6 +231,8 @@ export async function tvCreateRental(opts: {
   isRenewable: boolean;
   areaCode?: string;
 }): Promise<{ ok: boolean; reservationId?: string; e164?: string; endsAt?: string; state?: string; error?: string }> {
+  // Textverified service names are lowercase slugs; normalize any casing.
+  const serviceName = opts.serviceName.trim().toLowerCase();
   const res = await tvRequest<Record<string, unknown>>('/api/pub/v2/reservations/rental', {
     method: 'POST',
     body: {
@@ -236,7 +240,7 @@ export async function tvCreateRental(opts: {
       duration: opts.duration,
       isRenewable: opts.isRenewable,
       numberType: 'mobile',
-      serviceName: opts.serviceName,
+      serviceName,
       capability: 'sms',
       alwaysOn: true,
       ...(opts.areaCode && /^\d{3}$/.test(opts.areaCode)
