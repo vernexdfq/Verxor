@@ -273,14 +273,15 @@ export function RentalPage({
 
   /* flow state */
   const [mode, setMode] = useState<Mode>('one-time');
-  const [service, setService] = useState<string | null>('WhatsApp'); // Default to WhatsApp like Primex demo
+  const [service, setService] = useState<string | null>('WhatsApp'); // Default service selection
   const [selectedDuration, setSelectedDuration] = useState<string>('30d');
   const [pickerOpen, setPickerOpen] = useState(false);
   const [query, setQuery] = useState('');
 
-  /* ordering & demo state */
+  /* ordering state */
   const [isOrdering, setIsOrdering] = useState(false);
   const [orderSuccessMsg, setOrderSuccessMsg] = useState<string | null>(null);
+  const [orderError, setOrderError] = useState<string | null>(null);
   const [copiedNumber, setCopiedNumber] = useState<string | null>(null);
 
   /* promo carousel state */
@@ -353,22 +354,11 @@ export function RentalPage({
     };
   }, []);
 
-  /* Load rentals from backend and localStorage */
+  /* Load rentals from the backend (live orders only) */
   const loadRentals = useCallback(async () => {
-    let combinedRentals: Rental[] = [];
+    let backendRentals: Rental[] = [];
 
-    // 1. Stored local demo rentals
-    try {
-      const stored = localStorage.getItem('verxor_demo_rentals');
-      if (stored) {
-        const parsed = JSON.parse(stored) as Rental[];
-        if (Array.isArray(parsed)) combinedRentals = [...parsed];
-      }
-    } catch {
-      /* ignore */
-    }
-
-    // 2. Fetch backend rentals if signed in
+    // Fetch backend rentals if signed in
     try {
       const headers = await authHeaders();
       const userId = session?.userId || loadSessionProfile()?.userId || '';
@@ -378,15 +368,12 @@ export function RentalPage({
       const res = await fetch(url, { headers, cache: 'no-store' });
       const data = (await res.json()) as { ok?: boolean; rentals?: Rental[] };
       if (res.ok && data.ok && data.rentals) {
-        const seenIds = new Set(combinedRentals.map((r) => r.id));
-        for (const r of data.rentals) {
-          if (!seenIds.has(r.id)) combinedRentals.unshift(r);
-        }
+        backendRentals = [...data.rentals];
       }
     } catch {
       /* best effort */
     } finally {
-      setRentals(combinedRentals);
+      setRentals(backendRentals);
       setRentalsLoaded(true);
     }
   }, [authHeaders, session]);
@@ -448,16 +435,27 @@ export function RentalPage({
 
     setIsOrdering(true);
     setOrderSuccessMsg(null);
+    setOrderError(null);
+
+    const DURATION_ID_MAP: Record<string, string> = {
+      '1d': 'oneDay',
+      '3d': 'threeDay',
+      '7d': 'sevenDay',
+      '14d': 'fourteenDay',
+      '30d': 'thirtyDay',
+      '90d': 'ninetyDay',
+      '365d': 'oneYear',
+    };
+    const durationId = DURATION_ID_MAP[selectedDuration] || 'thirtyDay';
 
     try {
-      // 1. Try live API purchase
       const headers = await authHeaders();
       const res = await fetch('/api/v1/rent-sms/purchase', {
         method: 'POST',
         headers,
         body: JSON.stringify({
           serviceName: service,
-          duration: selectedDuration === '1d' ? 'oneDay' : selectedDuration === '3d' ? 'threeDay' : selectedDuration === '7d' ? 'sevenDay' : selectedDuration === '14d' ? 'fourteenDay' : 'thirtyDay',
+          duration: durationId,
           userId: session?.userId,
         }),
       });
@@ -468,7 +466,7 @@ export function RentalPage({
           ref?: string;
           reservationId?: string;
           number?: string;
-          endsAt?: string;
+          endsAt?: string | null;
           serviceName?: string;
           duration?: string;
           totalNgn?: number;
@@ -490,113 +488,46 @@ export function RentalPage({
           createdAt: new Date().toISOString(),
         };
 
-        const updated = [liveItem, ...rentals];
-        setRentals(updated);
-        try {
-          localStorage.setItem('verxor_demo_rentals', JSON.stringify(updated));
-        } catch {}
-        setOrderSuccessMsg(`Dedicated line ${liveItem.number} allocated for ${service}. Unlimited SMS is ready.`);
+        setRentals((prev) => [liveItem, ...prev]);
+        setOrderSuccessMsg(`Dedicated line ${liveItem.number || '(number will show in Rental History shortly)'} allocated for ${service}. Incoming SMS appears in Rental History.`);
         window.dispatchEvent(new CustomEvent('verxor:balance-refresh'));
         setIsOrdering(false);
         return;
       }
+
+      // Honest failure: show the server's reason, never a fake number.
+      setOrderError(data.error || 'The purchase could not be completed. Your wallet was not charged (or has been refunded). Try again.');
     } catch {
-      /* Fallback to smooth demo mode */
+      setOrderError('Network error — the purchase was not completed. Your wallet was not charged (or has been refunded). Try again.');
     }
-
-    // 2. Demo allocation mode
-    const chosenAc = areaCode ? areaCode.code : ['310', '212', '305', '214', '415', '702', '404', '312'][Math.floor(Math.random() * 8)];
-    const middle = Math.floor(200 + Math.random() * 700);
-    const last = Math.floor(1000 + Math.random() * 9000);
-    const allocatedNumber = `+1 (${chosenAc}) ${middle}-${last}`;
-
-    const demoRental: Rental = {
-      id: `rsm-demo-${Date.now()}`,
-      reservationId: `res-${Math.random().toString(36).slice(2, 9)}`,
-      serviceName: service,
-      mode,
-      duration: currentDurationObj.label,
-      number: allocatedNumber,
-      chargedNgn: currentPriceNgn,
-      status: 'active',
-      endsAt: new Date(Date.now() + currentDurationObj.days * 86400000).toISOString(),
-      createdAt: new Date().toISOString(),
-    };
-
-    const updatedRentals = [demoRental, ...rentals];
-    setRentals(updatedRentals);
-    try {
-      localStorage.setItem('verxor_demo_rentals', JSON.stringify(updatedRentals));
-    } catch {}
-
-    // Auto-create incoming initial SMS code in inbox
-    const sampleCode = Math.floor(100000 + Math.random() * 900000);
-    const initialMsg: InboxMsg = {
-      id: `msg-${Date.now()}`,
-      from: service,
-      text: `Your ${service} verification code is: ${sampleCode}. Valid for 10 minutes. Do not share this code.`,
-      receivedAt: new Date().toISOString(),
-    };
-    try {
-      localStorage.setItem(`verxor_demo_inbox_${demoRental.reservationId}`, JSON.stringify([initialMsg]));
-    } catch {}
-
-    setOrderSuccessMsg(`Dedicated number ${allocatedNumber} allocated for ${service}. Check Rental History to view messages.`);
-    window.dispatchEvent(new CustomEvent('verxor:balance-refresh'));
     setIsOrdering(false);
   };
 
-  /* SMS Inbox fetch & simulation */
+  /* SMS Inbox fetch (live backend only) */
   const fetchInbox = useCallback(
     async (reservationId: string) => {
       setInboxLoading(true);
       setInboxError(null);
 
-      // 1. Check local demo inbox storage
-      let localMsgs: InboxMsg[] = [];
-      try {
-        const stored = localStorage.getItem(`verxor_demo_inbox_${reservationId}`);
-        if (stored) localMsgs = JSON.parse(stored) as InboxMsg[];
-      } catch {}
-
-      // 2. Check live backend API
       try {
         const headers = await authHeaders();
         const url = `/api/v1/rent-sms/numbers?res=${encodeURIComponent(reservationId)}`;
         const res = await fetch(url, { headers, cache: 'no-store' });
-        const data = (await res.json()) as { ok?: boolean; messages?: InboxMsg[]; error?: string };
+        const data = (await res.json().catch(() => ({}))) as { ok?: boolean; messages?: InboxMsg[]; error?: string };
         if (res.ok && data.ok && data.messages) {
-          const combined = [...data.messages, ...localMsgs];
-          setInboxMessages(combined);
-          setInboxLoading(false);
-          return;
+          setInboxMessages(data.messages);
+        } else {
+          setInboxMessages([]);
+          setInboxError(data.error || 'Could not load messages for this rental right now.');
         }
       } catch {
-        /* best effort */
+        setInboxMessages([]);
+        setInboxError('Network error while loading messages. Tap Refresh to retry.');
       }
-
-      setInboxMessages(localMsgs);
       setInboxLoading(false);
     },
     [authHeaders],
   );
-
-  const simulateIncomingOtp = (reservationId: string, serviceName: string) => {
-    const code = Math.floor(100000 + Math.random() * 900000);
-    const newMsg: InboxMsg = {
-      id: `msg-${Date.now()}`,
-      from: serviceName,
-      text: `${serviceName} security code: ${code}. Valid for 10 minutes. Never share this with anyone.`,
-      receivedAt: new Date().toISOString(),
-    };
-
-    const current = inboxMessages || [];
-    const updated = [newMsg, ...current];
-    setInboxMessages(updated);
-    try {
-      localStorage.setItem(`verxor_demo_inbox_${reservationId}`, JSON.stringify(updated));
-    } catch {}
-  };
 
   const openInbox = (r: Rental) => {
     setInboxRental(r);
@@ -868,6 +799,25 @@ export function RentalPage({
                 type="button"
                 className="rsm-order-success-close"
                 onClick={() => setOrderSuccessMsg(null)}
+                aria-label="Dismiss"
+              >
+                <X size={14} />
+              </button>
+            </div>
+          )}
+
+          {/* FAILURE NOTIFICATION — honest states only */}
+          {orderError && (
+            <div className="rsm-order-success-banner">
+              <X size={18} />
+              <div className="rsm-order-success-text">
+                <strong>Order not completed</strong>
+                <p>{orderError}</p>
+              </div>
+              <button
+                type="button"
+                className="rsm-order-success-close"
+                onClick={() => setOrderError(null)}
                 aria-label="Dismiss"
               >
                 <X size={14} />
@@ -1352,17 +1302,6 @@ export function RentalPage({
                 Refresh
               </button>
             </div>
-          </div>
-
-          {/* DEMO SMS SIMULATION BUTTON */}
-          <div className="rsm-inbox-test-bar">
-            <button
-              type="button"
-              className="rsm-test-otp-btn"
-              onClick={() => simulateIncomingOtp(inboxRental.reservationId, inboxRental.serviceName)}
-            >
-              <Sparkles size={13} /> Simulate Incoming SMS Code
-            </button>
           </div>
 
           <div className="rsm-section-head">
