@@ -98,7 +98,7 @@ const SECTION_META: Record<AdminSection, { title: string; sub: string }> = {
   gaming: { title: 'Gaming Top-Up pricing', sub: 'Per-tier multipliers on the Shop2TopUp USD cost — retail, Child Panel and API' },
   accounts: { title: 'Buy Logs pricing', sub: 'Account multipliers for Retail and API / Child Panel' },
   'gift-cards': { title: 'Gift Card rates', sub: 'Standalone FX rates decoupled from the global daily rate' },
-  'rent-sms': { title: 'Rent-for-SMS pricing', sub: 'Multipliers on the Textverified USD cost, using the global daily rate' },
+  'rent-sms': { title: 'Rent-for-SMS pricing', sub: 'Naira prices for number rentals — tiered multipliers your customers pay' },
   'data-pricing': { title: 'Data pricing', sub: 'Provider cost syncs automatically from the live provider — edit retail and API price per bundle (blank = catalog default)' },
   providers: { title: 'Providers', sub: 'Upstream provider health and keys' },
   settings: { title: 'Settings', sub: 'Service switches and announcements' },
@@ -1919,36 +1919,95 @@ type RentSmsTierRow = {
   api: number;
   retail: number;
 };
-type RentSmsPricingData = { ok?: boolean; rate?: number; tiers?: RentSmsTierRow[]; error?: string };
+type RentSmsPricingData = {
+  ok?: boolean;
+  rate?: number;
+  tiers?: Array<{
+    label?: string;
+    minUsd?: number;
+    maxUsd?: number | null;
+    multipliers?: { panel?: number; api?: number; retail?: number };
+    panel?: number;
+    api?: number;
+    retail?: number;
+  }>;
+  error?: string;
+};
 
 const RENT_SMS_DEFAULT_TIERS_UI: RentSmsTierRow[] = [
-  { label: 'Micro/Short', minUsd: 0, maxUsd: 3.5, panel: 1.25, api: 1.4, retail: 1.8 },
+  { label: 'Short & small', minUsd: 0, maxUsd: 3.5, panel: 1.25, api: 1.4, retail: 1.8 },
   { label: 'Standard single-app', minUsd: 3.51, maxUsd: 6.99, panel: 1.12, api: 1.2, retail: 1.38 },
   { label: 'All-Services & mid', minUsd: 7, maxUsd: 15, panel: 1.1, api: 1.15, retail: 1.25 },
   { label: 'Long multi-month', minUsd: 15.01, maxUsd: 50, panel: 1.06, api: 1.1, retail: 1.15 },
   { label: 'Annual', minUsd: 50.01, maxUsd: null, panel: 1.03, api: 1.05, retail: 1.1 },
 ];
 
-function bandLabel(t: RentSmsTierRow): string {
-  const up = t.maxUsd === null || t.maxUsd === undefined ? '' : `–$${Number(t.maxUsd).toFixed(2)}`;
-  return `$${Number(t.minUsd).toFixed(2)}${up}`;
+const RENT_SMS_AUDIENCES: { id: 'panel' | 'api' | 'retail'; label: string; hint: string }[] = [
+  { id: 'retail', label: 'Retail', hint: 'Customers buying on verxor.com' },
+  { id: 'api', label: 'API', hint: 'API users' },
+  { id: 'panel', label: 'Child Panel', hint: 'Child panels (child panel keys)' },
+];
+
+/** Representative rentals for the sample table — one per tier, NAIRA only. */
+const RENT_SMS_SAMPLES: { tierIdx: number; desc: string; costUsd: number }[] = [
+  { tierIdx: 0, desc: 'WhatsApp · 1–3 days', costUsd: 1.5 },
+  { tierIdx: 1, desc: 'WhatsApp · 30 days', costUsd: 5 },
+  { tierIdx: 2, desc: 'All-Services · 30 days', costUsd: 10 },
+  { tierIdx: 3, desc: 'Long line · 90 days', costUsd: 30 },
+  { tierIdx: 4, desc: 'All-Services · 1 year', costUsd: 75 },
+];
+
+function rentSmsRoundUp50(n: number): number {
+  return Math.max(0, Math.ceil(n / 50) * 50);
+}
+
+/** Flatten the API tier rows (multipliers nested) into the UI row shape. */
+function rentSmsFlatTiers(data: RentSmsPricingData): RentSmsTierRow[] {
+  const raw = data.tiers && data.tiers.length ? data.tiers : [];
+  const rows = raw.map((t, i): RentSmsTierRow => {
+    const fallback = RENT_SMS_DEFAULT_TIERS_UI[i] ?? RENT_SMS_DEFAULT_TIERS_UI[0];
+    const num = (v: unknown, d: number) => {
+      const n = Number(v);
+      return Number.isFinite(n) && n >= 1 && n <= 10 ? n : d;
+    };
+    return {
+      label: t.label ?? fallback.label,
+      minUsd: Number.isFinite(Number(t.minUsd)) ? Number(t.minUsd) : fallback.minUsd,
+      maxUsd: t.maxUsd === null || t.maxUsd === undefined ? (Number.isFinite(Number(t.maxUsd)) ? Number(t.maxUsd) : null) : Number(t.maxUsd) ?? null,
+      panel: num(t.multipliers?.panel ?? t.panel, fallback.panel),
+      api: num(t.multipliers?.api ?? t.api, fallback.api),
+      retail: num(t.multipliers?.retail ?? t.retail, fallback.retail),
+    };
+  });
+  return rows.length ? rows : RENT_SMS_DEFAULT_TIERS_UI.map((t) => ({ ...t }));
+}
+
+/** Naira cost band for one tier — no dollars shown anywhere in the UI. */
+function rentSmsBandNgn(t: RentSmsTierRow, rate: number): string {
+  const r = rate > 0 ? rate : 1380;
+  const min = Math.round((t.minUsd || 0) * r);
+  if (t.maxUsd === null || t.maxUsd === undefined) return `Provider cost ₦${min.toLocaleString('en-NG')} and above`;
+  const max = Math.round((Number(t.maxUsd) + 0.01) * r);
+  return min <= 0 ? `Provider cost up to ₦${max.toLocaleString('en-NG')}` : `Provider cost ₦${min.toLocaleString('en-NG')} – ₦${max.toLocaleString('en-NG')}`;
 }
 
 function RentSmsSection() {
   const [tiers, setTiers] = useState<RentSmsTierRow[] | null>(null);
   const [rate, setRate] = useState<number | null>(null);
   const [loadError, setLoadError] = useState(false);
-  const [editing, setEditing] = useState(false);
-  const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const [editing, setEditing] = useState<string | null>(null);
+  const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
+
+  const liveRate = rate ?? 1380;
 
   const load = async () => {
     try {
       const res = await fetch('/api/admin/rent-sms-pricing', { headers: adminHeaders(), cache: 'no-store' });
       const d = (await res.json()) as RentSmsPricingData;
       if (res.ok && d.ok) {
-        setTiers(d.tiers && d.tiers.length ? d.tiers : RENT_SMS_DEFAULT_TIERS_UI);
+        setTiers(rentSmsFlatTiers(d));
         setRate(d.rate ?? null);
         setLoadError(false);
       } else { setLoadError(true); }
@@ -1957,30 +2016,11 @@ function RentSmsSection() {
 
   useEffect(() => { void load(); }, []);
 
-  const startEdit = () => {
+  const save = async (tierIdx: number, aud: 'panel' | 'api' | 'retail') => {
     if (!tiers) return;
-    const next: Record<string, string> = {};
-    tiers.forEach((t, i) => {
-      next[`${i}-panel`] = String(t.panel);
-      next[`${i}-api`] = String(t.api);
-      next[`${i}-retail`] = String(t.retail);
-    });
-    setDrafts(next);
-    setEditing(true);
-    setMsg('');
-  };
-
-  const setDraft = (k: string, v: string) => setDrafts((prev) => ({ ...prev, [k]: v }));
-
-  const save = async () => {
-    if (!tiers) return;
-    const next: RentSmsTierRow[] = tiers.map((t, i) => {
-      const num = (k: 'panel' | 'api' | 'retail', d: number) => {
-        const v = Number(String(drafts[`${i}-${k}`] ?? '').replace(/[^0-9.]/g, ''));
-        return Number.isFinite(v) && v >= 1 && v <= 10 ? v : d;
-      };
-      return { ...t, panel: num('panel', t.panel), api: num('api', t.api), retail: num('retail', t.retail) };
-    });
+    const v = Number(draft.replace(/[^0-9.]/g, ''));
+    if (!Number.isFinite(v) || v < 1 || v > 10) { setMsg('Enter a multiplier between 1.0 and 10.0'); return; }
+    const next = tiers.map((t, i) => (i === tierIdx ? { ...t, [aud]: v } : t));
     setBusy(true); setMsg('');
     try {
       const res = await fetch('/api/admin/rent-sms-pricing', {
@@ -1990,70 +2030,138 @@ function RentSmsSection() {
       });
       const d = (await res.json()) as RentSmsPricingData;
       if (!res.ok || !d.ok) { setMsg(d.error || 'Could not save'); return; }
-      setTiers(d.tiers && d.tiers.length ? d.tiers : next);
+      setTiers(rentSmsFlatTiers(d));
       setRate(d.rate ?? rate);
-      setEditing(false);
+      setEditing(null);
       setMsg('Saved — Rent-for-SMS prices update everywhere immediately');
     } catch { setMsg('Network error'); } finally { setBusy(false); }
   };
 
+  const rows = tiers ?? RENT_SMS_DEFAULT_TIERS_UI;
+
   return (
     <>
       {msg ? <div className="vxa-action-msg">{msg}</div> : null}
+
       {loadError ? (
         <div className="vxa-empty tall">
           <strong>Could not load Rent-for-SMS pricing</strong>
           <p>Check that the server can reach the database, then reload.</p>
         </div>
       ) : (
-        <div className="vxa-duo">
-          <div className="vxa-tile">
-            <span className="vxa-tile-label"><MessageCircle size={14} /> TIERED MASTER PRICING (TEXTVERIFIED USD COST)</span>
-            <div className="vxa-rate-row" style={{ marginBottom: 8 }}>
-              <strong>Rate: ₦{(rate ?? 1380).toLocaleString('en-NG')} / $1</strong>
-              <span className="vxa-rate-per">global daily rate</span>
-              {!editing ? (
-                <div className="vxa-rate-actions">
-                  <button type="button" className="vxa-rate-btn" onClick={startEdit}>Edit tiers</button>
-                </div>
-              ) : null}
+        <>
+          <div className="vxa-duo">
+            <div className="vxa-tile">
+              <span className="vxa-tile-label"><Percent size={14} /> GLOBAL NAIRA RATE</span>
+              <div className="vxa-rate-row">
+                <strong>₦{liveRate.toLocaleString('en-NG')}</strong>
+                <span className="vxa-rate-per">/ $1</span>
+              </div>
+              <p>Shared with Virtual Numbers — change it in the Overview daily rate. Applies to Retail, API and Child Panel prices.</p>
             </div>
-            {(tiers ?? RENT_SMS_DEFAULT_TIERS_UI).map((t, i) => (
-              <div className="vxa-rate-row" key={i}>
-                <strong>{t.label ?? `Tier ${i + 1}`}</strong>
-                <span className="vxa-rate-per">{bandLabel(t)}</span>
-                {(['panel', 'api', 'retail'] as const).map((k) =>
-                  editing ? (
-                    <input
-                      key={k}
-                      value={drafts[`${i}-${k}`] ?? ''}
-                      onChange={(e) => setDraft(`${i}-${k}`, e.target.value)}
-                      inputMode="decimal"
-                      aria-label={`${t.label ?? `Tier ${i + 1}`} ${k} multiplier`}
-                    />
-                  ) : (
-                    <span className="vxa-rate-per" key={k}>{k} ×{Number(t[k]).toFixed(2)}</span>
-                  ),
-                )}
-              </div>
-            ))}
-            {editing ? (
-              <div className="vxa-rate-actions" style={{ marginTop: 8 }}>
-                <button type="button" className="vxa-rate-save" disabled={busy} onClick={() => void save()}>Save</button>
-                <button type="button" className="vxa-rate-cancel" onClick={() => setEditing(false)}>Cancel</button>
-              </div>
-            ) : null}
+            <div className="vxa-tile">
+              <span className="vxa-tile-label"><MessageCircle size={14} /> HOW PRICING WORKS</span>
+              <p className="vxa-price-formula">
+                Customer price = provider cost converted to Naira × the tier multiplier, rounded
+                up to the nearest ₦50. Customers only ever see Naira. The server re-quotes every
+                order, so a stale or fake price can never be charged.
+              </p>
+            </div>
           </div>
-          <div className="vxa-tile">
-            <span className="vxa-tile-label"><MessageCircle size={14} /> HOW PRICING WORKS</span>
-            <p>Rent-for-SMS quotes the live Textverified USD price per service + duration, then applies the tier multiplier for the audience (Child Panel / API / Retail) × the global daily ₦ rate, rounded UP to the nearest ₦50. USD is never shown to customers.</p>
-            <p>Tiers 1–5 scale from micro rentals to annual All-Services lines. Area-code selection applies the same tier multiplier to the quoted USD price.</p>
+
+          <div className="vxa-card">
+            <div className="vxa-card-head"><strong>Tier multipliers (Naira price = cost × multiplier)</strong></div>
+            <p className="vxa-card-sub">
+              Five tiers by what a line costs us. Tap the pencil to change a multiplier — Save
+              once and every Rent-for-SMS price updates instantly, for the site and the API.
+            </p>
+            <div className="vxa-mu-list">
+              {rows.map((t, i) => (
+                <div className="vxa-mu-row" key={i}>
+                  <strong className="t">{t.label ?? `Tier ${i + 1}`}</strong>
+                  <span className="h">{rentSmsBandNgn(t, liveRate)}</span>
+                  {RENT_SMS_AUDIENCES.map((a) => {
+                    const key = `${i}:${a.id}`;
+                    const m = t[a.id];
+                    return editing === key ? (
+                      <div className="vxa-mu-edit" key={a.id}>
+                        <input
+                          value={draft}
+                          inputMode="decimal"
+                          aria-label={`${t.label ?? `Tier ${i + 1}`} ${a.label} multiplier`}
+                          onChange={(e) => setDraft(e.target.value)}
+                          onKeyDown={(e) => { if (e.key === 'Enter') void save(i, a.id); }}
+                        />
+                        <button type="button" disabled={busy} onClick={() => void save(i, a.id)}>Save</button>
+                        <button type="button" className="ghost" disabled={busy} onClick={() => setEditing(null)}>Cancel</button>
+                      </div>
+                    ) : (
+                      <div className="vxa-mu-val" key={a.id}>
+                        <em className="vxa-price-aud">{a.label}</em>
+                        <strong>×{Number(m).toFixed(2)}</strong>
+                        <button
+                          type="button"
+                          className="vxa-mu-pencil"
+                          aria-label={`Edit ${t.label ?? `Tier ${i + 1}`} ${a.label} multiplier`}
+                          onClick={() => { setEditing(key); setDraft(String(m)); }}
+                        >
+                          <Pencil size={14} />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
+
+          <div className="vxa-card">
+            <div className="vxa-card-head"><strong>Sample customer prices</strong></div>
+            <p className="vxa-card-sub">
+              What a real rental in each tier costs us in Naira, and what each audience pays with
+              your current multipliers (rounded up to the nearest ₦50).
+            </p>
+            <div className="vxa-samp-table">
+              <div className="vxa-samp-head">
+                <span>Rental</span>
+                <span>Cost to us</span>
+                {RENT_SMS_AUDIENCES.map((a) => <span key={a.id}>{a.label} pays</span>)}
+              </div>
+              {RENT_SMS_SAMPLES.map((s) => {
+                const t = rows[s.tierIdx] ?? rows[0];
+                const costNgn = Math.round(s.costUsd * liveRate);
+                return (
+                  <div className="vxa-samp-row" key={s.tierIdx}>
+                    <div className="vxa-price-tier">
+                      <strong>{s.desc}</strong>
+                      <span>{t.label ?? `Tier ${s.tierIdx + 1}`}</span>
+                    </div>
+                    <div className="vxa-samp-cell">
+                      <em className="vxa-price-aud">Cost</em>
+                      <strong>{naira(costNgn)}</strong>
+                    </div>
+                    {RENT_SMS_AUDIENCES.map((a) => (
+                      <div className="vxa-samp-cell" key={a.id}>
+                        <em className="vxa-price-aud">{a.label}</em>
+                        <strong>{naira(rentSmsRoundUp50(costNgn * t[a.id]))}</strong>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })}
+            </div>
+            <ul className="vxa-price-notes">
+              <li>Every price is rounded UP to the nearest ₦50 — the same rule customers see at checkout.</li>
+              <li>Choosing a specific area code uses the same tier multiplier — no extra charge for a chosen state.</li>
+              <li>The default tiers above are live until you change them; the boxes show your saved values.</li>
+            </ul>
+          </div>
+        </>
       )}
     </>
   );
 }
+
 
 function VirtualNumberSection() {
   const [data, setData] = useState<VnPricingData | null>(null);
