@@ -5,7 +5,7 @@ import {
   TV_DURATIONS,
   type TvRentalDuration,
 } from '@/lib/providers/textverified';
-import { rentSmsRetailNgn, rentSmsPanelNgn, rentSmsApiNgn } from '@/lib/rentsms-pricing';
+import { rentSmsRetailNgn, rentSmsPanelNgn, rentSmsApiNgn, resolveRentSmsTiers, tierForCost } from '@/lib/rentsms-pricing';
 import { resolvePanelClient, panelAllowsRentSms } from '@/lib/panel-auth';
 
 /**
@@ -59,10 +59,16 @@ export async function POST(req: NextRequest) {
     if (!panelNgn) {
       return NextResponse.json({ ok: false, error: 'Could not compute the price. Try again.' }, { status: 500 });
     }
+    // Which of the 5 USD-cost tiers this rental falls in (1–5), so the child
+    // panel can apply its own tiered markup on its wholesale charge.
+    const tierList = await resolveRentSmsTiers();
+    const tierMatch = tierForCost(tierList, price.priceUsd);
+    const tier = tierList.indexOf(tierMatch) + 1;
     return NextResponse.json({
       ok: true,
       priceNgn: panelNgn,
       retailPriceNgn: priceNgn,
+      tier: tier > 0 ? tier : 1,
       audience: 'panel',
       durationLabel: label,
       serviceName,
