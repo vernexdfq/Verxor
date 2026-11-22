@@ -7,7 +7,7 @@
  * Retail is fixed separately and never auto-shifted.
  * fallback247Id is hidden backup metadata — never shown or pushed.
  *
- * Active plans: MTN 45, Airtel 55, Glo 19, 9mobile 5 (Glo +8 CK pending codes).
+ * Active plans: MTN 45, Airtel 55, Glo 27, 9mobile 5.
  * MTN 6, 7, 21 removed as inactive — do not re-add.
  */
 
@@ -192,6 +192,21 @@ export const GLO_MONTHLY: CatalogPlan[] = [
   { id: 730, network: 'glo', size: '10GB', days: '30', tab: 'monthly', retail: 4500, apiPrice: 3838, cost: 3800, planType: 'Corporate2', fallback247Id: 56 },
 ];
 
+/**
+ * Glo large monthly — ClubKonnect primary (MobileNetwork=02, DataPlan=ckCode).
+ * No 247 equivalent: ids are catalog-unique, never passed to 247 or repriced
+ * from the 247 live list. Never sold on 247.
+ */
+export const GLO_CK_MONTHLY: CatalogPlan[] = [
+  { id: 740, network: 'glo', size: '12.5GB', days: '30', tab: 'monthly', retail: 4000, apiPrice: 3859, cost: 3820, planType: 'Corporate2', ckCode: 22 },
+  { id: 741, network: 'glo', size: '28GB', days: '30', tab: 'monthly', retail: 8000, apiPrice: 7717, cost: 7640, planType: 'Corporate2', ckCode: 24 },
+  { id: 742, network: 'glo', size: '38GB', days: '30', tab: 'monthly', retail: 10000, apiPrice: 9646, cost: 9550, planType: 'Corporate2', ckCode: 25 },
+  { id: 743, network: 'glo', size: '64GB', days: '30', tab: 'monthly', retail: 15000, apiPrice: 14469, cost: 14325, planType: 'Corporate2', ckCode: 26 },
+  { id: 744, network: 'glo', size: '107GB', days: '30', tab: 'monthly', retail: 20000, apiPrice: 19291, cost: 19100, planType: 'Corporate2', ckCode: 27 },
+  { id: 745, network: 'glo', size: '165GB', days: '30', tab: 'monthly', retail: 30000, apiPrice: 28937, cost: 28650, planType: 'Corporate2', ckCode: 32 },
+  { id: 746, network: 'glo', size: '220GB', days: '30', tab: 'monthly', retail: 40000, apiPrice: 34724, cost: 34380, planType: 'Corporate2', ckCode: 33 },
+  { id: 747, network: 'glo', size: '1TB', days: '365', tab: 'monthly', retail: 150000, apiPrice: 144683, cost: 143250, planType: 'Corporate2', ckCode: 41 },
+];
 
 /** 9mobile Monthly — ClubKonnect primary (MobileNetwork=03, DataPlan=ckCode), 247 id fallback */
 export const NINEMOBILE_MONTHLY: CatalogPlan[] = [
@@ -202,22 +217,6 @@ export const NINEMOBILE_MONTHLY: CatalogPlan[] = [
   { id: 84, network: '9mobile', size: '5GB', days: '30', tab: 'monthly', retail: 2450, apiPrice: 2311, cost: 2287.8, planType: 'SME', ckCode: 9 },
 ];
 
-/**
- * Glo large ClubKonnect plans — HELD BACK (not in DATA_CATALOG, not sold, not
- * shown to the child panel) until their ClubKonnect PRODUCT_CODEs arrive.
- * When they do, move each row below into GLO_MONTHLY (or a new GLO_CK_MONTHLY)
- * with id = hidden 247 fallback and ckCode = PRODUCT_CODE.
- */
-export const GLO_CK_PENDING: Omit<CatalogPlan, 'id'>[] = [
-  { network: 'glo', size: '12.5GB', days: '30', tab: 'monthly', retail: 4000, apiPrice: 3859, cost: 3820, planType: 'Corporate2' },
-  { network: 'glo', size: '28GB', days: '30', tab: 'monthly', retail: 8000, apiPrice: 7717, cost: 7640, planType: 'Corporate2' },
-  { network: 'glo', size: '38GB', days: '30', tab: 'monthly', retail: 10000, apiPrice: 9646, cost: 9550, planType: 'Corporate2' },
-  { network: 'glo', size: '64GB', days: '30', tab: 'monthly', retail: 15000, apiPrice: 14469, cost: 14325, planType: 'Corporate2' },
-  { network: 'glo', size: '107GB', days: '30', tab: 'monthly', retail: 20000, apiPrice: 19291, cost: 19100, planType: 'Corporate2' },
-  { network: 'glo', size: '165GB', days: '30', tab: 'monthly', retail: 30000, apiPrice: 28937, cost: 28650, planType: 'Corporate2' },
-  { network: 'glo', size: '220GB', days: '30', tab: 'monthly', retail: 40000, apiPrice: 34724, cost: 34380, planType: 'Corporate2' },
-  { network: 'glo', size: '1TB', days: '365', tab: 'monthly', retail: 150000, apiPrice: 144683, cost: 143250, planType: 'Corporate2' },
-];
 
 export const DATA_CATALOG: CatalogPlan[] = [
   ...MTN_DAILY,
@@ -234,6 +233,7 @@ export const DATA_CATALOG: CatalogPlan[] = [
   ...GLO_DAILY,
   ...GLO_WEEKLY,
   ...GLO_MONTHLY,
+  ...GLO_CK_MONTHLY,
   ...NINEMOBILE_MONTHLY,
 ];
 
