@@ -5,6 +5,7 @@ import { ArrowLeft, Copy, Check, Package, RefreshCw, ShoppingBag, Download, Exte
 import type { AuthSession } from './auth/AuthFlow';
 import { loadSessionTokens, saveSessionTokens, loadSessionProfile, isSessionUnlocked } from './auth/session-unlock';
 import type { AccountOrder } from './accounts-types';
+import { downloadCredentialsTxt } from './accounts-client-download';
 import './product-pages.css';
 
 const money = (value: number) => `₦${value.toLocaleString('en-NG')}`;
