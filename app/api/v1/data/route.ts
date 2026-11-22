@@ -365,11 +365,20 @@ export async function POST(req: NextRequest) {
 
   try {
     const ckCode = Number((catalog as { ckCode?: number | string }).ckCode);
-    const preferClubKonnect =
-      network === '9mobile' &&
-      Number.isFinite(ckCode) &&
-      ckCode > 0 &&
-      isClubKonnectConfigured();
+    // 9mobile SME and Glo large Corporate2 are ClubKonnect-primary.
+    // For Glo largeCorporate2 plans the catalog id is NOT a real 247 plan id,
+    // so there is no 247 fallback — CK failure refunds the wallet.
+    const ckPrimaryNetwork: '9mobile' | 'glo' | null =
+      network === 'glo' &&
+      !/^(9mobile)/.test(network) &&
+      (catalog as { fallback247Id?: number }).fallback247Id == null &&
+      Number.isFinite(ckCode) && ckCode > 0 &&
+      network === 'glo'
+        ? 'glo'
+        : network === '9mobile' && Number.isFinite(ckCode) && ckCode > 0
+          ? '9mobile'
+          : null;
+    const preferClubKonnect = ckPrimaryNetwork !== null && isClubKonnectConfigured();
 
     let result: {
       ref: string;
@@ -379,10 +388,10 @@ export async function POST(req: NextRequest) {
     };
     let usedProvider: 'clubkonnect' | 'api247' = preferClubKonnect ? 'clubkonnect' : 'api247';
 
-    if (preferClubKonnect) {
+    if (preferClubKonnect && ckPrimaryNetwork) {
       try {
         result = await purchaseDataClubKonnect({
-          network: '9mobile',
+          network: ckPrimaryNetwork,
           productCode: ckCode,
           phone,
           amount: Number(catalog.cost) > 0 ? Number(catalog.cost) : amount,
@@ -390,6 +399,11 @@ export async function POST(req: NextRequest) {
         });
         usedProvider = 'clubkonnect';
       } catch (ckErr) {
+        if (ckPrimaryNetwork === 'glo') {
+          // Glo CK plans have no valid 247 id — do not fall back
+          console.warn('[data] ClubKonnect Glo purchase failed:', ckErr instanceof Error ? ckErr.message : ckErr);
+          throw ckErr;
+        }
         console.warn(
           '[data] ClubKonnect 9mobile failed, trying 247 fallback:',
           ckErr instanceof Error ? ckErr.message : ckErr,
