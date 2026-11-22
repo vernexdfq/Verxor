@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { RENT_SMS_DEFAULT_TIERS, type RentSmsTier } from '@/lib/rentsms-pricing';
 
 /**
- * GET  /api/admin/rent-sms-pricing — { rate, retail, api } multipliers + the live global rate
- * PUT  /api/admin/rent-sms-pricing — body { retail?, api? } percentage multipliers (>= 1)
+ * GET  /api/admin/rent-sms-pricing — { rate, tiers } tiered master pricing (5
+ *        USD-cost tiers × panel/api/retail multipliers) + the live global rate.
+ * PUT  /api/admin/rent-sms-pricing — body { tiers: [{ minUsd, maxUsd, panel, api, retail }, …] }.
  * Auth: x-admin-password header must match ADMIN_PASSWORD.
- * Stored in admin_settings key 'rent_sms_markups' (JSON). The FX rate is the
- * shared daily rate (Overview) — rentals follow the Virtual Number pattern.
+ * Stored in admin_settings key 'rent_sms_markups' (JSON, { tiers: […] }).
+ * FX: the shared daily rate (Overview) — rentals follow the Virtual Number pattern.
+ * Rounding: prices are rounded UP to the nearest ₦50 in the pricing engine.
  */
 export const dynamic = 'force-dynamic';
 
@@ -47,11 +50,27 @@ async function audit(action: string, meta: Record<string, unknown>) {
   }
 }
 
-type Multipliers = { retail: number; api: number };
+function tierFromRecord(r: Record<string, unknown>, fallback: RentSmsTier): RentSmsTier {
+  const num = (v: unknown, d: number) => {
+    const n = Number(v);
+    return Number.isFinite(n) && n >= 1 && n <= 10 ? n : d;
+  };
+  const min = Number(r.minUsd);
+  const max = r.maxUsd === null || r.maxUsd === undefined ? null : Number(r.maxUsd);
+  return {
+    minUsd: Number.isFinite(min) ? min : fallback.minUsd,
+    maxUsd: max !== null && Number.isFinite(max) ? max : fallback.maxUsd,
+    multipliers: {
+      panel: num(r.panel, fallback.multipliers.panel),
+      api: num(r.api, fallback.multipliers.api),
+      retail: num(r.retail, fallback.multipliers.retail),
+    },
+  };
+}
 
-const DEFAULTS: Multipliers = { retail: 1.5, api: 1.3 };
+const BAND_LABELS = ['Micro/Short', 'Standard single-app', 'All-Services & mid', 'Long multi-month', 'Annual'];
 
-async function readMultipliers(): Promise<Multipliers | null> {
+async function readTiers(): Promise<RentSmsTier[] | null> {
   const base = supabaseBase();
   const hdr = dbHeaders();
   if (!base || !hdr) return null;
@@ -62,13 +81,16 @@ async function readMultipliers(): Promise<Multipliers | null> {
     );
     if (!res.ok) return null;
     const rows = (await res.json()) as Array<{ value?: string }>;
-    if (!rows?.length) return { ...DEFAULTS };
+    if (!rows?.length) return RENT_SMS_DEFAULT_TIERS.map((t) => ({ ...t, multipliers: { ...t.multipliers } }));
     const parsed = rows[0].value ? JSON.parse(rows[0].value) : null;
-    const num = (v: unknown, d: number) => (Number(v) >= 1 ? Number(v) : d);
-    return {
-      retail: num(parsed?.retail, DEFAULTS.retail),
-      api: num(parsed?.api, DEFAULTS.api),
-    };
+    const rawTiers = parsed?.tiers;
+    if (Array.isArray(rawTiers) && rawTiers.length) {
+      return rawTiers.map((t: unknown, i: number) =>
+        tierFromRecord((t && typeof t === 'object' ? t : {}) as Record<string, unknown>, RENT_SMS_DEFAULT_TIERS[i] ?? RENT_SMS_DEFAULT_TIERS[0]),
+      ).sort((a: RentSmsTier, b: RentSmsTier) => a.minUsd - b.minUsd);
+    }
+    // Legacy flat shape ({ retail, api }) — ignored; tier defaults apply.
+    return [...RENT_SMS_DEFAULT_TIERS];
   } catch {
     return null;
   }
@@ -92,11 +114,11 @@ async function readRate(): Promise<number> {
   }
 }
 
-async function writeMultipliers(next: Multipliers): Promise<boolean> {
+async function writeTiers(next: RentSmsTier[]): Promise<boolean> {
   const base = supabaseBase();
   const hdr = dbHeaders();
   if (!base || !hdr) return false;
-  const value = JSON.stringify(next);
+  const value = JSON.stringify({ tiers: next });
   const patched = await fetch(base + '/rest/v1/admin_settings?key=eq.rent_sms_markups', {
     method: 'PATCH',
     headers: hdr,
@@ -117,39 +139,44 @@ export async function GET(req: NextRequest) {
   if (!authorized(req)) {
     return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
   }
-  const multipliers = await readMultipliers();
-  if (!multipliers) {
+  const tiers = await readTiers();
+  if (!tiers) {
     return NextResponse.json({ ok: false, error: 'Could not read Rent SMS settings' }, { status: 500 });
   }
   const rate = await readRate();
-  return NextResponse.json({ ok: true, rate, ...multipliers });
+  return NextResponse.json({
+    ok: true,
+    rate,
+    tiers: tiers.map((t, i) => ({ label: BAND_LABELS[i] ?? `Tier ${i + 1}`, ...t })),
+  });
 }
 
 export async function PUT(req: NextRequest) {
   if (!authorized(req)) {
     return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
   }
-  const current = await readMultipliers();
+  const current = await readTiers();
   if (!current) {
     return NextResponse.json({ ok: false, error: 'Could not read current settings' }, { status: 500 });
   }
-  const body = (await req.json().catch(() => ({}))) as {
-    retail?: number | string;
-    api?: number | string;
-  };
-  const pick = (v: number | string | undefined, d: number) => {
-    const n = Number(v);
-    return Number.isFinite(n) && n >= 1 && n <= 10 ? n : d;
-  };
-  const next: Multipliers = {
-    retail: pick(body.retail, current.retail),
-    api: pick(body.api, current.api),
-  };
-  const okWrite = await writeMultipliers(next);
+  const body = (await req.json().catch(() => ({}))) as { tiers?: unknown };
+  const raw = body.tiers;
+  if (!Array.isArray(raw) || raw.length === 0) {
+    return NextResponse.json({ ok: false, error: 'Invalid tier table' }, { status: 400 });
+  }
+  const next: RentSmsTier[] = raw.map((t: unknown, i: number) => {
+    const fallback = current[i] ?? RENT_SMS_DEFAULT_TIERS[i] ?? RENT_SMS_DEFAULT_TIERS[0];
+    return tierFromRecord((t && typeof t === 'object' ? t : {}) as Record<string, unknown>, fallback);
+  });
+  const okWrite = await writeTiers(next);
   if (!okWrite) {
     return NextResponse.json({ ok: false, error: 'Could not save settings' }, { status: 500 });
   }
-  await audit('rent_sms_markups_update', { ...next, previous: current });
+  await audit('rent_sms_tiers_update', { tiers: next, previous: current });
   const rate = await readRate();
-  return NextResponse.json({ ok: true, rate, ...next });
+  return NextResponse.json({
+    ok: true,
+    rate,
+    tiers: next.map((t, i) => ({ label: BAND_LABELS[i] ?? `Tier ${i + 1}`, ...t })),
+  });
 }
