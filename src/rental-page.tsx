@@ -415,7 +415,7 @@ export function RentalPage({
             const res = await fetch('/api/v1/rent-sms/quote', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ serviceName: svc, duration: d.tvId }),
+              body: JSON.stringify({ serviceName: svc, duration: d.tvId, areaCode: Boolean(areaCode) }),
             });
             const data = (await res.json().catch(() => ({}))) as { ok?: boolean; priceNgn?: number; error?: string };
             if (res.ok && data.ok && Number(data.priceNgn) > 0) {
@@ -442,7 +442,7 @@ export function RentalPage({
     return () => {
       alive = false;
     };
-  }, [service]);
+  }, [service, areaCode]);
 
   const currentPriceNgn = prices[selectedDuration] || 0;
 
@@ -496,6 +496,7 @@ export function RentalPage({
           serviceName: service,
           duration: durationId,
           userId: session?.userId,
+          areaCode: areaCode?.code || null,
         }),
       });
 

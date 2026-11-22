@@ -99,12 +99,16 @@ export async function POST(req: NextRequest) {
     serviceName?: string;
     duration?: string;
     userId?: string;
+    areaCode?: string | null;
   };
   const serviceName = String(body.serviceName || '').trim();
   const duration = String(body.duration || '').trim() as TvRentalDuration;
   if (!serviceName || !TV_DURATIONS.some((d) => d.id === duration)) {
     return NextResponse.json({ ok: false, error: 'Missing service or duration' }, { status: 400 });
   }
+  // Custom area code: 3 US digits, or null/absent for a random area code.
+  const areaCodeRaw = String(body.areaCode || '').trim();
+  const areaCode = /^\d{3}$/.test(areaCodeRaw) ? areaCodeRaw : '';
 
   const userId = await resolveUserId(req, body.userId);
   if (!userId) {
@@ -112,7 +116,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Server-side re-quote: never trust a client-sent price.
-  const price = await tvRentalPriceUsd({ serviceName, duration, isRenewable: false });
+  const price = await tvRentalPriceUsd({ serviceName, duration, isRenewable: false, areaCode: Boolean(areaCode) });
   if (!price.ok || !price.priceUsd) {
     return NextResponse.json(
       { ok: false, error: price.error || 'That option is not available right now. Try another duration.' },
@@ -126,7 +130,7 @@ export async function POST(req: NextRequest) {
 
   const durationLabel = TV_DURATIONS.find((d) => d.id === duration)?.label || duration;
   const debitRef = `rsm-${userId.slice(0, 8)}-${Date.now()}`;
-  const desc = `Rent SMS · ${serviceName} · ${durationLabel}`;
+  const desc = `Rent SMS · ${serviceName} · ${durationLabel}${areaCode ? ` · AC ${areaCode}` : ''}`;
 
   let debited = false;
   try {
@@ -143,7 +147,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: msg }, { status: 500 });
   }
 
-  const rental = await tvCreateRental({ serviceName, duration, isRenewable: false });
+  const rental = await tvCreateRental({ serviceName, duration, isRenewable: false, areaCode: areaCode || undefined });
   if (!rental.ok || !rental.reservationId) {
     if (debited) {
       await creditRetailWallet(userId, totalNgn, `refund-${debitRef}`, `Refund (rental failed) · ${desc}`);

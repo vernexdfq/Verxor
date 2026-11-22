@@ -182,17 +182,20 @@ export const TV_DURATIONS: { id: TvRentalDuration; label: string; days: number }
   { id: 'oneYear', label: '1 Year', days: 365 },
 ];
 
-/** Live USD price for a rental config (before Verxor markup). */
+/** Live USD price for a rental config (before Verxor markup).
+ * areaCode=true asks Textverified to price a specific-area-code number
+ * (Custom area code); false prices a random-area-code number. */
 export async function tvRentalPriceUsd(opts: {
   serviceName: string;
   duration: TvRentalDuration;
   isRenewable: boolean;
+  areaCode?: boolean;
 }): Promise<{ ok: boolean; priceUsd?: number; error?: string }> {
   const res = await tvRequest<{ price?: number } & Record<string, unknown>>('/api/pub/v2/pricing/rentals', {
     method: 'POST',
     body: {
       serviceName: opts.serviceName,
-      areaCode: false,
+      areaCode: Boolean(opts.areaCode),
       numberType: 'mobile',
       capability: 'sms',
       isRenewable: opts.isRenewable,
@@ -209,14 +212,14 @@ export async function tvRentalPriceUsd(opts: {
 const asRecord = (v: unknown): Record<string, unknown> =>
   v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : {};
 
-/**
- * Create a rental. Returns e164 number + reservation id + expires info.
+/** Create a rental. Returns e164 number + reservation id + expires info.
  * Uses always-on, non-backorder (fail fast when out of stock) by default.
- */
+ * opts.areaCode (3 digits) restricts the number to that US area code. */
 export async function tvCreateRental(opts: {
   serviceName: string;
   duration: TvRentalDuration;
   isRenewable: boolean;
+  areaCode?: string;
 }): Promise<{ ok: boolean; reservationId?: string; e164?: string; endsAt?: string; state?: string; error?: string }> {
   const res = await tvRequest<Record<string, unknown>>('/api/pub/v2/reservations/rental', {
     method: 'POST',
@@ -228,6 +231,9 @@ export async function tvCreateRental(opts: {
       serviceName: opts.serviceName,
       capability: 'sms',
       alwaysOn: true,
+      ...(opts.areaCode && /^\d{3}$/.test(opts.areaCode)
+        ? { areaCodeSelectOption: [opts.areaCode] }
+        : {}),
     },
   });
   if (!res.ok || !res.data) return { ok: false, error: res.error };

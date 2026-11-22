@@ -24,13 +24,13 @@ export async function POST(req: NextRequest) {
       { status: 503 },
     );
   }
-  const body = (await req.json().catch(() => ({}))) as { serviceName?: string; duration?: string };
+  const body = (await req.json().catch(() => ({}))) as { serviceName?: string; duration?: string; areaCode?: boolean };
   const serviceName = String(body.serviceName || '').trim();
   const duration = String(body.duration || '').trim() as TvRentalDuration;
   if (!serviceName || !TV_DURATIONS.some((d) => d.id === duration)) {
     return NextResponse.json({ ok: false, error: 'Missing service or duration' }, { status: 400 });
   }
-  const price = await tvRentalPriceUsd({ serviceName, duration, isRenewable: false });
+  const price = await tvRentalPriceUsd({ serviceName, duration, isRenewable: false, areaCode: Boolean(body.areaCode) });
   if (!price.ok || !price.priceUsd) {
     return NextResponse.json(
       { ok: false, error: price.error || 'No price available for that option right now.' },
