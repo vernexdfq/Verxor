@@ -1,5 +1,6 @@
 /**
  * Verxor Rent-for-SMS pricing (Textverified rentals) — Tiered master pricing.
+ * Calibrated 2026-11: slightly above Fleexa retail, solid margins.
  *
  * Price = provider USD cost × tier multiplier (per audience) × the live global
  * USD→NGN rate (the same admin daily rate Virtual Number and Email OTP use),
