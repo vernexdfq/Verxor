@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { textverifiedConfigured, tvSms } from '@/lib/providers/textverified';
+import { resolvePanelClient, panelAllowsRentSms } from '@/lib/panel-auth';
 
 /**
  * GET /api/v1/rent-sms/numbers          → my rentals (from rent_sms_rentals)
@@ -42,6 +43,14 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(
       { ok: false, error: 'Rent-for-SMS is going live — provider setup is finishing. Try again shortly.' },
       { status: 503 },
+    );
+  }
+
+  const panel = await resolvePanelClient(req);
+  if (panel && !panelAllowsRentSms(panel)) {
+    return NextResponse.json(
+      { ok: false, error: 'This panel key is not allowed to use Rent-for-SMS.' },
+      { status: 403 },
     );
   }
 

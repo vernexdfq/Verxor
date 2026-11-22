@@ -49,6 +49,24 @@ import {
   type BoostReceiptOptions,
 } from './receipt-template';
 
+/** Rent-SMS receipt sent to a child-panel customer's email (supplied by the panel). */
+export async function sendRentSmsPanelCustomerReceipt(
+  to: string,
+  receipt: Omit<ReceiptTemplateOptions, 'service'>,
+): Promise<SendEmailResult> {
+  const email = (to || '').trim().toLowerCase();
+  if (!email || !email.includes('@')) return { ok: false, error: 'Customer email required' };
+  try {
+    return await sendEmail({
+      to: email,
+      subject: receiptSubject({ ...receipt, service: 'number-rental' }),
+      html: buildFintechReceiptHtml({ ...receipt, service: 'number-rental' }),
+    });
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : 'Receipt dispatch failed' };
+  }
+}
+
 export async function sendBoostReceipt(
   userId: string,
   receipt: BoostReceiptOptions,

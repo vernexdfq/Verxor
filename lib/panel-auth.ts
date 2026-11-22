@@ -151,6 +151,19 @@ export function panelAllowsVirtualNumbers(panel: PanelClient): boolean {
   );
 }
 
+/** Rent-for-SMS (Textverified number rentals) access for child panels. */
+export function panelAllowsRentSms(panel: PanelClient): boolean {
+  const allowed = panel.allowedProducts.map((p) => p.toLowerCase());
+  return (
+    allowed.length === 0 ||
+    allowed.includes('*') ||
+    allowed.includes('all') ||
+    allowed.includes('rent_sms') ||
+    allowed.includes('rent-sms') ||
+    allowed.includes('rentsms')
+  );
+}
+
 export function panelAllowsBoost(panel: PanelClient): boolean {
   const allowed = panel.allowedProducts.map((p) => p.toLowerCase());
   return (
