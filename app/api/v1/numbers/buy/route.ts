@@ -443,6 +443,6 @@ export async function POST(req: NextRequest) {
       }
     }
     const message = err instanceof Error ? err.message : 'Purchase failed';
-    return NextResponse.json({ ok: false, error: message }, { status: 502 });
+    return NextResponse.json({ ok: false, error: message }, { status: 503 });
   }
 }

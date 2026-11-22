@@ -588,7 +588,7 @@ export async function POST(req: NextRequest) {
     const message = err instanceof Error ? err.message : 'Provider order failed';
     return NextResponse.json(
       { ok: false, error: message, refunded: debited },
-      { status: 502 },
+      { status: 503 },
     );
   }
 }

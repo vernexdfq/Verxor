@@ -523,7 +523,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(
       { ok: false, error: cleanMessage, refunded: debited },
-      { status: 502 },
+      { status: 503 },
     );
   }
 }

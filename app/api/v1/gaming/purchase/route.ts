@@ -260,7 +260,7 @@ export async function POST(req: NextRequest) {
     void notifyAdmin(
       `⚠️ Verxor gaming order FAILED (wallet refunded)\n${detail.name} · ${variation.name} ×${quantity} · ₦${totalNgn.toLocaleString('en-NG')}\nError: ${result.error}\nCustomer: ${userId}`,
     );
-    return NextResponse.json({ ok: false, error: result.error || 'The order failed. Your wallet has been refunded.' }, { status: 502 });
+    return NextResponse.json({ ok: false, error: result.error || 'The order failed. Your wallet has been refunded.' }, { status: 503 });
   }
 
   return NextResponse.json({

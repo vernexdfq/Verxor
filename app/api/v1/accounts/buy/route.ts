@@ -346,7 +346,7 @@ export async function POST(req: NextRequest) {
         : await creditRetailWallet(userId, totalNgn, `refund-${debitRef}`, `Refund accounts purchase failed: ${title}`);
       return NextResponse.json(
         { ok: false, error: refunded ? 'Provider request failed. The wallet debit was refunded.' : 'Provider request failed and the refund could not be confirmed. Contact support before retrying.', refunded },
-        { status: 502 },
+        { status: 503 },
       );
     }
 
@@ -364,14 +364,14 @@ export async function POST(req: NextRequest) {
             code: purchase.code,
             reference: clientRef,
           },
-          { status: 504 },
+          { status: 503 },
         );
       }
       if (useReseller) {
         await creditResellerWallet(userId, totalNgn, `refund-${debitRef}`);
         return NextResponse.json(
           { ok: false, error: purchase.error || 'Purchase failed at provider. The panel wallet was refunded.', code: purchase.code || 'provider_error', refunded: true },
-          { status: 502 },
+          { status: 503 },
         );
       }
       const refunded = await creditRetailWallet(
@@ -387,7 +387,7 @@ export async function POST(req: NextRequest) {
           code: purchase.code || 'provider_error',
           refunded,
         },
-        { status: 502 },
+        { status: 503 },
       );
     }
 

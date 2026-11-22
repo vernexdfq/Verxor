@@ -91,7 +91,7 @@ export async function POST(req: Request) {
       console.error('[auth/forgot-password] resend failed', await emailRes.text().catch(() => ''));
       return NextResponse.json(
         { error: 'Could not send the code right now. Try again shortly.' },
-        { status: 502 },
+        { status: 503 },
       );
     }
 

@@ -26,6 +26,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, data });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Status query failed';
-    return NextResponse.json({ ok: false, error: message }, { status: 502 });
+    return NextResponse.json({ ok: false, error: message }, { status: 503 });
   }
 }

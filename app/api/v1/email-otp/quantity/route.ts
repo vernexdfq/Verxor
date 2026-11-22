@@ -40,6 +40,6 @@ export async function GET(req: NextRequest) {
     );
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Failed to load domains';
-    return NextResponse.json({ ok: false, error: message }, { status: 502 });
+    return NextResponse.json({ ok: false, error: message }, { status: 503 });
   }
 }

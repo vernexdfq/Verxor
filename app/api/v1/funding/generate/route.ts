@@ -305,7 +305,7 @@ async function createXixaDynamic(
     return {
       error: NextResponse.json(
         { ok: false, message: 'Could not reach payment provider. Try again.' },
-        { status: 502 },
+        { status: 503 },
       ),
     };
   }
@@ -328,7 +328,7 @@ async function createXixaDynamic(
       (typeof raw.message === 'string' && raw.message) ||
       (typeof raw.error === 'string' && raw.error) ||
       `Provider error (${xixapayRes.status})`;
-    return { error: NextResponse.json({ ok: false, message: String(msg) }, { status: 502 }) };
+    return { error: NextResponse.json({ ok: false, message: String(msg) }, { status: 503 }) };
   }
 
   const picked = pickXixaAccount(raw);
@@ -340,7 +340,7 @@ async function createXixaDynamic(
           message:
             'Provider returned no account number. Confirm XixaPay credentials and dynamic accounts.',
         },
-        { status: 502 },
+        { status: 503 },
       ),
     };
   }
@@ -453,7 +453,7 @@ async function createPayvesselStatic9psb(opts: {
             ? 'PayVessel took too long to respond. Try again in a moment.'
             : 'Could not reach PayVessel. Try again.',
         },
-        { status: 502 },
+        { status: 503 },
       ),
     };
   }
@@ -472,7 +472,7 @@ async function createPayvesselStatic9psb(opts: {
       (typeof raw.message === 'string' && raw.message) ||
       (typeof raw.error === 'string' && raw.error) ||
       (rawText ? `PayVessel error (${res.status}): ${rawText.slice(0, 140)}` : `PayVessel error (${res.status})`);
-    return { error: NextResponse.json({ ok: false, message: String(msg) }, { status: 502 }) };
+    return { error: NextResponse.json({ ok: false, message: String(msg) }, { status: 503 }) };
   }
 
   const picked = pickPayvesselAccount(raw);
@@ -480,7 +480,7 @@ async function createPayvesselStatic9psb(opts: {
     return {
       error: NextResponse.json(
         { ok: false, message: 'PayVessel returned no account number.' },
-        { status: 502 },
+        { status: 503 },
       ),
     };
   }

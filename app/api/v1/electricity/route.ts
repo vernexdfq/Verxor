@@ -495,7 +495,7 @@ export async function POST(req: NextRequest) {
         error: message.replace(/^(clubkonnect):\s*/i, '').trim() || 'Electricity payment failed',
         refunded: debited,
       },
-      { status: 502 },
+      { status: 503 },
     );
   }
 }

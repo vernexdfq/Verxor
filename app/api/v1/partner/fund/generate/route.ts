@@ -220,7 +220,7 @@ export async function POST(req: NextRequest) {
     console.error('[partner/fund/generate] xixapay network', e);
     return NextResponse.json(
       { ok: false, message: 'Could not reach payment provider. Try again.', ms: Date.now() - started },
-      { status: 502 },
+      { status: 503 },
     );
   }
 
@@ -244,7 +244,7 @@ export async function POST(req: NextRequest) {
       `Provider error (${xixapayRes.status})`;
     return NextResponse.json(
       { ok: false, message: String(msg), ms: Date.now() - started },
-      { status: 502 },
+      { status: 503 },
     );
   }
 
@@ -262,7 +262,7 @@ export async function POST(req: NextRequest) {
         errors: picked.errors,
         ms: Date.now() - started,
       },
-      { status: 502 },
+      { status: 503 },
     );
   }
 

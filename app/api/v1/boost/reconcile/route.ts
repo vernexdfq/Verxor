@@ -96,7 +96,7 @@ async function runReconcile(req: NextRequest) {
       const errText = await res.text().catch(() => '');
       return NextResponse.json(
         { ok: false, error: `Ledger query failed (HTTP ${res.status}): ${errText.slice(0, 150)}` },
-        { status: 502 },
+        { status: 503 },
       );
     }
 

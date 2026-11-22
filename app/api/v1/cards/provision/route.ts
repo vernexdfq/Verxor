@@ -97,7 +97,7 @@ export async function POST(req: NextRequest) {
   if (!cardRes.ok && !isDemo) {
     return NextResponse.json(
       { ok: false, message: cardRes.message || 'Card provisioning failed.' },
-      { status: 502 },
+      { status: 503 },
     );
   }
 

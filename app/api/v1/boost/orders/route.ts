@@ -135,7 +135,7 @@ export async function GET(req: NextRequest) {
       console.warn('[boost/orders] ledger fetch failed', t.slice(0, 200));
       return NextResponse.json(
         { ok: false, error: 'Could not load your boost orders right now', orders: [] },
-        { status: 502 },
+        { status: 503 },
       );
     }
     const boostRows = boostRes?.ok ? ((await boostRes.json().catch(() => [])) as LedgerRow[]) : [];
@@ -148,7 +148,7 @@ export async function GET(req: NextRequest) {
     if (!Array.isArray(rows)) {
       return NextResponse.json(
         { ok: false, error: 'Could not load your boost orders right now', orders: [] },
-        { status: 502 },
+        { status: 503 },
       );
     }
 

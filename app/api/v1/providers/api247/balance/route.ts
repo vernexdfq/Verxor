@@ -22,6 +22,6 @@ export async function GET() {
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Balance check failed';
-    return NextResponse.json({ ok: false, error: message }, { status: 502 });
+    return NextResponse.json({ ok: false, error: message }, { status: 503 });
   }
 }

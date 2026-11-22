@@ -117,7 +117,7 @@ export async function POST(req: NextRequest) {
     console.error('[funding/crypto] network', e);
     return NextResponse.json(
       { ok: false, message: 'Could not reach NowPayments. Try again.' },
-      { status: 502 },
+      { status: 503 },
     );
   }
 
@@ -134,7 +134,7 @@ export async function POST(req: NextRequest) {
     const msg =
       (typeof raw.message === 'string' && raw.message) ||
       `NowPayments error (${npRes.status})`;
-    return NextResponse.json({ ok: false, message: String(msg) }, { status: 502 });
+    return NextResponse.json({ ok: false, message: String(msg) }, { status: 503 });
   }
 
   const invoiceUrl = String(raw.invoice_url || raw.invoiceUrl || '');
@@ -143,7 +143,7 @@ export async function POST(req: NextRequest) {
   if (!invoiceUrl) {
     return NextResponse.json(
       { ok: false, message: 'NowPayments did not return a checkout URL.' },
-      { status: 502 },
+      { status: 503 },
     );
   }
 

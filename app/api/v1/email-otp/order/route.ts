@@ -224,7 +224,7 @@ export async function POST(req: NextRequest) {
     stock = raw[domain];
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Provider unavailable';
-    return NextResponse.json({ ok: false, error: 'Provider unavailable: ' + msg }, { status: 502 });
+    return NextResponse.json({ ok: false, error: 'Provider unavailable: ' + msg }, { status: 503 });
   }
   if (!stock) {
     return NextResponse.json({ ok: false, error: 'Unknown domain for this platform' }, { status: 400 });
@@ -320,6 +320,6 @@ export async function POST(req: NextRequest) {
       }
     }
     const message = err instanceof Error ? err.message : 'Purchase failed';
-    return NextResponse.json({ ok: false, error: 'Provider failed, wallet refunded: ' + message }, { status: 502 });
+    return NextResponse.json({ ok: false, error: 'Provider failed, wallet refunded: ' + message }, { status: 503 });
   }
 }

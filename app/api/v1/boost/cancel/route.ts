@@ -274,6 +274,6 @@ export async function POST(req: NextRequest) {
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Cancel failed';
-    return NextResponse.json({ ok: false, error: msg }, { status: 502 });
+    return NextResponse.json({ ok: false, error: msg }, { status: 503 });
   }
 }

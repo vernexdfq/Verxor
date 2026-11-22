@@ -111,7 +111,7 @@ export async function POST(req: NextRequest) {
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'cancel failed';
     if (!/not found|no order|already/i.test(msg)) {
-      return NextResponse.json({ ok: false, error: 'Provider cancel failed: ' + msg }, { status: 502 });
+      return NextResponse.json({ ok: false, error: 'Provider cancel failed: ' + msg }, { status: 503 });
     }
   }
 

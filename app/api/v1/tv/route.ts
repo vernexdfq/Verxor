@@ -417,7 +417,7 @@ export async function POST(req: NextRequest) {
         error: message.replace(/^(clubkonnect):\s*/i, '').trim() || 'Cable subscription failed',
         refunded: debited,
       },
-      { status: 502 },
+      { status: 503 },
     );
   }
 }

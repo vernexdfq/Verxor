@@ -153,7 +153,7 @@ export async function POST(req: NextRequest) {
     );
     return NextResponse.json(
       { ok: false, error: rental.error || 'The rental failed. Your wallet has been refunded.' },
-      { status: 502 },
+      { status: 503 },
     );
   }
 

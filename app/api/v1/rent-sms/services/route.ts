@@ -25,7 +25,7 @@ export async function GET() {
   if (!services.length) {
     return NextResponse.json(
       { ok: false, error: error || 'Could not load the service list right now.' },
-      { status: 502 },
+      { status: 503 },
     );
   }
   const names = services.map((s) => s.serviceName).sort((a, b) => a.localeCompare(b));
