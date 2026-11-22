@@ -115,14 +115,16 @@ const MODES: { id: Mode; label: string; hint: string; icon: typeof Flame }[] = [
   { id: 'renewable', label: 'Renewable', hint: 'Renews automatically', icon: RefreshCw },
 ];
 
+// Durations map to Textverified rental durations; every price is quoted LIVE
+// per service + duration via /api/v1/rent-sms/quote (tiered Ngn pricing).
 export const DURATION_OPTIONS = [
-  { id: '1d', label: '1 Day', days: 1, basePriceNgn: 1450 },
-  { id: '3d', label: '3 Days', days: 3, basePriceNgn: 2850 },
-  { id: '7d', label: '7 Days', days: 7, basePriceNgn: 4950 },
-  { id: '14d', label: '14 Days', days: 14, basePriceNgn: 8400 },
-  { id: '30d', label: '30 Days', days: 30, basePriceNgn: 11880 }, // Matches Primex reference ₦11,880.00
-  { id: '90d', label: '90 Days', days: 90, basePriceNgn: 28500 },
-  { id: '365d', label: '1 Year', days: 365, basePriceNgn: 78000 },
+  { id: '1d', label: '1 Day', days: 1, tvId: 'oneDay' },
+  { id: '3d', label: '3 Days', days: 3, tvId: 'threeDay' },
+  { id: '7d', label: '7 Days', days: 7, tvId: 'sevenDay' },
+  { id: '14d', label: '14 Days', days: 14, tvId: 'fourteenDay' },
+  { id: '30d', label: '30 Days', days: 30, tvId: 'thirtyDay' },
+  { id: '90d', label: '90 Days', days: 90, tvId: 'ninetyDay' },
+  { id: '365d', label: '1 Year', days: 365, tvId: 'oneYear' },
 ];
 
 export const DEFAULT_SERVICES = [
@@ -396,7 +398,53 @@ export function RentalPage({
     return DURATION_OPTIONS.find((d) => d.id === selectedDuration) || DURATION_OPTIONS[4];
   }, [selectedDuration]);
 
-  const currentPriceNgn = currentDurationObj.basePriceNgn;
+  /* Live prices: quoted per service + duration. No hardcoded ₦ values. */
+  const [prices, setPrices] = useState<Record<string, number>>({});
+  const [pricesLoading, setPricesLoading] = useState(true);
+  const [pricesNote, setPricesNote] = useState<string | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    const svc = service;
+    (async () => {
+      setPricesLoading(true);
+      setPricesNote(null);
+      const results = await Promise.all(
+        DURATION_OPTIONS.map(async (d) => {
+          try {
+            const res = await fetch('/api/v1/rent-sms/quote', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ serviceName: svc, duration: d.tvId }),
+            });
+            const data = (await res.json().catch(() => ({}))) as { ok?: boolean; priceNgn?: number; error?: string };
+            if (res.ok && data.ok && Number(data.priceNgn) > 0) {
+              return { id: d.id, priceNgn: Number(data.priceNgn), error: '' };
+            }
+            return { id: d.id, priceNgn: 0, error: data.error || 'Price unavailable right now.' };
+          } catch {
+            return { id: d.id, priceNgn: 0, error: 'Network error while fetching the price.' };
+          }
+        }),
+      );
+      if (!alive) return;
+      const map: Record<string, number> = {};
+      let okCount = 0;
+      let firstError = '';
+      for (const r of results) {
+        map[r.id] = r.priceNgn;
+        if (r.priceNgn > 0) okCount++; else if (!firstError) firstError = r.error;
+      }
+      setPrices(map);
+      setPricesLoading(false);
+      if (okCount === 0 && firstError) setPricesNote(firstError);
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [service]);
+
+  const currentPriceNgn = prices[selectedDuration] || 0;
 
   /* Provider rule: renewals only for 30 days and above */
   const renewableAllowed = currentDurationObj.days >= 30;
@@ -437,16 +485,7 @@ export function RentalPage({
     setOrderSuccessMsg(null);
     setOrderError(null);
 
-    const DURATION_ID_MAP: Record<string, string> = {
-      '1d': 'oneDay',
-      '3d': 'threeDay',
-      '7d': 'sevenDay',
-      '14d': 'fourteenDay',
-      '30d': 'thirtyDay',
-      '90d': 'ninetyDay',
-      '365d': 'oneYear',
-    };
-    const durationId = DURATION_ID_MAP[selectedDuration] || 'thirtyDay';
+    const durationId = currentDurationObj.tvId || 'thirtyDay';
 
     try {
       const headers = await authHeaders();
@@ -482,7 +521,7 @@ export function RentalPage({
           mode,
           duration: currentDurationObj.label,
           number: data.rental.number || '',
-          chargedNgn: Number(data.rental.totalNgn || currentPriceNgn),
+          chargedNgn: Number(data.rental.totalNgn || prices[selectedDuration] || 0),
           status: 'active',
           endsAt: data.rental.endsAt || new Date(Date.now() + currentDurationObj.days * 86400000).toISOString(),
           createdAt: new Date().toISOString(),
@@ -911,7 +950,9 @@ export function RentalPage({
                     onClick={() => setSelectedDuration(d.id)}
                   >
                     <span className="rsm-dur-label">{d.label}</span>
-                    <span className="rsm-dur-state">₦{d.basePriceNgn.toLocaleString('en-NG')}</span>
+                    <span className="rsm-dur-state">
+                      {pricesLoading ? '…' : prices[d.id] > 0 ? `₦${prices[d.id].toLocaleString('en-NG')}` : '—'}
+                    </span>
                   </button>
                 ))}
               </div>
@@ -967,12 +1008,18 @@ export function RentalPage({
               <div className="rsm-price-copy">
                 <span className="rsm-price-label">Total to pay</span>
                 <strong className="rsm-price-amount">
-                  ₦{currentPriceNgn.toLocaleString('en-NG')}.00
+                  {pricesLoading
+                    ? 'Checking live price…'
+                    : currentPriceNgn > 0
+                      ? `₦${currentPriceNgn.toLocaleString('en-NG')}`
+                      : '—'}
                 </strong>
                 <small className="rsm-price-sub">
-                  {type === 'general'
-                    ? `${currentDurationObj.label} general rental`
-                    : `${currentDurationObj.label} · ${service}`}
+                  {pricesNote
+                    ? pricesNote
+                    : type === 'general'
+                      ? `${currentDurationObj.label} general rental`
+                      : `${currentDurationObj.label} · ${service}`}
                 </small>
               </div>
             </div>
