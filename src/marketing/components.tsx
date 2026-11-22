@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import type { LucideIcon } from 'lucide-react';
-import { ArrowRight, ChevronDown, MapPin, Menu, Phone } from 'lucide-react';
+import { ArrowRight, ChevronDown, Mail, Menu, Phone } from 'lucide-react';
 
 export function ButtonLink({
   href,
@@ -173,10 +173,10 @@ export function MarketingFooter() {
               <Phone size={13} style={{ display: 'inline', marginRight: 6, verticalAlign: -1 }} />
               +2348141620644
             </a>
-            <span className="mk-footer-address-text">
-              <MapPin size={13} style={{ display: 'inline', marginRight: 6, verticalAlign: -2 }} />
-              No 2 Ugbaike Road, Edem Nsukka, Enugu State, Nigeria
-            </span>
+            <a href="mailto:support@verxor.com" className="mk-footer-contact-link" title="Email Verxor Support">
+              <Mail size={13} style={{ display: 'inline', marginRight: 6, verticalAlign: -1 }} />
+              support@verxor.com
+            </a>
             {/* Discreet operator entry — same pattern as child partner panel; separate from /workspace user login */}
             <a
               href="/admin"
@@ -197,11 +197,11 @@ export function MarketingFooter() {
               </span>
               <span className="mk-sep">&middot;</span>
               <span>
-                <strong>Address:</strong> No 2 Ugbaike Road, Edem Nsukka, Enugu State, Nigeria
+                <strong>Email:</strong> <a href="mailto:support@verxor.com">support@verxor.com</a>
               </span>
             </div>
           </div>
-          <span>Official Verxor Digital Platform &middot; Enugu &amp; Lagos, Nigeria &middot; Global Operations</span>
+          <span>Official Verxor Digital Platform &middot; Lagos, Nigeria &middot; Global Operations</span>
         </div>
       </div>
     </footer>

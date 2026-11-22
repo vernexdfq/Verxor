@@ -27,11 +27,10 @@ const organizationSchema = {
   description:
     'Global digital infrastructure for Africa’s digital economy: virtual numbers, eSIM, VTU data, USD cards, SMM marketplace, and developer APIs.',
   telephone: '+2348141620644',
+  email: 'support@verxor.com',
   address: {
     '@type': 'PostalAddress',
-    streetAddress: 'No 2 Ugbaike Road, Edem',
-    addressLocality: 'Nsukka',
-    addressRegion: 'Enugu State',
+    addressLocality: 'Lagos',
     addressCountry: 'NG',
   },
 };

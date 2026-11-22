@@ -1423,15 +1423,6 @@ html {
   margin-top: 2px;
 }
 
-.mk-footer-address-text {
-  display: inline-flex;
-  align-items: flex-start;
-  font-size: 12px;
-  line-height: 1.5;
-  color: #64748B;
-  margin-top: 2px;
-}
-
 .mk-footer-bottom-info {
   display: flex;
   flex-direction: column;
