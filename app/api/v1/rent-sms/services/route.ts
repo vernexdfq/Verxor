@@ -4,12 +4,12 @@ import { tvServices, textverifiedConfigured } from '@/lib/providers/textverified
 /**
  * GET /api/v1/rent-sms/services
  *   → the Textverified service list (for the Service Rental picker).
- *   Cached in-process for 10 minutes; sorted A–Z.
+ *   Cached in-process for 1 hour; sorted A–Z.
  */
 export const dynamic = 'force-dynamic';
 
 let cache: { at: number; names: string[] } | null = null;
-const TTL = 10 * 60 * 1000;
+const TTL = 60 * 60 * 1000; // provider lists change rarely; hour cache so nothing reloads all the time
 
 export async function GET() {
   if (!textverifiedConfigured()) {

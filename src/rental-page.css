@@ -3021,3 +3021,12 @@
 .dark .rsm-renew-rule-hint {
   color: #94a3b8;
 }
+
+/* Area code picker: grouped by state, multiple codes per state (provider UI) */
+.rsm-ac-group{padding:10px 14px 12px;border-bottom:1px solid #eef2f8}
+.rsm-ac-group:last-child{border-bottom:none}
+.rsm-ac-state{display:block;font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#7c8aa1;margin-bottom:8px}
+.rsm-ac-codes{display:flex;flex-wrap:wrap;gap:8px}
+.rsm-ac-chip{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700;color:#42526e;background:rgba(11,99,246,.08);border:1px solid transparent;border-radius:10px;padding:7px 14px;cursor:pointer;transition:background .15s ease,border-color .15s ease}
+.rsm-ac-chip:hover{background:rgba(11,99,246,.16)}
+.rsm-ac-chip.active{background:rgba(11,99,246,.14);border-color:#0b63f6;color:#0b63f6}

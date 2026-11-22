@@ -4,12 +4,12 @@ import { textverifiedConfigured, tvAreaCodes } from '@/lib/providers/textverifie
 /**
  * GET /api/v1/rent-sms/area-codes
  *   → the live Textverified US area-code list ({ code, place }).
- *   Cached in-process for 10 minutes; sorted by code.
+ *   Cached in-process for 1 hour; sorted by state then code.
  */
 export const dynamic = 'force-dynamic';
 
 let cache: { at: number; codes: { code: string; place: string }[] } | null = null;
-const TTL = 10 * 60 * 1000;
+const TTL = 60 * 60 * 1000; // provider lists change rarely; hour cache so nothing reloads all the time
 
 export async function GET() {
   if (!textverifiedConfigured()) {
@@ -30,7 +30,7 @@ export async function GET() {
   }
   const codes = areaCodes
     .map((a) => ({ code: a.code, place: a.place }))
-    .sort((a, b) => a.code.localeCompare(b.code));
+    .sort((a, b) => a.place.localeCompare(b.place) || a.code.localeCompare(b.code));
   cache = { at: Date.now(), codes };
   return NextResponse.json({ ok: true, areaCodes: codes });
 }

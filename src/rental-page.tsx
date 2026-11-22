@@ -401,6 +401,20 @@ export function RentalPage({
     return q ? services.filter((s) => s.toLowerCase().includes(q)) : services;
   }, [services, query]);
 
+  /* Area codes grouped by state (multiple codes per state), like the
+   * provider's own selection UI. Search matches state name or code. */
+  const groupedAreaCodes = useMemo(() => {
+    const q = acQuery.trim().toLowerCase();
+    const groups: { state: string; codes: { code: string; place: string }[] }[] = [];
+    for (const a of areaCodes) {
+      if (q && !a.code.includes(q) && !a.place.toLowerCase().includes(q)) continue;
+      const last = groups[groups.length - 1];
+      if (last && last.state === a.place) last.codes.push(a);
+      else groups.push({ state: a.place, codes: [a] });
+    }
+    return groups;
+  }, [areaCodes, acQuery]);
+
   const liveRentals = useMemo(() => rentals.filter(isLive), [rentals]);
   const liveCount = liveRentals.length;
 
@@ -420,10 +434,26 @@ export function RentalPage({
     // General rental = provider special-case service 'allservices'.
     const svc = type === 'general' || service === 'Any Other App (All Services)' ? 'allservices' : service;
     (async () => {
+      // Client-side quote cache: a service+duration+areaCode price is valid
+      // for 10 minutes; the purchase still re-quotes server-side. Cached
+      // durations are NOT re-requested, so nothing reloads all the time.
+      const CACHE_TTL_MS = 10 * 60 * 1000;
+      const cacheKey = (dur: string) => `vq:${svc}|${dur}|${areaCode ? 1 : 0}`;
+      const readCache = (dur: string): number | null => {
+        try {
+          const raw = sessionStorage.getItem(cacheKey(dur));
+          if (!raw) return null;
+          const c = JSON.parse(raw) as { p?: number; t?: number };
+          if (Number(c.p) > 0 && c.t && Date.now() - c.t < CACHE_TTL_MS) return Number(c.p);
+        } catch {}
+        return null;
+      };
       setPricesLoading(true);
       setPricesNote(null);
       const results = await Promise.all(
         DURATION_OPTIONS.map(async (d) => {
+          const cached = readCache(d.tvId);
+          if (cached !== null) return { id: d.id, priceNgn: cached, error: '' };
           try {
             const res = await fetch('/api/v1/rent-sms/quote', {
               method: 'POST',
@@ -432,6 +462,9 @@ export function RentalPage({
             });
             const data = (await res.json().catch(() => ({}))) as { ok?: boolean; priceNgn?: number; error?: string };
             if (res.ok && data.ok && Number(data.priceNgn) > 0) {
+              try {
+                sessionStorage.setItem(cacheKey(d.tvId), JSON.stringify({ p: Number(data.priceNgn), t: Date.now() }));
+              } catch {}
               return { id: d.id, priceNgn: Number(data.priceNgn), error: '' };
             }
             return { id: d.id, priceNgn: 0, error: data.error || 'Price unavailable right now.' };
@@ -1503,45 +1536,28 @@ export function RentalPage({
 
             <div className="rsm-modal-body">
               <ul className="rsm-service-list">
-                {areaCodes.filter((a) => {
-                  const q = acQuery.trim().toLowerCase();
-                  if (!q) return true;
-                  return a.code.includes(q) || a.place.toLowerCase().includes(q);
-                }).map((a) => (
-                  <li key={a.code}>
-                    <button
-                      type="button"
-                      className={`rsm-service-item-btn ${areaCode?.code === a.code ? 'active' : ''}`}
-                      onClick={() => {
-                        setAreaCode(a);
-                        setAcOpen(false);
-                        setAcQuery('');
-                      }}
-                    >
-                      <div className="rsm-service-item-left">
-                        <span className="rsm-service-item-icon rsm-ac-icon">
-                          <Hash size={14} />
-                        </span>
-                        <span className="rsm-service-item-name rsm-ac-code">{a.code}</span>
-                        <span className="rsm-ac-place">{a.place}</span>
-                      </div>
-                      {areaCode?.code === a.code ? (
-                        <span className="rsm-service-selected-check">
-                          <Check size={16} />
-                        </span>
-                      ) : null}
-                    </button>
+                {groupedAreaCodes.map((g) => (
+                  <li key={g.state} className="rsm-ac-group">
+                    <span className="rsm-ac-state">{g.state}</span>
+                    <div className="rsm-ac-codes">
+                      {g.codes.map((a) => (
+                        <button
+                          type="button"
+                          key={a.code}
+                          className={`rsm-ac-chip ${areaCode?.code === a.code ? 'active' : ''}`}
+                          onClick={() => {
+                            setAreaCode(a);
+                            setAcOpen(false);
+                            setAcQuery('');
+                          }}
+                        >
+                          {a.code}
+                        </button>
+                      ))}
+                    </div>
                   </li>
                 ))}
-                {!areaCodes.length ? (
-                  <li className="rsm-service-empty-item">
-                    <p>{areaCodesNote || 'Area codes unavailable right now — "Any area code" still works.'}</p>
-                  </li>
-                ) : null}
-                {!areaCodes.filter((a) => {
-                  const q = acQuery.trim().toLowerCase();
-                  return !q || a.code.includes(q) || a.place.toLowerCase().includes(q);
-                }).length && areaCodes.length ? (
+                {areaCodes.length && !groupedAreaCodes.length ? (
                   <li className="rsm-service-empty-item">
                     <p>No area code matches “{acQuery}”.</p>
                     <button
@@ -1551,6 +1567,11 @@ export function RentalPage({
                     >
                       Reset search
                     </button>
+                  </li>
+                ) : null}
+                {!areaCodes.length ? (
+                  <li className="rsm-service-empty-item">
+                    <p>{areaCodesNote || 'Area codes unavailable right now — "Any area code" still works.'}</p>
                   </li>
                 ) : null}
               </ul>
