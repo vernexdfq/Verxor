@@ -829,6 +829,20 @@ export function AccountsPage({
         onClose={() => setSelected(null)}
         onCheckoutBlocked={(msg) => setToast(msg)}
         onOpenLogs={() => setShowMyLogs(true)}
+        onListingUnavailable={(listingId, platform) => {
+          setLiveByPlatform((prev) => {
+            const cur = prev[platform];
+            if (!cur) return prev;
+            return {
+              ...prev,
+              [platform]: {
+                ...cur,
+                offers: cur.offers.filter((o) => Number(o.providerListingId) !== Number(listingId)),
+              },
+            };
+          });
+          void loadPlatformStock(platform);
+        }}
       />
     );
   }
@@ -1118,6 +1132,7 @@ function AccountDetail({
   onClose,
   onCheckoutBlocked,
   onOpenLogs,
+  onListingUnavailable,
 }: {
   product: AccountProduct;
   wallet: number;
@@ -1125,6 +1140,7 @@ function AccountDetail({
   onClose: () => void;
   onCheckoutBlocked: (msg: string) => void;
   onOpenLogs: () => void;
+  onListingUnavailable?: (listingId: number, platform: string) => void;
 }) {
   const [qty, setQty] = useState(1);
   const [buying, setBuying] = useState(false);
@@ -1231,20 +1247,7 @@ function AccountDetail({
           } catch {
             /* ignore */
           }
-          setLiveByPlatform((prev) => {
-            const cur = prev[product.platform];
-            if (!cur) return prev;
-            return {
-              ...prev,
-              [product.platform]: {
-                ...cur,
-                offers: cur.offers.filter(
-                  (o) => Number(o.providerListingId) !== Number(product.providerListingId),
-                ),
-              },
-            };
-          });
-          void loadPlatformStock(product.platform);
+          onListingUnavailable?.(Number(product.providerListingId), product.platform);
         }
         throw new Error(data?.error || 'Purchase could not be completed.');
       }
