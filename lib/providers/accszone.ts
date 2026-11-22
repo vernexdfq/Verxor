@@ -732,12 +732,23 @@ async function buildPlatformCatalog(
       );
     }
 
-    const offers = listings
+    const previous = cache.get(cacheKey);
+    let offers = listings
       .map((l) => mapListing(l, platform, rate, markups))
       // Marketplace rule: gift cards are not sold on Verxor. Filter them out
       // everywhere so they can never surface via any platform chip.
       .filter((o) => o.stock > 0 && !/gift\s*card|gift\s*code|giftcode/i.test(o.title))
       .sort((a, b) => b.stock - a.stock || a.priceNgn - b.priceNgn);
+
+    if (partial && previous?.catalog?.offers && previous.catalog.offers.length > offers.length) {
+      // Merge: retain in-stock offers from the previous full walk that were not in
+      // the partial walk, so a provider rate-limit hit never drops hundreds of listings.
+      const newIds = new Set(offers.map((o) => o.providerListingId));
+      const preserved = previous.catalog.offers.filter(
+        (o) => !newIds.has(o.providerListingId) && o.stock > 0,
+      );
+      offers = [...offers, ...preserved].sort((a, b) => b.stock - a.stock || a.priceNgn - b.priceNgn);
+    }
 
     const stockBySub = new Map<
       string,

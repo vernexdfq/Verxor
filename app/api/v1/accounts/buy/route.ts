@@ -345,15 +345,30 @@ export async function POST(req: NextRequest) {
     if (!enabledPlatforms.has(platformToValidate)) {
       return bad('Live checkout is not enabled for this platform.', 400);
     }
-    const catalog = await fetchPlatformCatalog(platformToValidate, { forceRefresh: true });
+    // Fast path: check server cache first (<1ms) to avoid AccsZone 30 req/min rate limit
+    let catalog = await fetchPlatformCatalog(platformToValidate, { forceRefresh: false });
+    let listing = catalog.ok
+      ? catalog.offers.find(
+          (offer) => offer.providerListingId === adId && normalizePlatform(offer.platform) === platformToValidate,
+        )
+      : undefined;
+
+    // If listing not in cache or cache is cold/empty, attempt a single refresh
+    if (!listing) {
+      catalog = await fetchPlatformCatalog(platformToValidate, { forceRefresh: true });
+      if (catalog.ok) {
+        listing = catalog.offers.find(
+          (offer) => offer.providerListingId === adId && normalizePlatform(offer.platform) === platformToValidate,
+        );
+      }
+    }
+
     if (!catalog.ok || catalog.source === 'fallback' || catalog.source === 'error') {
       return bad(`Live ${platformToValidate} catalogue is temporarily unavailable. No payment was taken.`, 503);
     }
-    const listing = catalog.offers.find(
-      (offer) => offer.providerListingId === adId && normalizePlatform(offer.platform) === platformToValidate,
-    );
+
     if (!listing || listing.stock < requestedQty || listing.priceNgn <= 0) {
-      return bad('This listing is no longer available in the requested quantity. Refresh the catalogue.', 409);
+      return bad('This listing is currently unavailable or out of stock. Please choose another listing.', 409);
     }
 
     const quantity = requestedQty;

@@ -90,8 +90,8 @@ const PLATFORMS = [
 const LIVE_PLATFORMS = ['Facebook', 'Instagram', 'TikTok', 'X / Twitter', 'Telegram', 'Gmail', 'YouTube', 'Threads', 'WhatsApp', 'Mobile Proxies', 'Google Voice', 'Odnoklassniki', 'LinkedIn', 'Reddit', 'Indeed', 'Truth Social', 'AI Accounts', 'Google Ads', 'Bluesky', 'Snapchat', 'Discord', 'Twitch', 'Trustpilot', 'Quora', 'Dating Apps', 'Grindr', 'eHarmony', 'Badoo', 'Gaming', 'Premium Subscriptions', 'Mastercard', 'Apple', 'E-Commerce', 'Spotify', 'VPN', 'Netflix', 'Pinterest', 'Yahoo', 'CapCut', 'Phone & Messaging', 'Roblox', 'GitHub', 'Outlook'] as const;
 const LIVE_PLATFORM_SET = new Set<string>(LIVE_PLATFORMS);
 
-/** Live stock cache is considered fresh for 15 minutes. */
-const CAT_CACHE_TTL_MS = 15 * 60 * 1000;
+/** Live stock cache is considered fresh for 2 minutes. */
+const CAT_CACHE_TTL_MS = 2 * 60 * 1000;
 
 const PROMO_SLIDES = [
   {
@@ -1224,6 +1224,28 @@ function AccountDetail({
         if (res.status === 401) {
           throw new Error('Your login session has expired. Please sign in again to complete your purchase.');
         }
+        if (res.status === 409) {
+          try {
+            const cacheKey = `verxor:cat:${product.platform.toLowerCase()}:v2`;
+            localStorage.removeItem(cacheKey);
+          } catch {
+            /* ignore */
+          }
+          setLiveByPlatform((prev) => {
+            const cur = prev[product.platform];
+            if (!cur) return prev;
+            return {
+              ...prev,
+              [product.platform]: {
+                ...cur,
+                offers: cur.offers.filter(
+                  (o) => Number(o.providerListingId) !== Number(product.providerListingId),
+                ),
+              },
+            };
+          });
+          void loadPlatformStock(product.platform);
+        }
         throw new Error(data?.error || 'Purchase could not be completed.');
       }
 
@@ -1481,8 +1503,12 @@ function AccountDetail({
         {buyError && <p className="account-checkout-error" role="alert">{buyError}</p>}
         <PrimaryButton
           className="detail-order-btn"
-          disabled={buying || !isLiveListing}
+          disabled={buying || !isLiveListing || product.stock <= 0}
           onClick={() => {
+            if (product.stock <= 0) {
+              setBuyError('This listing is currently out of stock.');
+              return;
+            }
             if (!canPay) {
               onCheckoutBlocked('Insufficient wallet balance. Fund wallet to continue.');
               return;
@@ -1490,7 +1516,7 @@ function AccountDetail({
             void submitPurchase();
           }}
         >
-          {buying ? 'Processing secure payment…' : isLiveListing ? (canPay ? `Pay ${money(total)}` : 'Fund Wallet') : 'Coming soon'}
+          {buying ? 'Processing secure payment…' : product.stock <= 0 ? 'Out of stock' : isLiveListing ? (canPay ? `Pay ${money(total)}` : 'Fund Wallet') : 'Coming soon'}
           {!buying && <ArrowRight size={16} />}
         </PrimaryButton>
 
