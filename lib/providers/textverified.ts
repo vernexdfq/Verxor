@@ -146,15 +146,23 @@ export async function tvAccount(): Promise<TvAccount | null> {
 export type TvService = { serviceName: string; supportBackOrder?: number };
 
 export async function tvServices(): Promise<{ services: TvService[]; error?: string }> {
-  const rows = await tvListAll<Record<string, unknown>>('/api/pub/v2/services');
-  const services = rows
-    .map((r) => ({
-      serviceName: String(
-        r.serviceName ?? r.service_name ?? (r.service as Record<string, unknown> | undefined)?.serviceName ?? '',
-      ),
-      supportBackOrder: Number(r.supportBackOrder ?? 0) || 0,
-    }))
-    .filter((s) => s.serviceName);
+  // GET /api/pub/v2/services requires numberType + reservationType params.
+  // Rent-for-SMS serves both one-time (nonrenewable) and renewable rentals,
+  // so we union both lists (unique service names).
+  const rows: Record<string, unknown>[] = [];
+  for (const rtype of ['nonrenewable', 'renewable'] as const) {
+    rows.push(...(await tvListAll<Record<string, unknown>>(`/api/pub/v2/services?numberType=mobile&reservationType=${rtype}`)));
+  }
+  const seen = new Set<string>();
+  const services: TvService[] = [];
+  for (const r of rows) {
+    const serviceName = String(
+      r.serviceName ?? r.service_name ?? (r.service as Record<string, unknown> | undefined)?.serviceName ?? '',
+    );
+    if (!serviceName || seen.has(serviceName)) continue;
+    seen.add(serviceName);
+    services.push({ serviceName, supportBackOrder: Number(r.supportBackOrder ?? 0) || 0 });
+  }
   if (!services.length) {
     return { services: [], error: tvLastError() || 'no services returned' };
   }
