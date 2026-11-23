@@ -70,6 +70,21 @@ const TABS: { id: Tab; label: string; hint: string; icon: typeof Crown }[] = [
   { id: 'stars', label: 'Stars', hint: 'Top up balance', icon: Star },
 ];
 
+/* Demo pricing — remove this block (and the Demo chip tag) when a real
+   provider is wired in. These are placeholder amounts, not live quotes. */
+const NAIRA = '\u20A6';
+const DEMO_PRICING: Record<string, string> = {
+  '3m': NAIRA + '23,885',
+  '6m': NAIRA + '30,185',
+  '12m': NAIRA + '50,660',
+};
+
+const PREMIUM_DURATIONS: { id: string; label: string; price: string | null }[] = [
+  { id: '3m', label: '3 Months', price: DEMO_PRICING['3m'] },
+  { id: '6m', label: '6 Months', price: DEMO_PRICING['6m'] },
+  { id: '12m', label: '12 Months', price: DEMO_PRICING['12m'] },
+];
+
 /* ---------------- component ---------------- */
 
 export function TelegramPage({
@@ -82,6 +97,8 @@ export function TelegramPage({
   onFund: () => void;
 }) {
   const [tab, setTab] = useState<Tab>('premium');
+  const [recipient, setRecipient] = useState('');
+  const [selectedDuration, setSelectedDuration] = useState<string>('3m');
 
   /* promo carousel state */
   const [promoIdx, setPromoIdx] = useState(0);
@@ -226,12 +243,66 @@ export function TelegramPage({
           </section>
         )}
 
-        {/* HONEST SETUP STATE (removed as duration + checkout land) */}
+        {/* RECIPIENT USERNAME */}
+        <div className="tgp-form-field">
+          <label className="tgp-label" htmlFor="tgp-recipient">
+            RECIPIENT USERNAME
+          </label>
+          <div className="tgp-input-wrap">
+            <span className="tgp-input-at">@</span>
+            <input
+              id="tgp-recipient"
+              className="tgp-input"
+              type="text"
+              inputMode="text"
+              autoComplete="off"
+              autoCapitalize="none"
+              spellCheck={false}
+              placeholder="username"
+              value={recipient}
+              onChange={(e) => setRecipient(e.target.value.replace(/^@+/, ''))}
+            />
+          </div>
+          <small className="tgp-helper">
+            Enter a public Telegram username. The @ symbol is optional.
+          </small>
+        </div>
+
+        {/* DURATION CHIPS (PREMIUM TAB ONLY) */}
+        {tab === 'premium' ? (
+          <div className="tgp-form-field">
+            <label className="tgp-label">DURATION</label>
+            <div className="tgp-durations">
+              {PREMIUM_DURATIONS.map((d) => (
+                <button
+                  type="button"
+                  key={d.id}
+                  className={'tgp-dur' + (selectedDuration === d.id ? ' active' : '')}
+                  onClick={() => setSelectedDuration(d.id)}
+                >
+                  <strong>{d.label}</strong>
+                  <small>
+                    {d.price !== null ? (
+                      <>
+                        {d.price}
+                        <span className="tgp-dur-demo">Demo</span>
+                      </>
+                    ) : (
+                      'Setup finishing'
+                    )}
+                  </small>
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
+        {/* HONEST SETUP STATE (checkout lands with the real provider) */}
         <section className="tgp-setup-card" role="status">
           <span className="tgp-setup-dot" />
           <p>
             {tab === 'premium'
-              ? 'Duration selection and checkout are being set up for this page. Live prices arrive with them.'
+              ? 'Checkout is being set up for this page. The duration prices above are demo amounts until a live provider is wired in.'
               : 'Stars amounts and checkout are being set up for this page. Live prices arrive with them.'}
           </p>
         </section>
