@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
@@ -13,6 +14,7 @@ import { BoostHistoryPage } from './boost-history-page';
 import { EmailHistoryPage } from './email-history-page';
 import { AirtimePage } from './airtime-page';
 import { GamingPage } from './gaming-page';
+import { TelegramPage } from './telegram-page';
 import { DataPage } from './data-page';
 import { GiftCardPage } from './giftcard-page';
 import { GiftCardStorePage } from './giftcard-store-page';
@@ -506,6 +508,8 @@ export function VerxorApp({
     content = <GiftCardStorePage onBack={closeService} session={auth} onFund={() => navigatePage('fund')} />;
   } else if (service === 'gaming') {
     content = <GamingPage onBack={closeService} session={auth} onFund={() => navigatePage('fund')} />;
+  } else if (service === 'telegram-premium') {
+    content = <TelegramPage onBack={closeService} session={auth} onFund={() => navigatePage('fund')} />;
   } else if (service === 'tv-cable') {
 
     content = <TvPage onBack={closeService} session={auth} />;
