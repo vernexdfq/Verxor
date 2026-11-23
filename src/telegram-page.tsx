@@ -16,6 +16,7 @@ import {
   ArrowLeft,
   ArrowRight,
   Crown,
+  Lock,
   Send,
   Sparkles,
   Star,
@@ -355,6 +356,32 @@ export function TelegramPage({
           </div>
         ) : null}
 
+        {/* VERIFICATION INFO BOX */}
+        <section className="tgp-info-box">
+          <div className="tgp-info-row">
+            <span className="tgp-info-icon">
+              <Lock size={13} />
+            </span>
+            <p>
+              {tab === 'premium'
+                ? 'We verify the username before checkout. Premium is a one-time purchase and does not renew automatically.'
+                : 'We verify the username before checkout. Stars land straight in the recipient’s Telegram balance.'}
+            </p>
+          </div>
+          <div className="tgp-info-row">
+            <span className="tgp-info-icon">
+              <Wallet size={13} />
+            </span>
+            <p>Paid from your Verxor wallet. Refunds return to the wallet.</p>
+          </div>
+        </section>
+
+        {/* CHECKOUT CTA (honest disabled state until checkout is wired) */}
+        <button type="button" className="tgp-pay-btn" disabled title="Checkout is being set up">
+          <Lock size={15} />
+          <span>Continue to confirmation</span>
+        </button>
+
         {/* HONEST SETUP STATE (checkout lands with the real provider) */}
         <section className="tgp-setup-card" role="status">
           <span className="tgp-setup-dot" />
@@ -363,6 +390,19 @@ export function TelegramPage({
               ? 'Checkout is being set up for this page. The duration prices above are demo amounts until a live provider is wired in.'
               : 'Checkout is being set up for this page. The Stars prices above are demo amounts until a live provider is wired in.'}
           </p>
+        </section>
+        {/* RECENT ORDERS (empty until the real provider lands) */}
+        <section className="tgp-orders">
+          <h3 className="tgp-orders-title">
+            {tab === 'premium' ? 'Recent Premium orders' : 'Recent Stars orders'}
+          </h3>
+          <div className="tgp-orders-empty">
+            <Send size={18} />
+            <p>
+              {tab === 'premium' ? 'No Telegram Premium orders yet.' : 'No Telegram Stars orders yet.'}
+            </p>
+            <small>Orders you place appear here. Paid from your Verxor wallet, refunds return to it.</small>
+          </div>
         </section>
       </main>
     </div>

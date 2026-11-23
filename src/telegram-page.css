@@ -866,3 +866,172 @@
 }
 
 
+
+/* ---------- INFO BOX + PAY CTA + RECENT ORDERS ---------- */
+
+.tgp-info-box {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  background: #f1f6ff;
+  border: 1px solid #d4e2fb;
+  border-radius: 14px;
+  padding: 11px 12px;
+  margin: 4px 0 10px;
+}
+
+.tgp-info-row {
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+}
+
+.tgp-info-icon {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 8px;
+  background: #0b63f6;
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 1px;
+}
+
+.tgp-info-box p {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #33455e;
+  font-weight: 600;
+}
+
+.tgp-pay-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: #0b63f6;
+  color: #ffffff;
+  border: none;
+  border-radius: 14px;
+  padding: 14px;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: not-allowed;
+  opacity: 0.55;
+  margin-bottom: 18px;
+}
+
+.tgp-orders {
+  margin: 2px 0 26px;
+}
+
+.tgp-orders-title {
+  font-size: 14px;
+  font-weight: 850;
+  color: #0f1e3d;
+  margin: 0 0 8px;
+  letter-spacing: -0.01em;
+}
+
+.tgp-orders-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  text-align: center;
+  border: 1.5px dashed #d7deeb;
+  border-radius: 14px;
+  padding: 22px 14px;
+  color: #8a97ad;
+}
+
+.tgp-orders-empty p {
+  margin: 4px 0 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: #5b6a83;
+}
+
+.tgp-orders-empty small {
+  max-width: 300px;
+  line-height: 1.5;
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.dark-theme .tgp-info-box,
+.dark .tgp-info-box {
+  background: #101c33;
+  border-color: #22314e;
+}
+
+.dark-theme .tgp-info-box p,
+.dark .tgp-info-box p {
+  color: #aab8d0;
+}
+
+.dark-theme .tgp-pay-btn,
+.dark .tgp-pay-btn {
+  background: #1d4ed8;
+}
+
+.dark-theme .tgp-orders-title,
+.dark .tgp-orders-title {
+  color: #e7ecf5;
+}
+
+.dark-theme .tgp-orders-empty,
+.dark .tgp-orders-empty {
+  border-color: #2a3a5c;
+  color: #7787a3;
+}
+
+.dark-theme .tgp-orders-empty p,
+.dark .tgp-orders-empty p {
+  color: #aab8d0;
+}
+
+.dark-theme .tgp-orders-empty small,
+.dark .tgp-orders-empty small {
+  color: #7787a3;
+}
+
+/* ---------- MOBILE FIT FOR INFO BOX / CTA / ORDERS ---------- */
+
+@media (max-width: 640px) {
+  .tgp-info-box {
+    padding: 10px 10px !important;
+    gap: 6px !important;
+  }
+  .tgp-info-icon {
+    width: 20px !important;
+    height: 20px !important;
+    border-radius: 7px !important;
+  }
+  .tgp-info-box p {
+    font-size: 11px !important;
+    font-weight: 700 !important;
+  }
+  .tgp-pay-btn {
+    padding: 13px !important;
+    font-size: 13.5px !important;
+    border-radius: 13px !important;
+  }
+  .tgp-orders-title {
+    font-size: 13px !important;
+  }
+  .tgp-orders-empty {
+    padding: 18px 12px !important;
+  }
+  .tgp-orders-empty p {
+    font-size: 12px !important;
+  }
+  .tgp-orders-empty small {
+    font-size: 10.5px !important;
+  }
+}
