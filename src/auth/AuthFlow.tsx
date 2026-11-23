@@ -74,7 +74,7 @@ const DEFAULT_MOCK: AuthSession = {
 
 type LastPhone = { iso: string; dial: string; national: string };
 type Step = 'boot' | 'signin' | 'signup' | 'forgot';
-type ForgotStage = 'email' | 'code';
+type ForgotStage = 'email' | 'code' | 'password';
 type StoredAccount = AuthSession & { id: string };
 
 function loadRemembered(): AuthSession {
@@ -282,7 +282,9 @@ export function AuthFlow({
   const [forgotEmail, setForgotEmail] = useState('');
   const [otpCode, setOtpCode] = useState('');
   const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [showNewPass, setShowNewPass] = useState(false);
+  const [showConfirmPass, setShowConfirmPass] = useState(false);
 
   const identifierIsEmail = isEmailIdentifier(identifier);
 
@@ -639,9 +641,9 @@ export function AuthFlow({
   async function handleForgotSend() {
     setError('');
     setNotice('');
-    const em = forgotEmail.trim().toLowerCase();
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)) {
-      setError('Enter the email address on your account');
+    const em = forgotEmail.trim();
+    if (!em) {
+      setError('Enter the email address or phone number on your account');
       return;
     }
     setBusy(true);
@@ -651,13 +653,46 @@ export function AuthFlow({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: em }),
       });
-      const body = await res.json().catch(() => ({}));
+      const body = (await res.json().catch(() => ({}))) as { error?: string; maskedEmail?: string };
       if (res.ok) {
         setForgotStage('code');
-        setNotice(`We sent a 6-digit code to ${maskEmail(em)}. It expires in 10 minutes.`);
+        setOtpCode('');
+        setNotice(`We sent a 6-digit code to ${body.maskedEmail || (em.includes('@') ? maskEmail(em) : 'your email')}. It expires in 10 minutes.`);
         return;
       }
-      setError((body as { error?: string }).error || 'Could not send the code');
+      setError(body.error || 'Could not send the code');
+    } catch {
+      setError('Network error. Try again.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleForgotVerifyCode() {
+    setError('');
+    setNotice('');
+    const cleanCode = otpCode.replace(/\D/g, '');
+    if (cleanCode.length !== 6) {
+      setError('Enter the 6-digit verification code from the email');
+      return;
+    }
+    setBusy(true);
+    try {
+      const res = await fetch('/api/auth/verify-reset-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: forgotEmail.trim(),
+          code: cleanCode,
+        }),
+      });
+      const body = (await res.json().catch(() => ({}))) as { error?: string; ok?: boolean };
+      if (res.ok && body.ok) {
+        setForgotStage('password');
+        setNotice('Code verified! Enter your new password and confirm it below.');
+        return;
+      }
+      setError(body.error || 'Invalid or expired code. Please try again.');
     } catch {
       setError('Network error. Try again.');
     } finally {
@@ -668,12 +703,20 @@ export function AuthFlow({
   async function handleForgotConfirm() {
     setError('');
     setNotice('');
-    if (otpCode.replace(/\D/g, '').length !== 6) {
-      setError('Enter the 6-digit code from the email');
+    if (!newPassword) {
+      setError('Enter your new password');
+      return;
+    }
+    if (!confirmPassword) {
+      setError('Confirm your new password');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setError('Passwords do not match. Please re-enter.');
       return;
     }
     if (!strongPassword(newPassword)) {
-      setError('Password must have an uppercase letter, a lowercase letter, and a number');
+      setError('Password must have an uppercase letter, a lowercase letter, and a number (minimum 6 characters)');
       return;
     }
     setBusy(true);
@@ -682,23 +725,25 @@ export function AuthFlow({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          email: forgotEmail.trim().toLowerCase(),
+          email: forgotEmail.trim(),
           code: otpCode.replace(/\D/g, ''),
           newPassword,
+          confirmPassword,
         }),
       });
-      const body = await res.json().catch(() => ({}));
+      const body = (await res.json().catch(() => ({}))) as { error?: string };
       if (res.ok) {
         setPassword('');
         setOtpCode('');
         setNewPassword('');
+        setConfirmPassword('');
         setForgotEmail('');
         setForgotStage('email');
         goStep('signin');
-        setNotice('Password updated. Sign in with your new password.');
+        setNotice('Password updated successfully! Sign in with your new password.');
         return;
       }
-      setError((body as { error?: string }).error || 'Could not reset the password');
+      setError(body.error || 'Could not reset the password');
     } catch {
       setError('Network error. Try again.');
     } finally {
@@ -728,7 +773,13 @@ export function AuthFlow({
         <AuthVisual />
         <div className="auth-body">
           <BrandMark />
-          <h1 className="auth-title">Reset password</h1>
+          <h1 className="auth-title">
+            {forgotStage === 'email'
+              ? 'Reset password'
+              : forgotStage === 'code'
+                ? 'Enter verification code'
+                : 'Set new password'}
+          </h1>
           {error ? <p className="auth-error">{error}</p> : null}
           {notice ? <p className="auth-notice">{notice}</p> : null}
           {forgotStage === 'email' ? (
@@ -736,10 +787,10 @@ export function AuthFlow({
               <div className="auth-field">
                 <div className="auth-input-wrap">
                   <input
-                    type="email"
+                    type="text"
                     value={forgotEmail}
                     onChange={(e) => setForgotEmail(e.target.value)}
-                    placeholder="Email address"
+                    placeholder="Email address or phone number"
                     autoComplete="email"
                   />
                 </div>
@@ -749,7 +800,7 @@ export function AuthFlow({
                 {!busy ? <ArrowRight size={18} strokeWidth={2.2} /> : null}
               </button>
             </>
-          ) : (
+          ) : forgotStage === 'code' ? (
             <>
               <div className="auth-field">
                 <div className="auth-input-wrap">
@@ -760,28 +811,83 @@ export function AuthFlow({
                     onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                     placeholder="6-digit code"
                     className="auth-otp-input"
+                    autoFocus
                   />
                 </div>
               </div>
+              <button type="button" className="auth-btn" disabled={busy} onClick={handleForgotVerifyCode}>
+                {busy ? 'Verifying…' : 'Verify code'}
+                {!busy ? <ArrowRight size={18} strokeWidth={2.2} /> : null}
+              </button>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}>
+                <button
+                  type="button"
+                  className="auth-text-btn"
+                  disabled={busy}
+                  onClick={handleForgotSend}
+                  style={{ fontSize: 13, color: '#1877F2', fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                >
+                  Resend code
+                </button>
+                <button
+                  type="button"
+                  className="auth-text-btn"
+                  onClick={() => {
+                    setForgotStage('email');
+                    setError('');
+                    setNotice('');
+                  }}
+                  style={{ fontSize: 13, color: '#64748B', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                >
+                  Change email
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
               <div className="auth-field">
                 <div className="auth-input-wrap">
                   <input
                     type={showNewPass ? 'text' : 'password'}
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
-                    placeholder="New password"
+                    placeholder="New password (6+ chars, Aa1)"
                     autoComplete="new-password"
+                    autoFocus
                   />
                   <button type="button" className="auth-eye" onClick={() => setShowNewPass((v) => !v)}>
                     {showNewPass ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
                 </div>
               </div>
+              <div className="auth-field">
+                <div className="auth-input-wrap">
+                  <input
+                    type={showConfirmPass ? 'text' : 'password'}
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="Confirm new password"
+                    autoComplete="new-password"
+                  />
+                  <button type="button" className="auth-eye" onClick={() => setShowConfirmPass((v) => !v)}>
+                    {showConfirmPass ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
+              </div>
               <button type="button" className="auth-btn" disabled={busy} onClick={handleForgotConfirm}>
-                {busy ? 'Saving…' : 'Set new password'}
+                {busy ? 'Saving…' : 'Save new password'}
               </button>
-              <button type="button" className="auth-text-btn" onClick={() => setForgotStage('email')}>
-                Use a different email
+              <button
+                type="button"
+                className="auth-text-btn"
+                onClick={() => {
+                  setForgotStage('email');
+                  setError('');
+                  setNotice('');
+                }}
+                style={{ marginTop: 10 }}
+              >
+                Start over
               </button>
             </>
           )}
