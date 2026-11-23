@@ -85,6 +85,11 @@ const PREMIUM_DURATIONS: { id: string; label: string; price: string | null }[] =
   { id: '12m', label: '12 Months', price: DEMO_PRICING['12m'] },
 ];
 
+/* Demo Stars rate (Naira per Star) — remove with the demo pricing above
+   when a real provider is wired in. */
+const DEMO_STARS_RATE = 22;
+const STARS_PRESETS = [50, 100, 250, 500, 1000, 5000];
+
 /* ---------------- component ---------------- */
 
 export function TelegramPage({
@@ -99,6 +104,8 @@ export function TelegramPage({
   const [tab, setTab] = useState<Tab>('premium');
   const [recipient, setRecipient] = useState('');
   const [selectedDuration, setSelectedDuration] = useState<string>('3m');
+  const [selectedStars, setSelectedStars] = useState<number | null>(50);
+  const [starsCustom, setStarsCustom] = useState('');
 
   /* promo carousel state */
   const [promoIdx, setPromoIdx] = useState(0);
@@ -297,13 +304,64 @@ export function TelegramPage({
           </div>
         ) : null}
 
+        {/* STARS AMOUNT CHIPS + CUSTOM (STARS TAB ONLY) */}
+        {tab === 'stars' ? (
+          <div className="tgp-form-field">
+            <label className="tgp-label">AMOUNT</label>
+            <div className="tgp-star-chips">
+              {STARS_PRESETS.map((s) => (
+                <button
+                  type="button"
+                  key={s}
+                  className={
+                    'tgp-star-chip' + (selectedStars === s && starsCustom === '' ? ' active' : '')
+                  }
+                  onClick={() => {
+                    setSelectedStars(s);
+                    setStarsCustom('');
+                  }}
+                >
+                  <strong>{s.toLocaleString('en-NG')}</strong>
+                  <small>
+                    {NAIRA + (s * DEMO_STARS_RATE).toLocaleString('en-NG')}
+                    <span className="tgp-dur-demo">Demo</span>
+                  </small>
+                </button>
+              ))}
+            </div>
+            <div className="tgp-input-wrap tgp-input-wrap-stars">
+              <span className="tgp-input-at">Custom</span>
+              <input
+                className="tgp-input"
+                type="text"
+                inputMode="numeric"
+                autoComplete="off"
+                placeholder="Enter amount (50 - 10,000)"
+                value={starsCustom}
+                onChange={(e) => {
+                  const digits = e.target.value.replace(/[^0-9]/g, '').slice(0, 5);
+                  setStarsCustom(digits);
+                  setSelectedStars(null);
+                }}
+              />
+            </div>
+            {starsCustom !== '' ? (
+              <small className="tgp-helper">
+                {Number(starsCustom).toLocaleString('en-NG')} Stars ·{' '}
+                {NAIRA + (Number(starsCustom) * DEMO_STARS_RATE).toLocaleString('en-NG')} demo
+                price
+              </small>
+            ) : null}
+          </div>
+        ) : null}
+
         {/* HONEST SETUP STATE (checkout lands with the real provider) */}
         <section className="tgp-setup-card" role="status">
           <span className="tgp-setup-dot" />
           <p>
             {tab === 'premium'
               ? 'Checkout is being set up for this page. The duration prices above are demo amounts until a live provider is wired in.'
-              : 'Stars amounts and checkout are being set up for this page. Live prices arrive with them.'}
+              : 'Checkout is being set up for this page. The Stars prices above are demo amounts until a live provider is wired in.'}
           </p>
         </section>
       </main>

@@ -750,3 +750,119 @@
   }
 }
 
+/* ---------- STARS AMOUNT CHIPS + CUSTOM INPUT ---------- */
+
+.tgp-star-chips {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.tgp-star-chip {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: #f8fafc;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 12px 6px;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.15s ease;
+}
+
+.tgp-star-chip strong {
+  font-size: 12.5px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.tgp-star-chip small {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 800;
+  color: #475569;
+  flex-wrap: wrap;
+}
+
+.tgp-star-chip.active {
+  border-color: #0b63f6;
+  background: #eff6ff;
+  box-shadow: 0 0 0 1px #0b63f6;
+}
+
+.tgp-star-chip.active strong,
+.tgp-star-chip.active small {
+  color: #0b63f6;
+}
+
+.tgp-input-wrap-stars .tgp-input-at {
+  padding-left: 13px;
+  font-size: 11px;
+  letter-spacing: 0.02em;
+}
+
+.dark-theme .tgp-star-chip,
+.dark .tgp-star-chip {
+  background: #0f172a;
+  border-color: #1e293b;
+}
+
+.dark-theme .tgp-star-chip strong,
+.dark .tgp-star-chip strong {
+  color: #f8fafc;
+}
+
+.dark-theme .tgp-star-chip small,
+.dark .tgp-star-chip small {
+  color: #94a3b8;
+}
+
+.dark-theme .tgp-star-chip.active,
+.dark .tgp-star-chip.active {
+  border-color: #3b82f6;
+  background: #0f1f3d;
+  box-shadow: 0 0 0 1px #3b82f6;
+}
+
+.dark-theme .tgp-star-chip.active strong,
+.dark .tgp-star-chip.active strong,
+.dark-theme .tgp-star-chip.active small,
+.dark .tgp-star-chip.active small {
+  color: #93c5fd;
+}
+
+/* ---------- MOBILE FIT FOR STARS CHIPS ---------- */
+
+@media (max-width: 640px) {
+  .tgp-star-chips {
+    gap: 7px !important;
+  }
+  .tgp-star-chip {
+    padding: 11px 5px !important;
+    border-radius: 12px !important;
+  }
+  .tgp-star-chip strong {
+    font-size: 11.5px !important;
+    font-weight: 800 !important;
+  }
+  .tgp-star-chip small {
+    font-size: 10px !important;
+    font-weight: 800 !important;
+  }
+  .tgp-input-wrap-stars .tgp-input {
+    padding: 11px 11px 11px 6px !important;
+    font-size: 13px !important;
+    font-weight: 700 !important;
+  }
+  .tgp-input-wrap-stars .tgp-input-at {
+    font-size: 10.5px !important;
+    font-weight: 800 !important;
+  }
+}
+
+
