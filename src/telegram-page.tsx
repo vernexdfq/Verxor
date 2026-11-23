@@ -382,15 +382,6 @@ export function TelegramPage({
           <span>Continue to confirmation</span>
         </button>
 
-        {/* HONEST SETUP STATE (checkout lands with the real provider) */}
-        <section className="tgp-setup-card" role="status">
-          <span className="tgp-setup-dot" />
-          <p>
-            {tab === 'premium'
-              ? 'Checkout is being set up for this page. The duration prices above are demo amounts until a live provider is wired in.'
-              : 'Checkout is being set up for this page. The Stars prices above are demo amounts until a live provider is wired in.'}
-          </p>
-        </section>
         {/* RECENT ORDERS (empty until the real provider lands) */}
         <section className="tgp-orders">
           <h3 className="tgp-orders-title">
@@ -403,6 +394,15 @@ export function TelegramPage({
             </p>
             <small>Orders you place appear here. Paid from your Verxor wallet, refunds return to it.</small>
           </div>
+        </section>
+        {/* HONEST SETUP STATE (checkout lands with the real provider) */}
+        <section className="tgp-setup-card" role="status">
+          <span className="tgp-setup-dot" />
+          <p>
+            {tab === 'premium'
+              ? 'Checkout is being set up for this page. The duration prices above are demo amounts until a live provider is wired in.'
+              : 'Checkout is being set up for this page. The Stars prices above are demo amounts until a live provider is wired in.'}
+          </p>
         </section>
       </main>
     </div>
