@@ -1,1 +1,473 @@
-###CSS###
+/* ============================================================
+   Telegram — Premium & Stars purchase page for Verxor
+   Compact top bar, slim photo promo strip, segmented toggle.
+   ============================================================ */
+
+.tgp-page {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: clip;
+  min-height: 100vh;
+  background: #f6f8fc;
+  color: #0f172a;
+  display: flex;
+  flex-direction: column;
+  font-family: inherit;
+  -webkit-font-smoothing: antialiased;
+}
+
+.tgp-page * {
+  box-sizing: border-box;
+  min-width: 0;
+}
+
+.tgp-page button {
+  max-width: 100%;
+}
+
+/* ---------- COMPACT TOP BAR ---------- */
+
+.tgp-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  background: rgba(246, 248, 252, 0.94);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.tgp-topbar-btn {
+  flex: none;
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  border: 1.5px solid #e2e8f0;
+  background: #ffffff;
+  color: #0f172a;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+}
+
+.tgp-topbar-btn:active {
+  transform: scale(0.96);
+}
+
+.tgp-topbar-btn:hover {
+  border-color: #0b63f6;
+  color: #0b63f6;
+}
+
+.tgp-topbar-center {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.tgp-topbar-title {
+  font-size: 14.5px;
+  font-weight: 850;
+  letter-spacing: -0.02em;
+  color: #0f172a;
+}
+
+.tgp-topbar-sub {
+  font-size: 11px;
+  font-weight: 600;
+  color: #64748b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tgp-topbar-right {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tgp-topbar-bal {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 11px;
+  border-radius: 10px;
+  border: 1.5px solid #e2e8f0;
+  background: #ffffff;
+  color: #0f172a;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+}
+
+.tgp-topbar-bal:hover {
+  border-color: #0b63f6;
+  color: #0b63f6;
+}
+
+/* ---------- BODY ---------- */
+
+.tgp-body {
+  width: 100%;
+  max-width: 640px;
+  padding: 12px 14px 34px;
+  margin: 0 auto;
+}
+
+/* ---------- PHOTO PROMO STRIP ---------- */
+
+.tgp-promo-strip {
+  position: relative;
+  isolation: isolate;
+  width: 100%;
+  min-height: 160px;
+  padding: 17px 17px 13px;
+  border: 0;
+  border-radius: 14px;
+  background-color: #0b1732;
+  background-size: cover;
+  background-position: center 48%;
+  box-shadow: 0 5px 16px rgba(15, 23, 42, 0.1);
+  margin: 0 0 14px;
+  overflow: hidden;
+  color: #ffffff;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.tgp-promo-strip::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(90deg, rgba(7, 18, 42, 0.14), rgba(7, 18, 42, 0.02));
+  pointer-events: none;
+}
+
+.tgp-promo-content {
+  position: relative;
+  z-index: 1;
+  max-width: 78%;
+}
+
+.tgp-promo-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  color: #e2e8f0;
+  text-transform: uppercase;
+  margin-bottom: 7px;
+}
+
+.tgp-promo-title {
+  font-size: clamp(17px, 4.5vw, 21px);
+  font-weight: 850;
+  line-height: 1.16;
+  letter-spacing: -0.035em;
+  margin: 0 0 5px;
+  color: #ffffff;
+}
+
+.tgp-promo-desc {
+  font-size: 12px;
+  line-height: 1.4;
+  font-weight: 650;
+  max-width: 100%;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.tgp-promo-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 10px;
+  padding: 7px 11px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.18);
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 850;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.tgp-promo-cta:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.tgp-promo-dots {
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tgp-promo-dots button {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  border: 0;
+  background: rgba(255, 255, 255, 0.4);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  padding: 0;
+}
+
+.tgp-promo-dots button.active {
+  width: 17px;
+  background: #ffffff;
+}
+
+/* ---------- SEGMENTED STARS / PREMIUM TOGGLE ---------- */
+
+.tgp-form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.tgp-label {
+  font-size: 10.5px;
+  font-weight: 850;
+  letter-spacing: 0.07em;
+  color: #64748b;
+  text-transform: uppercase;
+}
+
+.tgp-tabs-toggle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.tgp-tab {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  background: #f8fafc;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 12px 14px;
+  cursor: pointer;
+  text-align: left;
+  color: #64748b;
+  transition: all 0.15s ease;
+}
+
+.tgp-tab-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #0f172a;
+}
+
+.tgp-tab-head strong {
+  font-size: 13.5px;
+  font-weight: 850;
+}
+
+.tgp-tab small {
+  font-size: 11px;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.tgp-tab.active {
+  border-color: #0b63f6;
+  background: #eff6ff;
+  color: #0b63f6;
+  box-shadow: 0 0 0 1px #0b63f6;
+}
+
+.tgp-tab.active .tgp-tab-head {
+  color: #0b63f6;
+}
+
+/* ---------- TITLE BLOCK ---------- */
+
+.tgp-title-block {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 6px 2px 14px;
+}
+
+.tgp-title-icon {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 13px;
+  background: #eff6ff;
+  border: 1.5px solid #dbeafe;
+  color: #0b63f6;
+  display: grid;
+  place-items: center;
+}
+
+.tgp-title-block h1 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 850;
+  letter-spacing: -0.02em;
+  color: #0f172a;
+  line-height: 1.25;
+}
+
+.tgp-title-block p {
+  margin: 2px 0 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+  line-height: 1.4;
+}
+
+/* ---------- HONEST SETUP STATE ---------- */
+
+.tgp-setup-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: #ffffff;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 14px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+}
+
+.tgp-setup-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #f59e0b;
+  margin-top: 5px;
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.18);
+}
+
+.tgp-setup-card p {
+  margin: 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #475569;
+  line-height: 1.5;
+}
+
+/* ---------- RESPONSIVE ---------- */
+
+@media (max-width: 640px) {
+  .tgp-body {
+    padding: 10px 11px 28px;
+  }
+}
+
+/* ---------- DARK THEME ---------- */
+
+.dark-theme .tgp-page,
+.dark .tgp-page {
+  background: #0b1220;
+  color: #f8fafc;
+}
+
+.dark-theme .tgp-topbar,
+.dark .tgp-topbar {
+  background: rgba(9, 14, 23, 0.94);
+  border-bottom-color: #1e293b;
+}
+
+.dark-theme .tgp-topbar-title,
+.dark .tgp-topbar-title,
+.dark-theme .tgp-title-block h1,
+.dark .tgp-title-block h1,
+.dark-theme .tgp-tab-head strong,
+.dark .tgp-tab-head strong {
+  color: #f8fafc;
+}
+
+.dark-theme .tgp-topbar-sub,
+.dark .tgp-topbar-sub,
+.dark-theme .tgp-tab small,
+.dark .tgp-tab small,
+.dark-theme .tgp-title-block p,
+.dark .tgp-title-block p,
+.dark-theme .tgp-label,
+.dark .tgp-label {
+  color: #94a3b8;
+}
+
+.dark-theme .tgp-topbar-btn,
+.dark .tgp-topbar-btn,
+.dark-theme .tgp-topbar-bal,
+.dark .tgp-topbar-bal,
+.dark-theme .tgp-setup-card,
+.dark .tgp-setup-card {
+  background: #111827;
+  border-color: #1e293b;
+  color: #f8fafc;
+}
+
+.dark-theme .tgp-topbar-btn:hover,
+.dark .tgp-topbar-btn:hover,
+.dark-theme .tgp-topbar-bal:hover,
+.dark .tgp-topbar-bal:hover {
+  border-color: #3b82f6;
+  color: #93c5fd;
+}
+
+.dark-theme .tgp-tab,
+.dark .tgp-tab {
+  background: #0f172a;
+  border-color: #1e293b;
+}
+
+.dark-theme .tgp-tab-head,
+.dark .tgp-tab-head {
+  color: #f8fafc;
+}
+
+.dark-theme .tgp-tab.active,
+.dark .tgp-tab.active {
+  border-color: #3b82f6;
+  background: #0f1f3d;
+  color: #93c5fd;
+  box-shadow: 0 0 0 1px #3b82f6;
+}
+
+.dark-theme .tgp-tab.active .tgp-tab-head,
+.dark .tgp-tab.active .tgp-tab-head {
+  color: #93c5fd;
+}
+
+.dark-theme .tgp-title-icon,
+.dark .tgp-title-icon {
+  background: #0f1f3d;
+  border-color: #1e3a6a;
+  color: #93c5fd;
+}
+
+.dark-theme .tgp-setup-card p,
+.dark .tgp-setup-card p {
+  color: #cbd5e1;
+}
