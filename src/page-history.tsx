@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ArrowLeft,
   ArrowLeftRight,
-  AtSign,
   Calendar,
   ChevronRight,
   FileText,
@@ -20,7 +19,6 @@ import {
   ShieldCheck,
   ShoppingBag,
   Smartphone,
-  Sparkles,
   TrendingDown,
   Wallet,
   X,
@@ -60,9 +58,7 @@ type BoxKey =
   | 'esim'
   | 'proxies'
   | 'gift-card'
-  | 'ai-subs'
-  | 'telegram'
-  | 'domain';
+  | 'telegram';
 
 const HIST_BOXES: {
   key: BoxKey;
@@ -82,9 +78,7 @@ const HIST_BOXES: {
   { key: 'esim', title: 'eSIM History', sub: 'Purchased eSIMs, QR codes and installation guides', icon: Globe, soon: true },
   { key: 'proxies', title: 'Proxies History', sub: 'Proxy purchases and available proxies', icon: ShieldCheck, soon: true },
   { key: 'gift-card', title: 'Gift Card History', sub: 'Sold gift cards and bought card credentials', icon: Gift, soon: true },
-  { key: 'ai-subs', title: 'AI/App Sub History', sub: 'AI accounts and premium subscriptions', icon: Sparkles, soon: true },
   { key: 'telegram', title: 'Telegram Premium History', sub: 'Telegram stars, boosts and premium bought', icon: Send, soon: true },
-  { key: 'domain', title: 'Domain Reg History', sub: 'Registered domains and connection details', icon: AtSign, soon: true },
 ];
 
 function isDeposit(t: Transaction): boolean {

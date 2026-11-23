@@ -3,7 +3,6 @@
 import { useMemo, useState } from 'react';
 import {
   ArrowLeft,
-  AtSign,
   CreditCard,
   Gamepad2,
   Gift,
@@ -12,7 +11,6 @@ import {
   PhoneForwarded,
   Repeat,
   Search,
-  Sparkles,
   Trophy,
   Tv,
   Wifi,
@@ -38,9 +36,7 @@ const DIGITAL: ServiceItem[] = [
   { id: 'virtual-card', title: 'Virtual Card', icon: CreditCard, soon: true, tags: ['card', 'usd', 'virtual'] },
   { id: 'sell-gift-card', title: 'Buy Gift Card', icon: Gift, service: 'gift-card', tags: ['gift', 'sell', 'redeem'] },
   { id: 'trade-gift-card', title: 'Trade Gift Card', icon: Repeat, service: 'gift-card', tags: ['gift', 'trade', 'exchange'] },
-  { id: 'ai-subs', title: 'AI/App Subs', icon: Sparkles, soon: true, tags: ['ai', 'subscription', 'chatgpt', 'netflix'] },
   { id: 'gaming', title: 'Gaming Top Up', icon: Trophy, service: 'gaming', tags: ['game', 'gaming', 'steam', 'diamonds', 'pubg', 'free fire'] },
-  { id: 'domain', title: 'Domain Reg', icon: AtSign, soon: true, tags: ['domain', 'website', 'dns'] },
 ];
 
 /** Nigerian VTU services */
