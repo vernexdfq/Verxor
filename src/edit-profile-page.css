@@ -126,7 +126,7 @@
 }
 
 .ep-input:focus-within {
-  border-color: #2563EB;
+  border-color: #0052ff;
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
 }
 
@@ -203,7 +203,7 @@
   margin-top: 4px;
   border: 0;
   border-radius: 14px;
-  background: #2563EB;
+  background: #0052ff;
   color: #FFFFFF;
   font-size: 15px;
   font-weight: 700;
@@ -212,7 +212,7 @@
 }
 
 .ep-save:hover:not(:disabled) {
-  background: #1D4ED8;
+  background: #0043cc;
 }
 
 .ep-save:disabled {
@@ -322,7 +322,7 @@
 }
 
 .ep-modal-input:focus {
-  border-color: #2563EB;
+  border-color: #0052ff;
   background: #fff;
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
 }
@@ -391,4 +391,31 @@
     transform: translateX(-50%);
     right: auto;
   }
+}
+
+/* ---------- Section grouping (bank-grade) ---------- */
+
+.ep-group-title {
+  margin: 18px 4px 10px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: #94A3B8;
+  text-transform: uppercase;
+}
+
+.ep-group-title:first-child {
+  margin-top: 4px;
+}
+
+.ep-input.locked {
+  background: #F8FAFC;
+  border-width: 1px;
+  border-style: dashed;
+  border-color: #E2E8F0;
+  box-shadow: none;
+}
+
+.ep-input.locked input {
+  color: #475569;
 }

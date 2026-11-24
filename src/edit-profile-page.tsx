@@ -106,7 +106,7 @@ export function EditProfilePage({
     } catch {
       /* ignore */
     }
-    return '—';
+    return 'Not set';
   }, [session]);
 
   const initialUser = useMemo(() => {
@@ -190,6 +190,7 @@ export function EditProfilePage({
       </header>
 
       <div className="ep-scroll">
+        <h2 className="ep-group-title">Personal details</h2>
         <div className="ep-field">
           <label htmlFor="ep-name">Full name</label>
           <div className="ep-input">
@@ -236,26 +237,29 @@ export function EditProfilePage({
           )}
         </div>
 
+        <h2 className="ep-group-title">Secured contact · admin only</h2>
         <div className="ep-field">
           <label htmlFor="ep-phone">
-            Phone number <span className="ep-locked-tag">Cannot be changed</span>
+            Phone number <span className="ep-locked-tag">Admin only</span>
           </label>
           <div className="ep-input locked">
             <Phone size={16} className="ep-ico" aria-hidden />
             <input id="ep-phone" type="text" value={phone} readOnly disabled />
             <Lock size={14} className="ep-lock" aria-hidden />
           </div>
+          <span className="ep-hint">Your identity on Verxor — only Verxor admin can update it</span>
         </div>
 
         <div className="ep-field">
           <label htmlFor="ep-email">
-            Email address <span className="ep-locked-tag">Cannot be changed</span>
+            Email address <span className="ep-locked-tag">Admin only</span>
           </label>
           <div className="ep-input locked">
             <Mail size={16} className="ep-ico" aria-hidden />
             <input id="ep-email" type="email" value={email} readOnly disabled />
             <Lock size={14} className="ep-lock" aria-hidden />
           </div>
+          <span className="ep-hint">Contact Verxor support to update your contact details</span>
         </div>
 
         {error && (
