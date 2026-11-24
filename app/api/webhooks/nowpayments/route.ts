@@ -131,6 +131,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Credit failed' }, { status: 500 });
     }
 
+    // Referral: 10% of this user's FIRST deposit goes to their referrer (no-op otherwise)
+    try {
+      await fetch(`${base}/rest/v1/rpc/referral_reward_on_deposit`, {
+        method: 'POST',
+        headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ p_user: userId, p_amount: creditNgn }),
+      });
+    } catch { /* referral reward is best-effort; deposit already credited */ }
+
     const newBal = await rpc.json();
     console.info('[nowpayments] credited', { userId, creditNgn, paymentId, orderId, newBal });
     return NextResponse.json({ status: 'ok', credited: creditNgn, balance: newBal });

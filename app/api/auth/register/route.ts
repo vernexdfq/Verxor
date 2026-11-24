@@ -18,6 +18,7 @@ export async function POST(req: Request) {
         ? `+234${phoneRaw.slice(1)}`
         : `+${phoneRaw}`;
     const phoneCountry = String(body.phoneCountry || 'NG').toUpperCase().slice(0, 2);
+    const refCode = String(body.refCode || '').trim().toUpperCase().slice(0, 16);
 
     if (!fullName || fullName.split(' ').length < 2) {
       return NextResponse.json({ error: 'Enter your full name (first and last)' }, { status: 400 });
@@ -132,6 +133,21 @@ export async function POST(req: Request) {
     // Last resort: store plain 4-digit so pin-login legacy path works; upgraded on first login
     const storedPin = pinHash || pin;
 
+    // Referral: resolve the inviter's code to a profile (best effort).
+    let referrerId: string | null = null;
+    if (refCode) {
+      try {
+        const refRes = await fetch(
+          `${base}/rest/v1/profiles?referral_code=eq.${encodeURIComponent(refCode)}&select=id&limit=1`,
+          { headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` }, cache: 'no-store' },
+        );
+        if (refRes.ok) {
+          const refRows = (await refRes.json()) as Array<{ id: string }>;
+          if (refRows?.[0]?.id) referrerId = String(refRows[0].id);
+        }
+      } catch { /* referral is optional */ }
+    }
+
     const profileBody: Record<string, unknown> = {
       id: userId,
       email,
@@ -141,6 +157,7 @@ export async function POST(req: Request) {
       country_code: phoneCountry,
       pin_hash: storedPin,
       tx_pin_hash: storedPin,
+      ...(referrerId ? { referred_by: referrerId } : {}),
       updated_at: new Date().toISOString(),
     };
 
@@ -181,6 +198,25 @@ export async function POST(req: Request) {
       },
       body: JSON.stringify({ user_id: userId }),
     }).catch(() => null);
+
+    // Referral: give the new user a code, remember the inviter, log a pending reward.
+    await fetch(`${base}/rest/v1/rpc/generate_referral_code`, {
+      method: 'POST',
+      headers: hdr,
+      body: JSON.stringify({ p_user: userId }),
+    }).catch(() => null);
+    if (referrerId) {
+      await fetch(`${base}/rest/v1/rpc/generate_referral_code`, {
+        method: 'POST',
+        headers: hdr,
+        body: JSON.stringify({ p_user: referrerId }),
+      }).catch(() => null);
+      await fetch(`${base}/rest/v1/referral_rewards`, {
+        method: 'POST',
+        headers: { ...hdr, Prefer: 'resolution=ignore-duplicates,return=minimal' },
+        body: JSON.stringify({ referrer_id: referrerId, referred_id: userId, status: 'pending' }),
+      }).catch(() => null);
+    }
 
     // Optional RPCs if hash_pin failed
     if (!pinHash) {
