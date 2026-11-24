@@ -1002,7 +1002,7 @@ function UserManagement({ focusUserId }: { focusUserId?: string | null }) {
 }
 
 type VnMults = { economy: number; standard: number; fast: number; premium: number };
-type VnPricingData = { ok?: boolean; rate?: number; retail?: VnMults; api?: VnMults; panel?: VnMults; error?: string };
+type VnPricingData = { ok?: boolean; rate?: number; step?: number; retail?: VnMults; api?: VnMults; panel?: VnMults; error?: string };
 
 const VN_TIERS: { id: keyof VnMults; label: string; band: string; sampleUsd: number }[] = [
   { id: 'economy', label: 'Economy', band: 'under $0.50', sampleUsd: 0.25 },
@@ -2183,9 +2183,25 @@ function VirtualNumberSection() {
 
   const mults = (aud: 'retail' | 'api' | 'panel'): VnMults => data?.[aud] || DEFAULT_VN_MULTS[aud];
   const rate = data?.rate ?? 1380;
+  const step = data?.step ?? 50;
 
   const example = (aud: 'retail' | 'api' | 'panel', tier: keyof VnMults, costUsd: number) =>
-    Math.ceil(costUsd * rate * mults(aud)[tier]);
+    Math.ceil((costUsd * rate * mults(aud)[tier]) / step) * step;
+
+  const saveStep = async () => {
+    const v = Number(draft.replace(/[^0-9]/g, ''));
+    if (!Number.isInteger(v) || v < 1 || v > 1000) { setMsg('Rounding must be a whole number between 1 and 1000'); return; }
+    setBusy(true); setMsg('');
+    try {
+      const res = await fetch('/api/admin/vn-pricing', {
+        method: 'PUT', headers: adminHeaders(), body: JSON.stringify({ step: v }),
+      });
+      const d = (await res.json()) as VnPricingData;
+      if (!res.ok || !d.ok) { setMsg(d.error || 'Could not save'); return; }
+      setData(d); setEditing(null);
+      setMsg('Saved — all prices now round up to the nearest ₦' + v);
+    } catch { setMsg('Network error'); } finally { setBusy(false); }
+  };
 
   const save = async (aud: 'retail' | 'api' | 'panel', tier: keyof VnMults) => {
     const v = Number(draft.replace(/[^0-9.]/g, ''));
@@ -2227,13 +2243,38 @@ function VirtualNumberSection() {
             The tier is picked by the cost range, never by the customer.
             The server recomputes every charge, so nobody can send a fake price.
           </p>
+          {editing === 'rounding' ? (
+            <div className="vxa-rate-edit slim">
+              <div className="vxa-rate-row">
+                <input inputMode="numeric" value={draft} autoFocus aria-label="Naira rounding step"
+                  onChange={(e) => setDraft(e.target.value)} />
+                <span className="vxa-rate-per">₦</span>
+              </div>
+              <div className="vxa-rate-actions">
+                <button type="button" className="vxa-rate-save" disabled={busy} onClick={saveStep}>
+                  <Check size={14} /> Save
+                </button>
+                <button type="button" className="vxa-rate-cancel" onClick={() => setEditing(null)}>
+                  <X size={14} /> Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="vxa-rate-row">
+              <span>Rounds UP to nearest <strong>₦{step.toLocaleString('en-NG')}</strong></span>
+              <button type="button" className="vxa-rate-btn" aria-label="Edit naira rounding step"
+                onClick={() => { setDraft(String(step)); setEditing('rounding'); }}>
+                <Pencil size={14} />
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
       {loadError ? (
         <div className="vxa-empty">
           <strong>Could not load Virtual Number pricing.</strong>
-          <p>Run supabase/vn-pricing-tiers.sql in the Supabase SQL Editor, then reload.</p>
+          <p>Run supabase/pricing-rules.sql in the Supabase SQL Editor, then reload.</p>
         </div>
       ) : (
         <div className="vxa-card">

@@ -346,9 +346,10 @@ const MASTER_SERVICES_FALLBACK: Array<{
 ];
 
 
-function sellNgn(costUsd: number, tier: string, rate: number, mult: Record<string, number>) {
+function sellNgn(costUsd: number, tier: string, rate: number, mult: Record<string, number>, step = 50) {
   const m = mult[tier] ?? 2;
-  return Math.ceil(costUsd * rate * m);
+  const s = Number.isFinite(step) && step > 0 ? step : 50;
+  return Math.ceil((costUsd * rate * m) / s) * s;
 }
 
 function poolTier(poolId: string): string {
@@ -452,7 +453,7 @@ export async function GET(req: NextRequest) {
           category: meta.category,
           logoId: meta.logoId || s.code,
           isPopular: Boolean(s.is_popular),
-          fromNgn: sellNgn(fallbackCost, tier, rate, mult),
+          fromNgn: sellNgn(fallbackCost, tier, rate, mult, pricing.roundingStep),
           fromUsd: fallbackCost,
         };
       });
@@ -531,7 +532,7 @@ export async function GET(req: NextRequest) {
         };
         const key = meta.code + (c.code === '12' ? '-v' : '');
         const rowTier = p.tier || tier;
-        const ngn = sellNgn(Number(p.cost_usd), rowTier, rate, mult);
+        const ngn = sellNgn(Number(p.cost_usd), rowTier, rate, mult, pricing.roundingStep);
         const prev = seen.get(key);
         if (!prev || ngn < prev.fromNgn) {
           seen.set(key, {
@@ -608,7 +609,7 @@ export async function GET(req: NextRequest) {
             id: p.id || `opt-${i}`,
             label: `Option ${i + 1}`,
             priceUsd: Math.round(cost * 100) / 100,
-            priceNgn: sellNgn(cost, t, rate, mult),
+            priceNgn: sellNgn(cost, t, rate, mult, pricing.roundingStep),
             stock: Number(p.stock) || 0,
             optionId: p.id,
             grizzlyCountry: c?.code || grizzlyCountryCodes[0] || '',
@@ -674,7 +675,7 @@ export async function GET(req: NextRequest) {
         const cost = mins[id];
         return {
           id,
-          fromNgn: cost != null ? sellNgn(cost, t, rate, mult) : null,
+          fromNgn: cost != null ? sellNgn(cost, t, rate, mult, pricing.roundingStep) : null,
           fromUsd: cost != null ? Math.round(cost * 100) / 100 : null,
           live: cost != null,
         };

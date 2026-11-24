@@ -12,6 +12,7 @@ type Mults = { economy: number; standard: number; fast: number; premium: number 
 type PricingRow = {
   id?: string;
   base_naira_rate?: number | null;
+  rounding_step_ngn?: number | null;
   retail_economy?: number | null;
   retail_standard?: number | null;
   retail_fast?: number | null;
@@ -28,6 +29,7 @@ type PricingRow = {
 
 const DEFAULTS = {
   rate: 1380,
+  step: 50,
   retail: { economy: 5, standard: 4, fast: 3, premium: 2 } as Mults,
   api: { economy: 2, standard: 1.6, fast: 1.4, premium: 1.25 } as Mults,
   panel: { economy: 1.5, standard: 1.3, fast: 1.2, premium: 1.15 } as Mults,
@@ -53,11 +55,12 @@ function authorized(req: NextRequest): boolean {
 }
 
 function rowToPayload(r: PricingRow | undefined) {
-  if (!r) return { rate: DEFAULTS.rate, retail: DEFAULTS.retail, api: DEFAULTS.api, panel: DEFAULTS.panel };
+  if (!r) return { rate: DEFAULTS.rate, step: DEFAULTS.step, retail: DEFAULTS.retail, api: DEFAULTS.api, panel: DEFAULTS.panel };
   const num = (v: number | null | undefined, d: number) =>
     Number.isFinite(Number(v)) && Number(v) > 0 ? Number(v) : d;
   return {
     rate: num(r.base_naira_rate, DEFAULTS.rate),
+    step: num(r.rounding_step_ngn, DEFAULTS.step),
     retail: {
       economy: num(r.retail_economy, DEFAULTS.retail.economy),
       standard: num(r.retail_standard, DEFAULTS.retail.standard),
@@ -84,12 +87,20 @@ async function readRow(): Promise<PricingRow | null> {
   const hdr = dbHeaders();
   if (!base || !hdr) return null;
   try {
-    const res = await fetch(`${base}/rest/v1/vn_pricing_settings?select=*&limit=1`, {
+    const res = await fetch(`${base}/rest/v1/pricing_rules?select=*&limit=1`, {
       headers: hdr, cache: 'no-store',
     });
-    if (!res.ok) return null;
-    const rows = (await res.json()) as PricingRow[];
-    return rows?.[0] ?? null;
+    if (res.ok) {
+      const rows = (await res.json()) as PricingRow[];
+      if (rows?.[0]) return rows[0];
+    }
+    // fall back to the legacy table until pricing_rules is created
+    const res2 = await fetch(`${base}/rest/v1/vn_pricing_settings?select=*&limit=1`, {
+      headers: hdr, cache: 'no-store',
+    });
+    if (!res2.ok) return null;
+    const rows2 = (await res2.json()) as PricingRow[];
+    return rows2?.[0] ?? null;
   } catch {
     return null;
   }
@@ -120,7 +131,7 @@ export async function PUT(req: NextRequest) {
   const hdr = dbHeaders();
   if (!base || !hdr) return NextResponse.json({ ok: false, error: 'DB not configured' }, { status: 503 });
 
-  let body: { rate?: number; retail?: Mults; api?: Mults; panel?: Mults };
+  let body: { rate?: number; retail?: Mults; api?: Mults; panel?: Mults; step?: number };
   try {
     body = await req.json();
   } catch {
@@ -151,10 +162,15 @@ export async function PUT(req: NextRequest) {
   if (Number.isFinite(rate) && (rate < 100 || rate > 10000)) {
     return NextResponse.json({ ok: false, error: 'Rate must be between 100 and 10000' }, { status: 400 });
   }
+  const step = Number(body.step);
+  if (Number.isFinite(step) && Number(body.step) > 0 && (!Number.isInteger(step) || step < 1 || step > 1000)) {
+    return NextResponse.json({ ok: false, error: 'Rounding step must be a whole number between 1 and 1000' }, { status: 400 });
+  }
 
   const current = rowToPayload((await readRow()) ?? undefined);
   const next = {
     base_naira_rate: Number.isFinite(rate) && rate > 0 ? rate : current.rate,
+    rounding_step_ngn: Number.isInteger(step) && step >= 1 ? step : current.step,
     retail_economy: retail ? retail.economy : current.retail.economy,
     retail_standard: retail ? retail.standard : current.retail.standard,
     retail_fast: retail ? retail.fast : current.retail.fast,
@@ -170,33 +186,40 @@ export async function PUT(req: NextRequest) {
     updated_at: new Date().toISOString(),
   };
 
-  const existing = await readRow();
   let okSave = false;
-  if (existing?.id) {
-    const res = await fetch(`${base}/rest/v1/vn_pricing_settings?id=eq.${encodeURIComponent(existing.id)}`, {
-      method: 'PATCH',
-      headers: { ...hdr, Prefer: 'return=minimal' },
-      body: JSON.stringify(next),
-      cache: 'no-store',
+  {
+    const check = await fetch(`${base}/rest/v1/pricing_rules?select=id&limit=1`, {
+      headers: hdr, cache: 'no-store',
     });
-    okSave = res.ok;
-  } else {
-    const res = await fetch(`${base}/rest/v1/vn_pricing_settings`, {
-      method: 'POST',
-      headers: { ...hdr, Prefer: 'return=minimal' },
-      body: JSON.stringify(next),
-      cache: 'no-store',
-    });
-    okSave = res.ok;
+    if (check.ok) {
+      const rows = (await check.json()) as Array<{ id: string | number }>;
+      if (rows?.[0]?.id != null) {
+        const res = await fetch(`${base}/rest/v1/pricing_rules?id=eq.${encodeURIComponent(String(rows[0].id))}`, {
+          method: 'PATCH',
+          headers: { ...hdr, Prefer: 'return=minimal' },
+          body: JSON.stringify(next),
+          cache: 'no-store',
+        });
+        okSave = res.ok;
+      } else {
+        const res = await fetch(`${base}/rest/v1/pricing_rules`, {
+          method: 'POST',
+          headers: { ...hdr, Prefer: 'return=minimal' },
+          body: JSON.stringify(next),
+          cache: 'no-store',
+        });
+        okSave = res.ok;
+      }
+    }
   }
   if (!okSave) {
     return NextResponse.json(
-      { ok: false, error: 'Could not save pricing. Run supabase/vn-pricing-tiers.sql first.' },
+      { ok: false, error: 'Could not save pricing. Run supabase/pricing-rules.sql first.' },
       { status: 500 },
     );
   }
 
-  await audit('vn_pricing_update', { rate: next.base_naira_rate, retail, api, panel });
+  await audit('vn_pricing_update', { rate: next.base_naira_rate, step: next.rounding_step_ngn, retail, api, panel });
 
   const row = await readRow();
   return NextResponse.json({ ok: true, ...rowToPayload(row ?? undefined) });

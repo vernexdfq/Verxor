@@ -22,6 +22,7 @@ export type VnMultiplierSet = Record<VnTier, number>;
 
 export type VnPricing = {
   rate: number;
+  roundingStep: number;
   retail: VnMultiplierSet;
   api: VnMultiplierSet;
   panel: VnMultiplierSet;
@@ -29,10 +30,17 @@ export type VnPricing = {
 
 export const DEFAULT_VN_PRICING: VnPricing = {
   rate: 1380,
+  roundingStep: 50,
   retail: { economy: 5.0, standard: 4.0, fast: 3.0, premium: 2.0 },
   api: { economy: 2.0, standard: 1.6, fast: 1.4, premium: 1.25 },
   panel: { economy: 1.5, standard: 1.3, fast: 1.2, premium: 1.15 },
 };
+
+/** Round UP to the nearest step (default ₦50). */
+export function roundUpToStep(ngn: number, step: number): number {
+  const s = Number.isFinite(step) && step > 0 ? step : DEFAULT_VN_PRICING.roundingStep;
+  return Math.ceil(ngn / s) * s;
+}
 
 /** Tier from the provider cost band — never trust a client-supplied tier. */
 export function tierFromCost(costUsd: number): VnTier {
@@ -52,10 +60,10 @@ export function tierFromPoolId(poolId: string): VnTier | null {
   return null;
 }
 
-/** Sell price in naira, rounded up to the nearest naira. */
-export function sellPrice(costUsd: number, tier: VnTier, rate: number, mult: number): number {
+/** Sell price in naira, rounded UP to the nearest rounding step (default ₦50). */
+export function sellPrice(costUsd: number, tier: VnTier, rate: number, mult: number, step?: number): number {
   const m = Number.isFinite(mult) && mult > 0 ? mult : DEFAULT_VN_PRICING.retail[tier];
-  return Math.ceil(costUsd * rate * m);
+  return roundUpToStep(costUsd * rate * m, step ?? DEFAULT_VN_PRICING.roundingStep);
 }
 
 export function multipliersFor(audience: VnAudience, pricing: VnPricing): VnMultiplierSet {
@@ -66,6 +74,7 @@ export function multipliersFor(audience: VnAudience, pricing: VnPricing): VnMult
 
 type SettingsRow = {
   base_naira_rate?: number | null;
+  rounding_step_ngn?: number | null;
   retail_economy?: number | null;
   retail_standard?: number | null;
   retail_fast?: number | null;
@@ -83,36 +92,55 @@ type SettingsRow = {
 let cache: { at: number; pricing: VnPricing } | null = null;
 const CACHE_MS = 15_000;
 
-/** Load rate + multipliers from vn_pricing_settings (15s cache). */
+/** Map a settings/pricing_rules row to VnPricing. */
+function rowToPricing(s: SettingsRow): VnPricing {
+  return {
+    rate: Number(s.base_naira_rate) || DEFAULT_VN_PRICING.rate,
+    roundingStep: Number(s.rounding_step_ngn) || DEFAULT_VN_PRICING.roundingStep,
+    retail: {
+      economy: Number(s.retail_economy) || DEFAULT_VN_PRICING.retail.economy,
+      standard: Number(s.retail_standard) || DEFAULT_VN_PRICING.retail.standard,
+      fast: Number(s.retail_fast) || DEFAULT_VN_PRICING.retail.fast,
+      premium: Number(s.retail_premium) || DEFAULT_VN_PRICING.retail.premium,
+    },
+    api: {
+      economy: Number(s.api_economy) || DEFAULT_VN_PRICING.api.economy,
+      standard: Number(s.api_standard) || DEFAULT_VN_PRICING.api.standard,
+      fast: Number(s.api_fast) || DEFAULT_VN_PRICING.api.fast,
+      premium: Number(s.api_premium) || DEFAULT_VN_PRICING.api.premium,
+    },
+    panel: {
+      economy: Number(s.panel_economy) || DEFAULT_VN_PRICING.panel.economy,
+      standard: Number(s.panel_standard) || DEFAULT_VN_PRICING.panel.standard,
+      fast: Number(s.panel_fast) || DEFAULT_VN_PRICING.panel.fast,
+      premium: Number(s.panel_premium) || DEFAULT_VN_PRICING.panel.premium,
+    },
+  };
+}
+
+/**
+ * Load rate + multipliers (15s cache).
+ * Source of truth: pricing_rules (applies to GrizzlySMS + Textverified OTP numbers).
+ * Falls back to the legacy vn_pricing_settings row while migrating, then defaults.
+ */
 export async function loadVnPricing(): Promise<VnPricing> {
   if (cache && Date.now() - cache.at < CACHE_MS) return cache.pricing;
   let pricing = DEFAULT_VN_PRICING;
   try {
     if (supabaseConfigured()) {
-      const rows = (await sbSelect('vn_pricing_settings', 'select=*&limit=1')) as SettingsRow[];
-      const s = rows?.[0];
-      if (s) {
-        pricing = {
-          rate: Number(s.base_naira_rate) || DEFAULT_VN_PRICING.rate,
-          retail: {
-            economy: Number(s.retail_economy) || DEFAULT_VN_PRICING.retail.economy,
-            standard: Number(s.retail_standard) || DEFAULT_VN_PRICING.retail.standard,
-            fast: Number(s.retail_fast) || DEFAULT_VN_PRICING.retail.fast,
-            premium: Number(s.retail_premium) || DEFAULT_VN_PRICING.retail.premium,
-          },
-          api: {
-            economy: Number(s.api_economy) || DEFAULT_VN_PRICING.api.economy,
-            standard: Number(s.api_standard) || DEFAULT_VN_PRICING.api.standard,
-            fast: Number(s.api_fast) || DEFAULT_VN_PRICING.api.fast,
-            premium: Number(s.api_premium) || DEFAULT_VN_PRICING.api.premium,
-          },
-          panel: {
-            economy: Number(s.panel_economy) || DEFAULT_VN_PRICING.panel.economy,
-            standard: Number(s.panel_standard) || DEFAULT_VN_PRICING.panel.standard,
-            fast: Number(s.panel_fast) || DEFAULT_VN_PRICING.panel.fast,
-            premium: Number(s.panel_premium) || DEFAULT_VN_PRICING.panel.premium,
-          },
-        };
+      try {
+        const rows = (await sbSelect('pricing_rules', 'select=*&limit=1')) as SettingsRow[];
+        if (rows?.[0]) pricing = rowToPricing(rows[0]);
+      } catch {
+        /* pricing_rules table not created yet */
+      }
+      if (pricing === DEFAULT_VN_PRICING) {
+        try {
+          const rows = (await sbSelect('vn_pricing_settings', 'select=*&limit=1')) as SettingsRow[];
+          if (rows?.[0]) pricing = rowToPricing(rows[0]);
+        } catch {
+          /* legacy table missing */
+        }
       }
     }
   } catch {
@@ -214,5 +242,5 @@ export async function computeVnCharge(opts: {
   }
 
   const mult = multipliersFor(opts.audience, pricing)[tier];
-  return { charge: sellPrice(costUsd, tier, pricing.rate, mult), tier, costUsd };
+  return { charge: sellPrice(costUsd, tier, pricing.rate, mult, pricing.roundingStep), tier, costUsd };
 }
