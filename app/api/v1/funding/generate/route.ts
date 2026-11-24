@@ -17,25 +17,21 @@ const XIXA_BANKS: Record<string, { code: string; name: string }> = {
 /** PayVessel 9PSB */
 const PAYVESSEL_9PSB = { code: '120001', name: '9Payment Service Bank' };
 const PAYVESSEL_STATIC_FEE_NGN = 50;
+const FUNDING_FEE_NGN = 50;
 
 function xixapayBase() {
   return (process.env.XIXAPAY_BASE_URL || 'https://api.xixapay.com').replace(/\/$/, '');
 }
 
 function payvesselBase() {
-  return (process.env.PAYVESSEL_BASE_URL || 'https://api.payvessel.com').replace(/\/$/, '');
+  return (process.env.PAYVESSEL_BASE_URL || process.env.PAYVESSEL_API_URL || 'https://api.payvessel.com').replace(/\/$/, '');
 }
 
-function xixapayFeePercent(): number {
-  const n = Number(process.env.XIXAPAY_FEE_PERCENT);
-  return Number.isFinite(n) && n >= 0 ? n : 1;
-}
-
-function amountToSendFromWallet(walletAmount: number, feePercent: number): {
+function amountToSendFromWallet(walletAmount: number): {
   amountToSend: number;
   feeNgn: number;
 } {
-  const feeNgn = Math.max(0, Math.ceil((walletAmount * feePercent) / 100));
+  const feeNgn = FUNDING_FEE_NGN;
   return { amountToSend: walletAmount + feeNgn, feeNgn };
 }
 
@@ -266,8 +262,7 @@ async function createXixaDynamic(
   }
 
   const bank = XIXA_BANKS[providerId];
-  const feePercent = xixapayFeePercent();
-  const { amountToSend, feeNgn } = amountToSendFromWallet(opts.walletAmount, feePercent);
+  const { amountToSend, feeNgn } = amountToSendFromWallet(opts.walletAmount);
 
   const externalRef = `vx-${providerId}-${opts.userId.slice(0, 8)}-${Date.now()}`;
   const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://verxor.com').replace(/\/$/, '');
@@ -345,12 +340,8 @@ async function createXixaDynamic(
     };
   }
 
-  const feeFinal =
-    picked.feeFromProvider != null && picked.feeFromProvider >= 0
-      ? Math.round(picked.feeFromProvider)
-      : feeNgn;
-  const amountToSendFinal =
-    picked.feeFromProvider != null ? opts.walletAmount + feeFinal : amountToSend;
+  const feeFinal = FUNDING_FEE_NGN;
+  const amountToSendFinal = opts.walletAmount + feeFinal;
 
   if (supabaseConfigured()) {
     try {
@@ -370,7 +361,6 @@ async function createXixaDynamic(
           expire_at: picked.expireAt,
           amount_to_send: amountToSendFinal,
           fee_ngn: feeFinal,
-          fee_percent: feePercent,
         },
       });
     } catch (e) {
@@ -387,7 +377,7 @@ async function createXixaDynamic(
       amountNgn: opts.walletAmount,
       amountToSend: amountToSendFinal,
       feeNgn: feeFinal,
-      feeNote: 'Includes bank processing fee',
+      feeNote: `₦${FUNDING_FEE_NGN} flat fee`,
       bankCode: bank.code,
       providerId,
       accountType: 'dynamic' as const,
@@ -408,13 +398,15 @@ async function createPayvesselStatic9psb(opts: {
     return { ok: true as const, account: existing };
   }
 
-  const apiKey = process.env.PAYVESSEL_API_KEY;
-  const secret = process.env.PAYVESSEL_SECRET_KEY;
-  const businessId = process.env.PAYVESSEL_BUSINESS_ID;
+  const apiKey = (process.env.PAYVESSEL_API_KEY || process.env.PAYVESSEL_KEY || process.env.PAYVESSEL_PUBLIC_KEY || '').trim();
+  const secret = (process.env.PAYVESSEL_SECRET_KEY || process.env.PAYVESSEL_SECRET || process.env.PAYVESSEL_API_SECRET || '').trim();
+  const businessId = (process.env.PAYVESSEL_BUSINESS_ID || process.env.PAYVESSEL_BUSINESSID || '').trim();
   if (!apiKey || !secret || !businessId) {
+    const missing = [!apiKey && 'PAYVESSEL_API_KEY', !secret && 'PAYVESSEL_SECRET_KEY', !businessId && 'PAYVESSEL_BUSINESS_ID'].filter(Boolean);
+    console.error('[funding/generate] PayVessel credentials missing:', missing.join(', '));
     return {
       error: NextResponse.json(
-        { ok: false, message: 'PayVessel is not configured. Check PAYVESSEL_* env vars.' },
+        { ok: false, message: `PayVessel is not configured. Missing: ${missing.join(', ')}.` },
         { status: 503 },
       ),
     };
@@ -434,8 +426,8 @@ async function createPayvesselStatic9psb(opts: {
     res = await fetch(`${payvesselBase()}/pms/api/external/request/customerReservedAccount/`, {
       method: 'POST',
       headers: {
-        'api-key': apiKey.trim(),
-        'api-secret': secret.replace(/^Bearer\s+/i, '').trim(),
+        'api-key': apiKey,
+        'api-secret': secret.replace(/^Bearer\s+/i, ''),
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(payload),
@@ -467,8 +459,11 @@ async function createPayvesselStatic9psb(opts: {
   }
 
   if (!res.ok || raw.status === false) {
-    console.error('[funding/generate] payvessel error', res.status, rawText.slice(0, 500));
-    const msg =
+    console.error('[funding/generate] payvessel error', res.status, rawText.slice(0, 1000));
+    const errors = raw.errors && typeof raw.errors === 'object'
+      ? Object.entries(raw.errors as Record<string, unknown>).flatMap(([k, v]) => Array.isArray(v) ? v.map((x) => `${k}: ${String(x)}`) : []).join(' · ')
+      : '';
+    const msg = errors ||
       (typeof raw.message === 'string' && raw.message) ||
       (typeof raw.error === 'string' && raw.error) ||
       (rawText ? `PayVessel error (${res.status}): ${rawText.slice(0, 140)}` : `PayVessel error (${res.status})`);
@@ -579,6 +574,14 @@ export async function POST(req: NextRequest) {
   }
 
   if (providerId === '9psb' || providerId === 'payvessel') {
+    // PayVessel requires a real customer email; never send the synthetic .local
+    // address used by phone-only sessions.
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.endsWith('.local')) {
+      return NextResponse.json(
+        { ok: false, message: 'Add a valid email address to your account before generating your 9PSB account.' },
+        { status: 400 },
+      );
+    }
     const result = await createPayvesselStatic9psb({
       email: customerEmail,
       name,

@@ -4,6 +4,8 @@ import { sbSelect, supabaseConfigured } from '@/lib/supabase-admin';
 
 export const dynamic = 'force-dynamic';
 
+const FUNDING_FEE_NGN = 50;
+
 function verifySignature(rawBody: string, headerSig: string | null, secret: string): boolean {
   if (!headerSig) return false;
   try {
@@ -124,6 +126,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ status: 'user_not_found' });
   }
 
+  // The amount entered in the funding UI is the wallet credit target; customer
+  // transfers that target plus the fixed ₦50 fee.
+  const creditAmount = Math.round((amountPaid - FUNDING_FEE_NGN) * 100) / 100;
+  if (creditAmount <= 0) {
+    return NextResponse.json({ status: 'below_fee', message: 'Deposit amount too low after fee' });
+  }
+
   // Credit via SECURITY DEFINER RPC (idempotent on reference)
   const base = (process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '')
     .replace(/\/rest\/v1\/?$/, '')
@@ -140,7 +149,7 @@ export async function POST(req: NextRequest) {
       },
       body: JSON.stringify({
         p_user_id: userId,
-        p_amount: amountPaid,
+        p_amount: creditAmount,
         p_reference: `xixapay:${transactionId}`,
         p_description: `Wallet funding via ${body.receiver?.bank || 'bank transfer'}`,
       }),
@@ -153,7 +162,7 @@ export async function POST(req: NextRequest) {
     }
 
     const newBal = await rpc.json();
-    console.info('[xixapay webhook] credited', { userId, amountPaid, newBal, transactionId });
+    console.info('[xixapay webhook] credited', { userId, amountPaid, creditAmount, newBal, transactionId });
     return NextResponse.json({ status: 'ok', balance: newBal });
   } catch (e) {
     console.error('[xixapay webhook] credit error', e);

@@ -2,10 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 
-function xixapayFeePercent(): number {
-  const n = Number(process.env.XIXAPAY_FEE_PERCENT);
-  return Number.isFinite(n) && n >= 0 ? n : 1;
-}
+const FUNDING_FEE_NGN = 50;
 
 /**
  * POST /api/v1/funding/quote
@@ -30,8 +27,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, message: 'Enter a valid amount.' }, { status: 400 });
   }
 
-  const feePercent = xixapayFeePercent();
-  const feeNgn = Math.max(0, Math.ceil((amount * feePercent) / 100));
+  const feeNgn = FUNDING_FEE_NGN;
 
   return NextResponse.json({
     ok: true,

@@ -211,14 +211,22 @@ export function FundPage({ session }: FundPageProps) {
             name: ctx.name || undefined,
           }),
         }).catch(() => null);
-        if (!res || !res.ok || stopped) return;
+        if (!res || stopped) return;
+        if (!res.ok) {
+          const error = (await res.json().catch(() => null)) as { message?: string } | null;
+          setGenError(error?.message || 'Could not load your 9PSB account. Tap below to retry.');
+          return;
+        }
         const data = (await res.json().catch(() => null)) as { account?: LiveAccount } | null;
         if (data?.account?.accountNumber && !stopped) {
           nineLoadedRef.current = true;
+          setGenError('');
           setNineAccount(data.account);
+        } else if (!stopped) {
+          setGenError('PayVessel returned no account number. Tap below to retry.');
         }
       } catch {
-        /* silent; the tab still offers a manual load */
+        if (!stopped) setGenError('Could not reach PayVessel. Check your connection and tap below to retry.');
       } finally {
         if (!stopped) setNineLoading(false);
       }
@@ -346,7 +354,7 @@ export function FundPage({ session }: FundPageProps) {
             keepAccountRef.current = true;
             setActiveId(usedId);
           }
-          setLiveAccount({
+          const generatedAccount: LiveAccount = {
             bankName: data.account.bankName,
             accountNumber: data.account.accountNumber,
             accountName: data.account.accountName,
@@ -357,7 +365,13 @@ export function FundPage({ session }: FundPageProps) {
             accountType: data.account.accountType || active.kind,
             expireAt: data.account.expireAt || null,
             providerId: data.account.providerId || active.id,
-          });
+          };
+          if (active.kind === 'static') {
+            setNineAccount(generatedAccount);
+            nineLoadedRef.current = true;
+          } else {
+            setLiveAccount(generatedAccount);
+          }
         } else {
           setGenError('Could not generate account. Please try again.');
         }
@@ -775,7 +789,7 @@ export function FundPage({ session }: FundPageProps) {
               <button
                 type="button"
                 className="fund-generate fund-generate--ready"
-                disabled={generating}
+                disabled={generating || (active.kind === 'static' && nineLoading)}
                 onClick={() => void generate()}
               >
                 {generating ? (

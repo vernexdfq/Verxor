@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
     req.headers.get('signature');
 
   const skipVerify = process.env.PAYVESSEL_SKIP_WEBHOOK_VERIFY === '1';
-  if (!skipVerify && sig && !verifyPayvesselSignature(rawBody, sig, secret)) {
+  if (!skipVerify && (!sig || !verifyPayvesselSignature(rawBody, sig, secret))) {
     console.warn('[payvessel] invalid signature');
     return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
   }
@@ -92,13 +92,6 @@ export async function POST(req: NextRequest) {
       virtual.amount ??
       0,
   );
-  const settlement = Number(
-    order.settlement_amount ??
-      transaction.settlement_amount ??
-      body.settlement_amount ??
-      NaN,
-  );
-  const feeFromPayload = Number(order.fee ?? transaction.fee ?? body.fee ?? NaN);
 
   const transactionId = String(
     transaction.reference ||
@@ -129,19 +122,14 @@ export async function POST(req: NextRequest) {
       '',
   );
 
-  if (!transactionId || !(amountPaid > 0 || settlement > 0)) {
-    console.warn('[payvessel] missing fields', { transactionId, amountPaid, settlement });
+  if (!transactionId || !(amountPaid > 0)) {
+    console.warn('[payvessel] missing fields', { transactionId, amountPaid });
     return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
   }
 
-  let creditAmount: number;
-  if (Number.isFinite(settlement) && settlement > 0) {
-    creditAmount = Math.round(settlement * 100) / 100;
-  } else if (Number.isFinite(feeFromPayload) && feeFromPayload >= 0) {
-    creditAmount = Math.round((amountPaid - feeFromPayload) * 100) / 100;
-  } else {
-    creditAmount = Math.round((amountPaid - PAYVESSEL_STATIC_FEE_NGN) * 100) / 100;
-  }
+  // Verxor applies exactly ₦50 to each PayVessel static-account deposit.
+  // Provider settlement/fee fields are not substituted for the customer fee.
+  const creditAmount = Math.round((amountPaid - PAYVESSEL_STATIC_FEE_NGN) * 100) / 100;
 
   if (creditAmount <= 0) {
     return NextResponse.json({
