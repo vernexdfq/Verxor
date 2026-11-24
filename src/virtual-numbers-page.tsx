@@ -1022,7 +1022,7 @@ export function VirtualNumbersPage({
                   expiresAt: tnow + LIFETIME_MS,
                   cancelAvailableAt: tnow + CANCEL_LOCK_MS,
                   createdAt: new Date().toISOString(),
-                  provider: 'grizzly',
+                  provider: String(data.order?.provider || 'grizzly').toLowerCase(),
                   providerOrderId: String(data.order?.providerOrderId || data.order?.id || ''),
                 };
                 setLocalOrders((prev) => [order, ...prev]);

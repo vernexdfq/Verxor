@@ -202,6 +202,7 @@ async function runSync(req: NextRequest) {
       service_id: serviceId,
       country_id: usa.id,
       provider_code: 'textverified',
+      provider_service: name.toLowerCase(),
       cost_usd: price.priceUsd,
       // Textverified exposes stock only at purchase time; 1 = purchasable,
       // failed buys are caught at checkout and refunded as today.

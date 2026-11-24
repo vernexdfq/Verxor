@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { fivesim, grizzly, pvapins, smsbower } from '@/lib/providers';
+import { tvVerificationDetails, tvVerificationSms } from '@/lib/providers/textverified';
 import { sbSelect, sbUpdate, supabaseConfigured } from '@/lib/supabase-admin';
 import { sendVirtualNumberDeliveredReceipt } from '@/lib/email/receipts';
 
@@ -45,6 +46,30 @@ export async function GET(req: NextRequest) {
         }
       } else if (/STATUS_WAIT/i.test(text)) status = 'waiting';
       else if (/STATUS_CANCEL/i.test(text)) status = 'cancelled';
+    } else if (provider === 'textverified') {
+      const det = await tvVerificationDetails(providerOrderId);
+      const state = String(det?.state || '').toLowerCase();
+      if (det && det.number) {
+        const msgs = await tvVerificationSms(det.number);
+        let code: string | null = null;
+        for (const m of msgs || []) {
+          const r = m as Record<string, unknown>;
+          const direct = String(r.parsedCode ?? r.parsed_code ?? '').trim();
+          const content = String(r.smsContent ?? r.sms_content ?? '');
+          const mset = content.match(/\b(\d{4,8})\b/);
+          const found = direct || (mset ? mset[1] : '');
+          if (found) { code = found; break; }
+        }
+        if (code) { otp = code; status = 'received'; } else { status = 'waiting'; }
+      } else if (state === 'completed') {
+        status = 'received'; // completed without a readable SMS yet
+      } else if (state === 'expired') {
+        status = 'expired';
+      } else if (state === 'cancelled') {
+        status = 'cancelled';
+      } else {
+        status = 'waiting';
+      }
     } else if (provider === 'smsbower') {
       const text = await smsbower.getStatus(providerOrderId);
       const m = text.match(/STATUS_OK:([0-9A-Za-z-]+)/);

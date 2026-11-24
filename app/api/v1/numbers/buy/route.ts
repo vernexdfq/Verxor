@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { grizzly } from '@/lib/providers';
-import { sbInsert, supabaseConfigured } from '@/lib/supabase-admin';
+import { textverifiedConfigured, tvCreateVerification } from '@/lib/providers/textverified';
+import { sbInsert, sbSelect, supabaseConfigured } from '@/lib/supabase-admin';
 import { resolvePanelClient, panelAllowsVirtualNumbers, getPanelAdminEmail } from '@/lib/panel-auth';
 import { sendVirtualNumberReceipt, sendPanelAdminOrderAlert } from '@/lib/email/receipts';
 import { computeVnCharge, isChildPanelUser, isApiUser, apiKeyFromRequest, type VnAudience } from '@/lib/vn-pricing';
@@ -218,9 +219,9 @@ async function creditResellerWallet(userId: string, amount: number, reference: s
  * Refunds the same wallet if provider fails after debit.
  */
 export async function POST(req: NextRequest) {
-  if (!grizzly.isConfigured()) {
+  if (!grizzly.isConfigured() && !textverifiedConfigured()) {
     return NextResponse.json(
-      { ok: false, error: 'Grizzly SMS is not configured' },
+      { ok: false, error: 'No SMS OTP provider is configured' },
       { status: 503 },
     );
   }
@@ -295,6 +296,38 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // Provider dispatch: the option row decides whether this is a GrizzlySMS
+  // or a Textverified purchase (provider_code on vn_price_options).
+  let providerCode = 'grizzly';
+  let tvServiceName: string | null = null;
+  if (body.optionId && supabaseConfigured()) {
+    try {
+      const optRows = (await sbSelect(
+        'vn_price_options',
+        `id=eq.${encodeURIComponent(String(body.optionId))}&select=id,provider_code,provider_service&limit=1`,
+      )) as Array<{ provider_code?: string | null; provider_service?: string | null }>;
+      const opt = optRows?.[0];
+      if (opt && String(opt.provider_code || '').toLowerCase() === 'textverified') {
+        providerCode = 'textverified';
+        tvServiceName = String(opt.provider_service || '').trim() || null;
+      }
+    } catch {
+      /* fall back to grizzly */
+    }
+  }
+  if (providerCode === 'textverified' && !textverifiedConfigured()) {
+    return NextResponse.json(
+      { ok: false, error: 'Textverified provider is not configured' },
+      { status: 503 },
+    );
+  }
+  if (providerCode === 'grizzly' && !grizzly.isConfigured()) {
+    return NextResponse.json(
+      { ok: false, error: 'Grizzly SMS is not configured' },
+      { status: 503 },
+    );
+  }
+
   // Server-side pricing enforcement:
   //  - child-panel key          -> panel multipliers
   //  - user toggled Child Panel -> panel multipliers (admin toggle)
@@ -352,13 +385,32 @@ export async function POST(req: NextRequest) {
   try {
     const maxPrice = Math.round((maxPriceUsd + 0.01) * 100) / 100;
 
-    const result = await grizzly.getNumber({
-      service,
-      country,
-      maxPrice,
-    });
+    // Either GrizzlySMS activation or a Textverified one-time verification.
+    let resultPhone = '';
+    let resultId = '';
+    if (providerCode === 'textverified') {
+      const tv = await tvCreateVerification({
+        serviceName: tvServiceName || service,
+        maxPriceUsd: maxPriceUsd,
+      });
+      if (!tv.ok || !tv.verification) {
+        throw new Error(tv.error || 'Textverified purchase failed');
+      }
+      resultId = tv.verification.verificationId;
+      resultPhone = tv.verification.number.startsWith('+')
+        ? tv.verification.number
+        : `+${tv.verification.number}`;
+    } else {
+      const result = await grizzly.getNumber({
+        service,
+        country,
+        maxPrice: maxPrice,
+      });
+      resultId = String(result.id);
+      resultPhone = result.phone.startsWith('+') ? result.phone : `+${result.phone}`;
+    }
 
-    const phone = result.phone.startsWith('+') ? result.phone : `+${result.phone}`;
+    const phone = resultPhone;
 
     let savedId: string | null = null;
     if (supabaseConfigured()) {
@@ -366,8 +418,8 @@ export async function POST(req: NextRequest) {
         const rows = userId
           ? await sbInsert('vn_orders', {
               user_id: userId,
-              provider: 'grizzly',
-              activation_id: String(result.id),
+              provider: providerCode,
+              activation_id: String(resultId),
               phone_number: phone,
               service_code: service,
               country_code: country,
@@ -397,7 +449,7 @@ export async function POST(req: NextRequest) {
             customerName: customerLabel,
             customerEmail: body.customerEmail ? body.customerEmail.trim() : undefined,
             service: `Virtual number (${service.toUpperCase()})`,
-            orderId: savedId || result.id,
+            orderId: savedId || resultId,
             wholesaleAmountNgn: priceNgn,
             customerPaidNgn: validRetail,
             details: [
@@ -423,8 +475,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       ok: true,
       order: {
-        id: savedId || result.id,
-        providerOrderId: String(result.id),
+        id: savedId || resultId,
+        providerOrderId: String(resultId),
+        provider: providerCode,
         phone,
         service,
         country,

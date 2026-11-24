@@ -589,15 +589,15 @@ export async function GET(req: NextRequest) {
 
       let prices = (await sbSelect(
         'vn_price_options',
-        `service_id=eq.${svc.id}&tier=eq.${tier}&is_available=eq.true&select=id,country_id,cost_usd,stock,tier&order=cost_usd.asc&limit=1000`,
-      )) as Array<{ id: string; country_id: string; cost_usd: number; stock: number; tier: string }>;
+        `service_id=eq.${svc.id}&tier=eq.${tier}&is_available=eq.true&select=id,country_id,cost_usd,stock,tier,provider_code,provider_service&order=cost_usd.asc&limit=1000`,
+      )) as Array<{ id: string; country_id: string; cost_usd: number; stock: number; tier: string; provider_code?: string | null; provider_service?: string | null }>;
       const idSet = new Set(countryIds);
       let filtered = (prices || []).filter((p) => idSet.has(p.country_id));
       if (filtered.length === 0) {
         prices = (await sbSelect(
           'vn_price_options',
-          `service_id=eq.${svc.id}&is_available=eq.true&select=id,country_id,cost_usd,stock,tier&order=cost_usd.asc&limit=1000`,
-        )) as Array<{ id: string; country_id: string; cost_usd: number; stock: number; tier: string }>;
+          `service_id=eq.${svc.id}&is_available=eq.true&select=id,country_id,cost_usd,stock,tier,provider_code,provider_service&order=cost_usd.asc&limit=1000`,
+        )) as Array<{ id: string; country_id: string; cost_usd: number; stock: number; tier: string; provider_code?: string | null; provider_service?: string | null }>;
         filtered = (prices || []).filter((p) => idSet.has(p.country_id));
       }
       const options = filtered
@@ -613,6 +613,8 @@ export async function GET(req: NextRequest) {
             stock: Number(p.stock) || 0,
             optionId: p.id,
             grizzlyCountry: c?.code || grizzlyCountryCodes[0] || '',
+            provider: String(p.provider_code || '').toLowerCase() || 'grizzly',
+            providerService: String(p.provider_service || '') || null,
           };
         })
         .filter((o) => o.stock >= 0);

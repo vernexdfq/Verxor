@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { grizzly } from '@/lib/providers';
+import { tvCancelVerification } from '@/lib/providers/textverified';
 import { sbInsert, sbSelect, sbUpdate, supabaseConfigured } from '@/lib/supabase-admin';
 import { resolvePanelClient } from '@/lib/panel-auth';
 
@@ -237,6 +238,10 @@ export async function POST(req: NextRequest) {
     } catch (e) {
       providerRaw = e instanceof Error ? e.message : 'cancel failed';
     }
+  } else if (provider === 'textverified') {
+    const tv = await tvCancelVerification(providerOrderId).catch(() => null);
+    providerOk = tv ? tv.ok : false;
+    providerRaw = tv?.error || (tv?.ok ? 'cancelled' : 'cancel failed');
   } else {
     providerOk = true;
   }
