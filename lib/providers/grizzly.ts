@@ -43,6 +43,7 @@ export async function getNumber(opts: {
   country: string;
   maxPrice?: number;
   minPrice?: number;
+  providerIds?: string[];
 }) {
   const params: Record<string, string> = {
     action: 'getNumber',
@@ -51,6 +52,7 @@ export async function getNumber(opts: {
   };
   if (opts.maxPrice != null) params.maxPrice = String(opts.maxPrice);
   if (opts.minPrice != null) params.minPrice = String(opts.minPrice);
+  if (opts.providerIds?.length) params.providerIds = opts.providerIds.join(',');
   const text = await grizzly(params);
   // ACCESS_NUMBER:id:phone
   const m = text.match(/ACCESS_NUMBER:(\d+):(\d+)/i);

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sbSelect, supabaseConfigured } from '@/lib/supabase-admin';
-import { loadVnPricing, resolveVnAudience, multipliersFor } from '@/lib/vn-pricing';
+import { loadVnPricing, resolveVnAudience, multipliersFor, tierFromCost, type VnTier } from '@/lib/vn-pricing';
 
 export const dynamic = 'force-dynamic';
 
@@ -421,6 +421,10 @@ export async function GET(req: NextRequest) {
   const countryParam = (req.nextUrl.searchParams.get('country') || '').toUpperCase();
   const q = (req.nextUrl.searchParams.get('q') || '').trim().toLowerCase();
 
+  if ((mode === 'countries' || mode === 'prices') && !/^(usa|worldwide)-(economy|standard|fast|premium)$/.test(poolId)) {
+    return NextResponse.json({ ok: false, reason: 'A valid number pool is required' }, { status: 400 });
+  }
+
   try {
     // Audience-aware pricing: public calls get retail prices; child-panel keys
     // and users toggled as Child Panel get panel prices; user API keys (vx_api_*)
@@ -434,12 +438,12 @@ export async function GET(req: NextRequest) {
       const tier = poolId ? poolTier(poolId) : 'economy';
       const region = poolId ? poolRegion(poolId) : null;
 
-      // Pool base cost fallback for instant sub-50ms response
+      // Display-only estimate when the live service catalog is unavailable; never purchasable.
       const defaultTierCost: Record<string, number> = {
-        economy: 0.05,
-        standard: 0.15,
-        fast: 0.35,
-        premium: 0.65,
+        economy: 0.25,
+        standard: 0.75,
+        fast: 1.40,
+        premium: 2.50,
       };
       const fallbackCost = defaultTierCost[tier] ?? 0.15;
 
@@ -521,9 +525,13 @@ export async function GET(req: NextRequest) {
       >();
       for (const p of prices || []) {
         const c = byId.get(p.country_id);
-        if (!c) continue;
+        if (!c || Number(p.stock) <= 0) continue;
         if (region === 'usa' && !usaCodes.has(c.code)) continue;
         if (region === 'worldwide' && usaCodes.has(c.code)) continue;
+        const providerCost = Number(p.cost_usd);
+        if (!Number.isFinite(providerCost) || providerCost <= 0) continue;
+        if (tierFromCost(providerCost) !== (tier as VnTier)) continue;
+        if (tier !== 'economy' && c.code === '12') continue; // VoIP is economy-only
         const meta = GRIZZLY_TO_ISO[c.code] || {
           code: c.code,
           name: c.display_name,
@@ -531,7 +539,7 @@ export async function GET(req: NextRequest) {
           dial: '',
         };
         const key = meta.code + (c.code === '12' ? '-v' : '');
-        const rowTier = p.tier || tier;
+        const rowTier = tierFromCost(Number(p.cost_usd));
         const ngn = sellNgn(Number(p.cost_usd), rowTier, rate, mult, pricing.roundingStep);
         const prev = seen.get(key);
         if (!prev || ngn < prev.fromNgn) {
@@ -573,7 +581,7 @@ export async function GET(req: NextRequest) {
       if (!svc) return NextResponse.json({ ok: true, options: [], count: 0 });
       let grizzlyCountryCodes: string[] = [];
       if (region === 'usa' || countryParam === 'US' || countryParam === 'USA')
-        grizzlyCountryCodes = ['187', '12'];
+        grizzlyCountryCodes = tier === 'economy' ? ['187', '12'] : ['187'];
       else if (countryParam && ISO_TO_GRIZZLY[countryParam])
         grizzlyCountryCodes = ISO_TO_GRIZZLY[countryParam];
       else if (countryParam) grizzlyCountryCodes = [countryParam];
@@ -587,24 +595,34 @@ export async function GET(req: NextRequest) {
         .map((c) => c.id);
       if (countryIds.length === 0) return NextResponse.json({ ok: true, options: [], count: 0 });
 
-      let prices = (await sbSelect(
-        'vn_price_options',
-        `service_id=eq.${svc.id}&tier=eq.${tier}&is_available=eq.true&select=id,country_id,cost_usd,stock,tier,provider_code,provider_service&order=cost_usd.asc&limit=1000`,
-      )) as Array<{ id: string; country_id: string; cost_usd: number; stock: number; tier: string; provider_code?: string | null; provider_service?: string | null }>;
-      const idSet = new Set(countryIds);
-      let filtered = (prices || []).filter((p) => idSet.has(p.country_id));
-      if (filtered.length === 0) {
-        prices = (await sbSelect(
+      const prices: Array<{
+        id: string; country_id: string; cost_usd: number; stock: number; tier: string;
+        provider_code?: string | null; provider_service?: string | null;
+      }> = [];
+      const pageSize = 1000;
+      for (let offset = 0; offset < 20000; offset += pageSize) {
+        const page = (await sbSelect(
           'vn_price_options',
-          `service_id=eq.${svc.id}&is_available=eq.true&select=id,country_id,cost_usd,stock,tier,provider_code,provider_service&order=cost_usd.asc&limit=1000`,
-        )) as Array<{ id: string; country_id: string; cost_usd: number; stock: number; tier: string; provider_code?: string | null; provider_service?: string | null }>;
-        filtered = (prices || []).filter((p) => idSet.has(p.country_id));
+          `service_id=eq.${svc.id}&is_available=eq.true&select=id,country_id,cost_usd,stock,tier,provider_code,provider_service&order=id.asc&limit=${pageSize}&offset=${offset}`,
+        )) as typeof prices;
+        if (!page?.length) break;
+        prices.push(...page);
+        if (page.length < pageSize) break;
       }
+      const idSet = new Set(countryIds);
+      const filtered = prices.filter((p) =>
+        idSet.has(p.country_id) &&
+        Number(p.stock) > 0 &&
+        Number.isFinite(Number(p.cost_usd)) &&
+        Number(p.cost_usd) > 0 &&
+        tierFromCost(Number(p.cost_usd)) === (tier as VnTier) &&
+        !(tier !== 'economy' && countryById.get(p.country_id)?.code === '12'),
+      );
       const options = filtered
         .map((p, i) => {
           const cost = Number(p.cost_usd);
           const c = countryById.get(p.country_id);
-          const t = p.tier || tier;
+          const t = tierFromCost(cost);
           return {
             id: p.id || `opt-${i}`,
             label: `Option ${i + 1}`,
@@ -617,13 +635,10 @@ export async function GET(req: NextRequest) {
             providerService: String(p.provider_service || '') || null,
           };
         })
-        .filter((o) => o.stock >= 0);
-      const byNgn = new Map<number, (typeof options)[0]>();
-      for (const o of options) {
-        const prev = byNgn.get(o.priceNgn);
-        if (!prev || o.stock > prev.stock) byNgn.set(o.priceNgn, o);
-      }
-      const unique = Array.from(byNgn.values()).sort((a, b) => a.priceNgn - b.priceNgn);
+        .filter((o) => o.stock > 0);
+      // Preserve each provider option. Collapsing on sell price could hide a
+      // premium Textverified route behind a same-price low-stock Grizzly row.
+      const unique = options.sort((a, b) => a.priceUsd - b.priceUsd);
       const res = NextResponse.json({
         ok: true,
         mode: 'prices',
@@ -632,7 +647,7 @@ export async function GET(req: NextRequest) {
         tier,
         country: countryParam || (region === 'usa' ? 'US' : null),
         count: unique.length,
-        options: unique.map((o, i) => ({ ...o, label: `Route ${i + 1}`, provider: '' })),
+        options: unique.map((o, i) => ({ ...o, label: `${String(o.provider || 'grizzly').toUpperCase()} · Route ${i + 1}` })),
       });
       res.headers.set('Cache-Control', audience === 'retail' ? 'public, s-maxage=30, stale-while-revalidate=60' : 'no-store');
       return res;
@@ -649,18 +664,13 @@ export async function GET(req: NextRequest) {
       const mins: Record<string, number> = {};
       for (const p of prices) {
         const code = codeById.get(p.country_id);
-        if (!code) continue;
-        const region = usaCodes.has(code) ? 'usa' : 'worldwide';
         const cost = Number(p.cost_usd);
-        for (const t of ['economy', 'standard', 'fast', 'premium'] as const) {
-          const pool = `${region}-${t}`;
-          const inBand =
-            (t === 'economy' && cost < 0.5) ||
-            (t === 'standard' && cost >= 0.5 && cost <= 1.0) ||
-            (t === 'fast' && cost > 1.0 && cost <= 2.0) ||
-            (t === 'premium' && cost > 2.0);
-          if (inBand && (!mins[pool] || cost < mins[pool])) mins[pool] = cost;
-        }
+        if (!code || Number(p.stock) <= 0 || !Number.isFinite(cost) || cost <= 0) continue;
+        const region = usaCodes.has(code) ? 'usa' : 'worldwide';
+        const costTier = tierFromCost(cost);
+        if (code === '12' && costTier !== 'economy') continue; // Keep VoIP out of higher tiers
+        const pool = `${region}-${costTier}`;
+        if (!mins[pool] || cost < mins[pool]) mins[pool] = cost;
       }
       const poolIds = [
         'usa-economy',

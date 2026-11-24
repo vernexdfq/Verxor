@@ -111,6 +111,7 @@ export function VirtualNumbersPage({
   const [servicesLoading, setServicesLoading] = useState(false);
   const [servicesError, setServicesError] = useState<string | null>(null);
   const [pricesLoading, setPricesLoading] = useState(false);
+  const [pricesError, setPricesError] = useState(false);
   const [liveCountries, setLiveCountries] = useState<Country[]>([]);
   const [countriesLoading, setCountriesLoading] = useState(false);
   const [buying, setBuying] = useState(false);
@@ -502,17 +503,9 @@ export function VirtualNumbersPage({
   };
 
   const loadPrices = async (pool: Pool, service: Service, country: Country) => {
-    // Instant ready option based on pool tier price so user can buy right away
-    const defaultOption: PriceOption = {
-      id: `${pool.id}-${service.id}-${country.code}`,
-      provider: 'grizzly',
-      priceUsd: pool.tier === 'ECO' ? 0.05 : pool.tier === 'STD' ? 0.15 : pool.tier === 'FAST' ? 0.35 : 0.65,
-      priceNgn: service.fromNgn || pool.fromNgn,
-      stock: 999,
-      grizzlyCountry: country.code === 'US' || country.code === '187' ? '187' : country.code,
-    };
-
-    setPriceSheet({ open: true, options: [defaultOption], service, country, pool });
+    // Never invent a purchasable price: show only a live catalog option with a real option ID.
+    setPriceSheet({ open: true, options: [], service, country, pool });
+    setPricesError(false);
     setPricesLoading(true);
     try {
       const url =
@@ -520,23 +513,26 @@ export function VirtualNumbersPage({
         `&pool=${encodeURIComponent(pool.id)}` +
         `&service=${encodeURIComponent(service.id)}` +
         `&country=${encodeURIComponent(country.code)}`;
-      const res = await fetch(url, { headers: catalogHeaders() });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.ok && Array.isArray(data.options) && data.options.length > 0) {
-          const options: PriceOption[] = data.options.map((o: any) => ({
-            id: o.id || o.optionId,
-            provider: o.provider || 'grizzly',
-            priceUsd: Number(o.priceUsd) || defaultOption.priceUsd,
-            priceNgn: Number(o.priceNgn) || defaultOption.priceNgn,
-            stock: Number(o.stock) || 100,
-            grizzlyCountry: o.grizzlyCountry || o.countryCode || country.code,
-          }));
-          setPriceSheet({ open: true, options, service, country, pool });
-        }
-      }
+      const res = await fetch(url, { headers: catalogHeaders(), cache: 'no-store' });
+      if (!res.ok) throw new Error(`Price catalog request failed (${res.status})`);
+      const data = await res.json();
+      const options: PriceOption[] = Array.isArray(data.options)
+        ? data.options
+            .filter((o: any) => o.optionId && Number(o.priceUsd) > 0 && Number(o.priceNgn) > 0 && Number(o.stock) > 0)
+            .map((o: any) => ({
+              id: String(o.optionId || o.id),
+              provider: String(o.provider || 'grizzly').toLowerCase(),
+              priceUsd: Number(o.priceUsd),
+              priceNgn: Number(o.priceNgn),
+              stock: Math.max(0, Number(o.stock) || 0),
+              grizzlyCountry: o.grizzlyCountry || o.countryCode || country.code,
+            }))
+        : [];
+      setPriceSheet({ open: true, options, service, country, pool });
     } catch {
-      // Keeps the defaultOption active so purchase is never blocked
+      // Leave the sheet empty; a stale or fabricated price must never become buyable.
+      setPricesError(true);
+      setPriceSheet({ open: true, options: [], service, country, pool });
     } finally {
       setPricesLoading(false);
     }
@@ -949,14 +945,18 @@ export function VirtualNumbersPage({
             <p className="vn-sheet-sub">{priceSheet.country.flag} {priceSheet.country.name} · {priceSheet.pool.title}</p>
             {pricesLoading && <div className="vn-empty">Loading prices…</div>}
             {!pricesLoading && priceSheet.options.length === 0 && (
-              <div className="vn-empty">No stock for this route right now.</div>
+              <div className="vn-empty">
+                {pricesError ? 'Provider prices could not be loaded. Close and try again.' : 'No stock for this route right now.'}
+              </div>
             )}
             <ul className="vn-price-list">
               {priceSheet.options.map((opt) => (
                 <li key={opt.id}>
                   <button type="button" className="vn-price-row" onClick={() => openConfirm(opt)}>
                     <strong>{formatNgn(opt.priceNgn)}</strong>
-                    <small>{opt.stock} pcs</small>
+                    <small>
+                      {opt.provider === 'textverified' ? 'Textverified' : 'GrizzlySMS'} · {formatUsd(opt.priceUsd)} provider rate · {opt.stock} available
+                    </small>
                   </button>
                 </li>
               ))}
@@ -999,7 +999,7 @@ export function VirtualNumbersPage({
                   body: JSON.stringify({
                     service: service.id,
                     country: String(grizzlyCountry),
-                    maxPriceUsd: option.priceUsd > 0 ? option.priceUsd : 0.5,
+                    maxPriceUsd: option.priceUsd,
                     poolId: pool.id,
                     optionId: option.id,
                     priceNgn: option.priceNgn,

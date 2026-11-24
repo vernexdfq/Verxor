@@ -4,7 +4,7 @@ import { textverifiedConfigured, tvCreateVerification } from '@/lib/providers/te
 import { sbInsert, sbSelect, supabaseConfigured } from '@/lib/supabase-admin';
 import { resolvePanelClient, panelAllowsVirtualNumbers, getPanelAdminEmail } from '@/lib/panel-auth';
 import { sendVirtualNumberReceipt, sendPanelAdminOrderAlert } from '@/lib/email/receipts';
-import { computeVnCharge, isChildPanelUser, isApiUser, apiKeyFromRequest, type VnAudience } from '@/lib/vn-pricing';
+import { computeVnCharge, isChildPanelUser, isApiUser, apiKeyFromRequest, tierFromCost, tierFromPoolId, type VnAudience } from '@/lib/vn-pricing';
 
 export const dynamic = 'force-dynamic';
 
@@ -247,7 +247,6 @@ export async function POST(req: NextRequest) {
 
   const service = (body.service || '').trim().toLowerCase();
   const country = String(body.country || '').trim();
-  const maxPriceUsd = Number(body.maxPriceUsd);
   const poolId = (body.poolId || '').toLowerCase();
   // NOTE: body.priceNgn is intentionally IGNORED — the charge is computed
   // server-side from the option's real provider cost. Nobody can bypass the
@@ -259,13 +258,6 @@ export async function POST(req: NextRequest) {
       { status: 400 },
     );
   }
-  if (!Number.isFinite(maxPriceUsd) || maxPriceUsd <= 0) {
-    return NextResponse.json(
-      { ok: false, error: 'maxPriceUsd must be a positive number' },
-      { status: 400 },
-    );
-  }
-
   const panel = await resolvePanelClient(req);
   if (panel && !panelAllowsVirtualNumbers(panel)) {
     return NextResponse.json(
@@ -296,24 +288,64 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Provider dispatch: the option row decides whether this is a GrizzlySMS
-  // or a Textverified purchase (provider_code on vn_price_options).
-  let providerCode = 'grizzly';
-  let tvServiceName: string | null = null;
-  if (body.optionId && supabaseConfigured()) {
-    try {
-      const optRows = (await sbSelect(
-        'vn_price_options',
-        `id=eq.${encodeURIComponent(String(body.optionId))}&select=id,provider_code,provider_service&limit=1`,
-      )) as Array<{ provider_code?: string | null; provider_service?: string | null }>;
-      const opt = optRows?.[0];
-      if (opt && String(opt.provider_code || '').toLowerCase() === 'textverified') {
-        providerCode = 'textverified';
-        tvServiceName = String(opt.provider_service || '').trim() || null;
-      }
-    } catch {
-      /* fall back to grizzly */
-    }
+  // Provider cost option is the authority for provider, price, service, country and tier.
+  // Reject missing/stale/fabricated IDs instead of falling back to a cheap Grizzly number.
+  if (!body.optionId || !supabaseConfigured()) {
+    return NextResponse.json({ ok: false, error: 'A live catalog option is required. Refresh prices and try again.' }, { status: 409 });
+  }
+  if (!/^(usa|worldwide)-(economy|standard|fast|premium)$/.test(poolId)) {
+    return NextResponse.json({ ok: false, error: 'Invalid number pool. Refresh the catalog and try again.' }, { status: 400 });
+  }
+  const selectedPoolTier = tierFromPoolId(poolId);
+  if (!selectedPoolTier) {
+    return NextResponse.json({ ok: false, error: 'Invalid number tier. Refresh the catalog and try again.' }, { status: 400 });
+  }
+
+  const optionRows = (await sbSelect(
+    'vn_price_options',
+    `id=eq.${encodeURIComponent(String(body.optionId))}&select=id,service_id,country_id,cost_usd,tier,is_available,provider_code,provider_service&limit=1`,
+  )) as Array<{
+    id: string; service_id: string; country_id: string; cost_usd: number;
+    tier?: string | null; is_available?: boolean | null; provider_code?: string | null; provider_service?: string | null;
+  }>;
+  const selectedOption = optionRows?.[0];
+  if (!selectedOption || selectedOption.is_available === false) {
+    return NextResponse.json({ ok: false, error: 'This number option is no longer available. Refresh prices.' }, { status: 409 });
+  }
+  const providerCostUsd = Number(selectedOption.cost_usd);
+  const actualTier = tierFromCost(providerCostUsd);
+  if (!Number.isFinite(providerCostUsd) || providerCostUsd <= 0 || actualTier !== selectedPoolTier) {
+    return NextResponse.json({ ok: false, error: 'The selected option does not match this tier. Refresh prices and choose a matching option.' }, { status: 409 });
+  }
+  if (country === '12' && selectedPoolTier !== 'economy') {
+    return NextResponse.json({ ok: false, error: 'VoIP numbers are available in Economy only.' }, { status: 409 });
+  }
+  const isUsPool = poolId.startsWith('usa-');
+  const isUsCountry = country === '187' || country === '12';
+  if (isUsPool !== isUsCountry) {
+    return NextResponse.json({ ok: false, error: 'The selected option does not match this pool location.' }, { status: 409 });
+  }
+
+  const selectedServices = (await sbSelect(
+    'vn_services',
+    `code=eq.${encodeURIComponent(service)}&select=id&limit=1`,
+  )) as Array<{ id: string }>;
+  if (!selectedServices[0] || selectedServices[0].id !== selectedOption.service_id) {
+    return NextResponse.json({ ok: false, error: 'The selected option does not match this service. Refresh prices.' }, { status: 409 });
+  }
+  const selectedCountries = (await sbSelect(
+    'vn_countries',
+    `code=eq.${encodeURIComponent(country)}&select=id&limit=1`,
+  )) as Array<{ id: string }>;
+  if (!selectedCountries[0] || selectedCountries[0].id !== selectedOption.country_id) {
+    return NextResponse.json({ ok: false, error: 'The selected option does not match this country. Refresh prices.' }, { status: 409 });
+  }
+
+  const rawProviderCode = String(selectedOption.provider_code || 'grizzly').trim().toLowerCase();
+  const providerCode = rawProviderCode === 'textverified' ? 'textverified' : 'grizzly';
+  const tvServiceName = String(selectedOption.provider_service || '').trim() || null;
+  if (rawProviderCode !== 'textverified' && rawProviderCode !== 'grizzly' && !/^\d+$/.test(rawProviderCode)) {
+    return NextResponse.json({ ok: false, error: 'The selected provider is not supported.' }, { status: 409 });
   }
   if (providerCode === 'textverified' && !textverifiedConfigured()) {
     return NextResponse.json(
@@ -341,8 +373,8 @@ export async function POST(req: NextRequest) {
   else if (apiKeyFromRequest(req).startsWith('vx_api_')) audience = 'api';
 
   const computed = await computeVnCharge({
-    costUsd: maxPriceUsd,
-    optionId: body.optionId || null,
+    costUsd: providerCostUsd,
+    optionId: body.optionId,
     poolId: poolId || null,
     audience,
   });
@@ -383,7 +415,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const maxPrice = Math.round((maxPriceUsd + 0.01) * 100) / 100;
+    const maxPrice = providerCostUsd;
 
     // Either GrizzlySMS activation or a Textverified one-time verification.
     let resultPhone = '';
@@ -391,7 +423,7 @@ export async function POST(req: NextRequest) {
     if (providerCode === 'textverified') {
       const tv = await tvCreateVerification({
         serviceName: tvServiceName || service,
-        maxPriceUsd: maxPriceUsd,
+        maxPriceUsd: providerCostUsd,
       });
       if (!tv.ok || !tv.verification) {
         throw new Error(tv.error || 'Textverified purchase failed');
@@ -401,10 +433,13 @@ export async function POST(req: NextRequest) {
         ? tv.verification.number
         : `+${tv.verification.number}`;
     } else {
+      const providerIds = /^\d+$/.test(rawProviderCode) ? [rawProviderCode] : undefined;
       const result = await grizzly.getNumber({
         service,
         country,
-        maxPrice: maxPrice,
+        minPrice: providerCostUsd,
+        maxPrice,
+        providerIds,
       });
       resultId = String(result.id);
       resultPhone = result.phone.startsWith('+') ? result.phone : `+${result.phone}`;

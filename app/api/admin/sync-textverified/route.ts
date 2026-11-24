@@ -62,9 +62,9 @@ function checkPassword(password: string | undefined) {
 }
 
 function tierFromCost(cost: number): 'economy' | 'standard' | 'fast' | 'premium' {
-  if (cost < 0.5) return 'economy';
-  if (cost <= 1.0) return 'standard';
-  if (cost <= 2.0) return 'fast';
+  if (cost < 0.50) return 'economy';
+  if (cost < 1.00) return 'standard';
+  if (cost < 2.00) return 'fast';
   return 'premium';
 }
 

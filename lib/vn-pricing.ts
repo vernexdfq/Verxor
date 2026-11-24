@@ -44,9 +44,9 @@ export function roundUpToStep(ngn: number, step: number): number {
 
 /** Tier from the provider cost band — never trust a client-supplied tier. */
 export function tierFromCost(costUsd: number): VnTier {
-  if (costUsd < 0.5) return 'economy';
-  if (costUsd <= 1.0) return 'standard';
-  if (costUsd <= 2.0) return 'fast';
+  if (costUsd < 0.50) return 'economy';
+  if (costUsd < 1.00) return 'standard';
+  if (costUsd < 2.00) return 'fast';
   return 'premium';
 }
 
@@ -207,7 +207,7 @@ export async function resolveVnAudience(req: Request): Promise<VnAudience> {
   return 'retail';
 }
 
-/** Server-side charge for a buy. Falls back to pool tier when no option row is found. */
+/** Server-side charge for a buy. The provider cost or catalog row is the tier authority. */
 export async function computeVnCharge(opts: {
   costUsd: number;
   optionId?: string | null;
@@ -236,11 +236,6 @@ export async function computeVnCharge(opts: {
       /* fall back to supplied cost */
     }
   }
-  if (opts.poolId) {
-    const poolTier = tierFromPoolId(opts.poolId);
-    if (poolTier) tier = poolTier;
-  }
-
   const mult = multipliersFor(opts.audience, pricing)[tier];
   return { charge: sellPrice(costUsd, tier, pricing.rate, mult, pricing.roundingStep), tier, costUsd };
 }

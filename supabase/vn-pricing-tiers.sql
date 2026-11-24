@@ -6,7 +6,7 @@
 -- Price = Provider USD cost x base_naira_rate x multiplier(tier, audience)
 -- audience: retail (website customers) | api (user API keys) | panel (child panels + toggled users)
 -- tier is decided by the provider cost band:
---   economy  < 0.50 | standard 0.50-1.00 | fast 1.01-2.00 | premium > 2.00
+--   economy  < 0.50 | standard 0.50-<1.00 | fast 1.00-<2.00 | premium >= 2.00
 -- ============================================================
 
 create table if not exists public.vn_pricing_settings (
