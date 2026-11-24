@@ -1,9 +1,13 @@
-/* Profile / Settings — matches reference mock */
+/* ============================================================
+   Profile — Grade 1 fintech treatment for Verxor.
+   One accent (#0052ff). White grouped cards, hairline dividers,
+   neutral slate surfaces. No pastel chips, no gradients.
+   ============================================================ */
 
 .prof-page {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 18px;
   max-width: 480px;
   margin: 0 auto;
   padding-bottom: 20px;
@@ -25,9 +29,11 @@
 .prof-page-head p {
   margin: 4px 0 0;
   font-size: 13px;
-  color: #475569;
+  color: #64748b;
   font-weight: 500;
 }
+
+/* ---------- Profile hero ---------- */
 
 .prof-hero {
   display: flex;
@@ -35,10 +41,10 @@
   justify-content: space-between;
   gap: 12px;
   padding: 16px;
-  border-radius: 18px;
-  background: linear-gradient(135deg, #0f172a 0%, #1e293b 60%, #0f172a 100%);
-  color: #fff;
-  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.28);
+  border-radius: 16px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
 }
 
 .prof-hero-left {
@@ -55,16 +61,15 @@
 }
 
 .prof-avatar {
-  width: 56px;
-  height: 56px;
+  width: 54px;
+  height: 54px;
   display: grid;
   place-items: center;
   border-radius: 999px;
-  background: linear-gradient(145deg, #3b82f6, #1d4ed8);
+  background: #0052ff;
   color: #fff;
   font-size: 22px;
   font-weight: 800;
-  border: 2px solid rgba(255, 255, 255, 0.25);
 }
 
 .prof-pro-badge {
@@ -74,13 +79,13 @@
   transform: translateX(-50%);
   padding: 1px 7px;
   border-radius: 999px;
-  background: #f59e0b;
-  color: #0f172a;
+  background: #ffffff;
+  color: #0052ff;
   font-size: 9px;
   font-weight: 900;
   letter-spacing: 0.04em;
   line-height: 14px;
-  border: 1.5px solid #0f172a;
+  border: 1.5px solid #0052ff;
 }
 
 .prof-hero-meta {
@@ -94,12 +99,12 @@
   font-size: 16px;
   font-weight: 800;
   letter-spacing: -0.02em;
-  color: #fff;
+  color: #0f172a;
 }
 
 .prof-email {
   font-size: 11px;
-  color: #94a3b8;
+  color: #64748b;
   font-weight: 500;
   white-space: nowrap;
   overflow: hidden;
@@ -120,9 +125,9 @@
   gap: 2px;
   height: 34px;
   padding: 0 12px;
-  border-radius: 999px;
+  border-radius: 10px;
   border: none;
-  background: #2563eb;
+  background: #0052ff;
   color: #fff;
   font-size: 11px;
   font-weight: 800;
@@ -131,8 +136,10 @@
 }
 
 .prof-edit-pill:active {
-  background: #1d4ed8;
+  background: #0043cc;
 }
+
+/* ---------- Refer & Earn ---------- */
 
 .prof-refer {
   display: flex;
@@ -144,7 +151,11 @@
   border-radius: 16px;
   border: 1px solid #e2e8f0;
   background: #fff;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+}
+
+.prof-refer:active {
+  background: #f8fafc;
 }
 
 .prof-refer-icon {
@@ -154,8 +165,8 @@
   display: grid;
   place-items: center;
   border-radius: 12px;
-  background: #ecfdf5;
-  color: #059669;
+  background: #eff6ff;
+  color: #0052ff;
 }
 
 .prof-refer-copy {
@@ -168,50 +179,52 @@
 
 .prof-refer-copy strong {
   font-size: 14px;
-  font-weight: 800;
+  font-weight: 700;
   color: #0f172a;
 }
 
 .prof-refer-copy small {
   font-size: 11px;
-  line-height: 14px;
-  color: #475569;
+  color: #64748b;
   font-weight: 500;
 }
 
 .prof-refer-cta {
   flex: none;
-  height: 34px;
-  padding: 0 16px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 10px;
-  background: #10b981;
+  padding: 7px 14px;
+  border-radius: 999px;
+  background: #0052ff;
   color: #fff;
-  font-size: 13px;
-  font-weight: 700;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
 }
+
+/* ---------- Grouped cards ---------- */
 
 .prof-group {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 
 .prof-group-title {
-  margin: 0 0 4px 2px;
+  margin: 0 0 2px 4px;
   font-size: 11px;
   font-weight: 800;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.08em;
   color: #94a3b8;
   text-transform: uppercase;
 }
 
-.prof-list {
+.prof-card {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+  overflow: hidden;
 }
 
 .prof-item {
@@ -219,37 +232,29 @@
   align-items: center;
   gap: 12px;
   width: 100%;
-  padding: 12px 14px;
+  padding: 13px 14px;
   text-align: left;
-  border-radius: 14px;
-  border: 1px solid #e2e8f0;
-  background: #fff;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+  background: transparent;
+}
+
+.prof-item + .prof-item {
+  border-top: 1px solid #f1f5f9;
 }
 
 .prof-item:active {
   background: #f8fafc;
-  transform: scale(0.99);
 }
 
 .prof-item-icon {
-  width: 40px;
-  height: 40px;
+  width: 38px;
+  height: 38px;
   flex: none;
   display: grid;
   place-items: center;
-  border-radius: 12px;
+  border-radius: 11px;
+  background: #eff6ff;
+  color: #0052ff;
 }
-
-.tone-blue { background: #eff6ff; color: #2563eb; }
-.tone-green { background: #ecfdf5; color: #059669; }
-.tone-indigo { background: #eef2ff; color: #4f46e5; }
-.tone-slate { background: #f1f5f9; color: #475569; }
-.tone-violet { background: #f5f3ff; color: #7c3aed; }
-.tone-amber { background: #fffbeb; color: #d97706; }
-.tone-sky { background: #f0f9ff; color: #0284c7; }
-.tone-teal { background: #f0fdfa; color: #0d9488; }
-.tone-rose { background: #fff1f2; color: #e11d48; }
 
 .prof-item-copy {
   flex: 1;
@@ -276,25 +281,33 @@
   color: #cbd5e1;
 }
 
+.prof-item:hover .prof-item-arrow,
+.prof-item:active .prof-item-arrow {
+  color: #0052ff;
+}
+
+/* ---------- Log out ---------- */
+
 .prof-logout {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
   width: 100%;
-  margin-top: 4px;
+  margin-top: 2px;
   padding: 14px;
-  border-radius: 14px;
-  border: 1px solid #fecdd3;
-  background: #fff1f2;
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
   color: #e11d48;
   font-size: 14px;
   font-weight: 700;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
 }
 
 .prof-logout:active {
-  background: #ffe4e6;
-  transform: scale(0.98);
+  background: #fef2f3;
+  transform: scale(0.99);
 }
 
 @media (max-width: 360px) {
