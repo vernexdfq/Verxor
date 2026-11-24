@@ -531,6 +531,10 @@ export function AuthFlow({
             pin: signupPin,
             phone: e164,
             phoneCountry: country.iso,
+            refCode:
+              (typeof window !== 'undefined' &&
+                sessionStorage.getItem('verxor-inbound-ref')) ||
+              undefined,
           }),
         });
         const body = await res.json().catch(() => ({}));

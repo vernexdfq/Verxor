@@ -12,6 +12,7 @@ import {
   User,
 } from 'lucide-react';
 import type { AuthSession } from './auth/AuthFlow';
+import { loadSessionTokens } from './auth/session-unlock';
 import './edit-profile-page.css';
 
 const SESSION_KEY = 'verxor-auth-session';
@@ -142,13 +143,34 @@ export function EditProfilePage({
     const nextName = fullName.trim();
     const nextUser = username.trim().toLowerCase();
 
-    if (isUsernameTaken(nextUser, session.contact)) {
-      setSaving(false);
-      setError('That username is already taken. Try another.');
-      return;
+    let serverErr: string | null = null;
+    try {
+      const token = loadSessionTokens()?.access_token || '';
+      const res = await fetch('/api/me/profile', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ fullName: nextName, username: nextUser }),
+      });
+      if (!res.ok) {
+        const body = (await res.json().catch(() => ({}))) as { error?: string };
+        serverErr =
+          body.error ||
+          (res.status === 409
+            ? 'That username is already taken. Try another.'
+            : 'Could not save. Please try again.');
+      }
+    } catch {
+      serverErr = 'Network error. Check your connection and try again.';
     }
 
-    await new Promise((r) => setTimeout(r, 450));
+    if (serverErr) {
+      setSaving(false);
+      setError(serverErr);
+      return;
+    }
 
     try {
       claimUsername(nextUser, session.contact, initialUser);
