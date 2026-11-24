@@ -1031,7 +1031,12 @@ export function VirtualNumbersPage({
                 setStep('orders');
                 try { window.dispatchEvent(new Event('verxor:balance-refresh')); } catch {}
               } catch (e) {
-                setCopyToast(e instanceof Error ? e.message : 'Purchase failed');
+                const raw = e instanceof Error ? e.message : 'Provider get number failed';
+                const sanitized = raw
+                  .replace(/grizzly\s*(sms)?/gi, 'provider')
+                  .replace(/textverified/gi, 'provider')
+                  .replace(/getnumber/gi, 'get number');
+                setCopyToast(sanitized);
               } finally {
                 setBuying(false);
               }

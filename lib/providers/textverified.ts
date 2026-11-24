@@ -51,7 +51,7 @@ async function tvAuthToken(): Promise<string> {
     process.env.TEXTVERIFIED_API_USERNAME ||
     ''
   ).trim();
-  if (!apiKey || !username) throw new Error('Textverified not configured');
+  if (!apiKey || !username) throw new Error('Verification provider not configured');
 
   if (tvTokenCache && tvTokenCache.expiresAt > Date.now() + 30_000) {
     return tvTokenCache.token;
@@ -63,12 +63,12 @@ async function tvAuthToken(): Promise<string> {
   });
   if (!res.ok) {
     const text = await res.text().catch(() => '');
-    tvLastErrorValue = `Textverified auth failed: HTTP ${res.status}: ${text.slice(0, 180)}`;
+    tvLastErrorValue = `Provider auth failed: HTTP ${res.status}: ${text.slice(0, 180)}`;
     throw new Error(tvLastErrorValue);
   }
   const data = (await res.json()) as { token?: string; expiresAt?: string };
   if (!data.token) {
-    tvLastErrorValue = 'Textverified auth returned no token';
+    tvLastErrorValue = 'Provider auth returned no token';
     throw new Error(tvLastErrorValue);
   }
   const expiresAt = data.expiresAt ? Date.parse(data.expiresAt) : Date.now() + 55 * 60_000;
@@ -83,7 +83,7 @@ async function tvRequest<T = unknown>(
   init: { method?: string; body?: unknown } = {},
 ): Promise<{ ok: boolean; status?: number; error?: string; data?: T }> {
   if (!textverifiedConfigured()) {
-    return { ok: false, error: 'Textverified provider not configured' };
+    return { ok: false, error: 'Provider is not configured' };
   }
   try {
     const token = await tvAuthToken();
@@ -98,7 +98,7 @@ async function tvRequest<T = unknown>(
     });
     const raw = await res.text().catch(() => '');
     if (!res.ok) {
-      tvLastErrorValue = `Textverified HTTP ${res.status}: ${raw.slice(0, 180)}`;
+      tvLastErrorValue = `Provider HTTP ${res.status}: ${raw.slice(0, 180)}`;
       console.error(`[textverified] ${path}: HTTP ${res.status}: ${raw.slice(0, 180)}`);
       return { ok: false, status: res.status, error: tvLastErrorValue };
     }
@@ -107,7 +107,7 @@ async function tvRequest<T = unknown>(
     return { ok: true, data: data as T };
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'unknown error';
-    tvLastErrorValue = `Textverified network error: ${msg}`;
+    tvLastErrorValue = `Provider network error: ${msg}`;
     console.error(`[textverified] ${path}: ${msg}`);
     return { ok: false, error: tvLastErrorValue };
   }

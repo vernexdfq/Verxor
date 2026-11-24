@@ -364,13 +364,13 @@ export async function POST(req: NextRequest) {
   }
   if (providerCode === 'textverified' && !textverifiedConfigured()) {
     return NextResponse.json(
-      { ok: false, error: 'Textverified provider is not configured' },
+      { ok: false, error: 'SMS service is temporarily unavailable' },
       { status: 503 },
     );
   }
   if (providerCode === 'grizzly' && !grizzly.isConfigured()) {
     return NextResponse.json(
-      { ok: false, error: 'Grizzly SMS is not configured' },
+      { ok: false, error: 'SMS service is temporarily unavailable' },
       { status: 503 },
     );
   }
@@ -430,9 +430,19 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const maxPrice = providerCostUsd;
+    // Tier-bounded price limits to guarantee no VoIP/cheapest leakage while preventing NO_NUMBERS
+    const tierMin: number | undefined =
+      selectedPoolTier === 'standard' ? 0.50 :
+      selectedPoolTier === 'fast' ? 1.00 :
+      selectedPoolTier === 'premium' ? 2.00 : undefined;
 
-    // Either GrizzlySMS activation or a Textverified one-time verification.
+    const tierMax: number =
+      selectedPoolTier === 'economy' ? Math.min(0.49, Math.max(providerCostUsd, 0.45)) :
+      selectedPoolTier === 'standard' ? Math.min(0.99, Math.max(providerCostUsd, 0.85)) :
+      selectedPoolTier === 'fast' ? Math.min(1.99, Math.max(providerCostUsd, 1.50)) :
+      Math.max(providerCostUsd, 2.50);
+
+    // Either SMS activation or a Textverified one-time verification.
     let resultPhone = '';
     let resultId = '';
     if (providerCode === 'textverified') {
@@ -441,7 +451,7 @@ export async function POST(req: NextRequest) {
         maxPriceUsd: providerCostUsd,
       });
       if (!tv.ok || !tv.verification) {
-        throw new Error(tv.error || 'Textverified purchase failed');
+        throw new Error(tv.error || 'Provider get number failed');
       }
       resultId = tv.verification.verificationId;
       resultPhone = tv.verification.number.startsWith('+')
@@ -449,17 +459,59 @@ export async function POST(req: NextRequest) {
         : `+${tv.verification.number}`;
     } else {
       const providerIds = /^\d+$/.test(rawProviderCode) ? [rawProviderCode] : undefined;
-      const result = await grizzly.getNumber({
-        service,
-        country,
-        minPrice: providerCostUsd,
-        maxPrice,
-        providerIds,
-      });
+      let result: { id: string; phone: string; raw?: string } | null = null;
+      try {
+        result = await grizzly.getNumber({
+          service,
+          country,
+          minPrice: tierMin,
+          maxPrice: tierMax,
+          providerIds,
+        });
+      } catch (err: any) {
+        const errMsg = String(err?.message || '');
+        // If the specific supplier ID has no stock or failed, fallback to any supplier in this tier
+        if (providerIds && (errMsg.includes('NO_NUMBERS') || errMsg.includes('NO_NUMBER'))) {
+          try {
+            result = await grizzly.getNumber({
+              service,
+              country,
+              minPrice: tierMin,
+              maxPrice: tierMax,
+              providerIds: undefined,
+            });
+          } catch (retryErr: any) {
+            // For USA Economy, try country 12 (VoIP) if 187 was out of numbers
+            if (isUsPool && selectedPoolTier === 'economy' && country === '187' && String(retryErr?.message || '').includes('NO_NUMBERS')) {
+              result = await grizzly.getNumber({
+                service,
+                country: '12',
+                minPrice: tierMin,
+                maxPrice: tierMax,
+                providerIds: undefined,
+              });
+            } else {
+              throw retryErr;
+            }
+          }
+        } else if (isUsPool && selectedPoolTier === 'economy' && country === '187' && errMsg.includes('NO_NUMBERS')) {
+          result = await grizzly.getNumber({
+            service,
+            country: '12',
+            minPrice: tierMin,
+            maxPrice: tierMax,
+            providerIds: undefined,
+          });
+        } else {
+          throw err;
+        }
+      }
+      if (!result) {
+        throw new Error('Provider get number failed: NO_NUMBERS');
+      }
       resultId = String(result.id);
       resultPhone = result.phone.startsWith('+') ? result.phone : `+${result.phone}`;
     }
-
     const phone = resultPhone;
 
     let savedId: string | null = null;
@@ -545,7 +597,11 @@ export async function POST(req: NextRequest) {
         await creditRetailWallet(userId, priceNgn, `refund-${debitRef}`);
       }
     }
-    const message = err instanceof Error ? err.message : 'Purchase failed';
+    const rawMessage = err instanceof Error ? err.message : 'Provider get number failed';
+    const message = rawMessage
+      .replace(/grizzly\s*(sms)?/gi, 'provider')
+      .replace(/textverified/gi, 'provider')
+      .replace(/getnumber/gi, 'get number');
     return NextResponse.json({ ok: false, error: message }, { status: 503 });
   }
 }

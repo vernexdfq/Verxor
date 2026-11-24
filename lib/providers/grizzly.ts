@@ -7,7 +7,7 @@ const BASE = 'https://api.grizzlysms.com/stubs/handler_api.php';
 
 function apiKey(): string {
   const key = process.env.GRIZZLYSMS_API_KEY;
-  if (!key) throw new Error('GRIZZLYSMS_API_KEY is not configured');
+  if (!key) throw new Error('SMS service is not configured');
   return key;
 }
 
@@ -56,7 +56,7 @@ export async function getNumber(opts: {
   const text = await grizzly(params);
   // ACCESS_NUMBER:id:phone
   const m = text.match(/ACCESS_NUMBER:(\d+):(\d+)/i);
-  if (!m) throw new Error(`Grizzly getNumber failed: ${text.slice(0, 120)}`);
+  if (!m) throw new Error(`Provider get number failed: ${text.slice(0, 120)}`);
   return { id: m[1], phone: m[2], raw: text };
 }
 
