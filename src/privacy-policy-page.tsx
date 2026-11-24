@@ -30,7 +30,7 @@ const SECTIONS: {
     title: 'Information We Collect',
     icon: 'user',
     body:
-      'We may collect personal details such as your full name, email address, phone number, payment information, and usage data when you create an account or use our services. Additional verification details may be requested for security and compliance purposes.',
+      'When you register, we collect your full name, email address, phone number, username, and referral details (who invited you), alongside an encrypted password and PIN. As you use the platform, we store transaction and wallet records, deposit history, order logs, API request metadata, and audit trails. When you apply for a USD virtual card, we additionally collect your Bank Verification Number (BVN), National Identification Number (NIN), date of birth, and selfie/ID verification, solely to satisfy licensed card-issuing regulatory requirements. To display your purchased services, we temporarily hold SMS and email OTP payloads, rental call/text metadata, and eSIM ICCID activation records.',
   },
   {
     id: 'use',
@@ -38,7 +38,7 @@ const SECTIONS: {
     title: 'How We Use Your Information',
     icon: 'settings',
     body:
-      'Your information helps us process transactions, verify identity (KYC), deliver digital services, improve user experience, and enhance platform security. We may also use anonymized data for service optimization and analytics.',
+      'Your information helps us process instant orders across virtual numbers and long-term number rentals, eSIMs, airtime and data top-ups, electricity and cable TV payments, exam pins, betting wallet funding, gift card trading, game boosting, email accounts, and virtual cards. We also use it to verify identity, prevent fraud, detect duplicate or abusive accounts, enforce API rate limits, and credit referral rewards to the wallet of the user who invited you. Finally, we use it to send transaction receipts, security alerts, and support responses.',
   },
   {
     id: 'protect',
@@ -46,7 +46,7 @@ const SECTIONS: {
     title: 'Data Protection',
     icon: 'shield',
     body:
-      'All sensitive data is encrypted, stored securely, and handled according to best security practices. Verxor never sells or discloses your personal information to third parties, except when required by law or for completing secure transactions.',
+      'All sensitive data is encrypted in transit and at rest, stored securely, and handled according to best security practices. Verxor never stores your full virtual card number (PAN), CVV, or bank login passwords: sensitive payment processing and card vaulting are handled strictly by PCI-DSS compliant financial infrastructure partners, and we keep only masked card identifiers (last 4 digits) for your dashboard display. We never sell or disclose your personal information, except when legally compelled by a valid court order or fraud investigation.',
   },
   {
     id: 'cookies',
@@ -54,7 +54,7 @@ const SECTIONS: {
     title: 'Cookies',
     icon: 'cookie',
     body:
-      'Our platform uses cookies to remember your preferences and improve performance. You can choose to disable cookies in your browser settings, though some features may not function properly without them.',
+      'Our platform uses cookies and local storage to keep you signed in, remember your preferences, attribute referral sign-ups to the user who invited you, and improve performance. You can disable cookies in your browser settings, though sign-in, wallet actions, and some features may not function properly without them.',
   },
   {
     id: 'rights',
@@ -62,7 +62,7 @@ const SECTIONS: {
     title: 'Your Rights',
     icon: 'rights',
     body:
-      'You have the right to access, modify, or delete your personal data at any time. For data deletion or account closure, please reach out to our support team with your registered email address.',
+      'Under the Nigeria Data Protection Act (NDPA), you may request access to, correction of, or deletion of your account data at any time by contacting support@verxor.com with your registered email address. Temporary SMS and email OTP contents are purged or securely archived once your session completes. Financial, KYC, and payment audit records are retained for the period required by law (typically 5 years) before deletion.',
   },
   {
     id: 'third',
@@ -70,7 +70,7 @@ const SECTIONS: {
     title: 'Third-Party Services',
     icon: 'plug',
     body:
-      'Verxor integrates with third-party APIs and payment gateways to deliver our services (such as airtime, data, eSIM activation, virtual numbers, and betting wallets). These providers have their own privacy policies, and we encourage you to review them before use.',
+      'We do not sell, rent, or trade your personal data to advertisers or marketers. We share minimal, encrypted technical data strictly with licensed payment processors and banking partners (to process Naira deposits and USD virtual cards), and with telecom, cloud communication, and digital fulfillment providers (strictly to route your requested OTPs, number rentals, eSIMs, and utility top-ups). These providers have their own privacy policies, and we encourage you to review them before use.',
   },
   {
     id: 'updates',
@@ -137,7 +137,7 @@ export function PrivacyPolicyPage({ onBack }: { onBack: () => void }) {
           <div className="pp-hero-meta">
             <span>
               <FileText size={13} strokeWidth={2} />
-              Last updated: October 3, 2026
+              Last updated: November 24, 2026
             </span>
             <span>
               <Lock size={13} strokeWidth={2} />
@@ -154,7 +154,11 @@ export function PrivacyPolicyPage({ onBack }: { onBack: () => void }) {
           <p>
             At <strong>Verxor</strong>, your privacy and trust are our top priorities. This policy describes how we
             collect, use, and protect your personal data when you use our{' '}
-            <strong>Virtual Numbers, eSIMs, VTU services, Betting Wallets, or Boosting Services</strong>.
+            <strong>
+              Virtual Numbers, Long-Term Number Rentals, eSIMs, VTU services, Betting Wallets, Gift Cards,
+              Exam Pins, Boosting Services, Email Accounts, Virtual Cards, or the Referral Program
+            </strong>
+            , in compliance with the Nigeria Data Protection Act (NDPA).
           </p>
         </section>
 
