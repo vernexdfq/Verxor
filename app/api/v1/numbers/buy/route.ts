@@ -288,11 +288,6 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Provider cost option is the authority for provider, price, service, country and tier.
-  // Reject missing/stale/fabricated IDs instead of falling back to a cheap Grizzly number.
-  if (!body.optionId || !supabaseConfigured()) {
-    return NextResponse.json({ ok: false, error: 'A live catalog option is required. Refresh prices and try again.' }, { status: 409 });
-  }
   if (!/^(usa|worldwide)-(economy|standard|fast|premium)$/.test(poolId)) {
     return NextResponse.json({ ok: false, error: 'Invalid number pool. Refresh the catalog and try again.' }, { status: 400 });
   }
@@ -301,9 +296,29 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: 'Invalid number tier. Refresh the catalog and try again.' }, { status: 400 });
   }
 
+  let optionId = body.optionId ? String(body.optionId) : null;
+  if (!optionId && supabaseConfigured()) {
+    // Resilient fallback for child panels: find active catalog option matching service, country and pool tier
+    const svcs = (await sbSelect('vn_services', `code=eq.${encodeURIComponent(service)}&select=id&limit=1`)) as Array<{ id: string }>;
+    const cnts = (await sbSelect('vn_countries', `code=eq.${encodeURIComponent(country)}&select=id&limit=1`)) as Array<{ id: string }>;
+    if (svcs[0] && cnts[0]) {
+      const candidates = (await sbSelect(
+        'vn_price_options',
+        `service_id=eq.${encodeURIComponent(svcs[0].id)}&country_id=eq.${encodeURIComponent(cnts[0].id)}&is_available=eq.true&order=cost_usd.asc&limit=20`,
+      )) as Array<{ id: string; cost_usd: number }>;
+      const matching = candidates?.find((c) => tierFromCost(Number(c.cost_usd)) === selectedPoolTier);
+      if (matching) optionId = matching.id;
+    }
+  }
+
+  // Provider cost option is the authority for provider, price, service, country and tier.
+  if (!optionId || !supabaseConfigured()) {
+    return NextResponse.json({ ok: false, error: 'A live catalog option is required. Refresh prices and try again.' }, { status: 409 });
+  }
+
   const optionRows = (await sbSelect(
     'vn_price_options',
-    `id=eq.${encodeURIComponent(String(body.optionId))}&select=id,service_id,country_id,cost_usd,tier,is_available,provider_code,provider_service&limit=1`,
+    `id=eq.${encodeURIComponent(String(optionId))}&select=id,service_id,country_id,cost_usd,tier,is_available,provider_code,provider_service&limit=1`,
   )) as Array<{
     id: string; service_id: string; country_id: string; cost_usd: number;
     tier?: string | null; is_available?: boolean | null; provider_code?: string | null; provider_service?: string | null;

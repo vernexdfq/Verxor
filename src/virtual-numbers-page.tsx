@@ -518,7 +518,7 @@ export function VirtualNumbersPage({
       const data = await res.json();
       const options: PriceOption[] = Array.isArray(data.options)
         ? data.options
-            .filter((o: any) => o.optionId && Number(o.priceUsd) > 0 && Number(o.priceNgn) > 0 && Number(o.stock) > 0)
+            .filter((o: any) => o.optionId && Number(o.priceNgn) > 0 && Number(o.stock) > 0)
             .map((o: any) => ({
               id: String(o.optionId || o.id),
               provider: String(o.provider || 'grizzly').toLowerCase(),
@@ -946,7 +946,7 @@ export function VirtualNumbersPage({
             {pricesLoading && <div className="vn-empty">Loading prices…</div>}
             {!pricesLoading && priceSheet.options.length === 0 && (
               <div className="vn-empty">
-                {pricesError ? 'Provider prices could not be loaded. Close and try again.' : 'No stock for this route right now.'}
+                {pricesError ? 'Prices could not be loaded. Close and try again.' : 'No stock for this route right now.'}
               </div>
             )}
             <ul className="vn-price-list">
@@ -955,7 +955,7 @@ export function VirtualNumbersPage({
                   <button type="button" className="vn-price-row" onClick={() => openConfirm(opt)}>
                     <strong>{formatNgn(opt.priceNgn)}</strong>
                     <small>
-                      {opt.provider === 'textverified' ? 'Textverified' : 'GrizzlySMS'} · {formatUsd(opt.priceUsd)} provider rate · {opt.stock} available
+                      {opt.stock.toLocaleString()} available
                     </small>
                   </button>
                 </li>

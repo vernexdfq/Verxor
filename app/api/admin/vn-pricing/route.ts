@@ -138,13 +138,15 @@ export async function PUT(req: NextRequest) {
     return NextResponse.json({ ok: false, error: 'Invalid JSON' }, { status: 400 });
   }
 
-  const clean = (m: Mults | undefined): Mults | null => {
-    if (!m) return null;
+  const clean = (m: unknown): Mults | null | undefined => {
+    if (m === undefined) return undefined;
+    if (!m || typeof m !== 'object') return null;
+    const obj = m as Record<string, unknown>;
     const out: Mults = {
-      economy: Number(m.economy),
-      standard: Number(m.standard),
-      fast: Number(m.fast),
-      premium: Number(m.premium),
+      economy: Number(obj.economy),
+      standard: Number(obj.standard),
+      fast: Number(obj.fast),
+      premium: Number(obj.premium),
     };
     for (const v of Object.values(out)) {
       if (!Number.isFinite(v) || v < 1 || v > 50) return null;
@@ -171,18 +173,18 @@ export async function PUT(req: NextRequest) {
   const next = {
     base_naira_rate: Number.isFinite(rate) && rate > 0 ? rate : current.rate,
     rounding_step_ngn: Number.isInteger(step) && step >= 1 ? step : current.step,
-    retail_economy: retail ? retail.economy : current.retail.economy,
-    retail_standard: retail ? retail.standard : current.retail.standard,
-    retail_fast: retail ? retail.fast : current.retail.fast,
-    retail_premium: retail ? retail.premium : current.retail.premium,
-    api_economy: api ? api.economy : current.api.economy,
-    api_standard: api ? api.standard : current.api.standard,
-    api_fast: api ? api.fast : current.api.fast,
-    api_premium: api ? api.premium : current.api.premium,
-    panel_economy: panel ? panel.economy : current.panel.economy,
-    panel_standard: panel ? panel.standard : current.panel.standard,
-    panel_fast: panel ? panel.fast : current.panel.fast,
-    panel_premium: panel ? panel.premium : current.panel.premium,
+    retail_economy: retail !== undefined ? retail.economy : current.retail.economy,
+    retail_standard: retail !== undefined ? retail.standard : current.retail.standard,
+    retail_fast: retail !== undefined ? retail.fast : current.retail.fast,
+    retail_premium: retail !== undefined ? retail.premium : current.retail.premium,
+    api_economy: api !== undefined ? api.economy : current.api.economy,
+    api_standard: api !== undefined ? api.standard : current.api.standard,
+    api_fast: api !== undefined ? api.fast : current.api.fast,
+    api_premium: api !== undefined ? api.premium : current.api.premium,
+    panel_economy: panel !== undefined ? panel.economy : current.panel.economy,
+    panel_standard: panel !== undefined ? panel.standard : current.panel.standard,
+    panel_fast: panel !== undefined ? panel.fast : current.panel.fast,
+    panel_premium: panel !== undefined ? panel.premium : current.panel.premium,
     updated_at: new Date().toISOString(),
   };
 

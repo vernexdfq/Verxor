@@ -638,7 +638,7 @@ export async function GET(req: NextRequest) {
         .filter((o) => o.stock > 0);
       // Preserve each provider option. Collapsing on sell price could hide a
       // premium Textverified route behind a same-price low-stock Grizzly row.
-      const unique = options.sort((a, b) => a.priceUsd - b.priceUsd);
+      const unique = options.sort((a, b) => a.priceNgn - b.priceNgn);
       const res = NextResponse.json({
         ok: true,
         mode: 'prices',
@@ -647,7 +647,14 @@ export async function GET(req: NextRequest) {
         tier,
         country: countryParam || (region === 'usa' ? 'US' : null),
         count: unique.length,
-        options: unique.map((o, i) => ({ ...o, label: `${String(o.provider || 'grizzly').toUpperCase()} · Route ${i + 1}` })),
+        options: unique.map((o, i) => ({
+          id: o.id,
+          optionId: o.optionId,
+          label: `Route ${i + 1}`,
+          priceNgn: o.priceNgn,
+          stock: o.stock,
+          grizzlyCountry: o.grizzlyCountry,
+        })),
       });
       res.headers.set('Cache-Control', audience === 'retail' ? 'public, s-maxage=30, stale-while-revalidate=60' : 'no-store');
       return res;
