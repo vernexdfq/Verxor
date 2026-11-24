@@ -657,7 +657,7 @@ export function AuthFlow({
       if (res.ok) {
         setForgotStage('code');
         setOtpCode('');
-        setNotice(`We sent a 6-digit code to ${body.maskedEmail || (em.includes('@') ? maskEmail(em) : 'your email')}. It expires in 10 minutes.`);
+        setNotice(`We sent a 6-digit code to ${body.maskedEmail || (em.includes('@') ? maskEmail(em) : 'your email')}. It expires in 15 minutes.`);
         return;
       }
       setError(body.error || 'Could not send the code');

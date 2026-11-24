@@ -4,6 +4,7 @@ export type SendEmailPayload = {
   subject: string;
   html: string;
   text?: string;
+  from?: string;
 };
 
 export type SendEmailResult =
@@ -41,6 +42,8 @@ export async function sendEmail(payload: SendEmailPayload): Promise<SendEmailRes
     return { ok: false, error: 'Invalid email content' };
   }
 
+  const fromSender = payload.from || process.env.RESEND_FROM_EMAIL || DEFAULT_FROM;
+
   try {
     const response = await fetch('https://api.resend.com/emails', {
       method: 'POST',
@@ -49,13 +52,13 @@ export async function sendEmail(payload: SendEmailPayload): Promise<SendEmailRes
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: process.env.RESEND_FROM_EMAIL || DEFAULT_FROM,
+        from: fromSender,
         to: validRecipients,
         subject: payload.subject,
         html: payload.html,
         ...(payload.text ? { text: payload.text } : {}),
       }),
-      signal: AbortSignal.timeout(5_000),
+      signal: AbortSignal.timeout(8_000),
     });
 
     const result = (await response.json().catch(() => ({}))) as {
