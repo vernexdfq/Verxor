@@ -54,6 +54,7 @@ const BANK_PROVIDERS: FundingProvider[] = [
 ];
 
 const CRYPTO_PRESETS = [10, 20, 30, 50, 100];
+const NGN_PRESETS = [5000, 10000, 20000, 50000];
 
 async function resolveAuthContext(session?: AuthSession | null) {
   const profile = loadSessionProfile();
@@ -430,6 +431,8 @@ export function FundPage({ session }: FundPageProps) {
     }
   };
 
+  const nairaAmount = Number(String(amount).replace(/[^0-9.]/g, '')) || 0;
+
   return (
     <div className="fund-page">
       <header className="fund-head">
@@ -438,13 +441,15 @@ export function FundPage({ session }: FundPageProps) {
       </header>
 
       <section className="fund-balance" aria-label="Wallet balance">
-        <span className="fund-balance-label">WALLET BALANCE</span>
-        <strong className="fund-balance-amount">
-          {balance.symbol}
-          {balance.amount}
-        </strong>
+        <div className="fund-balance-left">
+          <span className="fund-balance-label">AVAILABLE BALANCE</span>
+          <strong className="fund-balance-amount">
+            {balance.symbol}
+            {balance.amount}
+          </strong>
+        </div>
         <span className="fund-balance-ok">
-          <CheckCircle2 size={14} strokeWidth={2.5} /> Available for transactions
+          <CheckCircle2 size={13} strokeWidth={2.5} /> Active
         </span>
       </section>
 
@@ -505,18 +510,28 @@ export function FundPage({ session }: FundPageProps) {
           </div>
 
           <div className="fund-crypto-preview-card">
-            <div className="fund-crypto-preview-label">Wallet credit after successful payment</div>
-            <div className="fund-crypto-preview-amount">
-              {cryptoQuoteLoading ? 'Calculating…' : cryptoPreviewNgn === null ? '—' : `₦${cryptoPreviewNgn.toLocaleString()}`}
+            <div className="fund-summary-row">
+              <span className="fund-summary-label">Wallet credit after payment</span>
+              <span className="fund-summary-value">
+                {cryptoQuoteLoading
+                  ? 'Calculating…'
+                  : cryptoPreviewNgn === null
+                    ? '—'
+                    : `₦${cryptoPreviewNgn.toLocaleString()}`}
+              </span>
             </div>
-            <div className="fund-crypto-preview-sub">
-              Pay ${Number(cryptoUsd) > 0 ? Number(cryptoUsd).toFixed(2) : '0.00'} in crypto at checkout
+            <div className="fund-summary-divider" />
+            <div className="fund-summary-row">
+              <span className="fund-summary-label">You pay at checkout</span>
+              <span className="fund-summary-value fund-summary-value--accent">
+                ${Number(cryptoUsd) > 0 ? Number(cryptoUsd).toFixed(2) : '0.00'}
+              </span>
             </div>
           </div>
 
           <button
             type="button"
-            className="fund-crypto-submit-btn"
+            className="fund-generate fund-generate--ready"
             disabled={cryptoLoading || cryptoQuoteLoading || !cryptoPreviewNgn || cryptoPreviewNgn <= 0}
             onClick={() => void startCrypto()}
           >
@@ -543,11 +558,9 @@ export function FundPage({ session }: FundPageProps) {
         </section>
       ) : (
         <section className="fund-transfer" aria-label="Fund via bank transfer">
-          <h2 className="fund-section-title">
-            <Landmark size={18} strokeWidth={2.2} /> Fund via Bank Transfer
-          </h2>
+          <p className="fund-section-label">Choose where to transfer from</p>
 
-          <div className="fund-tabs" role="tablist" aria-label="Funding banks">
+          <div className="fund-provider-grid" role="tablist" aria-label="Funding banks">
             {BANK_PROVIDERS.filter((p) => !p.hidden || p.id === activeId).map((p) => (
               <button
                 key={p.id}
@@ -557,8 +570,10 @@ export function FundPage({ session }: FundPageProps) {
                 className={activeId === p.id ? 'active' : ''}
                 onClick={() => setActiveId(p.id)}
               >
-                <span className="fund-tab-dot" aria-hidden />
-                {p.label}
+                <span className="fund-provider-name">{p.label}</span>
+                {p.kind === 'static' ? (
+                  <span className="fund-provider-sub">Permanent account</span>
+                ) : null}
               </button>
             ))}
           </div>
@@ -567,7 +582,9 @@ export function FundPage({ session }: FundPageProps) {
             <p>
               {active.kind === 'static'
                 ? 'Your permanent account. Transfer anytime — your wallet is credited automatically once the transfer is confirmed.'
-                : 'Enter an amount and we will show you the exact amount to transfer before you continue.'}
+                : quote
+                  ? `Send exactly ₦${quote.amountToSend.toLocaleString()} — ₦${quote.walletAmount.toLocaleString()} lands in your wallet.`
+                  : 'Enter an amount to see the exact transfer total before you continue.'}
             </p>
           </div>
 
@@ -598,7 +615,7 @@ export function FundPage({ session }: FundPageProps) {
                       ₦{Number(shownAccount.amountToSend).toLocaleString()}
                     </strong>
                     {shownAccount.feeNote ? (
-                      <span style={{ fontSize: 11, color: '#64748b', fontWeight: 500 }}>
+                      <span className="fund-row-note">
                         {shownAccount.feeNote}
                         {shownAccount.amountNgn != null
                           ? ` · Wallet credit ₦${Number(shownAccount.amountNgn).toLocaleString()}`
@@ -677,14 +694,7 @@ export function FundPage({ session }: FundPageProps) {
                 </button>
               </div>
 
-              <div
-                style={{
-                  padding: '10px 14px 4px',
-                  fontSize: 13,
-                  color: '#475569',
-                  lineHeight: 1.45,
-                }}
-              >
+              <p className="fund-account-note">
                 {shownAccount.accountType === 'static' ? (
                   <>
                     This account is yours alone and <strong>never expires</strong>. A{' '}
@@ -703,12 +713,11 @@ export function FundPage({ session }: FundPageProps) {
                     exactly. Your wallet is credited after the bank confirms.
                   </>
                 )}
-              </div>
-              <div style={{ padding: '12px 14px 14px' }}>
+              </p>
+              <div className="fund-account-actions">
                 <button
                   type="button"
                   className="fund-generate fund-generate--ready"
-                  style={{ maxWidth: '100%' }}
                   onClick={() => {
                     setLiveAccount(null);
                     setGenError('');
@@ -719,63 +728,57 @@ export function FundPage({ session }: FundPageProps) {
               </div>
             </div>
           ) : (
-            <div className="fund-empty-va">
-              <div className="fund-empty-icon">
-                <Wallet size={28} strokeWidth={1.8} />
-              </div>
-              <strong>
-                {active.kind === 'static' ? `Your ${active.label} account` : `Fund via ${active.label}`}
-              </strong>
-              <p>
-                {active.kind === 'static'
-                  ? 'This account is yours alone and never expires.'
-                  : 'Enter the amount you want in your wallet. We will show you the exact amount to transfer.'}
-              </p>
-
+            <div className="fund-va-setup">
               {active.kind === 'dynamic' ? (
-                <label
-                  className="fund-amount-label"
-                  style={{ display: 'block', width: '100%', marginBottom: 10, textAlign: 'left' }}
-                >
-                  <span style={{ fontSize: 12, fontWeight: 600, color: '#64748B' }}>
-                    WALLET AMOUNT (₦)
-                  </span>
-                  <input
-                    type="number"
-                    min={1}
-                    step={1}
-                    value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
-                    placeholder="e.g. 500"
-                    style={{
-                      width: '100%',
-                      marginTop: 6,
-                      padding: '12px 14px',
-                      borderRadius: 12,
-                      border: '1px solid #E2E8F0',
-                      fontSize: 16,
-                      fontWeight: 600,
-                    }}
-                  />
-                </label>
-              ) : null}
+                <div className="fund-amount-card">
+                  <div className="fund-amount-head">
+                    <span className="fund-amount-label">Amount to add</span>
+                    <span className="fund-amount-min">Min ₦1</span>
+                  </div>
+                  <div className="fund-amount-input-wrap">
+                    <span className="fund-amount-curr">₦</span>
+                    <input
+                      type="number"
+                      min={1}
+                      step={1}
+                      value={amount}
+                      onChange={(e) => setAmount(e.target.value)}
+                      placeholder="0"
+                      className="fund-amount-input"
+                      aria-label="Wallet amount in naira"
+                    />
+                  </div>
+                  <div className="fund-amount-presets" role="group" aria-label="Quick amounts">
+                    {NGN_PRESETS.map((preset) => (
+                      <button
+                        key={preset}
+                        type="button"
+                        className={`fund-amount-pill ${Number(amount) === preset ? 'active' : ''}`}
+                        onClick={() => setAmount(String(preset))}
+                      >
+                        ₦{preset.toLocaleString()}
+                      </button>
+                    ))}
+                  </div>
 
-              {active.kind === 'dynamic' && quote ? (
-                <div className="fund-quote">
-                  <span className="fund-quote-label">AMOUNT TO SEND</span>
-                  <strong className="fund-quote-amount">
-                    ₦{quote.amountToSend.toLocaleString()}
-                  </strong>
-                  <small>
-                    Includes processing fee · Wallet credit ₦{quote.walletAmount.toLocaleString()}
-                  </small>
+                  {quote ? (
+                    <div className="fund-quote">
+                      <span className="fund-quote-label">AMOUNT TO SEND</span>
+                      <strong className="fund-quote-amount">
+                        ₦{quote.amountToSend.toLocaleString()}
+                      </strong>
+                      <small>
+                        Includes processing fee · Wallet credit ₦{quote.walletAmount.toLocaleString()}
+                      </small>
+                    </div>
+                  ) : null}
                 </div>
               ) : null}
 
               <button
                 type="button"
                 className="fund-generate fund-generate--ready"
-                disabled={generating}
+                disabled={generating || (active.kind === 'dynamic' && !(nairaAmount >= 1))}
                 onClick={() => void generate()}
               >
                 {generating ? (

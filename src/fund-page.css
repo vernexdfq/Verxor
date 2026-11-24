@@ -1,12 +1,16 @@
-/* Fund Wallet — multi-provider bank + crypto */
+/* Fund Wallet — multi-provider bank + crypto (clean fintech redesign) */
 
 .fund-page {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 18px;
   max-width: 480px;
   margin: 0 auto;
-  padding: 12px 0 24px;
+  padding: 16px 0 28px;
+}
+
+.fund-page * {
+  box-sizing: border-box;
 }
 
 .fund-head h1 {
@@ -19,69 +23,68 @@
 
 .fund-head p {
   margin: 4px 0 0;
-  font-size: 14px;
-  color: #64748b;
+  font-size: 13.5px;
+  color: #94a3b8;
 }
 
+/* Compact dark balance strip */
 .fund-balance {
-  padding: 22px 16px 18px;
-  border-radius: 20px;
-  background: linear-gradient(145deg, #0b132b 0%, #0f172a 55%, #1e293b 100%);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 15px 20px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #0b132b 0%, #101b33 60%, #16233f 100%);
   color: #fff;
-  text-align: center;
-  box-shadow: 0 12px 28px rgba(11, 19, 43, 0.28);
-  position: relative;
-  overflow: hidden;
+  box-shadow: 0 8px 20px rgba(11, 19, 43, 0.22);
 }
 
-.fund-balance::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background-image: radial-gradient(rgba(255, 255, 255, 0.1) 1px, transparent 1px);
-  background-size: 16px 16px;
-  opacity: 0.4;
-  pointer-events: none;
+.fund-balance-left {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
 }
 
 .fund-balance-label {
-  position: relative;
-  display: block;
   font-size: 10px;
   font-weight: 700;
-  letter-spacing: 0.12em;
-  color: rgba(255, 255, 255, 0.55);
-  margin-bottom: 8px;
+  letter-spacing: 0.13em;
+  color: rgba(255, 255, 255, 0.48);
 }
 
 .fund-balance-amount {
-  position: relative;
-  display: block;
-  font-size: 34px;
+  font-size: 22px;
   font-weight: 800;
   letter-spacing: -0.03em;
   line-height: 1.1;
-  margin-bottom: 10px;
+  font-variant-numeric: tabular-nums;
 }
 
 .fund-balance-ok {
-  position: relative;
+  flex: none;
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 12px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  font-size: 11.5px;
   font-weight: 600;
   color: #86efac;
 }
 
+/* Pill method toggle */
 .fund-method-tabs {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  padding: 4px;
-  border-radius: 14px;
-  background: #f1f5f9;
-  border: 1px solid #e2e8f0;
+  gap: 6px;
+  padding: 5px;
+  border-radius: 999px;
+  background: #ffffff;
+  border: 1px solid #e8edf5;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
 }
 
 .fund-method-tabs button {
@@ -89,30 +92,95 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  height: 42px;
+  height: 40px;
   border: none;
-  border-radius: 11px;
+  border-radius: 999px;
   background: transparent;
-  color: #64748b;
-  font-size: 14px;
+  color: #94a3b8;
+  font-size: 13.5px;
   font-weight: 700;
   cursor: pointer;
+  transition: background 0.15s, color 0.15s, box-shadow 0.15s;
 }
 
 .fund-method-tabs button.active {
-  background: #fff;
-  color: #0f172a;
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+  background: var(--primary, #0052ff);
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(0, 82, 255, 0.28);
 }
 
-.fund-section-title {
+/* Bank provider selector */
+.fund-section-label {
+  margin: 0 0 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.fund-provider-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.fund-provider-grid button {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 8px;
-  margin: 0 0 14px;
-  font-size: 15px;
+  justify-content: center;
+  gap: 3px;
+  min-height: 58px;
+  padding: 10px 8px;
+  border-radius: 14px;
+  border: 1px solid #e8edf5;
+  background: #ffffff;
+  color: #475569;
+  font-size: 13.5px;
   font-weight: 700;
-  color: #0f172a;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s, box-shadow 0.15s;
+}
+
+.fund-provider-grid button:hover {
+  border-color: #c7d5f2;
+}
+
+.fund-provider-grid button.active {
+  background: var(--primary, #0052ff);
+  border-color: transparent;
+  color: #fff;
+  box-shadow: 0 6px 16px rgba(0, 82, 255, 0.3);
+}
+
+.fund-provider-sub {
+  font-size: 9.5px;
+  font-weight: 600;
+  color: #94a3b8;
+}
+
+.fund-provider-grid button.active .fund-provider-sub {
+  color: rgba(255, 255, 255, 0.75);
+}
+
+/* Info note (replaces the yellow box) */
+.fund-fee {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 12px 14px;
+  margin-bottom: 14px;
+  border-radius: 14px;
+  background: #f0f5ff;
+  border: 1px solid #d9e6ff;
+  color: #475569;
+  font-size: 12.5px;
+  line-height: 1.5;
+  font-weight: 500;
+}
+
+.fund-fee p {
+  margin: 0;
 }
 
 .fund-loading {
@@ -135,92 +203,183 @@
   }
 }
 
-.fund-fee {
+/* Amount card (dynamic banks) */
+.fund-va-setup {
   display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  padding: 12px 14px;
-  margin-bottom: 14px;
-  border-radius: 14px;
-  background: #fffbeb;
-  border: 1px solid #fde68a;
-  color: #92400e;
-  font-size: 12px;
-  line-height: 1.4;
-  font-weight: 500;
+  flex-direction: column;
+  gap: 14px;
 }
 
-.fund-fee p {
-  margin: 0;
-}
-
-.fund-tabs {
+.fund-amount-card {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 14px;
-}
-
-.fund-tabs button {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 36px;
-  padding: 0 14px;
-  border-radius: 999px;
-  border: 1px solid #e2e8f0;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px 18px;
+  border-radius: 18px;
+  border: 1px solid #e8edf5;
   background: #fff;
-  color: #475569;
-  font-size: 13px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+}
+
+.fund-amount-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.fund-amount-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #94a3b8;
+}
+
+.fund-amount-min {
+  font-size: 11px;
+  font-weight: 600;
+  color: #cbd5e1;
+}
+
+.fund-amount-input-wrap {
+  display: flex;
+  align-items: center;
+  background: #f8fafc;
+  border: 1.5px solid #e8edf5;
+  border-radius: 16px;
+  padding: 8px 16px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+
+.fund-amount-input-wrap:focus-within {
+  border-color: var(--primary, #0052ff);
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(0, 82, 255, 0.12);
+}
+
+.fund-amount-curr {
+  font-size: 26px;
+  font-weight: 800;
+  color: #0f172a;
+  margin-right: 6px;
+  line-height: 1;
+}
+
+.fund-amount-input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  font-size: 30px;
+  font-weight: 800;
+  color: #0f172a;
+  outline: none;
+  width: 100%;
+  padding: 4px 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.fund-amount-input::placeholder {
+  color: #cbd5e1;
+}
+
+.fund-amount-presets {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  scrollbar-width: none;
+}
+
+.fund-amount-presets::-webkit-scrollbar {
+  display: none;
+}
+
+.fund-amount-pill {
+  flex: 1;
+  min-width: 64px;
+  padding: 9px 12px;
+  border-radius: 999px;
+  border: 1px solid #e8edf5;
+  background: #f8fafc;
+  color: #1e293b;
+  font-size: 12.5px;
   font-weight: 700;
   cursor: pointer;
-  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  text-align: center;
+  transition: all 0.15s ease;
+  white-space: nowrap;
 }
 
-.fund-tabs button .fund-tab-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: #cbd5e1;
+.fund-amount-pill:hover {
+  background: #f1f5f9;
 }
 
-.fund-tabs button.active {
-  background: var(--primary, #0052ff);
-  border-color: var(--primary, #0052ff);
-  color: #fff;
+.fund-amount-pill.active {
+  background: rgba(0, 82, 255, 0.08);
+  border-color: rgba(0, 82, 255, 0.35);
+  color: var(--primary, #0052ff);
 }
 
-.fund-tabs button.active .fund-tab-dot {
-  background: rgba(255, 255, 255, 0.85);
+/* Amount-to-send quote preview */
+.fund-quote {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 14px;
+  border-radius: 14px;
+  background: #f8fafc;
+  border: 1px solid #e8edf5;
 }
 
+.fund-quote-label {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: #94a3b8;
+}
+
+.fund-quote-amount {
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #0f172a;
+  font-variant-numeric: tabular-nums;
+}
+
+.fund-quote small {
+  font-size: 11px;
+  font-weight: 600;
+  color: #64748b;
+}
+
+/* Account details card */
 .fund-account-card {
-  border-radius: 16px;
-  border: 1px solid #e2e8f0;
+  border-radius: 18px;
+  border: 1px solid #e8edf5;
   background: #fff;
   overflow: hidden;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
 }
 
 .fund-row {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 14px;
+  padding: 14px 16px;
   border-bottom: 1px solid #f1f5f9;
 }
 
-.fund-row:last-child {
+.fund-row:last-of-type {
   border-bottom: none;
 }
 
 .fund-row-icon {
-  width: 40px;
-  height: 40px;
+  width: 38px;
+  height: 38px;
   display: grid;
   place-items: center;
   border-radius: 12px;
-  background: #eff6ff;
+  background: #f0f5ff;
   color: var(--primary, #0052ff);
   flex: none;
 }
@@ -236,7 +395,7 @@
 .fund-row-label {
   font-size: 10px;
   font-weight: 700;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.07em;
   color: #94a3b8;
 }
 
@@ -245,6 +404,12 @@
   font-weight: 700;
   color: #0f172a;
   word-break: break-all;
+}
+
+.fund-row-note {
+  font-size: 11px;
+  color: #64748b;
+  font-weight: 500;
 }
 
 .fund-mono {
@@ -257,70 +422,49 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  height: 32px;
-  padding: 0 10px;
+  height: 30px;
+  padding: 0 11px;
   border-radius: 999px;
-  border: 1px solid #dbeafe;
-  background: #eff6ff;
+  border: 1px solid #d9e6ff;
+  background: #f0f5ff;
   color: var(--primary, #0052ff);
   font-size: 12px;
   font-weight: 700;
   cursor: pointer;
+  transition: background 0.15s;
 }
 
-.fund-empty-va {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  padding: 28px 18px 24px;
-  border-radius: 18px;
-  border: 1px solid #e2e8f0;
-  background: #fff;
-  gap: 6px;
+.fund-copy:hover {
+  background: #e3eeff;
 }
 
-.fund-empty-icon {
-  width: 64px;
-  height: 64px;
-  border-radius: 18px;
-  display: grid;
-  place-items: center;
-  margin-bottom: 8px;
-  background: rgba(0, 82, 255, 0.1);
-  color: var(--primary, #0052ff);
+.fund-account-note {
+  margin: 0;
+  padding: 12px 16px 2px;
+  font-size: 12.5px;
+  color: #475569;
+  line-height: 1.5;
 }
 
-.fund-empty-va strong {
-  font-size: 17px;
-  font-weight: 800;
-  color: #0f172a;
-  letter-spacing: -0.02em;
+.fund-account-actions {
+  padding: 12px 16px 16px;
 }
 
-.fund-empty-va p {
-  margin: 0 0 12px;
-  max-width: 300px;
-  font-size: 13px;
-  line-height: 1.45;
-  color: #64748b;
-}
-
+/* Primary CTA */
 .fund-generate {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  min-height: 48px;
+  min-height: 50px;
   width: 100%;
-  max-width: 320px;
   padding: 0 20px;
   border: none;
-  border-radius: 14px;
-  font-size: 15px;
+  border-radius: 999px;
+  font-size: 14.5px;
   font-weight: 800;
   cursor: pointer;
-  transition: opacity 0.15s, transform 0.1s;
+  transition: opacity 0.15s, transform 0.1s, box-shadow 0.15s, background 0.15s;
 }
 
 .fund-generate:active:not(:disabled) {
@@ -330,7 +474,11 @@
 .fund-generate--ready {
   background: var(--primary, #0052ff);
   color: #fff;
-  box-shadow: 0 6px 16px rgba(0, 82, 255, 0.3);
+  box-shadow: 0 8px 20px rgba(0, 82, 255, 0.28);
+}
+
+.fund-generate--ready:hover:not(:disabled) {
+  background: #0047e0;
 }
 
 .fund-generate--soon {
@@ -340,21 +488,24 @@
 }
 
 .fund-generate:disabled {
-  opacity: 0.85;
+  background: #e8edf5;
+  color: #94a3b8;
+  box-shadow: none;
+  cursor: not-allowed;
 }
 
 .fund-gen-error {
-  margin: 8px 0 0;
-  max-width: 300px;
+  margin: 4px 0 0;
+  text-align: center;
   font-size: 12px;
   line-height: 1.4;
   color: #dc2626;
 }
 
 .fund-steps {
-  padding: 16px 14px;
-  border-radius: 16px;
-  border: 1px solid #e2e8f0;
+  padding: 18px 16px;
+  border-radius: 18px;
+  border: 1px solid #e8edf5;
   background: #fff;
 }
 
@@ -363,7 +514,7 @@
   font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.08em;
-  color: #64748b;
+  color: #94a3b8;
 }
 
 .fund-steps ol {
@@ -388,8 +539,8 @@
   display: grid;
   place-items: center;
   border-radius: 999px;
-  background: var(--primary, #0052ff);
-  color: #fff;
+  background: #f0f5ff;
+  color: var(--primary, #0052ff);
   font-size: 12px;
   font-weight: 800;
 }
@@ -397,8 +548,8 @@
 .fund-steps p {
   margin: 0;
   font-size: 13px;
-  line-height: 1.4;
-  color: #334155;
+  line-height: 1.45;
+  color: #475569;
   font-weight: 500;
 }
 
@@ -406,69 +557,33 @@
   display: flex;
   align-items: flex-start;
   gap: 10px;
-  padding: 14px;
-  border-radius: 14px;
-  background: #eff6ff;
-  border: 1px solid #dbeafe;
-  color: var(--primary, #0052ff);
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: #f8fafc;
+  border: 1px solid #e8edf5;
+  color: #64748b;
 }
 
 .fund-secure p {
   margin: 0;
   font-size: 12px;
   line-height: 1.45;
-  color: #475569;
+  color: #64748b;
 }
 
 .fund-secure strong {
   color: #0f172a;
 }
 
-/* Amount-to-send quote preview */
-.fund-quote {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  margin: 4px 0 12px;
-  padding: 14px;
-  border-radius: 14px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  box-sizing: border-box;
-}
-
-.fund-quote-label {
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  color: #94a3b8;
-}
-
-.fund-quote-amount {
-  font-size: 24px;
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  color: #0f172a;
-  font-variant-numeric: tabular-nums;
-}
-
-.fund-quote small {
-  font-size: 11px;
-  font-weight: 600;
-  color: #64748b;
-}
-
-/* Crypto Funding Card (Fintech Grade 1) */
+/* Crypto Funding Card */
 .fund-crypto-card {
   display: flex;
   flex-direction: column;
   padding: 22px 18px;
-  border-radius: 20px;
-  border: 1px solid #e2e8f0;
+  border-radius: 18px;
+  border: 1px solid #e8edf5;
   background: #ffffff;
-  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.04);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
   gap: 16px;
 }
 
@@ -479,16 +594,15 @@
 }
 
 .fund-crypto-title {
-  font-size: 14px;
-  font-weight: 700;
-  color: #334155;
-  letter-spacing: -0.01em;
-}
-
-.fund-crypto-min {
   font-size: 12px;
   font-weight: 600;
   color: #94a3b8;
+}
+
+.fund-crypto-min {
+  font-size: 11px;
+  font-weight: 600;
+  color: #cbd5e1;
 }
 
 .fund-crypto-input-wrap {
@@ -496,10 +610,10 @@
   align-items: center;
   position: relative;
   background: #f8fafc;
-  border: 1.5px solid #e2e8f0;
+  border: 1.5px solid #e8edf5;
   border-radius: 16px;
-  padding: 8px 14px;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  padding: 8px 16px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
 }
 
 .fund-crypto-input-wrap:focus-within {
@@ -509,7 +623,7 @@
 }
 
 .fund-crypto-curr {
-  font-size: 28px;
+  font-size: 26px;
   font-weight: 800;
   color: #0f172a;
   margin-right: 6px;
@@ -520,7 +634,7 @@
   flex: 1;
   border: none;
   background: transparent;
-  font-size: 28px;
+  font-size: 30px;
   font-weight: 800;
   color: #0f172a;
   outline: none;
@@ -529,8 +643,23 @@
   font-variant-numeric: tabular-nums;
 }
 
+.fund-crypto-input::placeholder {
+  color: #cbd5e1;
+}
+
+.fund-crypto-input::-webkit-outer-spin-button,
+.fund-crypto-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.fund-crypto-input[type='number'] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
 .fund-crypto-badge {
-  background: #eff6ff;
+  background: #f0f5ff;
   color: var(--primary, #0052ff);
   font-size: 11px;
   font-weight: 800;
@@ -538,7 +667,7 @@
   border-radius: 999px;
   letter-spacing: 0.04em;
   margin-left: 8px;
-  border: 1px solid #dbeafe;
+  border: 1px solid #d9e6ff;
 }
 
 /* Presets row */
@@ -560,8 +689,8 @@
   min-width: 54px;
   padding: 10px 12px;
   border-radius: 999px;
-  border: 1px solid #e2e8f0;
-  background: #ffffff;
+  border: 1px solid #e8edf5;
+  background: #f8fafc;
   color: #1e293b;
   font-size: 13px;
   font-weight: 700;
@@ -572,92 +701,57 @@
 
 .fund-crypto-pill:hover {
   border-color: #cbd5e1;
-  background: #f8fafc;
+  background: #f1f5f9;
 }
 
 .fund-crypto-pill.active {
   background: var(--primary, #0052ff);
   border-color: var(--primary, #0052ff);
   color: #ffffff;
-  box-shadow: 0 2px 8px rgba(0, 82, 255, 0.25);
+  box-shadow: 0 4px 12px rgba(0, 82, 255, 0.25);
 }
 
-/* Gradient Preview Card (matching reference) */
+/* Transparent summary card (replaces the blue gradient) */
 .fund-crypto-preview-card {
-  border-radius: 18px;
-  background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 50%, #3b82f6 100%);
-  color: #ffffff;
-  padding: 18px 20px;
+  border-radius: 16px;
+  border: 1px solid #e8edf5;
+  background: #ffffff;
+  padding: 16px 18px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  box-shadow: 0 8px 20px -4px rgba(37, 99, 235, 0.35);
-  position: relative;
-  overflow: hidden;
+  gap: 12px;
 }
 
-.fund-crypto-preview-card::after {
-  content: '';
-  position: absolute;
-  top: -30%;
-  right: -20%;
-  width: 140px;
-  height: 140px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.12);
-  pointer-events: none;
-}
-
-.fund-crypto-preview-label {
-  font-size: 12px;
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.85);
-  letter-spacing: -0.01em;
-}
-
-.fund-crypto-preview-amount {
-  font-size: 30px;
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  line-height: 1.15;
-  color: #ffffff;
-  font-variant-numeric: tabular-nums;
-}
-
-.fund-crypto-preview-sub {
-  font-size: 12px;
-  font-weight: 500;
-  color: rgba(255, 255, 255, 0.8);
-  margin-top: 2px;
-}
-
-.fund-crypto-submit-btn {
-  display: inline-flex;
+.fund-summary-row {
+  display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 8px;
-  width: 100%;
-  padding: 15px 20px;
-  border-radius: 16px;
-  background: var(--primary, #0052ff);
-  color: #ffffff;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.fund-summary-label {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #64748b;
+}
+
+.fund-summary-value {
   font-size: 15px;
   font-weight: 700;
-  border: none;
-  cursor: pointer;
-  transition: all 0.15s ease;
-  box-shadow: 0 4px 12px rgba(0, 82, 255, 0.2);
+  color: #0f172a;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
 }
 
-.fund-crypto-submit-btn:hover:not(:disabled) {
-  background: #0041cc;
-  transform: translateY(-1px);
+.fund-summary-value--accent {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--primary, #0052ff);
 }
 
-.fund-crypto-submit-btn:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-  transform: none;
+.fund-summary-divider {
+  height: 1px;
+  background: #f1f5f9;
 }
 
 .fund-crypto-footer-note {
@@ -667,7 +761,7 @@
   gap: 6px;
   text-align: center;
   font-size: 11px;
-  color: #64748b;
-  line-height: 1.4;
+  color: #94a3b8;
+  line-height: 1.45;
   padding: 2px 4px 0;
 }
