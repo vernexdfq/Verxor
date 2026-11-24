@@ -176,7 +176,11 @@ export async function GET(req: NextRequest) {
 
   const dayList = dayKeys.map((k) => {
     const b = days.get(k)!;
-    return { date: k, orders: b.orders, sales: Math.round(b.sales * 100) / 100, net: Math.round(b.net * 100) / 100 };
+    // A day's profit can never be negative: refunds cancel the original sale
+    // (usually already counted on its own day), they never "lose" money on the
+    // day they land. No orders today = no profit today, never a minus.
+    const netDay = Math.max(0, Math.round(b.net * 100) / 100);
+    return { date: k, orders: b.orders, sales: Math.round(b.sales * 100) / 100, net: netDay };
   });
   const today = dayList[0];
 
