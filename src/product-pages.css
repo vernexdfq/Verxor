@@ -1423,3 +1423,348 @@
 .account-download-link-box { width:100%; margin-top:12px; padding:12px 14px; border-radius:12px; background:#f8fafc; border:1px solid #e2e8f0; text-align:left; box-sizing:border-box; }
 .account-instructions-card { width:100%; margin-top:12px; padding:12px 14px; border-radius:12px; background:#f8fafc; border:1px solid #e2e8f0; text-align:left; font-size:12px; line-height:1.6; color:#475569; box-sizing:border-box; }
 .account-delivery-email-notice { margin:10px 0 0; color:#059669; font-size:12px; font-weight:600; text-align:center; }
+
+/* ==========================================================================
+   Grade-1 FinTech Delivery Card & My Orders Styles
+   ========================================================================== */
+
+.accounts-logs-page {
+  max-width: 680px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.delivery-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 18px 20px;
+  box-shadow: 0 4px 16px -4px rgba(15, 23, 42, 0.05), 0 2px 4px -2px rgba(15, 23, 42, 0.02);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  box-sizing: border-box;
+  margin-bottom: 16px;
+}
+
+.delivery-card:hover {
+  box-shadow: 0 8px 24px -6px rgba(15, 23, 42, 0.08);
+}
+
+.delivery-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.delivery-card-badges {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.delivery-success-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  color: #059669;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 3px 9px;
+  border-radius: 9999px;
+}
+
+.delivery-platform-tag {
+  display: inline-flex;
+  align-items: center;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  color: #475569;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 9999px;
+}
+
+.delivery-ref-id {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 11px;
+  font-weight: 600;
+  color: #64748b;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  padding: 3px 8px;
+  border-radius: 6px;
+  margin-left: auto;
+  letter-spacing: -0.01em;
+}
+
+.delivery-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: #0f172a;
+  line-height: 1.45;
+  word-break: break-word;
+  letter-spacing: -0.01em;
+}
+
+.delivery-meta-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.delivery-meta-item strong {
+  color: #0f172a;
+  font-weight: 700;
+}
+
+.delivery-meta-amount {
+  color: #1877f2 !important;
+  font-weight: 800 !important;
+  font-size: 13.5px !important;
+}
+
+.delivery-meta-dot {
+  color: #cbd5e1;
+}
+
+.delivery-meta-date {
+  color: #64748b;
+}
+
+/* Toolbar: Action buttons */
+.delivery-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 4px;
+  padding-bottom: 4px;
+}
+
+.delivery-toolbar-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #334155;
+}
+
+.delivery-toolbar-label svg {
+  color: #1877f2;
+}
+
+.delivery-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.delivery-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 8px;
+  font-size: 11.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-decoration: none;
+  box-sizing: border-box;
+}
+
+.delivery-btn-primary {
+  background: #1877f2;
+  color: #ffffff;
+  border: 1px solid #1877f2;
+  box-shadow: 0 1px 2px rgba(24, 119, 242, 0.2);
+}
+
+.delivery-btn-primary:hover {
+  background: #1565c0;
+  border-color: #1565c0;
+}
+
+.delivery-btn-primary:active {
+  transform: scale(0.98);
+}
+
+.delivery-btn-secondary {
+  background: #ffffff;
+  color: #334155;
+  border: 1px solid #cbd5e1;
+}
+
+.delivery-btn-secondary:hover {
+  background: #f8fafc;
+  border-color: #94a3b8;
+  color: #0f172a;
+}
+
+.delivery-btn-secondary:active {
+  transform: scale(0.98);
+}
+
+/* Credentials console */
+.delivery-creds {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 4px 0 2px;
+}
+
+.delivery-cred-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  background: #0f172a;
+  border: 1px solid #1e293b;
+  border-radius: 10px;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.25);
+  box-sizing: border-box;
+}
+
+.delivery-cred-code {
+  flex: 1;
+  min-width: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #38bdf8;
+  word-break: break-all;
+  user-select: all;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+
+.delivery-copy-btn {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  height: 30px;
+  padding: 0 11px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: #f8fafc;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  box-sizing: border-box;
+}
+
+.delivery-copy-btn:hover {
+  background: rgba(255, 255, 255, 0.22);
+  border-color: rgba(255, 255, 255, 0.32);
+  color: #ffffff;
+}
+
+.delivery-copy-btn:active {
+  transform: scale(0.96);
+}
+
+.delivery-copy-btn.copied {
+  background: #059669;
+  border-color: #10b981;
+  color: #ffffff;
+}
+
+.delivery-2fa-tip {
+  padding: 8px 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 11px;
+  color: #475569;
+  line-height: 1.5;
+}
+
+.delivery-2fa-link {
+  color: #1877f2;
+  font-weight: 700;
+  text-decoration: underline;
+}
+
+/* Footer */
+.delivery-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #f1f5f9;
+  font-size: 11.5px;
+  color: #64748b;
+}
+
+.delivery-guarantee {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #059669;
+  font-weight: 600;
+}
+
+.delivery-guarantee svg {
+  color: #059669;
+}
+
+.delivery-direct-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #1877f2;
+  font-weight: 700;
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.delivery-direct-link:hover {
+  color: #0d47a1;
+  text-decoration: underline;
+}
+
+@media (max-width: 480px) {
+  .delivery-card {
+    padding: 14px 14px;
+    border-radius: 14px;
+  }
+  .delivery-toolbar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  .delivery-toolbar-actions {
+    width: 100%;
+  }
+  .delivery-action-btn {
+    flex: 1;
+    font-size: 11px;
+    padding: 0 8px;
+  }
+}

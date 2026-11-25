@@ -1,7 +1,18 @@
 'use client';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { ArrowLeft, Copy, Check, Package, RefreshCw, ShoppingBag, Download, ExternalLink } from 'lucide-react';
+import {
+  ArrowLeft,
+  Copy,
+  Check,
+  Package,
+  RefreshCw,
+  ShoppingBag,
+  Download,
+  ExternalLink,
+  ShieldCheck,
+  KeyRound,
+} from 'lucide-react';
 import type { AuthSession } from './auth/AuthFlow';
 import { loadSessionTokens, saveSessionTokens, loadSessionProfile, isSessionUnlocked } from './auth/session-unlock';
 import type { AccountOrder } from './accounts-types';
@@ -162,7 +173,12 @@ export function MyLogsPage({
           <div className="accounts-empty accounts-empty-error">
             <Package size={26} />
             <strong>{error}</strong>
-            <button type="button" className="detail-order-btn" style={{ minHeight: 38, width: 'auto', padding: '0 16px', marginTop: 8 }} onClick={() => void load()}>
+            <button
+              type="button"
+              className="detail-order-btn"
+              style={{ minHeight: 38, width: 'auto', padding: '0 16px', marginTop: 8 }}
+              onClick={() => void load()}
+            >
               Try again
             </button>
           </div>
@@ -177,86 +193,161 @@ export function MyLogsPage({
         )}
 
         {!loading &&
-          orders.map((o) => (
-            <article key={o.id} className="delivery-card" style={{ margin: '0 0 16px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 8 }}>
-                <div className="delivery-success-badge">
-                  <Check size={14} />
-                  <span>{o.status || 'Delivered'}</span>
+          orders.map((o) => {
+            const has2fa = (o.credentials || []).some(
+              (c) => c.split(':').length >= 3 || /2fa/i.test(c),
+            );
+            return (
+              <article key={o.id} className="delivery-card">
+                {/* Header: Status badge, platform tag, reference ID */}
+                <div className="delivery-card-header">
+                  <div className="delivery-card-badges">
+                    <span className="delivery-success-badge">
+                      <Check size={12} strokeWidth={2.8} />
+                      <span>{o.status || 'Delivered'}</span>
+                    </span>
+                    {o.platform && (
+                      <span className="delivery-platform-tag">{o.platform}</span>
+                    )}
+                  </div>
+                  <span className="delivery-ref-id" title="Order reference">
+                    #{o.id.slice(0, 8)}
+                  </span>
                 </div>
-                <span style={{ fontSize: 11, color: '#64748b', fontFamily: 'monospace' }}>
-                  #{o.id.slice(0, 8)}
-                </span>
-              </div>
 
-              <h2 className="delivery-title" style={{ fontSize: 16 }}>
-                {o.title}
-              </h2>
-              <p className="delivery-sub">
-                {o.platform} · Qty {o.quantity} · {money(o.total_ngn)} ·{' '}
-                {o.created_at ? new Date(o.created_at).toLocaleString('en-NG') : ''}
-              </p>
+                {/* Title */}
+                <h2 className="delivery-title">{o.title}</h2>
 
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8, margin: '10px 0 6px' }}>
-                <button
-                  type="button"
-                  className="account-download-btn"
-                  style={{ padding: '6px 10px', fontSize: 11 }}
-                  onClick={() =>
-                    downloadCredentialsTxt(
-                      o.id,
-                      o.platform,
-                      o.title,
-                      o.credentials || [],
-                    )
-                  }
-                  title="Download credentials as .txt file"
-                >
-                  <Download size={13} />
-                  <span>Download (.txt)</span>
-                </button>
-                <button
-                  type="button"
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '6px 10px', borderRadius: 8, border: '1px solid #dbe3ef', background: '#fff', color: '#334155', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}
-                  onClick={() => void copyText((o.credentials || []).join('\n'), `all-${o.id}`)}
-                >
-                  {copied === `all-${o.id}` ? <Check size={13} /> : <Copy size={13} />}
-                  <span>{copied === `all-${o.id}` ? 'Copied' : 'Copy all'}</span>
-                </button>
-              </div>
+                {/* Meta row: Qty, Total NGN, Date */}
+                <div className="delivery-meta-row">
+                  <span className="delivery-meta-item">
+                    Qty: <strong>{o.quantity}</strong>
+                  </span>
+                  <span className="delivery-meta-dot">•</span>
+                  <span className="delivery-meta-item delivery-meta-amount">
+                    {money(o.total_ngn)}
+                  </span>
+                  {o.created_at && (
+                    <>
+                      <span className="delivery-meta-dot">•</span>
+                      <span className="delivery-meta-date">
+                        {new Date(o.created_at).toLocaleString('en-NG', {
+                          day: '2-digit',
+                          month: 'short',
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </span>
+                    </>
+                  )}
+                </div>
 
-              <div className="delivery-creds">
-                {(o.credentials || []).map((line, i) => (
-                  <div key={`${o.id}-${i}`} className="delivery-cred-row">
-                    <code>{line}</code>
+                {/* Action Toolbar: Heading + Download (.txt) & Copy all buttons */}
+                <div className="delivery-toolbar">
+                  <div className="delivery-toolbar-label">
+                    <KeyRound size={13} />
+                    <span>
+                      Delivered credentials ({o.credentials?.length || 1})
+                    </span>
+                  </div>
+                  <div className="delivery-toolbar-actions">
                     <button
                       type="button"
-                      className="delivery-copy-btn"
-                      onClick={() => void copyText(line, `${o.id}-${i}`)}
+                      className="delivery-action-btn delivery-btn-primary"
+                      onClick={() =>
+                        downloadCredentialsTxt(
+                          o.id,
+                          o.platform,
+                          o.title,
+                          o.credentials || [],
+                        )
+                      }
+                      title="Download credentials as .txt file"
                     >
-                      {copied === `${o.id}-${i}` ? <Check size={14} /> : <Copy size={14} />}
-                      <span>{copied === `${o.id}-${i}` ? 'Copied' : 'Copy'}</span>
+                      <Download size={13} />
+                      <span>Download (.txt)</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="delivery-action-btn delivery-btn-secondary"
+                      onClick={() =>
+                        void copyText((o.credentials || []).join('\n'), `all-${o.id}`)
+                      }
+                      title="Copy all credentials to clipboard"
+                    >
+                      {copied === `all-${o.id}` ? (
+                        <Check size={13} strokeWidth={2.4} />
+                      ) : (
+                        <Copy size={13} strokeWidth={2.4} />
+                      )}
+                      <span>{copied === `all-${o.id}` ? 'Copied all' : 'Copy all'}</span>
                     </button>
                   </div>
-                ))}
-              </div>
+                </div>
 
-              <div style={{ marginTop: 10, paddingTop: 8, borderTop: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 11, color: '#64748b' }}>
-                <span>✓ 24-hour replacement coverage</span>
-                {o.downloadUrl && (
-                  <a
-                    href={o.downloadUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    style={{ color: '#382080', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 3, textDecoration: 'none' }}
-                  >
-                    <span>Direct file</span>
-                    <ExternalLink size={11} />
-                  </a>
+                {/* Credentials list: each row in its own dark console row with a dedicated, non-wrapping Copy button */}
+                <div className="delivery-creds">
+                  {(o.credentials || []).map((line, i) => {
+                    const isCopied = copied === `${o.id}-${i}`;
+                    return (
+                      <div key={`${o.id}-${i}`} className="delivery-cred-row">
+                        <code className="delivery-cred-code">{line}</code>
+                        <button
+                          type="button"
+                          className={`delivery-copy-btn ${isCopied ? 'copied' : ''}`}
+                          onClick={() => void copyText(line, `${o.id}-${i}`)}
+                          aria-label={`Copy account ${i + 1}`}
+                          title="Copy account credentials"
+                        >
+                          {isCopied ? (
+                            <Check size={13} strokeWidth={2.4} />
+                          ) : (
+                            <Copy size={13} strokeWidth={2.4} />
+                          )}
+                          <span>{isCopied ? 'Copied' : 'Copy'}</span>
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Optional 2FA tip */}
+                {has2fa && (
+                  <div className="delivery-2fa-tip">
+                    <span>💡 Format: login:password[:2fa] • Generate 2FA codes at </span>
+                    <a
+                      href="https://2fa.live"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="delivery-2fa-link"
+                    >
+                      2fa.live
+                    </a>
+                  </div>
                 )}
-              </div>
-            </article>
-          ))}
+
+                {/* Footer: Replacement coverage + Direct file link */}
+                <div className="delivery-card-footer">
+                  <span className="delivery-guarantee">
+                    <ShieldCheck size={13} />
+                    <span>24-hour replacement coverage</span>
+                  </span>
+                  {o.downloadUrl && (
+                    <a
+                      href={o.downloadUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="delivery-direct-link"
+                    >
+                      <span>Direct file</span>
+                      <ExternalLink size={11} />
+                    </a>
+                  )}
+                </div>
+              </article>
+            );
+          })}
       </div>
     </div>
   );
