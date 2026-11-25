@@ -246,6 +246,16 @@ export async function POST(req: NextRequest) {
 
   if (isPartner) {
     try {
+      // Platform funding fee: 1% of the deposit, capped at ₦200.
+      // Applied silently — the panel never sees the fee split in its UI.
+      const PARTNER_FEE_PCT = 0.01;
+      const PARTNER_FEE_CAP_NGN = 200;
+      const partnerFee = Math.min(
+        Math.round(creditAmount * PARTNER_FEE_PCT * 100) / 100,
+        PARTNER_FEE_CAP_NGN,
+      );
+      const creditedNet = Math.round((creditAmount - partnerFee) * 100) / 100;
+
       const ref = `xixapay-partner:${transactionId}`;
       const existing = await sbSelect(
         'transactions',
@@ -271,7 +281,7 @@ export async function POST(req: NextRequest) {
         `user_id=eq.${userId}&select=balance&limit=1`,
       );
       const prev = Number(Array.isArray(balRows) && balRows[0]?.balance) || 0;
-      const next = Math.round((prev + creditAmount) * 100) / 100;
+      const next = Math.round((prev + creditedNet) * 100) / 100;
 
       const up = await fetch(`${base}/rest/v1/reseller_wallet?user_id=eq.${userId}`, {
         method: 'PATCH',
@@ -302,12 +312,13 @@ export async function POST(req: NextRequest) {
             user_id: userId,
             kind: 'partner_fund',
             status: 'completed',
-            amount: creditAmount,
+            amount: creditedNet,
             meta: {
               reference: ref,
               mode: 'partner',
               amount_paid: amountPaid,
-              credited: creditAmount,
+              credited: creditedNet,
+              fee: partnerFee,
             },
           }),
         });
