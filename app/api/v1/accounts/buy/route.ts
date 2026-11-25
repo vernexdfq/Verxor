@@ -8,7 +8,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { fetchPlatformCatalog, purchaseListing, normalizePlatform } from '@/lib/providers/accszone';
+import { fetchPlatformCatalog, purchaseListing, normalizePlatform, pruneListingFromCache } from '@/lib/providers/accszone';
 import { sbInsert, supabaseConfigured } from '@/lib/supabase-admin';
 import { resolvePanelClient, getPanelAdminEmail } from '@/lib/panel-auth';
 import { panelAllowsBuyLogs } from '@/lib/panel-accounts';
@@ -368,6 +368,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (!listing || listing.stock < requestedQty || listing.priceNgn <= 0) {
+      pruneListingFromCache(adId, platformToValidate);
       return bad('This listing is currently unavailable or out of stock. Please choose another listing.', 409);
     }
 
@@ -425,6 +426,9 @@ export async function POST(req: NextRequest) {
     }
 
     if (!purchase.ok) {
+      if (purchase.code === 'listing_unavailable' || purchase.code === 'insufficient_stock') {
+        pruneListingFromCache(adId, platformToValidate);
+      }
       // Ambiguous provider timeouts: the purchase may have completed on
       // AccsZone's side even though we could not confirm it. Auto-refunding
       // here risks paying the provider without charging the customer, so the

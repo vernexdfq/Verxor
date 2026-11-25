@@ -265,39 +265,34 @@ async function paginateListings(
   categoryId: number,
   deadline: number,
 ): Promise<{ listings: AccsZoneListing[]; partial: boolean }> {
-  // Fetch a single listings page, backing off on the shared 30 req/min limit.
+  // Fetch a single listings page with 100 per page (AccsZone API standard), backing off on 429.
   async function fetchPage(page: number): Promise<ListResponse<AccsZoneListing[]>> {
-    const path = `/listings?page=${page}&category_id=${categoryId}&include=description`;
+    const path = `/listings?per_page=100&page=${page}&category_id=${categoryId}&include=description`;
     for (let attempt = 0; attempt < 3; attempt += 1) {
       try {
         return await accsFetch<ListResponse<AccsZoneListing[]>>(path);
       } catch (err) {
         const retryAfter = (err as Error & { retryAfter?: number })?.retryAfter;
         if (typeof retryAfter !== 'number' || attempt === 2) throw err;
-        await sleep(Math.min(retryAfter + 1, 8) * 1000);
+        await sleep(Math.max(retryAfter, 4) * 1000);
       }
     }
     throw new Error(`AccsZone listings page ${page} failed`);
   }
   const first = await fetchPage(1);
   const out: AccsZoneListing[] = Array.isArray(first.data) ? [...first.data] : [];
-  // Walk EVERY page — the full provider catalogue, not a sample. If the shared
-  // provider bucket runs dry mid-walk we return what we already have instead
-  // of failing the whole catalog ("no account" bug).
   const last = first.meta?.last_page || 1;
-  const rest: number[] = [];
-  for (let p = 2; p <= last; p += 1) rest.push(p);
-  const BATCH = 3;
-  for (let i = 0; i < rest.length; i += BATCH) {
+  // AccsZone guide: Pace yourself: one catalogue request every 4 seconds always stays under the limit.
+  // Send requests one after another, never many at the same time.
+  for (let p = 2; p <= last; p += 1) {
     if (Date.now() > deadline) return { listings: out, partial: true };
-    const results = await Promise.allSettled(rest.slice(i, i + BATCH).map(fetchPage));
-    let failed = false;
-    for (const r of results) {
-      if (r.status === 'fulfilled' && Array.isArray(r.value.data)) out.push(...r.value.data);
-      if (r.status === 'rejected') failed = true;
+    await sleep(4000);
+    try {
+      const res = await fetchPage(p);
+      if (Array.isArray(res.data)) out.push(...res.data);
+    } catch {
+      return { listings: out, partial: true };
     }
-    if (failed) return { listings: out, partial: true };
-    if (i + BATCH < rest.length) await sleep(1500);
   }
   return { listings: out, partial: false };
 }
@@ -313,16 +308,20 @@ async function fetchSubcategories(categoryId: number): Promise<AccsZoneSubcatego
   };
   const fetchPage = (page: number) =>
     accsFetch<ListResponse<SubsPayload | AccsZoneSubcategory[]>>(
-      `/categories/${categoryId}/subcategories?page=${page}`,
+      `/categories/${categoryId}/subcategories?per_page=100&page=${page}`,
     );
   const out: AccsZoneSubcategory[] = [];
-  const first = await fetchPage(1);
-  collect(first.data, out);
-  // Subcategories are paginated at 20/page (Facebook alone has 21) — walk all pages.
-  const last = first.meta?.last_page || 1;
-  for (let p = 2; p <= last; p += 1) {
-    const res = await fetchPage(p);
-    collect(res.data, out);
+  try {
+    const first = await fetchPage(1);
+    collect(first.data, out);
+    const last = first.meta?.last_page || 1;
+    for (let p = 2; p <= last; p += 1) {
+      await sleep(4000);
+      const res = await fetchPage(p);
+      collect(res.data, out);
+    }
+  } catch {
+    /* best effort */
   }
   return out;
 }
@@ -485,12 +484,65 @@ export const KNOWN_CATEGORY_IDS: Record<string, number> = {
 
 let cachedCategories: AccsZoneCategory[] | null = null;
 let categoriesFetchedAt = 0;
-const CATEGORIES_CACHE_TTL = 60 * 60 * 1000; // 1 hour
+// AccsZone guide: Categories rarely change. Fetch once, save, and refresh once a day (24 hours).
+const CATEGORIES_CACHE_TTL = 24 * 60 * 60 * 1000;
+const CATEGORIES_DB_KEY = 'accounts_categories_cache';
+
+async function loadCategoriesFromDb(): Promise<AccsZoneCategory[] | null> {
+  const db = snapshotDb();
+  if (!db) return null;
+  try {
+    const res = await fetch(
+      `${db.base}/rest/v1/admin_settings?key=eq.${CATEGORIES_DB_KEY}&select=value&limit=1`,
+      { headers: db.headers, cache: 'no-store' },
+    );
+    if (!res.ok) return null;
+    const rows = (await res.json()) as Array<{ value?: string }>;
+    if (!rows?.[0]?.value) return null;
+    const parsed = JSON.parse(rows[0].value) as { at: number; categories: AccsZoneCategory[] };
+    if (parsed && Array.isArray(parsed.categories) && Date.now() - Number(parsed.at || 0) < CATEGORIES_CACHE_TTL) {
+      return parsed.categories;
+    }
+  } catch {
+    /* best effort */
+  }
+  return null;
+}
+
+async function persistCategoriesToDb(categories: AccsZoneCategory[]) {
+  const db = snapshotDb();
+  if (!db || !categories.length) return;
+  try {
+    const value = JSON.stringify({ at: Date.now(), categories });
+    const posted = await fetch(`${db.base}/rest/v1/admin_settings`, {
+      method: 'POST',
+      headers: { ...db.headers, Prefer: 'resolution=merge-duplicates,return=minimal' },
+      body: JSON.stringify({ key: CATEGORIES_DB_KEY, value }),
+      cache: 'no-store',
+    });
+    if (!posted.ok) {
+      await fetch(`${db.base}/rest/v1/admin_settings?key=eq.${CATEGORIES_DB_KEY}`, {
+        method: 'PATCH',
+        headers: db.headers,
+        body: JSON.stringify({ value }),
+        cache: 'no-store',
+      });
+    }
+  } catch {
+    /* best effort */
+  }
+}
 
 export async function fetchAccsZoneCategories(): Promise<AccsZoneCategory[]> {
   const now = Date.now();
   if (cachedCategories && now - categoriesFetchedAt < CATEGORIES_CACHE_TTL) {
     return cachedCategories;
+  }
+  const fromDb = await loadCategoriesFromDb();
+  if (fromDb && fromDb.length > 0) {
+    cachedCategories = fromDb;
+    categoriesFetchedAt = now;
+    return fromDb;
   }
   const collect = (res: unknown, out: AccsZoneCategory[]) => {
     if (Array.isArray(res)) {
@@ -503,16 +555,15 @@ export async function fetchAccsZoneCategories(): Promise<AccsZoneCategory[]> {
       }
     }
   };
-  const fetchPage = (page: number) => accsFetch(`/categories?page=${page}`);
+  const fetchPage = (page: number) => accsFetch(`/categories?per_page=100&page=${page}`);
   let list: AccsZoneCategory[] = [];
   try {
     const first = await fetchPage(1);
     collect(first, list);
-    // Categories are paginated at 20/page and AccsZone has 70+ categories.
-    // Instagram/TikTok/X/Telegram sit on later pages — walk them all.
     const meta = (first as ListResponse<unknown>)?.meta;
     const last = meta?.last_page || 1;
     for (let p = 2; p <= last; p += 1) {
+      await sleep(4000);
       const res = await fetchPage(p);
       collect(res, list);
     }
@@ -522,8 +573,26 @@ export async function fetchAccsZoneCategories(): Promise<AccsZoneCategory[]> {
   if (list.length > 0) {
     cachedCategories = list;
     categoriesFetchedAt = now;
+    void persistCategoriesToDb(list);
   }
   return list;
+}
+
+/** Prunes an unavailable or out-of-stock listing from active in-memory caches. */
+export function pruneListingFromCache(adId: number, platform?: string): void {
+  for (const [key, entry] of cache.entries()) {
+    if (platform && !key.startsWith(platform.toLowerCase())) continue;
+    if (entry.catalog?.offers) {
+      const initLen = entry.catalog.offers.length;
+      entry.catalog.offers = entry.catalog.offers.filter(
+        (o) => o.providerListingId !== adId,
+      );
+      if (entry.catalog.offers.length !== initLen) {
+        entry.catalog.inStock = entry.catalog.offers.filter((o) => o.stock > 0).length;
+        entry.catalog.total = entry.catalog.offers.length;
+      }
+    }
+  }
 }
 
 export function normalizePlatform(platform: string): string {
