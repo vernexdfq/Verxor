@@ -151,7 +151,7 @@ export function EmailOtpPage({
     setOrdersLoading(true);
     try {
       const res = await fetch(
-        `/api/v1/email-otp/orders?userId=${encodeURIComponent(session.userId)}`,
+        `/api/v1/email-otp/orders?userId=${encodeURIComponent(session?.userId || '')}`,
         { cache: 'no-store', headers: vxHeaders },
       );
       const data = await res.json().catch(() => ({}));
@@ -181,7 +181,7 @@ export function EmailOtpPage({
         if (stopped) break;
         try {
           const res = await fetch(
-            `/api/v1/email-otp/message?orderId=${encodeURIComponent(o.id)}&userId=${encodeURIComponent(session.userId)}`,
+            `/api/v1/email-otp/message?orderId=${encodeURIComponent(o.id)}&userId=${encodeURIComponent(session?.userId || '')}`,
             { cache: 'no-store', headers: vxHeaders },
           );
           if (!res.ok || stopped) continue;
@@ -239,7 +239,7 @@ export function EmailOtpPage({
       const res = await fetch('/api/v1/email-otp/order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...vxHeaders },
-        body: JSON.stringify({ site: selected.site, domain: d.domain, userId: session.userId }),
+        body: JSON.stringify({ site: selected.site, domain: d.domain, userId: session?.userId || '' }),
       });
       const data = await res.json().catch(() => ({ ok: false, error: 'Network error' }));
       if (!res.ok || !data.ok) {
@@ -265,7 +265,7 @@ export function EmailOtpPage({
     setCheckingId(o.id);
     try {
       const res = await fetch(
-        `/api/v1/email-otp/message?orderId=${encodeURIComponent(o.id)}&userId=${encodeURIComponent(session.userId)}`,
+        `/api/v1/email-otp/message?orderId=${encodeURIComponent(o.id)}&userId=${encodeURIComponent(session?.userId || '')}`,
         { cache: 'no-store', headers: vxHeaders },
       );
       const data = await res.json().catch(() => ({}));
@@ -308,7 +308,7 @@ export function EmailOtpPage({
       const res = await fetch('/api/v1/email-otp/cancel', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...vxHeaders },
-        body: JSON.stringify({ orderId: o.id, userId: session.userId }),
+        body: JSON.stringify({ orderId: o.id, userId: session?.userId || '' }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data.ok) {

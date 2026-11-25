@@ -98,7 +98,7 @@ export function EmailHistoryPage({
     setError(null);
     try {
       const res = await fetch(
-        `/api/v1/email-otp/orders?userId=${encodeURIComponent(session.userId)}`,
+        `/api/v1/email-otp/orders?userId=${encodeURIComponent(session?.userId || '')}`,
         { cache: 'no-store', headers },
       );
       const data = await res.json().catch(() => ({}));
@@ -121,7 +121,8 @@ export function EmailHistoryPage({
 
   // Auto-polling for active waiting orders
   useEffect(() => {
-    if (tab !== 'activations' || !session?.userId) return;
+    const uid = session?.userId;
+    if (tab !== 'activations' || !uid) return;
     const waitingOrders = orders.filter((o) => o.status === 'waiting');
     if (waitingOrders.length === 0) return;
 
@@ -131,7 +132,7 @@ export function EmailHistoryPage({
         if (stopped) break;
         try {
           const res = await fetch(
-            `/api/v1/email-otp/message?orderId=${encodeURIComponent(o.id)}&userId=${encodeURIComponent(session.userId)}`,
+            `/api/v1/email-otp/message?orderId=${encodeURIComponent(o.id)}&userId=${encodeURIComponent(uid)}`,
             { cache: 'no-store', headers },
           );
           if (!res.ok || stopped) continue;
@@ -174,7 +175,7 @@ export function EmailHistoryPage({
     setCheckingId(o.id);
     try {
       const res = await fetch(
-        `/api/v1/email-otp/message?orderId=${encodeURIComponent(o.id)}&userId=${encodeURIComponent(session.userId)}`,
+        `/api/v1/email-otp/message?orderId=${encodeURIComponent(o.id)}&userId=${encodeURIComponent(session?.userId || '')}`,
         { cache: 'no-store', headers },
       );
       const data = await res.json().catch(() => ({}));
