@@ -1,6 +1,7 @@
 /**
  * AnyMessage (anymessage.shop) — temporary / short-term email API.
  * Docs: https://telegra.ph/A-guide-to-API-AnyMessage-Shop-01-21-2
+ * Russian guide: https://telegra.ph/Rukovodstvo-po-API-AnyMessage-Shop-01-28
  */
 
 const BASE = 'https://api.anymessage.shop';
@@ -17,11 +18,20 @@ export function isConfigured() {
 
 async function get<T = unknown>(path: string, params: Record<string, string> = {}): Promise<T> {
   const q = new URLSearchParams({ token: token(), ...params });
-  const res = await fetch(`${BASE}${path}?${q.toString()}`, { cache: 'no-store' });
-  if (!res.ok) {
-    throw new Error(`AnyMessage ${path} HTTP ${res.status}`);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 12000);
+  try {
+    const res = await fetch(`${BASE}${path}?${q.toString()}`, {
+      cache: 'no-store',
+      signal: controller.signal,
+    });
+    if (!res.ok) {
+      throw new Error(`Provider HTTP ${res.status}`);
+    }
+    return (await res.json()) as T;
+  } finally {
+    clearTimeout(timer);
   }
-  return res.json() as Promise<T>;
 }
 
 export type BalanceResponse = { status: string; balance?: string | number; value?: string };
@@ -43,17 +53,31 @@ export type QuantityResponse = {
   value?: string;
 };
 
-/** Live stock + provider cost for a site (e.g. instagram.com). */
-export async function getQuantity(site: string): Promise<Record<string, DomainStock>> {
-  const clean = site
+export function normalizeSite(raw: string): string {
+  let s = (raw || '')
     .toLowerCase()
     .replace(/^https?:\/\//, '')
     .replace(/^www\./, '')
     .split('/')[0]
     .trim();
+  if (s && !s.includes('.')) {
+    s = `${s}.com`;
+  }
+  return s;
+}
+
+/** Live stock + provider cost for a site (e.g. instagram.com). */
+export async function getQuantity(site: string): Promise<Record<string, DomainStock>> {
+  const clean = normalizeSite(site);
+  if (!clean || clean.length < 3) {
+    throw new Error('Please enter a valid website name (e.g. instagram.com)');
+  }
   const data = await get<QuantityResponse>('/email/quantity', { site: clean });
   if (data.status !== 'success' || !data.data) {
-    throw new Error(data.value || 'quantity failed');
+    if (data.value === 'site') {
+      throw new Error('Platform domain not recognized by provider. Try entering the full domain like instagram.com');
+    }
+    throw new Error(data.value || 'Failed to retrieve available domains');
   }
   return data.data;
 }
@@ -71,16 +95,22 @@ export async function orderEmail(opts: {
   regex?: string;
   subject?: string;
 }): Promise<{ id: string; email: string }> {
-  const params: Record<string, string> = {
-    site: opts.site,
-    domain: opts.domain,
-  };
+  const site = normalizeSite(opts.site);
+  const domain = (opts.domain || '').trim().toLowerCase();
+  const params: Record<string, string> = { site, domain };
   if (opts.regex) params.regex = opts.regex;
   if (opts.subject) params.subject = opts.subject;
 
   const data = await get<OrderResponse>('/email/order', params);
   if (data.status !== 'success' || !data.id || !data.email) {
-    throw new Error(data.value || 'order failed');
+    const val = String(data.value || '').toLowerCase();
+    if (val.includes('no emails')) {
+      throw new Error('NO_EMAILS_AVAILABLE');
+    }
+    if (val.includes('no balance') || val.includes('token')) {
+      throw new Error('PROVIDER_TEMPORARILY_UNAVAILABLE');
+    }
+    throw new Error(data.value || 'Order creation failed');
   }
   return { id: String(data.id), email: data.email };
 }
@@ -92,14 +122,23 @@ export type MessageResponse = {
 };
 
 export async function getMessage(id: string, preview = false): Promise<MessageResponse> {
-  const params: Record<string, string> = { id };
+  const params: Record<string, string> = { id: String(id).trim() };
   if (preview) params.preview = '1';
   return get<MessageResponse>('/email/getmessage', params);
 }
 
 export async function cancelEmail(id: string): Promise<void> {
-  const data = await get<{ status: string; value?: string }>('/email/cancel', { id });
+  const data = await get<{ status: string; value?: string }>('/email/cancel', { id: String(id).trim() });
   if (data.status !== 'success') {
+    const val = String(data.value || '').toLowerCase();
+    if (
+      val.includes('already') ||
+      val.includes('no activation') ||
+      val.includes('canceled') ||
+      val.includes('cancelled')
+    ) {
+      return;
+    }
     throw new Error(data.value || 'cancel failed');
   }
 }
@@ -125,6 +164,77 @@ export async function reorderEmail(opts: {
   return { id: String(data.id), email: data.email };
 }
 
+export type ParsedOtp = {
+  code: string | null;
+  cleanText: string;
+  link: string | null;
+};
+
+/**
+ * Intelligent parser for AnyMessage response:
+ * - value: e.g. "111111" (extracted OTP) or "wait message" or a verification URL
+ * - message: e.g. "<html>...</html>" or plain text body
+ */
+export function parseOtpMessage(raw: { value?: string; message?: string }): ParsedOtp {
+  const value = String(raw.value || '').trim();
+  const rawMsg = String(raw.message || '').trim();
+
+  let code: string | null = null;
+  let link: string | null = null;
+
+  // Check if value is a verification URL
+  if (/^https?:\/\//i.test(value)) {
+    link = value;
+  } else if (value && value !== 'wait message') {
+    const cleanVal = value.replace(/[^a-zA-Z0-9-]/g, '');
+    if (cleanVal.length >= 3 && cleanVal.length <= 12) {
+      code = cleanVal;
+    }
+  }
+
+  // Strip HTML tags, styles, scripts to extract clean text
+  let clean = rawMsg
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  // If no link found yet, look for verification link in raw HTML or clean text
+  if (!link) {
+    const linkMatch = rawMsg.match(/href=["'](https?:\/\/[^"'>\s]+(?:verify|confirm|activate|token|validation)[^"'>\s]*)["']/i);
+    if (linkMatch && linkMatch[1]) {
+      link = linkMatch[1];
+    }
+  }
+
+  // If no code extracted from value, try extracting from clean text
+  if (!code && clean) {
+    const digitMatch = clean.match(/\b([0-9]{4,8})\b/);
+    if (digitMatch) {
+      code = digitMatch[1];
+    } else {
+      const prefixMatch = clean.match(/(?:code|otp|pin|token)\s*(?:is)?\s*[:#-]?\s*([A-Za-z0-9-]{4,10})\b/i);
+      if (prefixMatch && !/^(?:is|code|your|the)$/i.test(prefixMatch[1])) {
+        code = prefixMatch[1];
+      }
+    }
+  }
+
+  // Fallback: if clean text is empty but value is present
+  if (!clean && value && value !== 'wait message') {
+    clean = value;
+  }
+
+  return { code, cleanText: clean, link };
+}
+
 // ---------------------------------------------------------------------------
 // Pricing (locked product rule)
 // ---------------------------------------------------------------------------
@@ -132,12 +242,6 @@ export async function reorderEmail(opts: {
 const DEFAULT_RATE = 1380;
 const DEFAULT_FLAT_MARKUP_USD = 0.25;
 
-/**
- * (provider cost + flat markup) x rate, rounded.
- * Owner rule: prices above 450 up to 500 snap to 500.
- * Above 500 the real price stays — NO hard ceiling anymore.
- * Live requests pass markup + rate from lib/email-otp-pricing.
- */
 export function emailOtpPriceNgn(
   providerCostUsd: number,
   markupUsd = Number(process.env.EMAIL_OTP_FLAT_MARKUP_USD) || DEFAULT_FLAT_MARKUP_USD,
@@ -155,7 +259,6 @@ export type PricedDomain = {
   priceNgn: number;
 };
 
-/** Normalize quantity response into customer-facing priced list (stock > 0 first). */
 export function priceDomains(
   raw: Record<string, DomainStock>,
   opts?: { markup?: number; rate?: number },

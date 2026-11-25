@@ -6,6 +6,7 @@ import {
   Check,
   ChevronRight,
   Copy,
+  ExternalLink,
   Globe,
   Inbox,
   Loader2,
@@ -60,6 +61,8 @@ type OrderRow = {
   priceNgn: number;
   status: string;
   message?: string;
+  code?: string;
+  link?: string;
   createdAt: string;
 };
 
@@ -130,7 +133,7 @@ export function EmailOtpPage({
         cache: 'no-store',
         headers: vxHeaders,
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       if (!data.ok) {
         setError(data.error || 'Failed to load domains');
         return;
@@ -151,7 +154,7 @@ export function EmailOtpPage({
         `/api/v1/email-otp/orders?userId=${encodeURIComponent(session.userId)}`,
         { cache: 'no-store', headers: vxHeaders },
       );
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       if (data.ok && Array.isArray(data.orders)) {
         setOrders(data.orders as OrderRow[]);
       }
@@ -165,6 +168,66 @@ export function EmailOtpPage({
   useEffect(() => {
     if (tab === 'my-emails') void fetchOrders();
   }, [tab, fetchOrders]);
+
+  // Auto-polling for active waiting orders
+  useEffect(() => {
+    if (tab !== 'my-emails' || !session?.userId) return;
+    const waitingOrders = orders.filter((o) => o.status === 'waiting');
+    if (waitingOrders.length === 0) return;
+
+    let stopped = false;
+    const pollWaiting = async () => {
+      for (const o of waitingOrders) {
+        if (stopped) break;
+        try {
+          const res = await fetch(
+            `/api/v1/email-otp/message?orderId=${encodeURIComponent(o.id)}&userId=${encodeURIComponent(session.userId)}`,
+            { cache: 'no-store', headers: vxHeaders },
+          );
+          if (!res.ok || stopped) continue;
+          const data = await res.json().catch(() => ({}));
+          if (data?.ok && data.status === 'received') {
+            setOrders((prev) =>
+              prev.map((x) =>
+                x.id === o.id
+                  ? {
+                      ...x,
+                      status: 'received',
+                      message: data.message || x.message,
+                      code: data.code || x.code,
+                      link: data.link || x.link,
+                    }
+                  : x,
+              ),
+            );
+            showToast({
+              kind: 'ok',
+              text: `OTP received for ${o.email}${data.code ? ': ' + data.code : ''}!`,
+            });
+          } else if (data?.ok && data.status === 'cancelled') {
+            setOrders((prev) =>
+              prev.map((x) => (x.id === o.id ? { ...x, status: 'cancelled' } : x)),
+            );
+            showToast({
+              kind: 'funds',
+              text: data.note || 'Email session expired. Wallet refunded.',
+            });
+          }
+        } catch {
+          /* network blip */
+        }
+      }
+    };
+
+    const timer = setInterval(() => {
+      void pollWaiting();
+    }, 4500);
+
+    return () => {
+      stopped = true;
+      clearInterval(timer);
+    };
+  }, [tab, orders, session?.userId, vxHeaders, showToast]);
 
   const buyDomain = async (d: DomainRow) => {
     if (!selected || !session?.userId) {
@@ -205,16 +268,31 @@ export function EmailOtpPage({
         `/api/v1/email-otp/message?orderId=${encodeURIComponent(o.id)}&userId=${encodeURIComponent(session.userId)}`,
         { cache: 'no-store', headers: vxHeaders },
       );
-      const data = await res.json();
-      if (data.ok && data.status === 'received' && data.message) {
+      const data = await res.json().catch(() => ({}));
+      if (data?.ok && data.status === 'received') {
         setOrders((prev) =>
-          prev.map((x) => (x.id === o.id ? { ...x, status: 'received', message: String(data.message) } : x)),
+          prev.map((x) =>
+            x.id === o.id
+              ? {
+                  ...x,
+                  status: 'received',
+                  message: data.message || x.message,
+                  code: data.code || x.code,
+                  link: data.link || x.link,
+                }
+              : x,
+          ),
         );
-        showToast({ kind: 'ok', text: 'Message received — check the order below.' });
-      } else if (data.ok && data.status === 'waiting') {
-        showToast({ kind: 'error', text: 'No message yet. Trigger the OTP on the platform, then check again.' });
+        showToast({ kind: 'ok', text: `Message received: ${data.code || 'Check details below'}` });
+      } else if (data?.ok && data.status === 'waiting') {
+        showToast({ kind: 'ok', text: 'Still waiting for email OTP. Trigger the code on the platform now.' });
+      } else if (data?.ok && data.status === 'cancelled') {
+        setOrders((prev) =>
+          prev.map((x) => (x.id === o.id ? { ...x, status: 'cancelled' } : x)),
+        );
+        showToast({ kind: 'funds', text: data.note || 'Email session expired. Wallet refunded.' });
       } else {
-        showToast({ kind: 'error', text: data.error || 'Could not check the inbox.' });
+        showToast({ kind: 'error', text: data?.error || 'Could not check the inbox.' });
       }
     } catch {
       showToast({ kind: 'error', text: 'Network error.' });
@@ -232,9 +310,9 @@ export function EmailOtpPage({
         headers: { 'Content-Type': 'application/json', ...vxHeaders },
         body: JSON.stringify({ orderId: o.id, userId: session.userId }),
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       if (!res.ok || !data.ok) {
-        showToast({ kind: 'error', text: data.error || 'Cancel failed.' });
+        showToast({ kind: 'error', text: data?.error || 'Cancel failed.' });
         return;
       }
       showToast({
@@ -499,7 +577,7 @@ export function EmailOtpPage({
             </button>
           </div>
 
-          {ordersLoading ? (
+          {ordersLoading && orders.length === 0 ? (
             <div className="eotp-state">
               <Loader2 size={22} className="spin" />
               <p>Loading your emails…</p>
@@ -539,9 +617,58 @@ export function EmailOtpPage({
                     <span>{o.site}</span>
                     <span>·</span>
                     <span>{formatNgn(o.priceNgn)}</span>
+                    {o.status === 'waiting' ? (
+                      <>
+                        <span>·</span>
+                        <span className="eotp-live-indicator">Auto-checking inbox…</span>
+                      </>
+                    ) : null}
                   </div>
 
-                  {o.message ? (
+                  {o.code ? (
+                    <div className="eotp-otp-card">
+                      <div className="eotp-otp-header">
+                        <span className="eotp-otp-badge">VERIFICATION CODE</span>
+                        <span className="eotp-otp-hint">1-tap copy</span>
+                      </div>
+                      <div className="eotp-otp-body">
+                        <span className="eotp-otp-val">{o.code}</span>
+                        <button
+                          type="button"
+                          className="eotp-otp-copy-btn"
+                          onClick={() => copy(o.code || '', 'code-' + o.id)}
+                          aria-label="Copy verification code"
+                        >
+                          {copiedKey === 'code-' + o.id ? <Check size={16} /> : <Copy size={16} />}
+                          <span>{copiedKey === 'code-' + o.id ? 'Copied' : 'Copy'}</span>
+                        </button>
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {o.link ? (
+                    <div className="eotp-link-card">
+                      <a
+                        href={o.link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="eotp-link-btn"
+                      >
+                        <ExternalLink size={14} />
+                        <span>Open Verification Link</span>
+                      </a>
+                      <button
+                        type="button"
+                        className="eotp-copy-btn"
+                        onClick={() => copy(o.link || '', 'link-' + o.id)}
+                        aria-label="Copy verification link"
+                      >
+                        {copiedKey === 'link-' + o.id ? <Check size={14} /> : <Copy size={14} />}
+                      </button>
+                    </div>
+                  ) : null}
+
+                  {o.message && (!o.code || !o.message.startsWith(o.code)) ? (
                     <div className="eotp-order-msg">
                       <div className="eotp-order-msg-text">{o.message}</div>
                       <button

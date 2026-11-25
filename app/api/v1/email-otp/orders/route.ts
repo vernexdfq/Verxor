@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { parseOtpMessage } from '@/lib/providers/anymessage';
 import { sbSelect, supabaseConfigured } from '@/lib/supabase-admin';
 
 export const dynamic = 'force-dynamic';
@@ -51,19 +52,25 @@ export async function GET(req: NextRequest) {
       'email_orders',
       'user_id=eq.' + encodeURIComponent(userId) + '&order=created_at.desc&limit=100&select=id,provider_order_id,email_address,site,domain,cost_usd,charged_ngn,audience,status,message,created_at',
     )) as Array<Record<string, unknown>>;
-    const orders = (Array.isArray(rows) ? rows : []).map((r) => ({
-      id: String(r.id || ''),
-      providerOrderId: String(r.provider_order_id || ''),
-      email: String(r.email_address || ''),
-      site: String(r.site || ''),
-      domain: String(r.domain || ''),
-      priceNgn: Number(r.charged_ngn) || 0,
-      costUsd: Number(r.cost_usd) || 0,
-      audience: String(r.audience || 'retail'),
-      status: String(r.status || 'waiting'),
-      message: r.message != null ? String(r.message) : undefined,
-      createdAt: String(r.created_at || ''),
-    }));
+    const orders = (Array.isArray(rows) ? rows : []).map((r) => {
+      const msg = r.message != null ? String(r.message) : undefined;
+      const parsed = msg ? parseOtpMessage({ message: msg, value: msg }) : { code: null, cleanText: '', link: null };
+      return {
+        id: String(r.id || ''),
+        providerOrderId: String(r.provider_order_id || ''),
+        email: String(r.email_address || ''),
+        site: String(r.site || ''),
+        domain: String(r.domain || ''),
+        priceNgn: Number(r.charged_ngn) || 0,
+        costUsd: Number(r.cost_usd) || 0,
+        audience: String(r.audience || 'retail'),
+        status: String(r.status || 'waiting'),
+        message: msg,
+        code: parsed.code || undefined,
+        link: parsed.link || undefined,
+        createdAt: String(r.created_at || ''),
+      };
+    });
     return NextResponse.json({ ok: true, orders, count: orders.length });
   } catch (e) {
     console.warn('[email-otp/orders]', e);

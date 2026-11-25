@@ -6,6 +6,7 @@ import {
   BarChart3,
   Check,
   Copy,
+  ExternalLink,
   History as HistoryIcon,
   Loader2,
   Mail,
@@ -24,6 +25,8 @@ type OrderRow = {
   priceNgn: number;
   status: string;
   message?: string;
+  code?: string;
+  link?: string;
   createdAt: string;
 };
 
@@ -116,6 +119,56 @@ export function EmailHistoryPage({
     void load();
   }, [load]);
 
+  // Auto-polling for active waiting orders
+  useEffect(() => {
+    if (tab !== 'activations' || !session?.userId) return;
+    const waitingOrders = orders.filter((o) => o.status === 'waiting');
+    if (waitingOrders.length === 0) return;
+
+    let stopped = false;
+    const poll = async () => {
+      for (const o of waitingOrders) {
+        if (stopped) break;
+        try {
+          const res = await fetch(
+            `/api/v1/email-otp/message?orderId=${encodeURIComponent(o.id)}&userId=${encodeURIComponent(session.userId)}`,
+            { cache: 'no-store', headers },
+          );
+          if (!res.ok || stopped) continue;
+          const data = await res.json().catch(() => ({}));
+          if (data?.ok && data.status === 'received') {
+            setOrders((prev) =>
+              prev.map((x) =>
+                x.id === o.id
+                  ? {
+                      ...x,
+                      status: 'received',
+                      message: data.message || x.message,
+                      code: data.code || x.code,
+                      link: data.link || x.link,
+                    }
+                  : x,
+              ),
+            );
+          } else if (data?.ok && data.status === 'cancelled') {
+            setOrders((prev) =>
+              prev.map((x) => (x.id === o.id ? { ...x, status: 'cancelled' } : x)),
+            );
+          }
+        } catch {}
+      }
+    };
+
+    const timer = setInterval(() => {
+      void poll();
+    }, 4500);
+
+    return () => {
+      stopped = true;
+      clearInterval(timer);
+    };
+  }, [tab, orders, session?.userId, headers]);
+
   const checkInbox = async (o: OrderRow) => {
     if (!session?.userId) return;
     setCheckingId(o.id);
@@ -125,9 +178,23 @@ export function EmailHistoryPage({
         { cache: 'no-store', headers },
       );
       const data = await res.json().catch(() => ({}));
-      if (data?.ok && data.status === 'received' && data.message) {
+      if (data?.ok && data.status === 'received') {
         setOrders((prev) =>
-          prev.map((x) => (x.id === o.id ? { ...x, status: 'received', message: String(data.message) } : x)),
+          prev.map((x) =>
+            x.id === o.id
+              ? {
+                  ...x,
+                  status: 'received',
+                  message: data.message || x.message,
+                  code: data.code || x.code,
+                  link: data.link || x.link,
+                }
+              : x,
+          ),
+        );
+      } else if (data?.ok && data.status === 'cancelled') {
+        setOrders((prev) =>
+          prev.map((x) => (x.id === o.id ? { ...x, status: 'cancelled' } : x)),
         );
       }
     } catch {
@@ -199,8 +266,58 @@ export function EmailHistoryPage({
         <span>{formatNgn(o.priceNgn)}</span>
         <span>·</span>
         <span>{formatWhen(o.createdAt)}</span>
+        {o.status === 'waiting' ? (
+          <>
+            <span>·</span>
+            <span className="eotp-live-indicator">Auto-checking inbox…</span>
+          </>
+        ) : null}
       </div>
-      {o.message ? (
+
+      {o.code ? (
+        <div className="eotp-otp-card">
+          <div className="eotp-otp-header">
+            <span className="eotp-otp-badge">VERIFICATION CODE</span>
+            <span className="eotp-otp-hint">1-tap copy</span>
+          </div>
+          <div className="eotp-otp-body">
+            <span className="eotp-otp-val">{o.code}</span>
+            <button
+              type="button"
+              className="eotp-otp-copy-btn"
+              onClick={() => void copy(o.code || '', 'code-' + o.id)}
+              aria-label="Copy verification code"
+            >
+              {copiedKey === 'code-' + o.id ? <Check size={16} /> : <Copy size={16} />}
+              <span>{copiedKey === 'code-' + o.id ? 'Copied' : 'Copy'}</span>
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {o.link ? (
+        <div className="eotp-link-card">
+          <a
+            href={o.link}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="eotp-link-btn"
+          >
+            <ExternalLink size={14} />
+            <span>Open Verification Link</span>
+          </a>
+          <button
+            type="button"
+            className="eotp-copy-btn"
+            onClick={() => void copy(o.link || '', 'link-' + o.id)}
+            aria-label="Copy verification link"
+          >
+            {copiedKey === 'link-' + o.id ? <Check size={14} /> : <Copy size={14} />}
+          </button>
+        </div>
+      ) : null}
+
+      {o.message && (!o.code || !o.message.startsWith(o.code)) ? (
         <div className="eotp-order-msg">
           <div className="eotp-order-msg-text">{o.message}</div>
           <button
@@ -213,6 +330,7 @@ export function EmailHistoryPage({
           </button>
         </div>
       ) : null}
+
       {o.status !== 'cancelled' ? (
         <div className="eotp-order-actions">
           <button

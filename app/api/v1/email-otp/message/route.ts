@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getMessage } from '@/lib/providers/anymessage';
+import { getMessage, parseOtpMessage } from '@/lib/providers/anymessage';
 import { sbSelect, sbUpdate, supabaseConfigured } from '@/lib/supabase-admin';
 
 export const dynamic = 'force-dynamic';
@@ -35,6 +35,33 @@ async function resolveUserId(req: NextRequest): Promise<string | null> {
   }
 }
 
+async function creditRetailWallet(userId: string, amount: number, reference: string): Promise<boolean> {
+  const base = supabaseBase();
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!base || !serviceKey || amount <= 0) return false;
+  try {
+    const res = await fetch(base + '/rest/v1/rpc/credit_wallet', {
+      method: 'POST',
+      headers: {
+        apikey: serviceKey,
+        Authorization: 'Bearer ' + serviceKey,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        p_user_id: userId,
+        p_amount: amount,
+        p_reference: reference,
+        p_description: 'Refund — expired email address',
+      }),
+    });
+    if (res.ok) return true;
+    const t = await res.text().catch(() => '');
+    return /duplicate|unique|already/i.test(t);
+  } catch {
+    return false;
+  }
+}
+
 /**
  * GET /api/v1/email-otp/message?orderId=... 
  * Polls AnyMessage for the OTP / inbox content of the user's own order.
@@ -53,15 +80,26 @@ export async function GET(req: NextRequest) {
   }
 
   let row: Record<string, unknown> | undefined;
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(orderId);
   try {
-    const rows = (await sbSelect(
-      'email_orders',
-      'id=eq.' + encodeURIComponent(orderId) + '&select=id,user_id,provider_order_id,status,message&limit=1',
-    )) as Array<Record<string, unknown>>;
-    row = rows?.[0];
-  } catch {
-    return NextResponse.json({ ok: false, error: 'Order not found (is the email_orders table created?)' }, { status: 404 });
+    if (isUuid) {
+      const rows = (await sbSelect(
+        'email_orders',
+        'id=eq.' + encodeURIComponent(orderId) + '&select=id,user_id,provider_order_id,status,message,charged_ngn,audience&limit=1',
+      )) as Array<Record<string, unknown>>;
+      row = rows?.[0];
+    }
+    if (!row) {
+      const rows = (await sbSelect(
+        'email_orders',
+        'provider_order_id=eq.' + encodeURIComponent(orderId) + '&select=id,user_id,provider_order_id,status,message,charged_ngn,audience&limit=1',
+      )) as Array<Record<string, unknown>>;
+      row = rows?.[0];
+    }
+  } catch (err) {
+    console.warn('[email-otp/message] select failed:', err);
   }
+
   if (!row) {
     return NextResponse.json({ ok: false, error: 'Order not found' }, { status: 404 });
   }
@@ -69,11 +107,20 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: false, error: 'Not your order' }, { status: 403 });
   }
 
+  const internalId = String(row.id || orderId);
   const providerOrderId = String(row.provider_order_id || '');
   const status = String(row.status || 'waiting');
+  const priceNgn = Number(row.charged_ngn) || 0;
 
   if (status === 'received' && row.message) {
-    return NextResponse.json({ ok: true, status: 'received', message: String(row.message) });
+    const parsed = parseOtpMessage({ message: String(row.message), value: String(row.message) });
+    return NextResponse.json({
+      ok: true,
+      status: 'received',
+      code: parsed.code,
+      message: String(row.message),
+      link: parsed.link,
+    });
   }
   if (status === 'cancelled') {
     return NextResponse.json({ ok: true, status: 'cancelled', message: null });
@@ -81,16 +128,57 @@ export async function GET(req: NextRequest) {
 
   try {
     const m = await getMessage(providerOrderId);
-    const text = m.status === 'success' ? String(m.message || m.value || '') : '';
-    if (m.status === 'success' && text) {
+
+    if (m.status === 'success') {
+      const parsed = parseOtpMessage(m);
+      const displayText = parsed.cleanText || parsed.code || 'OTP received';
+
       try {
-        await sbUpdate('email_orders', { id: orderId }, { status: 'received', message: text, updated_at: new Date().toISOString() });
-      } catch {
-        /* best effort */
+        await sbUpdate(
+          'email_orders',
+          { id: internalId },
+          { status: 'received', message: displayText, updated_at: new Date().toISOString() },
+        );
+      } catch (err) {
+        console.warn('[email-otp/message] DB update failed:', err);
       }
-      return NextResponse.json({ ok: true, status: 'received', message: text });
+
+      return NextResponse.json({
+        ok: true,
+        status: 'received',
+        code: parsed.code,
+        message: displayText,
+        link: parsed.link,
+      });
     }
-    return NextResponse.json({ ok: true, status: 'waiting', message: null, providerStatus: m.status, providerNote: m.value || null });
+
+    const note = String(m.value || '').toLowerCase();
+    if (note === 'wait message' || !note) {
+      return NextResponse.json({ ok: true, status: 'waiting', message: null });
+    }
+
+    if (note.includes('canceled') || note.includes('cancelled') || note.includes('no activation')) {
+      try {
+        await sbUpdate(
+          'email_orders',
+          { id: internalId },
+          { status: 'cancelled', updated_at: new Date().toISOString() },
+        );
+      } catch {}
+
+      if (priceNgn > 0) {
+        await creditRetailWallet(userId, priceNgn, 'refund-email-expired-' + providerOrderId).catch(() => null);
+      }
+
+      return NextResponse.json({
+        ok: true,
+        status: 'cancelled',
+        message: null,
+        note: 'Email session expired without receiving an OTP. Your wallet has been refunded.',
+      });
+    }
+
+    return NextResponse.json({ ok: true, status: 'waiting', message: null, providerNote: m.value || null });
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Provider error';
     return NextResponse.json({ ok: true, status: 'waiting', message: null, error: msg });

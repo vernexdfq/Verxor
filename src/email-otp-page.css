@@ -721,3 +721,239 @@
   place-items: center;
   cursor: pointer;
 }
+
+/* ── Live indicator ── */
+.eotp-live-indicator {
+  color: #0052ff;
+  font-weight: 700;
+  animation: eotp-pulse 2s ease-in-out infinite;
+}
+
+@keyframes eotp-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* ── Prominent OTP Code Card ── */
+.eotp-otp-card {
+  margin-top: 12px;
+  background: linear-gradient(135deg, rgba(22, 163, 74, 0.12) 0%, rgba(22, 163, 74, 0.05) 100%);
+  border: 1.5px solid rgba(22, 163, 74, 0.35);
+  border-radius: 12px;
+  padding: 12px 14px;
+}
+
+.eotp-otp-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.eotp-otp-badge {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: #15803d;
+  text-transform: uppercase;
+}
+
+.eotp-otp-hint {
+  font-size: 11px;
+  font-weight: 600;
+  color: #16a34a;
+}
+
+.eotp-otp-body {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.eotp-otp-val {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 24px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  color: #14532d;
+}
+
+.eotp-otp-copy-btn {
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 10px;
+  border: none;
+  background: #16a34a;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+}
+
+.eotp-otp-copy-btn:hover {
+  background: #15803d;
+}
+
+.eotp-otp-copy-btn:active {
+  transform: scale(0.97);
+}
+
+.eotp-link-card {
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.eotp-link-btn {
+  flex: 1;
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(0, 82, 255, 0.3);
+  background: rgba(0, 82, 255, 0.08);
+  color: #0052ff;
+  font-size: 12.5px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  text-decoration: none;
+}
+
+.eotp-link-btn:hover {
+  background: rgba(0, 82, 255, 0.15);
+}
+
+/* ── Dark theme support ── */
+.dark-theme .eotp-back,
+.dark .eotp-back,
+.dark-theme .eotp-tabs button,
+.dark .eotp-tabs button,
+.dark-theme .eotp-refresh,
+.dark .eotp-refresh,
+.dark-theme .eotp-secondary,
+.dark .eotp-secondary,
+.dark-theme .eotp-copy-btn,
+.dark .eotp-copy-btn {
+  background: #1e293b;
+  border-color: #334155;
+  color: #f8fafc;
+}
+
+.dark-theme .eotp-header-text h1,
+.dark .eotp-header-text h1,
+.dark-theme .eotp-selected strong,
+.dark .eotp-selected strong,
+.dark-theme .eotp-domain-name,
+.dark .eotp-domain-name,
+.dark-theme .eotp-price,
+.dark .eotp-price,
+.dark-theme .eotp-my-head strong,
+.dark .eotp-my-head strong,
+.dark-theme .eotp-order-email strong,
+.dark .eotp-order-email strong,
+.dark-theme .eotp-suggestion-text strong,
+.dark .eotp-suggestion-text strong {
+  color: #f8fafc;
+}
+
+.dark-theme .eotp-search-wrap,
+.dark .eotp-search-wrap {
+  background: #1e293b;
+  border-color: #334155;
+}
+
+.dark-theme .eotp-search-input,
+.dark .eotp-search-input {
+  color: #f8fafc;
+}
+
+.dark-theme .eotp-clear,
+.dark .eotp-clear {
+  background: #334155;
+  color: #94a3b8;
+}
+
+.dark-theme .eotp-listbox,
+.dark .eotp-listbox {
+  background: #1e293b;
+  border-color: #334155;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+}
+
+.dark-theme .eotp-suggestion:hover,
+.dark .eotp-suggestion:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.dark-theme .eotp-suggestion-icon,
+.dark .eotp-suggestion-icon {
+  background: #334155;
+}
+
+.dark-theme .eotp-domain-list li,
+.dark .eotp-domain-list li,
+.dark-theme .eotp-order,
+.dark .eotp-order,
+.dark-theme .eotp-empty,
+.dark .eotp-empty {
+  background: #1e293b;
+  border-color: #334155;
+}
+
+.dark-theme .eotp-status.cancelled,
+.dark .eotp-status.cancelled {
+  background: #334155;
+  color: #94a3b8;
+}
+
+.dark-theme .eotp-cancel-btn,
+.dark .eotp-cancel-btn {
+  background: #1e293b;
+  border-color: #7f1d1d;
+  color: #f87171;
+}
+
+.dark-theme .eotp-cancel-btn:hover:not(:disabled),
+.dark .eotp-cancel-btn:hover:not(:disabled) {
+  background: #450a0a;
+}
+
+.dark-theme .eotp-otp-card,
+.dark .eotp-otp-card {
+  background: linear-gradient(135deg, rgba(22, 163, 74, 0.2) 0%, rgba(22, 163, 74, 0.08) 100%);
+  border-color: rgba(34, 197, 94, 0.4);
+}
+
+.dark-theme .eotp-otp-badge,
+.dark .eotp-otp-badge {
+  color: #4ade80;
+}
+
+.dark-theme .eotp-otp-hint,
+.dark .eotp-otp-hint {
+  color: #86efac;
+}
+
+.dark-theme .eotp-otp-val,
+.dark .eotp-otp-val {
+  color: #86efac;
+}
+
+.dark-theme .eotp-order-msg,
+.dark .eotp-order-msg {
+  background: rgba(22, 163, 74, 0.12);
+  border-color: rgba(34, 197, 94, 0.3);
+}
+
+.dark-theme .eotp-order-msg-text,
+.dark .eotp-order-msg-text {
+  color: #86efac;
+}

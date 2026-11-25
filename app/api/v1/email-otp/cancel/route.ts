@@ -70,11 +70,11 @@ export async function POST(req: NextRequest) {
   try {
     body = await req.json();
   } catch {
-    return NextResponse.json({ ok: false, error: 'Invalid JSON' }, { status: 400 });
+    return NextResponse.json({ ok: false, error: 'Invalid JSON request' }, { status: 400 });
   }
   const orderId = String(body.orderId || '').trim();
   if (!orderId) {
-    return NextResponse.json({ ok: false, error: 'orderId required' }, { status: 400 });
+    return NextResponse.json({ ok: false, error: 'orderId is required' }, { status: 400 });
   }
   const userId = await resolveUserId(req, body.userId);
   if (!userId) {
@@ -85,44 +85,63 @@ export async function POST(req: NextRequest) {
   }
 
   let row: Record<string, unknown> | undefined;
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(orderId);
   try {
-    const rows = (await sbSelect(
-      'email_orders',
-      'id=eq.' + encodeURIComponent(orderId) + '&select=id,user_id,provider_order_id,status,charged_ngn&limit=1',
-    )) as Array<Record<string, unknown>>;
-    row = rows?.[0];
-  } catch {
-    return NextResponse.json({ ok: false, error: 'Order not found (is the email_orders table created?)' }, { status: 404 });
+    if (isUuid) {
+      const rows = (await sbSelect(
+        'email_orders',
+        'id=eq.' + encodeURIComponent(orderId) + '&select=id,user_id,provider_order_id,status,charged_ngn,audience&limit=1',
+      )) as Array<Record<string, unknown>>;
+      row = rows?.[0];
+    }
+    if (!row) {
+      const rows = (await sbSelect(
+        'email_orders',
+        'provider_order_id=eq.' + encodeURIComponent(orderId) + '&select=id,user_id,provider_order_id,status,charged_ngn,audience&limit=1',
+      )) as Array<Record<string, unknown>>;
+      row = rows?.[0];
+    }
+  } catch (err) {
+    console.warn('[email-otp/cancel] select failed:', err);
   }
+
   if (!row) {
     return NextResponse.json({ ok: false, error: 'Order not found' }, { status: 404 });
   }
   if (String(row.user_id) !== userId) {
     return NextResponse.json({ ok: false, error: 'Not your order' }, { status: 403 });
   }
+  const internalId = String(row.id || orderId);
   const status = String(row.status || 'waiting');
   if (status !== 'waiting') {
     return NextResponse.json({ ok: false, error: 'Only waiting orders can be cancelled' }, { status: 409 });
   }
 
   const providerOrderId = String(row.provider_order_id || '');
-  try {
-    await cancelEmail(providerOrderId);
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : 'cancel failed';
-    if (!/not found|no order|already/i.test(msg)) {
-      return NextResponse.json({ ok: false, error: 'Provider cancel failed: ' + msg }, { status: 503 });
+  if (providerOrderId) {
+    try {
+      await cancelEmail(providerOrderId);
+    } catch (e) {
+      const msg = (e instanceof Error ? e.message : 'cancel failed').toLowerCase();
+      if (!msg.includes('not found') && !msg.includes('no order') && !msg.includes('already') && !msg.includes('no activation') && !msg.includes('canceled') && !msg.includes('cancelled')) {
+        console.warn('[email-otp/cancel] Provider cancel notice:', msg);
+      }
     }
   }
 
   try {
-    await sbUpdate('email_orders', { id: orderId }, { status: 'cancelled', updated_at: new Date().toISOString() });
-  } catch {
-    /* best effort */
+    await sbUpdate('email_orders', { id: internalId }, { status: 'cancelled', updated_at: new Date().toISOString() });
+  } catch (err) {
+    console.warn('[email-otp/cancel] DB status update notice:', err);
   }
 
   const priceNgn = Number(row.charged_ngn) || 0;
-  const refunded = await creditRetailWallet(userId, priceNgn, 'refund-email-cancel-' + providerOrderId);
+  let refunded = false;
+  if (priceNgn > 0) {
+    refunded = await creditRetailWallet(userId, priceNgn, 'refund-email-cancel-' + providerOrderId);
+  } else {
+    refunded = true;
+  }
 
   return NextResponse.json({ ok: true, cancelled: true, refunded, priceNgn });
 }

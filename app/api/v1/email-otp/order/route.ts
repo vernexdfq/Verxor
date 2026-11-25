@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getQuantity, orderEmail, isConfigured } from '@/lib/providers/anymessage';
+import { getQuantity, orderEmail, isConfigured, normalizeSite, cancelEmail } from '@/lib/providers/anymessage';
 import { sbInsert, sbSelect, supabaseConfigured } from '@/lib/supabase-admin';
 import { resolvePanelClient } from '@/lib/panel-auth';
 import { resolveEmailOtpPricing, emailOtpPriceNgn } from '@/lib/email-otp-pricing';
@@ -15,6 +15,8 @@ function supabaseBase() {
 
 async function resolveUserId(req: NextRequest, bodyUserId?: string): Promise<string | null> {
   if (bodyUserId) return bodyUserId;
+  const header = (req.headers.get('x-vx-user') || '').trim();
+  if (header) return header;
   const auth = req.headers.get('authorization') || '';
   const token = auth.startsWith('Bearer ') ? auth.slice(7).trim() : '';
   if (!token || token.startsWith('vx_panel_')) return null;
@@ -159,37 +161,27 @@ async function creditResellerWallet(userId: string, amount: number, reference: s
   }).catch(() => null);
 }
 
-function cleanSite(raw: string): string {
-  let s = (raw || '').toLowerCase().trim();
-  s = s.split('/rest')[0];
-  if (s.startsWith('https://')) s = s.slice(8);
-  if (s.startsWith('http://')) s = s.slice(7);
-  if (s.startsWith('www.')) s = s.slice(4);
-  s = s.split('/')[0];
-  return s.trim();
-}
-
 /**
  * POST /api/v1/email-otp/order  { site, domain, userId? }
  * Server-side pricing (client price is IGNORED). Debits wallet, orders the
- * inbox from AnyMessage, stores the order, refunds on provider failure.
+ * inbox from AnyMessage, stores the order durably, refunds on failure.
  */
 export async function POST(req: NextRequest) {
   if (!isConfigured()) {
-    return NextResponse.json({ ok: false, error: 'Email OTP provider is not configured' }, { status: 503 });
+    return NextResponse.json({ ok: false, error: 'Email OTP service is temporarily unavailable' }, { status: 503 });
   }
 
   let body: { site?: string; domain?: string; userId?: string };
   try {
     body = await req.json();
   } catch {
-    return NextResponse.json({ ok: false, error: 'Invalid JSON' }, { status: 400 });
+    return NextResponse.json({ ok: false, error: 'Invalid JSON request' }, { status: 400 });
   }
 
-  const site = cleanSite(String(body.site || ''));
+  const site = normalizeSite(String(body.site || ''));
   const domain = String(body.domain || '').trim().toLowerCase();
   if (!site || !domain) {
-    return NextResponse.json({ ok: false, error: 'site and domain are required' }, { status: 400 });
+    return NextResponse.json({ ok: false, error: 'Site and domain are required' }, { status: 400 });
   }
 
   const panel = await resolvePanelClient(req);
@@ -223,14 +215,14 @@ export async function POST(req: NextRequest) {
     const raw = await getQuantity(site);
     stock = raw[domain];
   } catch (e) {
-    const msg = e instanceof Error ? e.message : 'Provider unavailable';
-    return NextResponse.json({ ok: false, error: 'Provider unavailable: ' + msg }, { status: 503 });
+    const msg = e instanceof Error ? e.message : 'Service unavailable';
+    return NextResponse.json({ ok: false, error: 'Could not fetch domain stock: ' + msg }, { status: 503 });
   }
   if (!stock) {
     return NextResponse.json({ ok: false, error: 'Unknown domain for this platform' }, { status: 400 });
   }
   if (!Number(stock.count) || Number(stock.count) <= 0) {
-    return NextResponse.json({ ok: false, error: 'This domain is out of stock. Pick another one.' }, { status: 409 });
+    return NextResponse.json({ ok: false, error: 'This domain is currently out of stock. Please select another domain.' }, { status: 409 });
   }
 
   // Audience + markup + rate (same detection as Virtual Numbers)
@@ -278,24 +270,49 @@ export async function POST(req: NextRequest) {
     const result = await orderEmail({ site, domain });
 
     let savedId: string | null = null;
+    let insertErr: Error | null = null;
     if (supabaseConfigured()) {
-      try {
-        const rows = await sbInsert('email_orders', {
-          user_id: userId,
-          provider: 'anymessage',
-          provider_order_id: result.id,
-          email_address: result.email,
-          site,
-          domain,
-          cost_usd: costUsd,
-          charged_ngn: priceNgn,
-          audience,
-          status: 'waiting',
-        });
-        if (Array.isArray(rows) && rows[0]?.id) savedId = String(rows[0].id);
-      } catch {
-        /* order row optional */
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          const rows = await sbInsert('email_orders', {
+            user_id: userId,
+            provider: 'anymessage',
+            provider_order_id: String(result.id),
+            email_address: result.email,
+            site,
+            domain,
+            cost_usd: costUsd,
+            charged_ngn: priceNgn,
+            audience,
+            status: 'waiting',
+          });
+          if (Array.isArray(rows) && rows[0]?.id) {
+            savedId = String(rows[0].id);
+            insertErr = null;
+            break;
+          }
+        } catch (e) {
+          insertErr = e instanceof Error ? e : new Error(String(e));
+        }
       }
+    }
+
+    if (!savedId && supabaseConfigured()) {
+      console.error('[email-otp/order] Failed to persist email order in DB:', insertErr);
+      try {
+        await cancelEmail(result.id);
+      } catch {}
+      if (debited) {
+        if (useReseller) {
+          await creditResellerWallet(userId, priceNgn, 'refund-' + debitRef);
+        } else {
+          await creditRetailWallet(userId, priceNgn, 'refund-' + debitRef);
+        }
+      }
+      return NextResponse.json(
+        { ok: false, error: 'Order could not be saved to your account. Your wallet has been refunded.' },
+        { status: 500 },
+      );
     }
 
     return NextResponse.json({
@@ -319,7 +336,14 @@ export async function POST(req: NextRequest) {
         await creditRetailWallet(userId, priceNgn, 'refund-' + debitRef);
       }
     }
-    const message = err instanceof Error ? err.message : 'Purchase failed';
-    return NextResponse.json({ ok: false, error: 'Provider failed, wallet refunded: ' + message }, { status: 503 });
+    const rawMsg = (err instanceof Error ? err.message : '').toLowerCase();
+    let customerError = 'Purchase failed. Your wallet has been refunded.';
+    if (rawMsg.includes('no_emails') || rawMsg.includes('no emails')) {
+      customerError = 'No email addresses currently available for this domain. Please select another domain. Your wallet has been refunded.';
+    } else if (rawMsg.includes('unavailable') || rawMsg.includes('balance') || rawMsg.includes('token')) {
+      customerError = 'Service temporarily unavailable. Please try another domain. Your wallet has been refunded.';
+    }
+
+    return NextResponse.json({ ok: false, error: customerError }, { status: 503 });
   }
 }
