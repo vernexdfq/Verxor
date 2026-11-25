@@ -74,6 +74,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: true, orders, count: orders.length });
   } catch (e) {
     console.warn('[email-otp/orders]', e);
-    return NextResponse.json({ ok: true, orders: [], error: 'Failed to load orders (is the email_orders table created?)' });
+    const detail = e instanceof Error ? e.message : String(e);
+    return NextResponse.json({ ok: true, orders: [], error: 'Failed to load orders: ' + detail });
   }
 }
