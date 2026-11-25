@@ -26,6 +26,18 @@ export async function getBalance(): Promise<number> {
 }
 
 /** getPrices — may return JSON or colon format depending on version. */
+/** getPricesV3 — returns full provider cost/count JSON tree. */
+export async function getPricesV3(country: string, service?: string) {
+  const params: Record<string, string> = { action: 'getPricesV3', country };
+  if (service) params.service = service;
+  const text = await grizzly(params);
+  try {
+    return JSON.parse(text);
+  } catch {
+    return { raw: text };
+  }
+}
+
 export async function getPrices(service?: string, country?: string) {
   const params: Record<string, string> = { action: 'getPrices' };
   if (service) params.service = service;

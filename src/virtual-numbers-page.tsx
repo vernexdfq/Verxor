@@ -112,6 +112,7 @@ export function VirtualNumbersPage({
   const [servicesError, setServicesError] = useState<string | null>(null);
   const [pricesLoading, setPricesLoading] = useState(false);
   const [pricesError, setPricesError] = useState(false);
+  const priceCache = useRef<Map<string, { at: number; options: PriceOption[] }>>(new Map());
   const [liveCountries, setLiveCountries] = useState<Country[]>([]);
   const [countriesLoading, setCountriesLoading] = useState(false);
   const [buying, setBuying] = useState(false);
@@ -151,44 +152,7 @@ export function VirtualNumbersPage({
   const [, setTick] = useState(0);
   const [copyToast, setCopyToast] = useState<string | null>(null);
   const [aboutOpen, setAboutOpen] = useState(false);
-  // Poll status every 4 seconds for any order waiting for SMS
-  useEffect(() => {
-    const waitingOrders = localOrders.filter((o) => o.status === 'waiting');
-    if (waitingOrders.length === 0) return;
-
-    let cancelled = false;
-    const interval = setInterval(() => {
-      waitingOrders.forEach(async (order) => {
-        try {
-          const provider = order.provider || 'grizzly';
-          const providerOrderId = order.providerOrderId || order.id;
-          const res = await fetch(
-            `/api/v1/numbers/status?provider=${encodeURIComponent(provider)}&providerOrderId=${encodeURIComponent(providerOrderId)}&orderId=${encodeURIComponent(order.id)}`
-          );
-          if (!res.ok) return;
-          const data = await res.json();
-          if (cancelled) return;
-          if (data.ok && data.status === 'received' && data.otp) {
-            setLocalOrders((prev) =>
-              prev.map((x) =>
-                x.id === order.id
-                  ? { ...x, status: 'received', otp: data.otp }
-                  : x,
-              ),
-            );
-            setCopyToast(`SMS received for ${order.service}: ${data.otp}`);
-          }
-        } catch {
-          /* ignore poll errors */
-        }
-      });
-    }, 4000);
-
-    return () => {
-      cancelled = true;
-      clearInterval(interval);
-    };
-  }, [localOrders]);
+  // Single efficient order status polling managed through ordersRef
   const [cancellingIds, setCancellingIds] = useState<Record<string, boolean>>({});
   const ordersRef = useRef(localOrders);
   ordersRef.current = localOrders;
@@ -503,7 +467,47 @@ export function VirtualNumbersPage({
   };
 
   const loadPrices = async (pool: Pool, service: Service, country: Country) => {
-    // Never invent a purchasable price: show only a live catalog option with a real option ID.
+    const cacheKey = `${pool.id}-${service.id}-${country.code}`;
+    const cached = priceCache.current.get(cacheKey);
+    const isFresh = cached && Date.now() - cached.at < 30_000;
+
+    if (isFresh && cached.options.length > 0) {
+      // Fast zero-delay cache: immediately render options with zero spinner
+      setPriceSheet({ open: true, options: cached.options, service, country, pool });
+      setPricesError(false);
+      setPricesLoading(false);
+      // Background silent revalidate
+      void (async () => {
+        try {
+          const url =
+            `/api/v1/catalog?mode=prices` +
+            `&pool=${encodeURIComponent(pool.id)}` +
+            `&service=${encodeURIComponent(service.id)}` +
+            `&country=${encodeURIComponent(country.code)}`;
+          const res = await fetch(url, { headers: catalogHeaders(), cache: 'no-store' });
+          if (!res.ok) return;
+          const data = await res.json();
+          if (Array.isArray(data.options)) {
+            const options: PriceOption[] = data.options
+              .filter((o: any) => o.optionId && Number(o.priceNgn) > 0 && Number(o.stock) > 0)
+              .map((o: any) => ({
+                id: String(o.optionId || o.id),
+                provider: String(o.provider || 'grizzly').toLowerCase(),
+                priceUsd: Number(o.priceUsd),
+                priceNgn: Number(o.priceNgn),
+                stock: Math.max(0, Number(o.stock) || 0),
+                grizzlyCountry: o.grizzlyCountry || o.countryCode || country.code,
+              }));
+            if (options.length > 0) {
+              priceCache.current.set(cacheKey, { at: Date.now(), options });
+              setPriceSheet((prev) => (prev?.open && prev.service.id === service.id && prev.country.code === country.code ? { ...prev, options } : prev));
+            }
+          }
+        } catch {}
+      })();
+      return;
+    }
+
     setPriceSheet({ open: true, options: [], service, country, pool });
     setPricesError(false);
     setPricesLoading(true);
@@ -528,9 +532,9 @@ export function VirtualNumbersPage({
               grizzlyCountry: o.grizzlyCountry || o.countryCode || country.code,
             }))
         : [];
+      priceCache.current.set(cacheKey, { at: Date.now(), options });
       setPriceSheet({ open: true, options, service, country, pool });
     } catch {
-      // Leave the sheet empty; a stale or fabricated price must never become buyable.
       setPricesError(true);
       setPriceSheet({ open: true, options: [], service, country, pool });
     } finally {

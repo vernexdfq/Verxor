@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { sbSelect, supabaseConfigured } from '@/lib/supabase-admin';
+import { sbSelect, sbUpsertBatch, supabaseConfigured } from '@/lib/supabase-admin';
+import * as grizzly from '@/lib/providers/grizzly';
 import { loadVnPricing, resolveVnAudience, multipliersFor, tierFromCost, type VnTier } from '@/lib/vn-pricing';
 
 export const dynamic = 'force-dynamic';
@@ -383,6 +384,56 @@ async function loadAllPrices(tier: string | null) {
   return all;
 }
 
+
+let cachedAllServices: { at: number; data: Array<{ id: string; code: string; name: string; display_name: string; is_popular: boolean; category?: string }> } | null = null;
+const SERVICES_CACHE_MS = 60_000;
+
+async function getServicesList(): Promise<Array<{ id: string; code: string; name: string; display_name: string; is_popular: boolean; category?: string }>> {
+  if (cachedAllServices && Date.now() - cachedAllServices.at < SERVICES_CACHE_MS) {
+    return cachedAllServices.data;
+  }
+  let dbServices: Array<{ id: string; code: string; name: string; display_name: string; is_popular: boolean }> = [];
+  try {
+    dbServices = await loadAllServices();
+  } catch {
+    /* fallback to master */
+  }
+
+  const masterMap = new Map(MASTER_SERVICES_FALLBACK.map((s) => [s.code.toLowerCase(), s]));
+  const seenCodes = new Set<string>();
+  const merged: Array<{ id: string; code: string; name: string; display_name: string; is_popular: boolean; category?: string }> = [];
+
+  for (const s of dbServices || []) {
+    const c = String(s.code || '').trim().toLowerCase();
+    if (!c || seenCodes.has(c)) continue;
+    seenCodes.add(c);
+    const m = masterMap.get(c);
+    const meta = SERVICE_META[c] || { category: 'other' };
+    merged.push({
+      id: c,
+      code: c,
+      name: s.display_name || s.name || m?.display_name || m?.name || c.toUpperCase(),
+      display_name: s.display_name || s.name || m?.display_name || m?.name || c.toUpperCase(),
+      is_popular: Boolean(s.is_popular || m?.is_popular),
+      category: meta.category,
+    });
+  }
+
+  for (const m of MASTER_SERVICES_FALLBACK) {
+    const c = m.code.toLowerCase();
+    if (seenCodes.has(c)) continue;
+    seenCodes.add(c);
+    const meta = SERVICE_META[c] || { category: 'other' };
+    merged.push({
+      ...m,
+      category: meta.category,
+    });
+  }
+
+  cachedAllServices = { at: Date.now(), data: merged };
+  return merged;
+}
+
 async function loadAllServices() {
   const all: Array<{
     id: string;
@@ -447,9 +498,9 @@ export async function GET(req: NextRequest) {
       };
       const fallbackCost = defaultTierCost[tier] ?? 0.15;
 
-      // Use fast master services list so catalog responds in < 30ms instead of 30s
-      let list = MASTER_SERVICES_FALLBACK.map((s) => {
-        const meta = SERVICE_META[s.code] || { category: 'other' };
+      const fullServices = await getServicesList();
+      let list = fullServices.map((s) => {
+        const meta = SERVICE_META[s.code] || { category: s.category || 'other' };
         return {
           id: s.code,
           code: s.code,
@@ -538,20 +589,30 @@ export async function GET(req: NextRequest) {
           flag: '🌍',
           dial: '',
         };
-        const key = meta.code + (c.code === '12' ? '-v' : '');
+        const isUsCode = usaCodes.has(c.code);
+        const countryKey = isUsCode ? 'US' : meta.code;
+        const countryName = isUsCode ? 'United States' : meta.name;
+        const countryFlag = isUsCode ? '🇺🇸' : meta.flag;
+        const countryDial = isUsCode ? '+1' : meta.dial;
+
         const rowTier = tierFromCost(Number(p.cost_usd));
         const ngn = sellNgn(Number(p.cost_usd), rowTier, rate, mult, pricing.roundingStep);
-        const prev = seen.get(key);
-        if (!prev || ngn < prev.fromNgn) {
-          seen.set(key, {
-            code: meta.code,
-            name: meta.name,
-            flag: meta.flag,
-            dial: meta.dial,
+        const prev = seen.get(countryKey);
+        if (!prev) {
+          seen.set(countryKey, {
+            code: countryKey,
+            name: countryName,
+            flag: countryFlag,
+            dial: countryDial,
             fromNgn: ngn,
             stock: Number(p.stock) || 0,
             grizzlyCode: c.code,
           });
+        } else {
+          prev.stock += Number(p.stock) || 0;
+          if (ngn < prev.fromNgn) {
+            prev.fromNgn = ngn;
+          }
         }
       }
       const list = Array.from(seen.values()).sort((a, b) => a.name.localeCompare(b.name));
@@ -581,7 +642,7 @@ export async function GET(req: NextRequest) {
       if (!svc) return NextResponse.json({ ok: true, options: [], count: 0 });
       let grizzlyCountryCodes: string[] = [];
       if (region === 'usa' || countryParam === 'US' || countryParam === 'USA')
-        grizzlyCountryCodes = tier === 'economy' ? ['187', '12'] : ['187'];
+        grizzlyCountryCodes = ['187', '12'];
       else if (countryParam && ISO_TO_GRIZZLY[countryParam])
         grizzlyCountryCodes = ISO_TO_GRIZZLY[countryParam];
       else if (countryParam) grizzlyCountryCodes = [countryParam];
@@ -616,7 +677,7 @@ export async function GET(req: NextRequest) {
         Number.isFinite(Number(p.cost_usd)) &&
         Number(p.cost_usd) > 0 &&
         tierFromCost(Number(p.cost_usd)) === (tier as VnTier) &&
-        !(tier !== 'economy' && countryById.get(p.country_id)?.code === '12'),
+        true,
       );
       const options = filtered
         .map((p, i) => {

@@ -332,11 +332,9 @@ export async function POST(req: NextRequest) {
   if (!Number.isFinite(providerCostUsd) || providerCostUsd <= 0 || actualTier !== selectedPoolTier) {
     return NextResponse.json({ ok: false, error: 'The selected option does not match this tier. Refresh prices and choose a matching option.' }, { status: 409 });
   }
-  if (country === '12' && selectedPoolTier !== 'economy') {
-    return NextResponse.json({ ok: false, error: 'VoIP numbers are available in Economy only.' }, { status: 409 });
-  }
+  // Cost band strictly determines tier for all numbers
   const isUsPool = poolId.startsWith('usa-');
-  const isUsCountry = country === '187' || country === '12';
+  const isUsCountry = country === '187' || country === '12' || country === 'US' || country === 'USA';
   if (isUsPool !== isUsCountry) {
     return NextResponse.json({ ok: false, error: 'The selected option does not match this pool location.' }, { status: 409 });
   }
@@ -481,11 +479,12 @@ export async function POST(req: NextRequest) {
               providerIds: undefined,
             });
           } catch (retryErr: any) {
-            // For USA Economy, try country 12 (VoIP) if 187 was out of numbers
-            if (isUsPool && selectedPoolTier === 'economy' && country === '187' && String(retryErr?.message || '').includes('NO_NUMBERS')) {
+            // For USA, try alternate route (187 <-> 12) within this tier if out of numbers
+            if (isUsPool && String(retryErr?.message || '').includes('NO_NUMBERS')) {
+              const altCountry = country === '187' ? '12' : '187';
               result = await grizzly.getNumber({
                 service,
-                country: '12',
+                country: altCountry,
                 minPrice: tierMin,
                 maxPrice: tierMax,
                 providerIds: undefined,
@@ -494,10 +493,11 @@ export async function POST(req: NextRequest) {
               throw retryErr;
             }
           }
-        } else if (isUsPool && selectedPoolTier === 'economy' && country === '187' && errMsg.includes('NO_NUMBERS')) {
+        } else if (isUsPool && errMsg.includes('NO_NUMBERS')) {
+          const altCountry = country === '187' ? '12' : '187';
           result = await grizzly.getNumber({
             service,
-            country: '12',
+            country: altCountry,
             minPrice: tierMin,
             maxPrice: tierMax,
             providerIds: undefined,
