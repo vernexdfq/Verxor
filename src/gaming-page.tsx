@@ -92,8 +92,26 @@ export function GamingPage({
 
   /* ---------- catalog: ONE full list (A–Z / Popular / search) ---------- */
 
-  const loadGames = useCallback(async () => {
-    setLoading(true);
+  // Returning visitors see the cached catalog instantly; it refreshes in the
+  // background only when stale (6h). Purchases always re-verify live.
+  const loadGames = useCallback(async (force = false) => {
+    if (!force) {
+      try {
+        const raw = localStorage.getItem('vx-gaming-catalog');
+        if (raw) {
+          const cached = JSON.parse(raw) as { at?: number; games?: CatalogProduct[] };
+          if (Array.isArray(cached.games) && cached.games.length) {
+            setProducts(cached.games);
+            setLoading(false);
+            if (Date.now() - (cached.at || 0) < 6 * 60 * 60 * 1000) return;
+          }
+        }
+      } catch {
+        /* cache unavailable — load normally */
+      }
+    } else {
+      setLoading(true);
+    }
     setLoadError(null);
     try {
       const res = await fetch('/api/v1/gaming/catalog?all=1', { cache: 'no-store' });
@@ -105,6 +123,11 @@ export function GamingPage({
         setProducts([]);
       } else {
         setProducts(data.games || []);
+        try {
+          localStorage.setItem('vx-gaming-catalog', JSON.stringify({ at: Date.now(), games: data.games || [] }));
+        } catch {
+          /* storage full/unavailable — non-fatal */
+        }
       }
     } catch {
       setLoadError('Network error loading the catalog.');
@@ -435,7 +458,7 @@ export function GamingPage({
       {loadError ? (
         <div className={`gm-error${isSetup ? ' config' : ''}`}>
           <AlertCircle size={16} /> {loadError}
-          <button type="button" onClick={() => void loadGames()}>
+          <button type="button" onClick={() => void loadGames(true)}>
             Retry
           </button>
         </div>
