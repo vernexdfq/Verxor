@@ -65,6 +65,9 @@ export function CommunicationHubPage({
   const [numberType, setNumberType] = useState<NumberType>('local');
   const [countryPicker, setCountryPicker] = useState(false);
   const [typePicker, setTypePicker] = useState(false);
+  const [areaPicker, setAreaPicker] = useState(false);
+  const [areaCode, setAreaCode] = useState<string | null>(null);
+  const [areaCodes, setAreaCodes] = useState<Array<{ code: string; label: string }>>([]);
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
 
@@ -134,6 +137,22 @@ export function CommunicationHubPage({
     };
   }, []);
 
+  // Area codes for the selected country (resets the choice on change).
+  useEffect(() => {
+    let alive = true;
+    setAreaCode(null);
+    fetch(`/api/v1/rent-line/area-codes?country=${encodeURIComponent(country.code)}`, { cache: 'no-store' })
+      .then((r) => r.json().catch(() => ({})))
+      .then((d: { ok?: boolean; areaCodes?: Array<{ code: string; label: string }> }) => {
+        if (alive && d.ok && Array.isArray(d.areaCodes)) setAreaCodes(d.areaCodes);
+      })
+      .catch(() => null);
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [country.code]);
+
   const selected = useMemo(
     () => myNumbers.find((n) => n.id === selectedId) ?? null,
     [myNumbers, selectedId],
@@ -199,7 +218,8 @@ export function CommunicationHubPage({
     setBuyMsg(null);
     try {
       const res = await fetch(
-        `/api/v1/rent-line/search?country=${encodeURIComponent(country.code)}&type=${encodeURIComponent(numberType)}`,
+        `/api/v1/rent-line/search?country=${encodeURIComponent(country.code)}&type=${encodeURIComponent(numberType)}` +
+          (areaCode ? `&areaCode=${encodeURIComponent(areaCode)}` : ''),
         { headers: vxHeaders(false), cache: 'no-store' },
       );
       const data = (await res.json().catch(() => ({}))) as {
@@ -567,6 +587,20 @@ export function CommunicationHubPage({
               </button>
             </div>
 
+            {areaCodes.length ? (
+              <div className="chub-field">
+                <label className="chub-label">AREA CODE</label>
+                <button type="button" className="chub-select" onClick={() => setAreaPicker(true)}>
+                  <span>
+                    {areaCode
+                      ? `${areaCode} · ${areaCodes.find((a) => a.code === areaCode)?.label || ''}`
+                      : 'Any (all areas)'}
+                  </span>
+                  <ChevronDown size={16} />
+                </button>
+              </div>
+            ) : null}
+
             <div className="chub-price-banner">{priceHint}</div>
 
             {searchError ? <div className="chub-alert">{searchError}</div> : null}
@@ -718,6 +752,57 @@ export function CommunicationHubPage({
                       <small style={{ color: '#64748B' }}>{t.hint}</small>
                     </span>
                     {numberType === t.id ? <span className="chub-check">✓</span> : null}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
+
+      {areaPicker && (
+        <div className="chub-sheet-backdrop" onClick={() => setAreaPicker(false)}>
+          <div className="chub-sheet list" onClick={(e) => e.stopPropagation()}>
+            <div className="chub-sheet-head">
+              <h3>Area code · {country.name}</h3>
+              <button
+                type="button"
+                className="chub-sheet-close"
+                onClick={() => setAreaPicker(false)}
+                aria-label="Close"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <ul className="chub-list">
+              <li>
+                <button
+                  type="button"
+                  className={!areaCode ? 'chub-list-item active' : 'chub-list-item'}
+                  onClick={() => {
+                    setAreaCode(null);
+                    setAreaPicker(false);
+                  }}
+                >
+                  <span>Any (all areas)</span>
+                  {!areaCode ? <span className="chub-check">✓</span> : null}
+                </button>
+              </li>
+              {areaCodes.map((a) => (
+                <li key={a.code}>
+                  <button
+                    type="button"
+                    className={areaCode === a.code ? 'chub-list-item active' : 'chub-list-item'}
+                    onClick={() => {
+                      setAreaCode(a.code);
+                      setAreaPicker(false);
+                    }}
+                  >
+                    <span>
+                      <strong style={{ display: 'block' }}>{a.code}</strong>
+                      <small style={{ color: '#64748B' }}>{a.label}</small>
+                    </span>
+                    {areaCode === a.code ? <span className="chub-check">✓</span> : null}
                   </button>
                 </li>
               ))}
