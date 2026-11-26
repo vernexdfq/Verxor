@@ -200,6 +200,7 @@ export async function s2tProductDetail(productId: string): Promise<S2TProductDet
     price: number | string;
     product_type?: string;
     category_name?: string;
+    in_stock?: boolean | string;
   };
   const subs = await s2tRequest<SubRow[]>(`/catalog/subcategories?categoryId=${encodeURIComponent(catId)}`);
   const items = Array.isArray(subs) ? subs : [];
@@ -219,11 +220,18 @@ export async function s2tProductDetail(productId: string): Promise<S2TProductDet
 
   const variations: S2TVariation[] = items.map((s) => {
     const usd = Number(s.price);
+    // Provider reports availability explicitly via in_stock; only fall back
+    // to a price heuristic when the field is missing (never guess "out of
+    // stock" from an empty price — the shop can still be stocked).
+    const providerStock =
+      typeof s.in_stock === 'boolean' ? s.in_stock
+      : typeof s.in_stock === 'string' ? /^(true|1|yes)$/i.test(s.in_stock)
+      : undefined;
     return {
       id: String(s.item_id),
       name: String(s.name),
       priceUsd: Number.isFinite(usd) ? usd : 0,
-      inStock: usd > 0,
+      inStock: providerStock === undefined ? usd > 0 : providerStock,
       productType: s.product_type,
     };
   });

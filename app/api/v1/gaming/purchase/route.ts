@@ -189,6 +189,16 @@ export async function POST(req: NextRequest) {
   if (variation.inStock === false) {
     return NextResponse.json({ ok: false, error: 'That denomination just went out of stock. Pick another one.' }, { status: 400 });
   }
+  // Catalog price can come back empty even when the item is stocked; the live
+  // unit price endpoint is the source of truth. Never block on a stale 0.
+  if (!variation.priceUsd || variation.priceUsd <= 0) {
+    try {
+      const live = await s2tItemPrice(variation.id);
+      if (live > 0) variation.priceUsd = live;
+    } catch {
+      /* handled below */
+    }
+  }
   if (!variation.priceUsd || variation.priceUsd <= 0) {
     return NextResponse.json({ ok: false, error: 'Pricing is unavailable for that denomination right now.' }, { status: 400 });
   }
