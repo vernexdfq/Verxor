@@ -69,13 +69,23 @@ export async function cachedDetail(productId: string): Promise<CachedDetail | nu
   );
   const r = Array.isArray(rows) && rows.length ? rows[0] : null;
   if (!r) return null;
+  const variations = Array.isArray(r.variations) ? r.variations : [];
+  // Buy-sheet details (s2t-*) cached with zero prices are stale: the
+  // provider's catalog intermittently returns price 0. Treat those rows as
+  // a miss so the caller refetches live unit prices and resaves.
+  if (productId.startsWith('s2t-')) {
+    const hasZero = variations.some(
+      (v: { priceUsd?: number | null }) => !v.priceUsd || v.priceUsd <= 0,
+    );
+    if (hasZero) return null;
+  }
   return {
     detail: {
       id: productId,
       name: String(r.name),
       image: r.image_url ? String(r.image_url) : null,
       fields: Array.isArray(r.fields) ? r.fields : [],
-      variations: Array.isArray(r.variations) ? r.variations : [],
+      variations,
     },
     syncedAt: String(r.synced_at),
   };

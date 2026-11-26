@@ -236,6 +236,23 @@ export async function s2tProductDetail(productId: string): Promise<S2TProductDet
     };
   });
 
+  // The catalog sometimes returns price 0 for stocked items; the live
+  // per-item unit price endpoint is the source of truth. Refill zeros
+  // (bounded batch, well within the shared rate limit).
+  const zeroPriced = variations.filter((v) => !v.priceUsd || v.priceUsd <= 0).slice(0, 40);
+  if (zeroPriced.length) {
+    await Promise.all(
+      zeroPriced.map(async (v) => {
+        try {
+          const p = await s2tItemPrice(v.id);
+          if (p > 0) v.priceUsd = p;
+        } catch {
+          /* keep 0 — purchase re-checks live anyway */
+        }
+      }),
+    );
+  }
+
   return {
     id: productId,
     name: String(items[0]?.category_name || 'Top-Up'),

@@ -668,7 +668,7 @@ export function GamingPage({
                             onClick={() => setSelectedVariation(v.id)}
                           >
                             <span className="gm-variation-name">{v.name || 'Option'}</span>
-                            <span className="gm-variation-price">{oos ? 'Out of stock' : ngn(v.priceNgn)}</span>
+                            <span className="gm-variation-price">{oos ? 'Out of stock' : v.priceNgn > 0 ? ngn(v.priceNgn) : 'Tap to price'}</span>
                           </button>
                         );
                       })}
@@ -707,7 +707,7 @@ export function GamingPage({
                     <button
                       type="button"
                       className="gm-buy"
-                      disabled={buying || !chosenVariation || Boolean(missingField) || needsFund}
+                      disabled={buying || !chosenVariation || Boolean(missingField) || needsFund || totals.ngn <= 0}
                       onClick={() => void buy()}
                     >
                       {buying ? <Loader2 className="spin" size={16} /> : <Wallet size={16} />}
@@ -716,7 +716,9 @@ export function GamingPage({
                           ? `Enter ${missingField}`
                           : needsFund
                             ? 'Fund wallet to continue'
-                            : `Pay ${ngn(totals.ngn)}`
+                            : totals.ngn <= 0
+                              ? 'Price unavailable — reopen to refresh'
+                              : `Pay ${ngn(totals.ngn)}`
                         : 'Select a denomination'}
                     </button>
                     )}
