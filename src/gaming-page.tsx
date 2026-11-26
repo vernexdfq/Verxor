@@ -87,6 +87,7 @@ export function GamingPage({
   const [buying, setBuying] = useState(false);
   const [buyError, setBuyError] = useState<string | null>(null);
   const [order, setOrder] = useState<OrderResult | null>(null);
+  const [checking, setChecking] = useState(false);
   const [needsFund, setNeedsFund] = useState(false);
 
   /* ---------- catalog: ONE full list (A–Z / Popular / search) ---------- */
@@ -198,6 +199,38 @@ export function GamingPage({
   }, [detail, fieldValues]);
 
   /* ---------- purchase ---------- */
+
+  /* ---------- live status sync (processing -> completed) ---------- */
+
+  const checkOrderStatus = useCallback(async () => {
+    if (!order) return;
+    setChecking(true);
+    try {
+      const accessToken = loadSessionTokens()?.access_token || session?.accessToken || '';
+      const userId = session?.userId || loadSessionProfile()?.userId || '';
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
+      if (userId) headers['x-vx-user'] = userId;
+      const res = await fetch('/api/v1/gaming/orders', { headers, cache: 'no-store' });
+      const data = (await res.json()) as {
+        ok?: boolean;
+        orders?: Array<{ ref: string; status: string; message?: string }>;
+      };
+      const row = data.orders?.find((o) => o.ref === order.ref);
+      if (row) setOrder({ ...order, status: row.status, message: row.message || order.message });
+    } catch {
+      /* ignore: next poll/button press retries */
+    } finally {
+      setChecking(false);
+    }
+  }, [order, session]);
+
+  /* Auto-refresh every 15s while the order is still in flight. */
+  useEffect(() => {
+    if (!order || order.status !== 'processing') return;
+    const t = setInterval(checkOrderStatus, 15000);
+    return () => clearInterval(t);
+  }, [order, checkOrderStatus]);
 
   const buy = async () => {
     if (!chosenVariation || !detail || buying) return;
@@ -504,8 +537,15 @@ export function GamingPage({
                         ))}
                       </div>
                     ) : null}
-                    <p className="gm-order-note">Credits are usually delivered within minutes. Watch the chat or your history for updates.</p>
-                    <button type="button" className="gm-buy" onClick={closeDetail}>Done</button>
+                    <p className="gm-order-note">Credits are usually delivered within minutes. The status updates automatically while this panel is open.</p>
+                    <div className="gm-order-actions">
+                      <button type="button" className="gm-buy" onClick={closeDetail}>Done</button>
+                      {order.status === 'processing' ? (
+                        <button type="button" className="gm-buy gm-buy-ghost" onClick={checkOrderStatus} disabled={checking}>
+                          {checking ? 'Checking…' : 'Refresh status'}
+                        </button>
+                      ) : null}
+                    </div>
                   </div>
                 ) : (
                   <>

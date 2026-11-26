@@ -581,3 +581,10 @@
   .gm-side { display: block; }
   .gm-chip-row { display: none; }
 }
+
+/* Live status refresh actions (gaming order panel) */
+.gm-order-actions { display: flex; gap: 10px; margin-top: 10px; }
+.gm-order-actions .gm-buy { flex: 0 0 auto; }
+.gm-buy-ghost { background: transparent !important; border: 1px solid rgba(148, 163, 184, 0.35); color: #cbd5e1; }
+.gm-buy-ghost:hover:not(:disabled) { border-color: rgba(148, 163, 184, 0.6); color: #e2e8f0; }
+.gm-buy-ghost:disabled { opacity: 0.6; cursor: wait; }
