@@ -72,42 +72,6 @@ async function creditRetailWallet(userId: string, amount: number, reference: str
   }).catch(() => null);
 }
 
-async function debitResellerWallet(userId: string, amount: number, reference: string) {
-  const base = supabaseBase();
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!base || !serviceKey) throw new Error('Wallet backend not configured');
-  const res = await fetch(`${base}/rest/v1/rpc/debit_reseller_wallet`, {
-    method: 'POST',
-    headers: {
-      apikey: serviceKey,
-      Authorization: `Bearer ${serviceKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ p_user_id: userId, p_amount: amount, p_reference: reference }),
-  });
-  if (!res.ok) {
-    const t = await res.text().catch(() => '');
-    if (/insufficient/i.test(t)) throw new Error('INSUFFICIENT_BALANCE');
-    throw new Error(`Reseller debit failed: ${t.slice(0, 200)}`);
-  }
-  return res.json().catch(() => ({}));
-}
-
-async function creditResellerWallet(userId: string, amount: number, reference: string) {
-  const base = supabaseBase();
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!base || !serviceKey || amount <= 0) return;
-  await fetch(`${base}/rest/v1/rpc/credit_reseller_wallet`, {
-    method: 'POST',
-    headers: {
-      apikey: serviceKey,
-      Authorization: `Bearer ${serviceKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ p_user_id: userId, p_amount: amount, p_reference: reference }),
-  }).catch(() => null);
-}
-
 function friendlyE164(e164: string): string {
   const m = e164.match(/^\+1(\d{3})(\d{3})(\d{4})$/);
   if (m) return `+1 (${m[1]}) ${m[2]}-${m[3]}`;
@@ -146,23 +110,27 @@ export async function POST(req: NextRequest) {
   if (!userId) {
     return NextResponse.json({ ok: false, error: 'Sign in to rent a number.' }, { status: 401 });
   }
-  // Audience tier: child panel (panel key) / API developer / retail — master pricing rules.
+  // RETAIL / API DEVELOPER ONLY — per Denny's rule this service is NOT
+  // offered to child panels (no new services for the panel). Panel keys are
+  // rejected outright.
   const panel = await resolvePanelClient(req).catch(() => null);
-  const audience: RentLineAudience = panel ? 'child' : String(body.audience || '').trim() === 'api' ? 'api' : 'retail';
+  if (panel) {
+    return NextResponse.json(
+      { ok: false, error: 'Rent-a-line is not available for panel accounts.' },
+      { status: 403 },
+    );
+  }
+  const audience: RentLineAudience = String(body.audience || '').trim() === 'api' ? 'api' : 'retail';
   const totalNgn = await rentLinePriceNgn(period, audience);
   if (!totalNgn) {
     return NextResponse.json({ ok: false, error: 'That rental period is not priced yet.' }, { status: 400 });
   }
   const periodInfo = RENT_LINE_PERIODS[period];
-  const debitRef = `swl${panel ? '-panel' : ''}-${(userId || 'x').slice(0, 8)}-${Date.now()}`;
+  const debitRef = `swl-${(userId || 'x').slice(0, 8)}-${Date.now()}`;
   const desc = `Rent-a-line · ${e164} · ${periodInfo.label}`;
 
   try {
-    if (panel) {
-      await debitResellerWallet(userId, totalNgn, debitRef);
-    } else {
-      await debitRetailWallet(userId, totalNgn, debitRef, desc);
-    }
+    await debitRetailWallet(userId, totalNgn, debitRef, desc);
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Debit failed';
     if (msg === 'INSUFFICIENT_BALANCE') {
@@ -176,11 +144,7 @@ export async function POST(req: NextRequest) {
 
   const buy = await swBuyNumber(e164);
   if (!buy.ok || !buy.sid) {
-    if (panel) {
-      await creditResellerWallet(userId, totalNgn, `refund-${debitRef}`);
-    } else {
-      await creditRetailWallet(userId, totalNgn, `refund-${debitRef}`, `Refund (number rental failed) · ${desc}`);
-    }
+    await creditRetailWallet(userId, totalNgn, `refund-${debitRef}`, `Refund (number rental failed) · ${desc}`);
     void notifyAdmin(
       `⚠️ Rent-a-line FAILED (wallet refunded)\n${e164} · ${periodInfo.label} · ₦${totalNgn.toLocaleString('en-NG')}\nError: ${buy.error}\nCustomer: ${userId}`,
     );

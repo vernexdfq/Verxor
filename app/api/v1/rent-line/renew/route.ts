@@ -91,9 +91,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: 'That line was released. Rent a new number.' }, { status: 400 });
   }
 
-  // Audience tier: child panel renews its own lines from the panel wallet.
+  // RETAIL / API ONLY — panels cannot renew lines (service not offered to
+  // child panels). Reject panel keys.
   const panel = await resolvePanelClient(req).catch(() => null);
-  const audience: RentLineAudience = panel ? 'child' : 'retail';
+  if (panel) {
+    return NextResponse.json(
+      { ok: false, error: 'Rent-a-line is not available for panel accounts.' },
+      { status: 403 },
+    );
+  }
+  const audience: RentLineAudience = 'retail';
   const totalNgn = await rentLinePriceNgn(period, audience);
   if (!totalNgn) {
     return NextResponse.json({ ok: false, error: 'That renewal period is not priced yet.' }, { status: 400 });
@@ -102,20 +109,7 @@ export async function POST(req: NextRequest) {
   const debitRef = `swr-${userId.slice(0, 8)}-${Date.now()}`;
   const desc = `Rent-a-line renewal · ${String(row.e164 || '')} · ${periodInfo.label}`;
   try {
-    if (panel) {
-      const pres = await fetch(`${base}/rest/v1/rpc/debit_reseller_wallet`, {
-        method: 'POST',
-        headers: hdr,
-        body: JSON.stringify({ p_user_id: userId, p_amount: totalNgn, p_reference: debitRef }),
-      });
-      if (!pres.ok) {
-        const t = await pres.text().catch(() => '');
-        if (/insufficient/i.test(t)) throw new Error('INSUFFICIENT_BALANCE');
-        throw new Error(`Reseller debit failed: ${t.slice(0, 200)}`);
-      }
-    } else {
-      await debitRetailWallet(userId, totalNgn, debitRef, desc);
-    }
+    await debitRetailWallet(userId, totalNgn, debitRef, desc);
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Debit failed';
     if (msg === 'INSUFFICIENT_BALANCE') {
