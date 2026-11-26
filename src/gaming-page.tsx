@@ -668,7 +668,7 @@ export function GamingPage({
                             onClick={() => setSelectedVariation(v.id)}
                           >
                             <span className="gm-variation-name">{v.name || 'Option'}</span>
-                            <span className="gm-variation-price">{oos ? 'Out of stock' : v.priceNgn > 0 ? ngn(v.priceNgn) : 'Tap to price'}</span>
+                            <span className="gm-variation-price">{oos ? 'Out of stock' : v.priceNgn > 0 ? ngn(v.priceNgn) : 'Unavailable'}</span>
                           </button>
                         );
                       })}

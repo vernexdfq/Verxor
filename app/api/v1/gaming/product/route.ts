@@ -45,9 +45,13 @@ export async function GET(req: NextRequest) {
   const rate = await resolveFxRateNgn();
   const cacheKey = `${productId}:${audience}:${Math.round(rate)}`;
 
-  // 1) Fast in-memory server cache (< 1ms response)
+  // 1) Fast in-memory server cache (< 1ms response), rejecting zero-price stale entries
   const memCached = serverProductDetailMemory.get(cacheKey);
-  if (memCached && Date.now() - memCached.timestamp < SERVER_PRODUCT_TTL_MS) {
+  const memAllZero =
+    memCached?.product?.variations?.length &&
+    memCached.product.variations.every((v: any) => !v.priceNgn || v.priceNgn <= 0);
+
+  if (memCached && !memAllZero && Date.now() - memCached.timestamp < SERVER_PRODUCT_TTL_MS) {
     return NextResponse.json(
       {
         ok: true,
@@ -117,12 +121,15 @@ export async function GET(req: NextRequest) {
     servers: [],
   };
 
-  serverProductDetailMemory.set(cacheKey, {
-    timestamp: Date.now(),
-    rate,
-    audience,
-    product: productPayload,
-  });
+  const hasValidPrice = productPayload.variations.some((v) => v.priceNgn > 0);
+  if (hasValidPrice) {
+    serverProductDetailMemory.set(cacheKey, {
+      timestamp: Date.now(),
+      rate,
+      audience,
+      product: productPayload,
+    });
+  }
 
   return NextResponse.json(
     {

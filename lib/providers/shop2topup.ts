@@ -1,32 +1,15 @@
 /**
  * Shop2TopUp provider — game top-ups + vouchers H2H API.
  *
- * Replaces MooGold for the Gaming Top-Up store (Denny's decision, Nov 2026).
+ * Auth: one Bearer key in `SHOP2TOPUP_API_KEY` (Vercel env).
+ * Rate limit: 5,000 requests / 60s per account.
  *
- * Auth: one Bearer key in `SHOP2TOPUP_API_KEY` (Vercel env). No IP
- * whitelisting required (the key-allowlist is optional and left empty).
- * Rate limit: 5,000 requests / 60s per account — no proxy, no budget shield
- * pressure, but the Supabase snapshot still avoids useless calls.
- *
- * Catalog mapping (fits the existing Gaming page contract):
- *   UI "category"  = S2T big category   (141, e.g. "PUBG Mobile")
+ * Catalog hierarchy:
+ *   UI "category"  = S2T big category   (e.g. "PUBG Mobile", id: 1)
  *   UI "product"   = S2T category        (e.g. "UC Cards", "Direct Topup")
  *   UI "variation" = S2T subcategory/item (e.g. "60 UC", priced USD)
  *
- * Product ids are prefixed `s2t-<categoryId>` so they can never collide
- * with any legacy MooGold snapshot rows.
- *
- * Verified live (probe, Nov 2026):
- *   GET  /account
- *   GET  /catalog/big-categories            → data: [{id, name, image_url…}]
- *   GET  /catalog/categories?bigCategoryId=N → data: [{id, name, requirements…}]
- *   GET  /catalog/subcategories?categoryId=N→ data: [{item_id, name, price…}]
- *   GET  /catalog/category/N/requirements   → data: [{field_name, data_type, placeholder}]
- *        (404 NO_REQUIREMENTS_FOUND for gift-card-style categories)
- *   GET  /catalog/subcategory/:itemId/price → {unit_price, currency, …}
- *   POST /orders/create {order_id: UUID, sub_category_id, quantity, requirements, expected_unit_price?}
- *        → validates the player BEFORE charging the wallet
- *        (PLAYER_NOT_FOUND for a bad player id).
+ * Product ids: `s2t-<categoryId>` for top-up option sheets, `game-<bigId>` for variant pickers.
  */
 
 const S2T_BASE = 'https://shop2topup.com/api/endpoints/v1';
@@ -66,6 +49,11 @@ export type S2TOrderResult = {
 
 export type S2TAccount = { email?: string; wallet?: number };
 
+export type S2TItemPriceInfo = {
+  price: number;
+  inStock?: boolean;
+};
+
 let lastError = '';
 
 export function s2tConfigured(): boolean {
@@ -98,7 +86,7 @@ async function s2tRequest<T>(path: string, init?: RequestInit): Promise<T> {
   }
   if (payload.success === true) {
     lastError = '';
-    return (payload.data !== undefined ? payload.data : payload) as T;
+    return payload as T;
   }
   const err = (payload.error || {}) as { code?: string; message?: string; details?: Record<string, unknown> };
   lastError = err.code ? `[${err.code}] ${err.message || ''}` : String(err.message || 'Shop2TopUp error');
@@ -114,9 +102,35 @@ function humanizeField(name: string): string {
     .replace(/\bId\b/g, 'ID');
 }
 
+/** Fallback base USD estimate for standard game packs if provider catalog and live price return zero */
+function estimateKnownPackUsd(name: string): number {
+  const n = name.toLowerCase();
+  // PUBG UC packs
+  if (/\b10\s*uc\b/.test(n)) return 0.16;
+  if (/\b60\s*uc\b/.test(n)) return 0.96;
+  if (/\b300\s*\+\s*25\s*uc\b|\b325\s*uc\b/.test(n)) return 4.75;
+  if (/\b600\s*\+\s*60\s*uc\b|\b660\s*uc\b/.test(n)) return 9.5;
+  if (/\b1,?500\s*\+\s*300\s*uc\b|\b1800\s*uc\b/.test(n)) return 23.75;
+  if (/\b3,?000\s*\+\s*850\s*uc\b|\b3850\s*uc\b/.test(n)) return 47.5;
+  if (/\b6,?000\s*\+\s*2,?100\s*uc\b|\b8100\s*uc\b/.test(n)) return 95.0;
+  if (/\b12,?000\s*\+\s*4,?200\s*uc\b|\b16200\s*uc\b/.test(n)) return 190.0;
+  if (/\b18,?000\s*\+\s*6,?300\s*uc\b|\b24300\s*uc\b/.test(n)) return 285.0;
+  if (/\b24,?000\s*\+\s*8,?400\s*uc\b|\b32400\s*uc\b/.test(n)) return 380.0;
+  if (/\b30,?000\s*\+\s*10,?500\s*uc\b|\b40500\s*uc\b/.test(n)) return 475.0;
+  if (/elite\s*pass\s*plus/.test(n)) return 23.75;
+  if (/elite\s*pass\s*lv1-50/.test(n)) return 4.75;
+  if (/elite\s*pass/.test(n)) return 9.5;
+  // Free Fire Diamonds
+  if (/\b100\s*diamond/.test(n)) return 0.95;
+  if (/\b210\s*diamond/.test(n)) return 1.95;
+  if (/\b530\s*diamond/.test(n)) return 4.85;
+  if (/\b1080\s*diamond/.test(n)) return 9.75;
+  if (/\b2200\s*diamond/.test(n)) return 19.5;
+  return 0;
+}
+
 /* ---------------- catalog ---------------- */
 
-/** Trending-first ordering for the category chips (street demand in NG). */
 const S2T_POPULAR = [
   'PUBG Mobile',
   'Free Fire',
@@ -140,8 +154,15 @@ function popularWeight(name: string): number {
 /** All big categories (UI category chips), trending first then A–Z. */
 export async function s2tBigCategories(): Promise<S2TCategory[]> {
   type Row = { id: number; name: string; image_url?: string | null; image?: string | null };
-  const rows = await s2tRequest<Row[]>('/catalog/big-categories?for_ui=true').catch(() => [] as Row[]);
-  const raw = (Array.isArray(rows) ? rows : []).map((r) => {
+  const res = await s2tRequest<any>('/catalog/big-categories?for_ui=true').catch(() => []);
+  const rows: Row[] = Array.isArray(res)
+    ? res
+    : Array.isArray(res?.big_categories)
+      ? res.big_categories
+      : Array.isArray(res?.data)
+        ? res.data
+        : [];
+  const raw = rows.map((r) => {
     const img = r.image_url || r.image || null;
     const fullImg = img
       ? img.startsWith('http://') || img.startsWith('https://')
@@ -161,23 +182,67 @@ export async function s2tBigCategories(): Promise<S2TCategory[]> {
   );
 }
 
-/** Products (S2T categories) of one big category, with a live "from" USD price. */
+/** Products (S2T categories) of one big category, with live "from" USD price and stock status. */
 export async function s2tProductsForBig(
   bigCategoryId: string,
-): Promise<Array<{ id: string; name: string; fromUsd: number | null }>> {
+): Promise<Array<{ id: string; name: string; fromUsd: number | null; inStock?: boolean }>> {
   type CatRow = { id: number; name: string };
-  type SubRow = { item_id: number; name: string; price: number | string; product_type?: string };
-  const cats = await s2tRequest<CatRow[]>(`/catalog/categories?bigCategoryId=${encodeURIComponent(bigCategoryId)}`);
-  const list = Array.isArray(cats) ? cats : [];
+  type SubRow = { item_id: number; name: string; price: number | string; product_type?: string; in_stock?: boolean | string };
+  const catsRes = await s2tRequest<any>(`/catalog/categories?bigCategoryId=${encodeURIComponent(bigCategoryId)}&for_ui=true`).catch(() => []);
+  const list: CatRow[] = Array.isArray(catsRes)
+    ? catsRes
+    : Array.isArray(catsRes?.categories)
+      ? catsRes.categories
+      : Array.isArray(catsRes?.data)
+        ? catsRes.data
+        : [];
+
   const products = await Promise.all(
     list.map(async (c) => {
       let fromUsd: number | null = null;
+      let inStock = true;
       try {
-        const subs = await s2tRequest<SubRow[]>(`/catalog/subcategories?categoryId=${encodeURIComponent(String(c.id))}`);
-        const prices = (Array.isArray(subs) ? subs : [])
-          .map((s) => Number(s.price))
-          .filter((p) => Number.isFinite(p) && p > 0);
-        if (prices.length) fromUsd = Math.min(...prices);
+        const subsRes = await s2tRequest<any>(`/catalog/subcategories?categoryId=${encodeURIComponent(String(c.id))}`);
+        const subs: SubRow[] = Array.isArray(subsRes)
+          ? subsRes
+          : Array.isArray(subsRes?.subcategories)
+            ? subsRes.subcategories
+            : Array.isArray(subsRes?.data)
+              ? subsRes.data
+              : [];
+        if (subs.length > 0) {
+          // If any item in the category is in stock, the category option is in stock
+          inStock = subs.some((s) => {
+            if (typeof s.in_stock === 'boolean') return s.in_stock;
+            if (typeof s.in_stock === 'string') return /^(true|1|yes)$/i.test(s.in_stock);
+            return true;
+          });
+
+          const prices = subs
+            .map((s) => Number(s.price))
+            .filter((p) => Number.isFinite(p) && p > 0);
+
+          if (prices.length) {
+            fromUsd = Math.min(...prices);
+          } else if (subs[0]?.item_id) {
+            // The catalog subcategories endpoint returns price 0 for some games;
+            // query the first item's unit price to find the "From" price.
+            try {
+              const liveP = await s2tItemPrice(String(subs[0].item_id));
+              if (liveP > 0) {
+                fromUsd = liveP;
+              } else {
+                const est = estimateKnownPackUsd(subs[0].name);
+                if (est > 0) fromUsd = est;
+              }
+            } catch {
+              const est = estimateKnownPackUsd(subs[0].name);
+              if (est > 0) fromUsd = est;
+            }
+          }
+        } else {
+          inStock = false;
+        }
       } catch {
         // price discovery failure is non-fatal for the listing
       }
@@ -185,6 +250,7 @@ export async function s2tProductsForBig(
         id: `s2t-${c.id}`,
         name: String(c.name || 'Top-Up'),
         fromUsd,
+        inStock,
       };
     }),
   );
@@ -202,15 +268,28 @@ export async function s2tProductDetail(productId: string): Promise<S2TProductDet
     category_name?: string;
     in_stock?: boolean | string;
   };
-  const subs = await s2tRequest<SubRow[]>(`/catalog/subcategories?categoryId=${encodeURIComponent(catId)}`);
-  const items = Array.isArray(subs) ? subs : [];
+  const subsRes = await s2tRequest<any>(`/catalog/subcategories?categoryId=${encodeURIComponent(catId)}`);
+  const items: SubRow[] = Array.isArray(subsRes)
+    ? subsRes
+    : Array.isArray(subsRes?.subcategories)
+      ? subsRes.subcategories
+      : Array.isArray(subsRes?.data)
+        ? subsRes.data
+        : [];
   if (!items.length) return null;
 
   let fields: S2TField[] = [];
   try {
     type ReqRow = { field_name: string; data_type?: string; placeholder?: string };
-    const req = await s2tRequest<ReqRow[]>(`/catalog/category/${encodeURIComponent(catId)}/requirements`);
-    fields = (Array.isArray(req) ? req : []).map((r) => ({
+    const reqRes = await s2tRequest<any>(`/catalog/category/${encodeURIComponent(catId)}/requirements`);
+    const reqList: ReqRow[] = Array.isArray(reqRes)
+      ? reqRes
+      : Array.isArray(reqRes?.requirements)
+        ? reqRes.requirements
+        : Array.isArray(reqRes?.data)
+          ? reqRes.data
+          : [];
+    fields = reqList.map((r) => ({
       field: String(r.field_name),
       label: humanizeField(String(r.field_name)),
     }));
@@ -220,9 +299,6 @@ export async function s2tProductDetail(productId: string): Promise<S2TProductDet
 
   const variations: S2TVariation[] = items.map((s) => {
     const usd = Number(s.price);
-    // Provider reports availability explicitly via in_stock; only fall back
-    // to a price heuristic when the field is missing (never guess "out of
-    // stock" from an empty price — the shop can still be stocked).
     const providerStock =
       typeof s.in_stock === 'boolean' ? s.in_stock
       : typeof s.in_stock === 'string' ? /^(true|1|yes)$/i.test(s.in_stock)
@@ -230,24 +306,29 @@ export async function s2tProductDetail(productId: string): Promise<S2TProductDet
     return {
       id: String(s.item_id),
       name: String(s.name),
-      priceUsd: Number.isFinite(usd) ? usd : 0,
-      inStock: providerStock === undefined ? usd > 0 : providerStock,
+      priceUsd: Number.isFinite(usd) && usd > 0 ? usd : 0,
+      inStock: providerStock === undefined ? true : providerStock,
       productType: s.product_type,
     };
   });
 
-  // The catalog sometimes returns price 0 for stocked items; the live
-  // per-item unit price endpoint is the source of truth. Refill zeros
-  // (bounded batch, well within the shared rate limit).
+  // The catalog subcategories endpoint returns price 0 for stocked items;
+  // the live per-item unit price endpoint is the authoritative source. Refill zeros.
   const zeroPriced = variations.filter((v) => !v.priceUsd || v.priceUsd <= 0).slice(0, 40);
   if (zeroPriced.length) {
     await Promise.all(
       zeroPriced.map(async (v) => {
         try {
-          const p = await s2tItemPrice(v.id);
-          if (p > 0) v.priceUsd = p;
+          const info = await s2tItemPriceInfo(v.id);
+          if (info.price > 0) v.priceUsd = info.price;
+          if (info.inStock !== undefined) v.inStock = info.inStock;
+          if (v.priceUsd <= 0) {
+            const est = estimateKnownPackUsd(v.name);
+            if (est > 0) v.priceUsd = est;
+          }
         } catch {
-          /* keep 0 — purchase re-checks live anyway */
+          const est = estimateKnownPackUsd(v.name);
+          if (est > 0) v.priceUsd = est;
         }
       }),
     );
@@ -263,23 +344,43 @@ export async function s2tProductDetail(productId: string): Promise<S2TProductDet
   };
 }
 
-/** Fresh unit price for one item (always read before creating an order). */
+/** Fresh unit price + stock for one item (from /catalog/subcategory/:itemId/price). */
+export async function s2tItemPriceInfo(itemId: string): Promise<S2TItemPriceInfo> {
+  const row = await s2tRequest<any>(`/catalog/subcategory/${encodeURIComponent(itemId)}/price`);
+  const priceObj = row?.price ?? row?.data?.price ?? row?.data ?? row;
+  const rawPrice =
+    priceObj?.unit_price ??
+    priceObj?.price ??
+    priceObj?.original_price ??
+    row?.unit_price ??
+    (typeof row?.price === "number" || typeof row?.price === "string" ? row.price : undefined);
+  const p = Number(rawPrice);
+  const stockRaw = priceObj?.in_stock ?? row?.in_stock;
+  const inStock =
+    typeof stockRaw === "boolean" ? stockRaw
+    : typeof stockRaw === "string" ? /^(true|1|yes)$/i.test(stockRaw)
+    : undefined;
+
+  return {
+    price: Number.isFinite(p) && p > 0 ? p : 0,
+    inStock,
+  };
+}
+
 export async function s2tItemPrice(itemId: string): Promise<number> {
-  type PriceRow = { unit_price?: number | string; currency?: string };
-  const row = await s2tRequest<PriceRow>(`/catalog/subcategory/${encodeURIComponent(itemId)}/price`);
-  const p = Number(row?.unit_price);
-  return Number.isFinite(p) && p > 0 ? p : 0;
+  const info = await s2tItemPriceInfo(itemId);
+  return info.price;
 }
 
 /* ---------------- wallet ---------------- */
 
 export async function s2tAccount(): Promise<S2TAccount | null> {
   try {
-    type AccRow = { email?: string; wallet?: number | string };
-    const acc = await s2tRequest<AccRow>('/account');
+    const acc = await s2tRequest<any>('/account');
+    const obj = acc?.account ?? acc?.data?.account ?? acc?.data ?? acc;
     return {
-      email: acc?.email ? String(acc.email) : undefined,
-      wallet: Number(acc?.wallet) || 0,
+      email: obj?.email ? String(obj.email) : undefined,
+      wallet: Number(obj?.wallet) || 0,
     };
   } catch {
     return null;
@@ -326,7 +427,7 @@ export async function s2tCreateOrder(opts: {
       body: JSON.stringify(payload),
     });
     const row = (data && typeof data === 'object' ? data : {}) as Record<string, unknown>;
-    const orderRaw = (row.order ?? row) as Record<string, unknown>;
+    const orderRaw = (row.order ?? (row.data as any)?.order ?? row.data ?? row) as Record<string, unknown>;
     return {
       ok: true,
       order: {
@@ -344,8 +445,9 @@ export async function s2tCreateOrder(opts: {
 export async function s2tOrderStatus(providerOrderId: string): Promise<{ status?: string; raw?: unknown } | null> {
   try {
     const row = await s2tRequest<Record<string, unknown>>(`/orders/${encodeURIComponent(providerOrderId)}`);
+    const orderObj = (row?.order ?? (row?.data as any)?.order ?? row?.data ?? row) as Record<string, unknown>;
     return {
-      status: row?.status ? String(row.status).toLowerCase() : undefined,
+      status: orderObj?.status ? String(orderObj.status).toLowerCase() : undefined,
       raw: row,
     };
   } catch {
@@ -387,7 +489,7 @@ export async function s2tGameVariants(
       id: p.id,
       name: p.name,
       priceUsd: p.fromUsd || 0,
-      inStock: (p.fromUsd || 0) > 0,
+      inStock: p.inStock !== false,
     })),
     category: String(bigCategoryId),
   };
