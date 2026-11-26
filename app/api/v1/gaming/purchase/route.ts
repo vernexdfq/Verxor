@@ -263,13 +263,49 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: result.error || 'The order failed. Your wallet has been refunded.' }, { status: 503 });
   }
 
+  const orderStatus = result.order?.status || 'processing';
+
+  // Persist the order so the customer can track delivery (processing -> completed).
+  try {
+    const base = supabaseBase();
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (base && serviceKey) {
+      await fetch(`${base}/rest/v1/gaming_orders`, {
+        method: 'POST',
+        headers: {
+          apikey: serviceKey,
+          Authorization: `Bearer ${serviceKey}`,
+          'Content-Type': 'application/json',
+          Prefer: 'return=minimal',
+        },
+        body: JSON.stringify({
+          user_id: userId,
+          audience: panel ? 'panel' : 'retail',
+          ref: debitRef,
+          provider: 'shop2topup',
+          provider_order_id: result.order?.orderId || null,
+          product_name: detail.name,
+          variation_name: variation.name,
+          quantity,
+          fields,
+          total_ngn: totalNgn,
+          status: orderStatus,
+          message: result.order?.message || null,
+        }),
+      });
+    }
+  } catch {
+    // Non-fatal: the order itself succeeded.
+  }
+
   return NextResponse.json({
     ok: true,
     audience,
+    orderId: debitRef,
     order: {
       ref: debitRef,
       providerOrderId: result.order?.orderId,
-      status: result.order?.status || 'processing',
+      status: orderStatus,
       message: result.order?.message,
       totalNgn,
       productName: detail.name,
