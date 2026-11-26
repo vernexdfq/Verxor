@@ -99,6 +99,12 @@ export function ProfilePage({
         />
         <ProfileItem
           icon={<FileText size={18} />}
+          title="Terms of Service"
+          description="User agreement & acceptable use"
+          onClick={() => openService('terms')}
+        />
+        <ProfileItem
+          icon={<FileText size={18} />}
           title="Privacy Policy"
           description="Data usage & compliance"
           onClick={() => openService('privacy')}

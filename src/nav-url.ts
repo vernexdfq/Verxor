@@ -22,6 +22,7 @@ export const SERVICE_VIEWS: ReadonlyArray<Exclude<ServiceView, 'services'>> = [
   'help',
   'faq',
   'privacy',
+  'terms',
   'edit-profile',
   'referral',
   'child-panel',

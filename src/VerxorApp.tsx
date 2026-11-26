@@ -28,6 +28,7 @@ import { ExamPinPage } from './exam-pin-page';
 import { EditProfilePage } from './edit-profile-page';
 import { ReferralPage } from './referral-page';
 import { PrivacyPolicyPage } from './privacy-policy-page';
+import { TermsOfServicePage } from './terms-page';
 import { FeedbackPage } from './feedback-page';
 import { FaqPage } from './faq-page';
 import { SupportCenterPage } from './support-center-page';
@@ -544,6 +545,8 @@ export function VerxorApp({
     content = <ReferralPage onBack={closeService} session={auth} />;
   } else if (service === 'privacy') {
     content = <PrivacyPolicyPage onBack={closeService} />;
+  } else if (service === 'terms') {
+    content = <TermsOfServicePage onBack={closeService} />;
   } else if (service === 'feedback') {
     content = <FeedbackPage onBack={closeService} session={auth} />;
   } else if (service === 'support-center') {

@@ -1,0 +1,242 @@
+/* Terms of Service — grade-1 fintech legal page (Verxor palette) */
+
+.tos-page {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: #F8FAFC;
+  color: #0F172A;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+    'Segoe UI', Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.tos-page *,
+.tos-page *::before,
+.tos-page *::after {
+  box-sizing: border-box;
+}
+
+.tos-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 12px 8px;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: rgba(248, 250, 252, 0.96);
+  backdrop-filter: blur(12px);
+}
+
+.tos-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 0 12px 0 8px;
+  border-radius: 999px;
+  border: 1px solid #E2E8F0;
+  background: #FFFFFF;
+  color: #0F172A;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.tos-back:active {
+  background: #F1F5F9;
+}
+
+.tos-scroll {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 4px 12px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.tos-hero {
+  position: relative;
+  overflow: hidden;
+  border-radius: 20px;
+  padding: 22px 18px 20px;
+  background: linear-gradient(145deg, #0B132B 0%, #1E3A8A 55%, #1D4ED8 100%);
+  color: #FFFFFF;
+  box-shadow: 0 10px 24px -8px rgba(30, 58, 138, 0.35);
+}
+
+.tos-hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #93C5FD;
+  margin-bottom: 8px;
+}
+
+.tos-hero-title {
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+  margin: 0 0 8px;
+}
+
+.tos-hero-sub {
+  font-size: 13px;
+  line-height: 1.5;
+  color: #E2E8F0;
+  margin: 0 0 14px;
+}
+
+.tos-hero-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: #BFDBFE;
+}
+
+.tos-hero-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  font-weight: 600;
+}
+
+.tos-card {
+  border-radius: 16px;
+  border: 1px solid #E2E8F0;
+  background: #FFFFFF;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.tos-card.is-open {
+  border-color: #BFDBFE;
+  box-shadow: 0 4px 12px -2px rgba(37, 99, 235, 0.08);
+}
+
+.tos-card-header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 14px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  color: inherit;
+  font: inherit;
+}
+
+.tos-card-header:active {
+  background: #F8FAFC;
+}
+
+.tos-icon-wrap {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  background: #EFF6FF;
+  color: #2563EB;
+  flex-shrink: 0;
+}
+
+.tos-card.is-open .tos-icon-wrap {
+  background: #2563EB;
+  color: #FFFFFF;
+}
+
+.tos-header-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.tos-sec-num {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: #64748B;
+  text-transform: uppercase;
+}
+
+.tos-sec-title {
+  font-size: 14.5px;
+  font-weight: 700;
+  color: #0F172A;
+  line-height: 1.3;
+}
+
+.tos-chevron {
+  color: #94A3B8;
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+}
+
+.tos-card.is-open .tos-chevron {
+  transform: rotate(180deg);
+  color: #2563EB;
+}
+
+.tos-card-body {
+  padding: 0 14px 16px 62px;
+  font-size: 13.5px;
+  line-height: 1.65;
+  color: #334155;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.tos-card-body p {
+  margin: 0 0 10px;
+}
+
+.tos-card-body p:last-child {
+  margin-bottom: 0;
+}
+
+.tos-contact-box {
+  border-radius: 16px;
+  padding: 16px;
+  background: #EFF6FF;
+  border: 1px solid #BFDBFE;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #1E3A8A;
+}
+
+.tos-contact-box strong {
+  color: #0F172A;
+}
+
+.tos-contact-box a {
+  color: #2563EB;
+  font-weight: 600;
+  text-decoration: underline;
+}

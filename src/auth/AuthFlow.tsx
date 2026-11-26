@@ -978,6 +978,12 @@ export function AuthFlow({
             {busy ? 'Creating…' : 'Create account'}
             {!busy ? <ArrowRight size={18} strokeWidth={2.2} /> : null}
           </button>
+          <p className="auth-legal-notice">
+            By signing up, you agree to Verxor’s{' '}
+            <a href="/terms" target="_blank" rel="noopener noreferrer">Terms and Conditions</a>
+            {' '}and{' '}
+            <a href="/privacy-policy" target="_blank" rel="noopener noreferrer">Privacy Policy</a>.
+          </p>
           <div className="auth-or">or</div>
           <button type="button" className="auth-google-btn" onClick={handleGoogleLogin}>
             <GoogleG />

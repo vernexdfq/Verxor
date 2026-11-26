@@ -168,6 +168,7 @@ export function MarketingFooter() {
             <a href="/api-partnership">API Partnerships</a>
             <a href="/child-panels">Child Panels</a>
             <a href="/dashboard">Launch Workspace</a>
+            <a href="/terms">Terms of Service</a>
             <a href="/privacy-policy">Privacy Policy</a>
             <a href="tel:+2348141620644" className="mk-footer-contact-link" title="Call Verxor Support">
               <Phone size={13} style={{ display: 'inline', marginRight: 6, verticalAlign: -1 }} />
@@ -190,7 +191,7 @@ export function MarketingFooter() {
 
         <div className="mk-footer-bottom">
           <div className="mk-footer-bottom-info">
-            <span>&copy; {new Date().getFullYear()} Verxor. All rights reserved.</span>
+            <span>&copy; {new Date().getFullYear()} Verxor. All rights reserved. &middot; <a href="/terms" style={{ color: "inherit", textDecoration: "underline" }}>Terms</a> &middot; <a href="/privacy-policy" style={{ color: "inherit", textDecoration: "underline" }}>Privacy</a></span>
             <div className="mk-footer-support-bar">
               <span>
                 <strong>Support:</strong> <a href="tel:+2348141620644">+2348141620644</a>

@@ -49,6 +49,7 @@ export type ServiceView =
   | 'help'
   | 'faq'
   | 'privacy'
+  | 'terms'
   | 'edit-profile'
   | 'referral'
   | 'child-panel'
