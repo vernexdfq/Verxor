@@ -140,12 +140,22 @@ function popularWeight(name: string): number {
 /** All big categories (UI category chips), trending first then A–Z. */
 export async function s2tBigCategories(): Promise<S2TCategory[]> {
   type Row = { id: number; name: string; image_url?: string | null; image?: string | null };
-  const rows = await s2tRequest<Row[]>('/catalog/big-categories').catch(() => [] as Row[]);
-  const raw = (Array.isArray(rows) ? rows : []).map((r) => ({
-    id: String(r.id),
-    name: String(r.name || 'Game'),
-    image: r.image_url || r.image || null,
-  }));
+  const rows = await s2tRequest<Row[]>('/catalog/big-categories?for_ui=true').catch(() => [] as Row[]);
+  const raw = (Array.isArray(rows) ? rows : []).map((r) => {
+    const img = r.image_url || r.image || null;
+    const fullImg = img
+      ? img.startsWith('http://') || img.startsWith('https://')
+        ? img
+        : img.startsWith('/')
+          ? `https://shop2topup.com${img}`
+          : `https://shop2topup.com/api/public/img/${img}?w=512&q=80`
+      : null;
+    return {
+      id: String(r.id),
+      name: String(r.name || 'Game'),
+      image: fullImg,
+    };
+  });
   return raw.sort(
     (a, b) => popularWeight(a.name) - popularWeight(b.name) || a.name.localeCompare(b.name),
   );
