@@ -1195,6 +1195,215 @@ type BoostMarkupsData = {
   error?: string;
 };
 
+type AdminEmailOrder = {
+  id: string;
+  userId: string;
+  userLabel: string;
+  provider: string;
+  providerOrderId: string;
+  email: string;
+  site: string;
+  domain: string;
+  costUsd: number;
+  chargedNgn: number;
+  audience: string;
+  status: string;
+  message: string | null;
+  createdAt: string;
+};
+
+const EMAIL_ORDER_STATUSES = ['all', 'waiting', 'completed', 'cancelled', 'refunded'];
+
+function statusTone(s: string): string {
+  if (s === 'completed') return 'ok';
+  if (s === 'waiting') return 'wait';
+  if (s === 'refunded' || s === 'cancelled') return 'bad';
+  return 'wait';
+}
+
+function EmailOrdersSection() {
+  const [orders, setOrders] = useState<AdminEmailOrder[] | null>(null);
+  const [loadError, setLoadError] = useState(false);
+  const [q, setQ] = useState('');
+  const [status, setStatus] = useState('all');
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState('');
+  const [editId, setEditId] = useState<string | null>(null);
+  const [editStatus, setEditStatus] = useState('waiting');
+  const [editMessage, setEditMessage] = useState('');
+
+  const load = async () => {
+    setLoadError(false);
+    try {
+      const params = new URLSearchParams({ status, limit: '100' });
+      if (q.trim()) params.set('q', q.trim());
+      const res = await fetch(`/api/admin/email-orders?${params.toString()}`, {
+        headers: adminHeaders(),
+        cache: 'no-store',
+      });
+      const d = (await res.json()) as { ok?: boolean; orders?: AdminEmailOrder[] };
+      if (res.ok && d.ok) {
+        setOrders(d.orders || []);
+      } else {
+        setLoadError(true);
+      }
+    } catch {
+      setLoadError(true);
+    }
+  };
+
+  useEffect(() => { void load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [status]);
+
+  const openEdit = (o: AdminEmailOrder) => {
+    setEditId(o.id);
+    setEditStatus(o.status || 'waiting');
+    setEditMessage(o.message || '');
+    setMsg('');
+  };
+
+  const saveEdit = async () => {
+    if (!editId || busy) return;
+    setBusy(true);
+    setMsg('');
+    try {
+      const res = await fetch('/api/admin/email-orders', {
+        method: 'PATCH',
+        headers: adminHeaders(),
+        body: JSON.stringify({ id: editId, status: editStatus, message: editMessage }),
+      });
+      const d = (await res.json()) as { ok?: boolean; error?: string };
+      if (!res.ok || !d.ok) { setMsg(d.error || 'Could not save'); return; }
+      setEditId(null);
+      setMsg('Order updated — the customer sees the change instantly');
+      await load();
+    } catch { setMsg('Network error'); } finally { setBusy(false); }
+  };
+
+  const refund = async (o: AdminEmailOrder) => {
+    if (busy) return;
+    setBusy(true);
+    setMsg('');
+    try {
+      const res = await fetch('/api/admin/email-orders', {
+        method: 'PATCH',
+        headers: adminHeaders(),
+        body: JSON.stringify({ id: o.id, refund: true }),
+      });
+      const d = (await res.json()) as { ok?: boolean; error?: string };
+      if (!res.ok || !d.ok) { setMsg(d.error || 'Refund failed'); return; }
+      setMsg(`Refunded ₦${o.chargedNgn.toLocaleString('en-NG')} to ${o.userLabel}`);
+      await load();
+    } catch { setMsg('Network error'); } finally { setBusy(false); }
+  };
+
+  return (
+    <div className="vxa-card" style={{ marginTop: 14 }}>
+      <div className="vxa-card-head"><strong>Customer email orders</strong></div>
+      <p className="vxa-card-sub">
+        Every purchased inbox with live status. Tap an order to edit its status or the OTP message the
+        customer sees, or refund the charge straight to their wallet.
+      </p>
+
+      <div className="vxa-eo-toolbar">
+        <div className="vxa-eo-search">
+          <Search size={14} />
+          <input
+            value={q}
+            placeholder="Search email, site or order id"
+            onChange={(e) => setQ(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') void load(); }}
+          />
+          <button type="button" disabled={busy} onClick={() => void load()}>Search</button>
+        </div>
+        <div className="vxa-chips">
+          {EMAIL_ORDER_STATUSES.map((s) => (
+            <button
+              key={s}
+              type="button"
+              className={status === s ? 'on' : ''}
+              onClick={() => setStatus(s)}
+            >
+              {s === 'all' ? 'All' : s.charAt(0).toUpperCase() + s.slice(1)}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {msg ? <div className="vxa-action-msg">{msg}</div> : null}
+
+      {loadError ? (
+        <div className="vxa-empty">
+          <strong>Could not load email orders</strong>
+          <p>Check the server connection, then search again.</p>
+        </div>
+      ) : orders === null ? (
+        <div className="vxa-empty"><strong>Loading orders…</strong></div>
+      ) : orders.length === 0 ? (
+        <div className="vxa-empty">
+          <strong>No email orders {status !== 'all' ? `with status "${status}"` : 'yet'}</strong>
+          <p>Orders appear here the moment customers buy an inbox.</p>
+        </div>
+      ) : (
+        <div className="vxa-eo-list">
+          {orders.map((o) => {
+            const editing = editId === o.id;
+            return (
+              <div className={`vxa-eo-row${editing ? ' open' : ''}`} key={o.id}>
+                <button type="button" className="vxa-eo-main" onClick={() => (editing ? setEditId(null) : openEdit(o))}>
+                  <div className="vxa-eo-line">
+                    <strong>{o.email}</strong>
+                    <span className={`vxa-eo-badge ${statusTone(o.status)}`}>{o.status}</span>
+                  </div>
+                  <div className="vxa-eo-sub">
+                    {o.site} · {o.userLabel} · ₦{o.chargedNgn.toLocaleString('en-NG')} ·{' '}
+                    {new Date(o.createdAt).toLocaleString('en-NG', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                  </div>
+                </button>
+
+                {editing ? (
+                  <div className="vxa-eo-edit">
+                    <label>
+                      Status
+                      <div className="vxa-chips">
+                        {['waiting', 'completed', 'cancelled', 'refunded'].map((s) => (
+                          <button key={s} type="button" className={editStatus === s ? 'on' : ''} onClick={() => setEditStatus(s)}>
+                            {s.charAt(0).toUpperCase() + s.slice(1)}
+                          </button>
+                        ))}
+                      </div>
+                    </label>
+                    <label>
+                      Message the customer sees (OTP)
+                      <textarea
+                        value={editMessage}
+                        rows={3}
+                        placeholder="Paste the OTP or verification message here…"
+                        onChange={(e) => setEditMessage(e.target.value)}
+                      />
+                    </label>
+                    <div className="vxa-eo-actions">
+                      <button type="button" className="ghost" disabled={busy} onClick={() => setEditId(null)}>Cancel</button>
+                      <button type="button" disabled={busy} onClick={() => void saveEdit()}>Save</button>
+                      <button
+                        type="button"
+                        className="warn"
+                        disabled={busy || o.status === 'refunded'}
+                        onClick={() => void refund(o)}
+                      >
+                        Refund ₦{o.chargedNgn.toLocaleString('en-NG')}
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 const DEFAULT_BOOST_MARKUPS: Record<'retail' | 'api' | 'child', number[]> = {
   retail: [4.0, 3.0, 2.0, 1.5],
   api: [2.2, 1.8, 1.5, 1.25],
@@ -2686,6 +2895,7 @@ export function AdminPage({
         {section === 'email-otp' && (
           <section className="vxa-body">
             <EmailOtpSection />
+            <EmailOrdersSection />
           </section>
         )}
 

@@ -1219,3 +1219,65 @@
   background: rgba(59, 130, 246, 0.15);
   border-color: rgba(59, 130, 246, 0.5);
 }
+
+/* ---------- Email orders manager ---------- */
+.vxa-eo-toolbar { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
+.vxa-eo-search {
+  display: flex; align-items: center; gap: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 10px; padding: 6px 8px;
+}
+.vxa-eo-search input {
+  flex: 1; min-width: 0; border: 0; outline: none; background: transparent;
+  font-size: 13px; color: inherit; padding: 4px 2px;
+}
+.vxa-eo-search button {
+  border: 0; border-radius: 8px; padding: 6px 12px; cursor: pointer;
+  font-size: 12px; font-weight: 700;
+  background: var(--blue, #0052ff); color: #fff;
+}
+.vxa-eo-list { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+.vxa-eo-row {
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  border-radius: 12px; overflow: hidden;
+}
+.vxa-eo-row.open { border-color: var(--blue, #0052ff); }
+.vxa-eo-main {
+  display: block; width: 100%; text-align: left;
+  border: 0; background: transparent; cursor: pointer; padding: 10px 12px;
+}
+.vxa-eo-line { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.vxa-eo-line strong { font-size: 13.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vxa-eo-sub { margin-top: 3px; font-size: 11.5px; color: rgba(148, 163, 184, 0.95); }
+.vxa-eo-badge {
+  flex: none; font-size: 10px; font-weight: 800; letter-spacing: 0.04em;
+  text-transform: uppercase; padding: 3px 8px; border-radius: 999px;
+}
+.vxa-eo-badge.ok { background: rgba(16, 185, 129, 0.15); color: #059669; }
+.vxa-eo-badge.wait { background: rgba(245, 158, 11, 0.15); color: #b45309; }
+.vxa-eo-badge.bad { background: rgba(239, 68, 68, 0.13); color: #dc2626; }
+.vxa-eo-edit {
+  border-top: 1px solid rgba(148, 163, 184, 0.25);
+  padding: 12px; display: flex; flex-direction: column; gap: 10px;
+}
+.vxa-eo-edit label {
+  display: flex; flex-direction: column; gap: 6px;
+  font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
+  color: rgba(148, 163, 184, 0.9);
+}
+.vxa-eo-edit textarea {
+  border: 1px solid rgba(148, 163, 184, 0.35); border-radius: 10px;
+  background: transparent; color: inherit; padding: 8px 10px;
+  font-size: 12.5px; font-weight: 500; resize: vertical; outline: none;
+}
+.vxa-eo-edit textarea:focus { border-color: var(--blue, #0052ff); }
+.vxa-eo-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.vxa-eo-actions button {
+  flex: 1; min-width: 90px; border: 0; border-radius: 10px;
+  padding: 9px 10px; font-size: 12px; font-weight: 700; cursor: pointer;
+  background: var(--blue, #0052ff); color: #fff;
+}
+.vxa-eo-actions button.ghost { background: transparent; color: inherit; border: 1px solid rgba(148, 163, 184, 0.4); }
+.vxa-eo-actions button.warn { background: #dc2626; }
+.vxa-eo-actions button:disabled { opacity: 0.55; cursor: not-allowed; }
+.vxa-chips button.on { background: var(--blue); border-color: var(--blue); color: #fff; }
