@@ -105,11 +105,7 @@ function SectionIcon({ kind }: { kind: (typeof PRIVACY_SECTIONS)[number]['icon']
 }
 
 export function PrivacyPolicyPage({ onBack }: { onBack?: () => void }) {
-  const [openIds, setOpenIds] = useState<Record<string, boolean>>({
-    collect: true,
-    protect: true,
-    ephemeral: true,
-  });
+  const [openIds, setOpenIds] = useState<Record<string, boolean>>({});
 
   const toggle = (id: string) => {
     setOpenIds((prev) => ({ ...prev, [id]: !prev[id] }));
