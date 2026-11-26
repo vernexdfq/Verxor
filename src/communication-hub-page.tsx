@@ -36,15 +36,12 @@ const TABS: { id: HubTab; label: string; icon: typeof Phone }[] = [
   { id: 'history', label: 'Call History', icon: PhoneForwarded },
 ];
 
-const COUNTRIES = [
-  { code: 'US', name: 'United States', flag: '🇺🇸' },
-  { code: 'CA', name: 'Canada', flag: '🇨🇦' },
-  { code: 'GB', name: 'United Kingdom', flag: '🇬🇧' },
-  { code: 'AU', name: 'Australia', flag: '🇦🇺' },
-  { code: 'DE', name: 'Germany', flag: '🇩🇪' },
-  { code: 'FR', name: 'France', flag: '🇫🇷' },
-  { code: 'NL', name: 'Netherlands', flag: '🇳🇱' },
-  { code: 'SE', name: 'Sweden', flag: '🇸🇪' },
+type CountryOption = { code: string; name: string; flag: string; defaultEnabled?: boolean };
+
+// Fallback until the backend list loads (real list from /api/v1/rent-line/countries).
+const DEFAULT_COUNTRIES: CountryOption[] = [
+  { code: 'US', name: 'United States', flag: '🇺🇸', defaultEnabled: true },
+  { code: 'CA', name: 'Canada', flag: '🇨🇦', defaultEnabled: true },
 ];
 
 const NUMBER_TYPES: { id: NumberType; label: string; hint: string }[] = [
@@ -64,7 +61,7 @@ export function CommunicationHubPage({
   const [getOpen, setGetOpen] = useState(false);
   const [dropdownFor, setDropdownFor] = useState<'call' | 'messages' | 'history' | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [country, setCountry] = useState(COUNTRIES[0]);
+  const [country, setCountry] = useState(DEFAULT_COUNTRIES[0]);
   const [numberType, setNumberType] = useState<NumberType>('local');
   const [countryPicker, setCountryPicker] = useState(false);
   const [typePicker, setTypePicker] = useState(false);
@@ -76,13 +73,17 @@ export function CommunicationHubPage({
   // Real lines from the backend (honest empty state until SignalWire buys happen).
   const [myNumbers, setMyNumbers] = useState<HubNumber[]>([]);
   const [linesLoading, setLinesLoading] = useState(true);
+  const [countries, setCountries] = useState<CountryOption[]>(DEFAULT_COUNTRIES);
 
+  const userKey = session?.userId || '';
+
+  // Fix the reload loop: depend on the stable user id, not the session object.
   const vxHeaders = useCallback((json = true): Record<string, string> => {
     const h: Record<string, string> = {};
     if (json) h['Content-Type'] = 'application/json';
-    if (session?.userId) h['x-vx-user'] = session.userId;
+    if (userKey) h['x-vx-user'] = userKey;
     return h;
-  }, [session]);
+  }, [userKey]);
 
   const loadLines = useCallback(async () => {
     setLinesLoading(true);
@@ -116,6 +117,22 @@ export function CommunicationHubPage({
   useEffect(() => {
     void loadLines();
   }, [loadLines]);
+
+  // Country list from the backend (SignalWire-supported countries only).
+  useEffect(() => {
+    let alive = true;
+    fetch('/api/v1/rent-line/countries', { cache: 'no-store' })
+      .then((r) => r.json().catch(() => ({})))
+      .then((d: { ok?: boolean; countries?: CountryOption[] }) => {
+        if (alive && d.ok && Array.isArray(d.countries) && d.countries.length) {
+          setCountries(d.countries);
+        }
+      })
+      .catch(() => null);
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   const selected = useMemo(
     () => myNumbers.find((n) => n.id === selectedId) ?? null,
@@ -649,7 +666,7 @@ export function CommunicationHubPage({
               </button>
             </div>
             <ul className="chub-list">
-              {COUNTRIES.map((c) => (
+              {countries.map((c) => (
                 <li key={c.code}>
                   <button
                     type="button"
