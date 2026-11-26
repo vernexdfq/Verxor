@@ -7,10 +7,12 @@ import {
   s2tProductsForBig,
   s2tLastError,
   s2tProductDetail,
+  type S2TCategory,
   type S2TProductDetail,
 } from '@/lib/providers/shop2topup';
 import { gamingAudienceNgn, loadGamingMarkups, resolveFxRateNgn, resolveGamingAudience } from '@/lib/gaming-pricing';
 import {
+  cachedAllGameDetails,
   cachedDetail,
   cachedProducts,
   detailFresh,
@@ -27,15 +29,39 @@ import {
  *   → products for one category (first 60 priced; the rest show on open).
  *
  * Provider: Shop2TopUp H2H API (Bearer SHOP2TOPUP_API_KEY, no IP proxy).
- * The Supabase snapshot (gaming_products + gaming_product_details) still
- * shields browsing behind caches: product lists 7 days, grid "from" prices
- * 7 days, buy-sheet details 12 hours. Purchases always re-check live.
- * Shop2TopUp ids are prefixed `s2t-<categoryId>`.
+ * Multi-layer caching: in-memory server cache (15m), Supabase snapshots,
+ * and HTTP Cache-Control headers for instant repeat responses.
  */
 export const dynamic = 'force-dynamic';
 
 const PRICE_BATCH = 60;
 const GRID_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
+// Server-side in-memory cache for big categories (30 min TTL)
+let cachedBigCats: { at: number; data: S2TCategory[] } | null = null;
+async function getBigCategoriesFast(): Promise<S2TCategory[]> {
+  if (cachedBigCats && Date.now() - cachedBigCats.at < 30 * 60 * 1000 && cachedBigCats.data.length > 0) {
+    return cachedBigCats.data;
+  }
+  try {
+    const fresh = await s2tBigCategories();
+    if (fresh && fresh.length) {
+      cachedBigCats = { at: Date.now(), data: fresh };
+      return fresh;
+    }
+  } catch {}
+  return cachedBigCats?.data || [];
+}
+
+// Server-side in-memory cache for the full catalog (15 min TTL)
+type CatalogCacheEntry = {
+  timestamp: number;
+  rate: number;
+  audience: string;
+  games: Array<{ id: string; name: string; image: string | null; fromNgn: number | null }>;
+};
+const serverCatalogMemory = new Map<string, CatalogCacheEntry>();
+const SERVER_CATALOG_TTL_MS = 15 * 60 * 1000;
 
 export async function GET(req: NextRequest) {
   if (!s2tConfigured()) {
@@ -49,38 +75,51 @@ export async function GET(req: NextRequest) {
   const priceNgn = (usd: number, rate: number) => gamingAudienceNgn(usd, audience, markups, rate);
 
   // Full A–Z/Popular list: one grid with every game, priced "from" its
-  // cheapest option. Details are cached in gaming_product_details under
-  // `game-<bigCategoryId>` (12h TTL); each request refreshes a bounded batch,
-  // so a cold catalog fills gradually without hammering the provider.
+  // cheapest option. Cached in-memory and in Supabase snapshot.
   if (req.nextUrl.searchParams.get('all')) {
     const debug = req.nextUrl.searchParams.get('debug') === '1';
     const rate = await resolveFxRateNgn();
-    const cats = await s2tBigCategories();
+
+    // Check server in-memory cache first (< 1ms response)
+    const cacheKey = `${audience}:${Math.round(rate)}`;
+    const memCached = serverCatalogMemory.get(cacheKey);
+    if (!debug && memCached && Date.now() - memCached.timestamp < SERVER_CATALOG_TTL_MS && memCached.games.length > 0) {
+      return NextResponse.json(
+        { ok: true, rate, audience, games: memCached.games, count: memCached.games.length, cached: true },
+        {
+          headers: {
+            'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=86400',
+          },
+        },
+      );
+    }
+
+    const cats = await getBigCategoriesFast();
+    // Batch-load all snapshots in 1 query from Supabase instead of 50 individual calls
+    const allDetails = await cachedAllGameDetails();
+
     let warm = 0;
     const dbg = { fresh: 0, warmed: 0, readFails: [] as string[], writeFails: [] as string[] };
     const games = await Promise.all(
       cats.map(async (c) => {
         let detail: S2TProductDetail | null = null;
-        try {
-          const c2 = await cachedDetail(`game-${c.id}`);
-          if (c2 && detailFresh(c2.syncedAt)) {
-            detail = c2.detail;
-            dbg.fresh += 1;
-          }
-        } catch (e) {
-          dbg.readFails.push(`${c.id}: ${e instanceof Error ? e.message.slice(0, 80) : 'read failed'}`);
+        const c2 = allDetails[`game-${c.id}`];
+        if (c2 && detailFresh(c2.syncedAt)) {
+          detail = c2.detail;
+          dbg.fresh += 1;
+        } else if (c2) {
+          // Stale snapshot is still usable for "from" price preview
+          detail = c2.detail;
         }
-        if (!detail && warm < 24) {
+
+        // Limit cold warming to 4 to prevent blocking the response
+        if (!detail && warm < 4) {
           warm += 1;
           try {
             detail = await s2tGameVariants(c.id, c.name, c.image || S2T_GAME_ARTWORK[c.id]);
             if (detail) {
               dbg.warmed += 1;
-              try {
-                await saveDetail(detail);
-              } catch (e) {
-                dbg.writeFails.push(`${c.id}: ${e instanceof Error ? e.message.slice(0, 120) : 'write failed'}`);
-              }
+              void saveDetail(detail).catch(() => null);
             }
           } catch {
             // provider error — show the game unpriced; it prices on a later request
@@ -95,7 +134,25 @@ export async function GET(req: NextRequest) {
         };
       }),
     );
-    return NextResponse.json({ ok: true, rate, audience, games, ...(debug ? { debug: dbg } : {}) });
+
+    // Save to server in-memory cache
+    if (games.length > 0) {
+      serverCatalogMemory.set(cacheKey, {
+        timestamp: Date.now(),
+        rate,
+        audience,
+        games,
+      });
+    }
+
+    return NextResponse.json(
+      { ok: true, rate, audience, games, ...(debug ? { debug: dbg } : {}) },
+      {
+        headers: {
+          'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=86400',
+        },
+      },
+    );
   }
 
   if (req.nextUrl.searchParams.get('category_id')) {
@@ -144,9 +201,7 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    // 3) "From" prices: cached details first, a bounded batch of live
-    //    provider calls for the rest. Shop2TopUp rate limits are generous
-    //    (5,000/60s) so the cap is about politeness, not survival.
+    // 3) "From" prices: cached details first, bounded batch of live provider calls
     let providerCalls = 0;
     const priced = await Promise.all(
       products.slice(0, PRICE_BATCH).map(async (p) => {
@@ -162,11 +217,7 @@ export async function GET(req: NextRequest) {
           try {
             detail = await s2tProductDetail(p.id);
             if (detail) {
-              try {
-                await saveDetail(detail);
-              } catch {
-                // non-fatal
-              }
+              void saveDetail(detail).catch(() => null);
             }
           } catch {
             // provider error — leave unpriced ("View prices" on open)
@@ -182,10 +233,24 @@ export async function GET(req: NextRequest) {
       }),
     );
     const rest = products.slice(PRICE_BATCH).map((p) => ({ id: p.id, name: p.name, image: null, fromNgn: null }));
-    return NextResponse.json({ ok: true, categoryId, rate, audience, products: [...priced, ...rest] });
+    return NextResponse.json(
+      { ok: true, categoryId, rate, audience, products: [...priced, ...rest] },
+      {
+        headers: {
+          'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=86400',
+        },
+      },
+    );
   }
 
-  const categories = await s2tBigCategories();
+  const categories = await getBigCategoriesFast();
   const rate = await resolveFxRateNgn();
-  return NextResponse.json({ ok: true, rate, audience, categories });
+  return NextResponse.json(
+    { ok: true, rate, audience, categories },
+    {
+      headers: {
+        'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=86400',
+      },
+    },
+  );
 }

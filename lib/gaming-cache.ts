@@ -102,4 +102,34 @@ export async function saveDetail(detail: MgProductDetail): Promise<void> {
   );
 }
 
+
+/** Batch fetch all game details in one query from Supabase snapshot */
+export async function cachedAllGameDetails(): Promise<Record<string, CachedDetail>> {
+  try {
+    const rows = await sbSelect(
+      'gaming_product_details',
+      'product_id=like.game-*&select=product_id,name,image_url,fields,variations,synced_at',
+    );
+    const result: Record<string, CachedDetail> = {};
+    if (Array.isArray(rows)) {
+      for (const r of rows) {
+        if (!r.product_id) continue;
+        result[String(r.product_id)] = {
+          detail: {
+            id: String(r.product_id),
+            name: String(r.name || ''),
+            image: r.image_url ? String(r.image_url) : null,
+            fields: Array.isArray(r.fields) ? r.fields : [],
+            variations: Array.isArray(r.variations) ? r.variations : [],
+          },
+          syncedAt: String(r.synced_at),
+        };
+      }
+    }
+    return result;
+  } catch {
+    return {};
+  }
+}
+
 export { supabaseConfigured };

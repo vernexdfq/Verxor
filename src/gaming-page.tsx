@@ -59,6 +59,30 @@ function tileArt(p: { id: string; name: string; image?: string | null }) {
   return { kind: 'initials' as const, gradient: gradientFor(p.id), label: initialsFor(p.name) };
 }
 
+
+/** Module-level in-memory cache to prevent reloading across SPA navigations */
+let memCatalog: CatalogProduct[] | null = null;
+let memCatalogAt = 0;
+const memProductDetails = new Map<string, ProductDetail>();
+
+function getInitialCatalog(): CatalogProduct[] {
+  if (memCatalog && memCatalog.length > 0) return memCatalog;
+  if (typeof window !== 'undefined') {
+    try {
+      const raw = localStorage.getItem('vx-gaming-catalog');
+      if (raw) {
+        const cached = JSON.parse(raw) as { at?: number; games?: CatalogProduct[] };
+        if (Array.isArray(cached.games) && cached.games.length > 0) {
+          memCatalog = cached.games;
+          memCatalogAt = cached.at || Date.now();
+          return cached.games;
+        }
+      }
+    } catch {}
+  }
+  return [];
+}
+
 export function GamingPage({
   onBack,
   session,
@@ -68,8 +92,8 @@ export function GamingPage({
   session: AuthSession | null;
   onFund: () => void;
 }) {
-  const [products, setProducts] = useState<CatalogProduct[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [products, setProducts] = useState<CatalogProduct[]>(() => getInitialCatalog());
+  const [loading, setLoading] = useState<boolean>(() => getInitialCatalog().length === 0);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isSetup, setIsSetup] = useState(false);
 
@@ -93,48 +117,40 @@ export function GamingPage({
   /* ---------- catalog: ONE full list (A–Z / Popular / search) ---------- */
 
   // Returning visitors see the cached catalog instantly; it refreshes in the
-  // background only when stale (6h). Purchases always re-verify live.
+  // background without blocking the UI. Purchases always re-verify live.
   const loadGames = useCallback(async (force = false) => {
-    if (!force) {
-      try {
-        const raw = localStorage.getItem('vx-gaming-catalog');
-        if (raw) {
-          const cached = JSON.parse(raw) as { at?: number; games?: CatalogProduct[] };
-          if (Array.isArray(cached.games) && cached.games.length) {
-            setProducts(cached.games);
-            setLoading(false);
-            if (Date.now() - (cached.at || 0) < 6 * 60 * 60 * 1000) return;
-          }
-        }
-      } catch {
-        /* cache unavailable — load normally */
-      }
-    } else {
+    // If we have no items at all, show initial loading state
+    if (force || (!memCatalog?.length && products.length === 0)) {
       setLoading(true);
     }
     setLoadError(null);
     try {
-      const res = await fetch('/api/v1/gaming/catalog?all=1', { cache: 'no-store' });
+      const res = await fetch('/api/v1/gaming/catalog?all=1');
       const data = (await res.json()) as { ok?: boolean; error?: string; games?: CatalogProduct[] };
       if (!res.ok || !data.ok) {
         const msg = data.error || 'Could not load the gaming catalog.';
-        setLoadError(/not configured/i.test(msg) ? 'Gaming store is going live — provider setup is finishing. Try again shortly.' : msg);
-        setIsSetup(/not configured/i.test(msg));
-        setProducts([]);
-      } else {
-        setProducts(data.games || []);
+        if (!products.length && !memCatalog?.length) {
+          setLoadError(/not configured/i.test(msg) ? 'Gaming store is going live — provider setup is finishing. Try again shortly.' : msg);
+          setIsSetup(/not configured/i.test(msg));
+        }
+      } else if (Array.isArray(data.games) && data.games.length > 0) {
+        setProducts(data.games);
+        memCatalog = data.games;
+        memCatalogAt = Date.now();
         try {
-          localStorage.setItem('vx-gaming-catalog', JSON.stringify({ at: Date.now(), games: data.games || [] }));
+          localStorage.setItem('vx-gaming-catalog', JSON.stringify({ at: Date.now(), games: data.games }));
         } catch {
           /* storage full/unavailable — non-fatal */
         }
       }
     } catch {
-      setLoadError('Network error loading the catalog.');
+      if (!products.length && !memCatalog?.length) {
+        setLoadError('Network error loading the catalog.');
+      }
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [products.length]);
 
   useEffect(() => {
     void loadGames();
@@ -172,9 +188,6 @@ export function GamingPage({
   /* ---------- product detail ---------- */
 
   const openProduct = async (id: string) => {
-    setDetailLoading(true);
-    /* id may be a raw game id (grid tile) or an option id (`s2t-…`). */
-    setDetail(null);
     setDetailError(null);
     setSelectedVariation(null);
     setFieldValues({});
@@ -182,14 +195,36 @@ export function GamingPage({
     setBuyError(null);
     setOrder(null);
     setNeedsFund(false);
+
+    // Instant open if already in memory
+    const cached = memProductDetails.get(id);
+    if (cached) {
+      setDetail(cached);
+      setDetailLoading(false);
+      const inStock = cached.variations.find((v) => v.inStock && v.priceNgn > 0);
+      if (inStock) setSelectedVariation(inStock.id);
+      // Background revalidate fresh price/stock
+      void fetch(`/api/v1/gaming/product?product_id=${encodeURIComponent(id)}`)
+        .then((r) => r.json())
+        .then((d: { ok?: boolean; product?: ProductDetail }) => {
+          if (d.ok && d.product) {
+            memProductDetails.set(id, d.product);
+            setDetail((current) => (current && current.id === id ? d.product! : current));
+          }
+        })
+        .catch(() => null);
+      return;
+    }
+
+    setDetail(null);
+    setDetailLoading(true);
     try {
-      const res = await fetch(`/api/v1/gaming/product?product_id=${encodeURIComponent(id)}`, {
-        cache: 'no-store',
-      });
+      const res = await fetch(`/api/v1/gaming/product?product_id=${encodeURIComponent(id)}`);
       const data = (await res.json()) as { ok?: boolean; error?: string; product?: ProductDetail };
       if (!res.ok || !data.ok || !data.product) {
         setDetailError(data.error || 'Could not load this product.');
       } else {
+        memProductDetails.set(id, data.product);
         setDetail(data.product);
         const inStock = data.product.variations.find((v) => v.inStock && v.priceNgn > 0);
         if (inStock) setSelectedVariation(inStock.id);

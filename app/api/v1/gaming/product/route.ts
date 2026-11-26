@@ -10,12 +10,27 @@ import { cachedDetail, detailFresh, saveDetail } from '@/lib/gaming-cache';
  *     prices (Naira only), stock state, and required form fields
  *     (e.g. Player ID), served from the Shop2TopUp API.
  *
- * Snapshot: details are served from the Supabase snapshot
- * (gaming_product_details) while fresh (12h); the provider is only called
- * on stale/missing snapshots (and the fresh result is saved back).
+ * Caching: in-memory server cache (15m), Supabase snapshot (12h).
  * Purchases always re-check the provider for live stock and price.
  */
 export const dynamic = 'force-dynamic';
+
+type ProductCacheEntry = {
+  timestamp: number;
+  rate: number;
+  audience: string;
+  product: {
+    id: string;
+    name: string;
+    image: string | null;
+    fields: any[];
+    variations: any[];
+    servers: any[];
+  };
+};
+
+const serverProductDetailMemory = new Map<string, ProductCacheEntry>();
+const SERVER_PRODUCT_TTL_MS = 15 * 60 * 1000;
 
 export async function GET(req: NextRequest) {
   if (!s2tConfigured()) {
@@ -24,6 +39,29 @@ export async function GET(req: NextRequest) {
   const productId = (req.nextUrl.searchParams.get('product_id') || '').trim();
   if (!productId) {
     return NextResponse.json({ ok: false, error: 'Missing product_id' }, { status: 400 });
+  }
+
+  const audience = await resolveGamingAudience(req);
+  const rate = await resolveFxRateNgn();
+  const cacheKey = `${productId}:${audience}:${Math.round(rate)}`;
+
+  // 1) Fast in-memory server cache (< 1ms response)
+  const memCached = serverProductDetailMemory.get(cacheKey);
+  if (memCached && Date.now() - memCached.timestamp < SERVER_PRODUCT_TTL_MS) {
+    return NextResponse.json(
+      {
+        ok: true,
+        rate: memCached.rate,
+        audience: memCached.audience,
+        product: memCached.product,
+        cached: true,
+      },
+      {
+        headers: {
+          'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=86400',
+        },
+      },
+    );
   }
 
   let detail: S2TProductDetail | null = null;
@@ -62,27 +100,41 @@ export async function GET(req: NextRequest) {
   }
 
   // Audience-aware pricing (retail / child panel / API) from admin_settings.
-  const audience = await resolveGamingAudience(req);
   const markups = await loadGamingMarkups();
-  const priceNgn = (usd: number, rate: number) => gamingAudienceNgn(usd, audience, markups, rate);
-  const rate = await resolveFxRateNgn();
+  const priceNgn = (usd: number, rateVal: number) => gamingAudienceNgn(usd, audience, markups, rateVal);
 
-  return NextResponse.json({
-    ok: true,
+  const productPayload = {
+    id: detail.id,
+    name: detail.name,
+    image: detail.image || null,
+    fields: detail.fields,
+    variations: detail.variations.map((v) => ({
+      id: v.id,
+      name: v.name,
+      priceNgn: priceNgn(v.priceUsd, rate),
+      inStock: v.inStock !== false,
+    })),
+    servers: [],
+  };
+
+  serverProductDetailMemory.set(cacheKey, {
+    timestamp: Date.now(),
     rate,
     audience,
-    product: {
-      id: detail.id,
-      name: detail.name,
-      image: detail.image || null,
-      fields: detail.fields,
-      variations: detail.variations.map((v) => ({
-        id: v.id,
-        name: v.name,
-        priceNgn: priceNgn(v.priceUsd, rate),
-        inStock: v.inStock !== false,
-      })),
-      servers: [],
-    },
+    product: productPayload,
   });
+
+  return NextResponse.json(
+    {
+      ok: true,
+      rate,
+      audience,
+      product: productPayload,
+    },
+    {
+      headers: {
+        'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=86400',
+      },
+    },
+  );
 }
