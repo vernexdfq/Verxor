@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { rentLinePriceNgn, RENT_LINE_PERIODS } from '@/lib/rentline-pricing';
+import { rentLinePriceNgn, RENT_LINE_PERIODS, type RentLineAudience } from '@/lib/rentline-pricing';
+import { resolvePanelClient } from '@/lib/panel-auth';
 import { notifyAdmin } from '@/lib/notify';
 
 export const dynamic = 'force-dynamic';
@@ -90,15 +91,31 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: 'That line was released. Rent a new number.' }, { status: 400 });
   }
 
-  const totalNgn = await rentLinePriceNgn(String(row.country_code || ''), period);
+  // Audience tier: child panel renews its own lines from the panel wallet.
+  const panel = await resolvePanelClient(req).catch(() => null);
+  const audience: RentLineAudience = panel ? 'child' : 'retail';
+  const totalNgn = await rentLinePriceNgn(period, audience);
   if (!totalNgn) {
-    return NextResponse.json({ ok: false, error: 'Pricing is not set for that line yet.' }, { status: 400 });
+    return NextResponse.json({ ok: false, error: 'That renewal period is not priced yet.' }, { status: 400 });
   }
   const periodInfo = RENT_LINE_PERIODS[period];
   const debitRef = `swr-${userId.slice(0, 8)}-${Date.now()}`;
   const desc = `Rent-a-line renewal · ${String(row.e164 || '')} · ${periodInfo.label}`;
   try {
-    await debitRetailWallet(userId, totalNgn, debitRef, desc);
+    if (panel) {
+      const pres = await fetch(`${base}/rest/v1/rpc/debit_reseller_wallet`, {
+        method: 'POST',
+        headers: hdr,
+        body: JSON.stringify({ p_user_id: userId, p_amount: totalNgn, p_reference: debitRef }),
+      });
+      if (!pres.ok) {
+        const t = await pres.text().catch(() => '');
+        if (/insufficient/i.test(t)) throw new Error('INSUFFICIENT_BALANCE');
+        throw new Error(`Reseller debit failed: ${t.slice(0, 200)}`);
+      }
+    } else {
+      await debitRetailWallet(userId, totalNgn, debitRef, desc);
+    }
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Debit failed';
     if (msg === 'INSUFFICIENT_BALANCE') {
