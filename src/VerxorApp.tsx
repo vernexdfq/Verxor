@@ -453,7 +453,7 @@ export function VerxorApp({
       />
     );
   } else if (service === 'sms-calls') {
-    content = <CommunicationHubPage onBack={closeService} />;
+    content = <CommunicationHubPage onBack={closeService} session={auth} />;
   } else if (service === 'virtual-numbers') {
     content = (
       <VirtualNumbersPage

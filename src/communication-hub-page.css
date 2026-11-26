@@ -673,3 +673,7 @@
     font-size: 24px;
   }
 }
+
+/* Rent-a-line: spinner */
+.chub-spin { animation: chub-spin 1s linear infinite; }
+@keyframes chub-spin { to { transform: rotate(360deg); } }

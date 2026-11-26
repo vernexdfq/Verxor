@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowLeft,
   ChevronDown,
+  Loader2,
   MessageSquare,
   Phone,
   PhoneCall,
@@ -12,6 +13,7 @@ import {
   Search,
   X,
 } from 'lucide-react';
+import type { AuthSession } from './auth/AuthFlow';
 import './communication-hub-page.css';
 
 type HubTab = 'numbers' | 'call' | 'messages' | 'history';
@@ -23,6 +25,8 @@ type HubNumber = {
   e164: string;
   friendly: string;
   country: string;
+  status?: string;
+  expiresAt?: string;
 };
 
 const TABS: { id: HubTab; label: string; icon: typeof Phone }[] = [
@@ -49,7 +53,13 @@ const NUMBER_TYPES: { id: NumberType; label: string; hint: string }[] = [
   { id: 'mobile', label: 'Mobile', hint: 'Mobile range where available' },
 ];
 
-export function CommunicationHubPage({ onBack }: { onBack: () => void }) {
+export function CommunicationHubPage({
+  onBack,
+  session,
+}: {
+  onBack: () => void;
+  session?: AuthSession | null;
+}) {
   const [tab, setTab] = useState<HubTab>('numbers');
   const [getOpen, setGetOpen] = useState(false);
   const [dropdownFor, setDropdownFor] = useState<'call' | 'messages' | 'history' | null>(null);
@@ -63,8 +73,49 @@ export function CommunicationHubPage({ onBack }: { onBack: () => void }) {
 
   const dropdownRef = useRef<HTMLDivElement | null>(null);
 
-  // Placeholder — real numbers will come from SignalWire / our API later
-  const myNumbers: HubNumber[] = [];
+  // Real lines from the backend (honest empty state until SignalWire buys happen).
+  const [myNumbers, setMyNumbers] = useState<HubNumber[]>([]);
+  const [linesLoading, setLinesLoading] = useState(true);
+
+  const vxHeaders = useCallback((json = true): Record<string, string> => {
+    const h: Record<string, string> = {};
+    if (json) h['Content-Type'] = 'application/json';
+    if (session?.userId) h['x-vx-user'] = session.userId;
+    return h;
+  }, [session]);
+
+  const loadLines = useCallback(async () => {
+    setLinesLoading(true);
+    try {
+      const res = await fetch('/api/v1/rent-line/lines', { headers: vxHeaders(false), cache: 'no-store' });
+      const data = (await res.json().catch(() => ({}))) as {
+        ok?: boolean;
+        lines?: Array<{
+          id: string; e164: string; friendly: string; country: string; status: string; expiresAt: string;
+        }>;
+      };
+      if (data.ok && Array.isArray(data.lines)) {
+        setMyNumbers(
+          data.lines.map((l) => ({
+            id: l.id,
+            e164: l.e164,
+            friendly: l.friendly || l.e164,
+            country: l.country,
+            status: l.status,
+            expiresAt: l.expiresAt,
+          })),
+        );
+      }
+    } catch {
+      /* keep previous lines; next visit retries */
+    } finally {
+      setLinesLoading(false);
+    }
+  }, [vxHeaders]);
+
+  useEffect(() => {
+    void loadLines();
+  }, [loadLines]);
 
   const selected = useMemo(
     () => myNumbers.find((n) => n.id === selectedId) ?? null,
@@ -106,15 +157,76 @@ export function CommunicationHubPage({ onBack }: { onBack: () => void }) {
     setDropdownFor(null);
   };
 
-  const handleSearch = () => {
+  const [results, setResults] = useState<HubNumber[]>([]);
+  const [pickedE164, setPickedE164] = useState<string | null>(null);
+  const [period, setPeriod] = useState<'30d' | '90d' | '365d'>('30d');
+  const [buying, setBuying] = useState(false);
+  const [buyMsg, setBuyMsg] = useState<string | null>(null);
+
+  const PERIOD_OPTIONS = [
+    { id: '30d' as const, label: '1 Month' },
+    { id: '90d' as const, label: '3 Months' },
+    { id: '365d' as const, label: '12 Months' },
+  ];
+
+  const handleSearch = async () => {
     setSearching(true);
     setSearchError(null);
-    window.setTimeout(() => {
-      setSearching(false);
-      setSearchError(
-        `Number search is not connected yet. ${country.name} (${numberType}) will be available once SignalWire is linked.`,
+    setResults([]);
+    setPickedE164(null);
+    setBuyMsg(null);
+    try {
+      const res = await fetch(
+        `/api/v1/rent-line/search?country=${encodeURIComponent(country.code)}&type=${encodeURIComponent(numberType)}`,
+        { headers: vxHeaders(false), cache: 'no-store' },
       );
-    }, 900);
+      const data = (await res.json().catch(() => ({}))) as {
+        ok?: boolean;
+        error?: string;
+        numbers?: Array<{ e164: string; friendly: string }>;
+      };
+      if (!res.ok || !data.ok || !Array.isArray(data.numbers)) {
+        setSearchError(data.error || 'Search failed. Try again.');
+      } else if (!data.numbers.length) {
+        setSearchError(`No ${numberType === 'local' ? 'local' : numberType} numbers are available for ${country.name} right now. Try another type or country.`);
+      } else {
+        setResults(data.numbers.map((n) => ({ id: n.e164, e164: n.e164, friendly: n.friendly, country: country.name })));
+      }
+    } catch {
+      setSearchError('Network error while searching. Try again.');
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  const handleBuy = async () => {
+    if (!pickedE164 || buying) return;
+    setBuying(true);
+    setBuyMsg(null);
+    try {
+      const res = await fetch('/api/v1/rent-line/purchase', {
+        method: 'POST',
+        headers: vxHeaders(),
+        body: JSON.stringify({
+          e164: pickedE164,
+          country: country.code,
+          type: numberType,
+          period,
+          userId: session?.userId,
+        }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
+      if (!res.ok || !data.ok) {
+        setBuyMsg(data.error || 'The purchase failed. Try again.');
+        return;
+      }
+      setGetOpen(false);
+      await loadLines();
+    } catch {
+      setBuyMsg('Network error while purchasing. If you were charged, contact support.');
+    } finally {
+      setBuying(false);
+    }
   };
 
   const selectLabel = selected?.friendly ?? 'Select your number…';
@@ -193,7 +305,14 @@ export function CommunicationHubPage({ onBack }: { onBack: () => void }) {
               </button>
             </div>
 
-            {myNumbers.length === 0 ? (
+            {linesLoading ? (
+              <div className="chub-empty">
+                <div className="chub-empty-icon">
+                  <Loader2 size={28} className="chub-spin" />
+                </div>
+                <strong>Loading your lines…</strong>
+              </div>
+            ) : myNumbers.length === 0 ? (
               <div className="chub-empty">
                 <div className="chub-empty-icon">
                   <Phone size={28} strokeWidth={1.7} />
@@ -218,7 +337,16 @@ export function CommunicationHubPage({ onBack }: { onBack: () => void }) {
                       </span>
                       <span className="chub-number-copy">
                         <strong>{n.friendly}</strong>
-                        <small>{n.country}</small>
+                        <small>
+                          {n.country}
+                          {n.status === 'active' && n.expiresAt
+                            ? ` · renews/expires ${new Date(n.expiresAt).toLocaleDateString('en-NG', { day: 'numeric', month: 'short' })}`
+                            : n.status === 'expired'
+                              ? ' · expired'
+                              : n.status === 'released'
+                                ? ' · released'
+                                : ''}
+                        </small>
                       </span>
                     </button>
                   </li>
@@ -420,6 +548,48 @@ export function CommunicationHubPage({ onBack }: { onBack: () => void }) {
             <div className="chub-price-banner">{priceHint}</div>
 
             {searchError ? <div className="chub-alert">{searchError}</div> : null}
+            {buyMsg ? <div className="chub-alert">{buyMsg}</div> : null}
+
+            {/* Search results — pick a number, then a period, then buy */}
+            {results.length ? (
+              <div className="chub-field">
+                <label className="chub-label">PICK A NUMBER</label>
+                <ul className="chub-list">
+                  {results.slice(0, 12).map((n) => (
+                    <li key={n.e164}>
+                      <button
+                        type="button"
+                        className={pickedE164 === n.e164 ? 'chub-list-item active' : 'chub-list-item'}
+                        onClick={() => setPickedE164(n.e164)}
+                      >
+                        <span>{n.friendly}</span>
+                        {pickedE164 === n.e164 ? <span className="chub-check">✓</span> : null}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+
+            {pickedE164 ? (
+              <div className="chub-field">
+                <label className="chub-label">RENTAL PERIOD</label>
+                <div className="chub-tabs" role="tablist" aria-label="Rental period">
+                  {PERIOD_OPTIONS.map((p) => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      role="tab"
+                      aria-selected={period === p.id}
+                      className={period === p.id ? 'chub-tab active' : 'chub-tab'}
+                      onClick={() => setPeriod(p.id)}
+                    >
+                      <span>{p.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : null}
 
             <button
               type="button"
@@ -435,6 +605,25 @@ export function CommunicationHubPage({ onBack }: { onBack: () => void }) {
                 </>
               )}
             </button>
+
+            {pickedE164 ? (
+              <button
+                type="button"
+                className="chub-primary full"
+                onClick={handleBuy}
+                disabled={buying}
+              >
+                {buying ? (
+                  <>
+                    <Loader2 size={16} className="chub-spin" /> Renting…
+                  </>
+                ) : (
+                  <>
+                    <Plus size={16} /> Rent this number
+                  </>
+                )}
+              </button>
+            ) : null}
           </div>
         </div>
       )}
