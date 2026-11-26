@@ -122,10 +122,6 @@ export function CommunicationHubPage({
     [myNumbers, selectedId],
   );
 
-  const priceHint = useMemo(
-    () => '$6.99/month · Voice & SMS included · 30-day billing',
-    [],
-  );
 
   useEffect(() => {
     if (!dropdownFor) return;
@@ -159,15 +155,24 @@ export function CommunicationHubPage({
 
   const [results, setResults] = useState<HubNumber[]>([]);
   const [pickedE164, setPickedE164] = useState<string | null>(null);
-  const [period, setPeriod] = useState<'30d' | '90d' | '365d'>('30d');
+  const [period, setPeriod] = useState<'30d' | '90d' | '180d' | '365d'>('30d');
   const [buying, setBuying] = useState(false);
   const [buyMsg, setBuyMsg] = useState<string | null>(null);
 
-  const PERIOD_OPTIONS = [
-    { id: '30d' as const, label: '1 Month' },
-    { id: '90d' as const, label: '3 Months' },
-    { id: '365d' as const, label: '12 Months' },
+  // Retail display prices (server always re-prices from the master tier table).
+  const PERIOD_OPTIONS: Array<{ id: typeof period; label: string; retailNgn: number }> = [
+    { id: '30d', label: '1 Month', retailNgn: 5500 },
+    { id: '90d', label: '3 Months', retailNgn: 13800 },
+    { id: '180d', label: '6 Months', retailNgn: 23500 },
+    { id: '365d', label: '12 Months', retailNgn: 34450 },
   ];
+
+  const priceHint = useMemo(() => {
+    const opt = PERIOD_OPTIONS.find((p) => p.id === period);
+    const ngn = (n: number) => `₦${n.toLocaleString('en-NG')}`;
+    return `${opt ? `${opt.label} — ${ngn(opt.retailNgn)} line rental` : 'From ₦5,500 · 1 month'} · Calls (₦150/min) & SMS (₦70) charged per use from your wallet`;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [period]);
 
   const handleSearch = async () => {
     setSearching(true);
@@ -585,6 +590,7 @@ export function CommunicationHubPage({
                       onClick={() => setPeriod(p.id)}
                     >
                       <span>{p.label}</span>
+                      <small className="chub-select-hint">₦{p.retailNgn.toLocaleString('en-NG')}</small>
                     </button>
                   ))}
                 </div>
