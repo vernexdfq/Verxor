@@ -1,10 +1,11 @@
 /**
  * SignalWire LaML REST client (Twilio-compatible API).
  *
- * Env (set in Vercel):
- *   SIGNALWIRE_SPACE       e.g. "yourcompany.signalwire.com"
+ * Env (hosting / Vercel / Netlify):
+ *   SIGNALWIRE_SPACE       e.g. "yourcompany.signalwire.com" (no https://)
  *   SIGNALWIRE_PROJECT_ID  the SignalWire project id
  *   SIGNALWIRE_API_TOKEN   the project API token
+ *   NEXT_PUBLIC_SITE_URL or APP_URL  public https origin for webhooks
  *
  * All requests use HTTP Basic auth (ProjectId:ApiToken).
  */
@@ -23,19 +24,48 @@ export type SwOwnedNumber = {
 };
 
 export function swConfigured(): boolean {
-  const space = (process.env.SIGNALWIRE_SPACE || '').trim();
+  const space = (process.env.SIGNALWIRE_SPACE || process.env.SIGNALWIRE_SPACE_URL || '').trim();
   const project = (process.env.SIGNALWIRE_PROJECT_ID || '').trim();
   const token = (process.env.SIGNALWIRE_API_TOKEN || '').trim();
   return Boolean(space && project && token);
 }
 
+function swSpaceHost(): string {
+  let space = (process.env.SIGNALWIRE_SPACE || process.env.SIGNALWIRE_SPACE_URL || '').trim();
+  space = space.replace(/^https?:\/\//i, '').replace(/\/$/, '');
+  return space;
+}
+
 function swCredentials() {
-  const space = (process.env.SIGNALWIRE_SPACE || '').trim();
+  const space = swSpaceHost();
   const project = (process.env.SIGNALWIRE_PROJECT_ID || '').trim();
   const token = (process.env.SIGNALWIRE_API_TOKEN || '').trim();
   if (!space || !project || !token) throw new Error('SignalWire is not configured');
   const auth = Buffer.from(`${project}:${token}`).toString('base64');
   return { base: `https://${space}/api/laml/2010-04-01/Accounts/${project}`, auth };
+}
+
+/** Public site origin used to point numbers at our webhooks. */
+export function publicSiteOrigin(): string {
+  const raw =
+    (process.env.NEXT_PUBLIC_SITE_URL ||
+      process.env.APP_URL ||
+      process.env.NEXT_PUBLIC_APP_URL ||
+      process.env.VERCEL_PROJECT_PRODUCTION_URL ||
+      '').trim();
+  if (!raw) return '';
+  const withScheme = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+  return withScheme.replace(/\/$/, '');
+}
+
+export function defaultSmsWebhookUrl(): string {
+  const origin = publicSiteOrigin();
+  return origin ? `${origin}/api/webhooks/signalwire/sms` : '';
+}
+
+export function defaultVoiceWebhookUrl(): string {
+  const origin = publicSiteOrigin();
+  return origin ? `${origin}/api/webhooks/signalwire/voice` : '';
 }
 
 async function swRequest<T>(
@@ -113,17 +143,63 @@ export async function swAvailable(opts: {
   return { ok: true, numbers };
 }
 
-/** Buy (provision) a specific number. */
-export async function swBuyNumber(e164: string): Promise<{ ok: boolean; sid?: string; error?: string }> {
+/**
+ * Buy (provision) a number and point SMS + Voice at our webhooks when configured.
+ * SmsUrl / VoiceUrl can be overridden; otherwise we use NEXT_PUBLIC_SITE_URL/APP_URL.
+ */
+export async function swBuyNumber(
+  e164: string,
+  opts?: { smsUrl?: string; voiceUrl?: string },
+): Promise<{ ok: boolean; sid?: string; error?: string }> {
+  const body: Record<string, string> = { PhoneNumber: e164 };
+  const smsUrl = (opts?.smsUrl || defaultSmsWebhookUrl()).trim();
+  const voiceUrl = (opts?.voiceUrl || defaultVoiceWebhookUrl()).trim();
+  if (smsUrl) {
+    body.SmsUrl = smsUrl;
+    body.SmsMethod = 'POST';
+  }
+  if (voiceUrl) {
+    body.VoiceUrl = voiceUrl;
+    body.VoiceMethod = 'POST';
+  }
   const r = await swRequest<{ sid?: string; phone_number?: string }>('/IncomingPhoneNumbers.json', {
     method: 'POST',
-    body: { PhoneNumber: e164 },
+    body,
   });
   if (!r.ok || !r.data?.sid) {
     const msg = r.error || 'The number could not be purchased';
-    return { ok: false, error: /2144|not available|capacity/i.test(msg) ? 'That number was just taken. Search again and pick another.' : msg };
+    return {
+      ok: false,
+      error: /2144|not available|capacity/i.test(msg)
+        ? 'That number was just taken. Search again and pick another.'
+        : msg,
+    };
   }
   return { ok: true, sid: String(r.data.sid) };
+}
+
+/** Update an owned number's SMS / Voice webhook URLs. */
+export async function swUpdateNumberWebhooks(
+  sid: string,
+  opts?: { smsUrl?: string; voiceUrl?: string },
+): Promise<boolean> {
+  const body: Record<string, string> = {};
+  const smsUrl = (opts?.smsUrl || defaultSmsWebhookUrl()).trim();
+  const voiceUrl = (opts?.voiceUrl || defaultVoiceWebhookUrl()).trim();
+  if (smsUrl) {
+    body.SmsUrl = smsUrl;
+    body.SmsMethod = 'POST';
+  }
+  if (voiceUrl) {
+    body.VoiceUrl = voiceUrl;
+    body.VoiceMethod = 'POST';
+  }
+  if (!Object.keys(body).length) return false;
+  const r = await swRequest(`/IncomingPhoneNumbers/${encodeURIComponent(sid)}.json`, {
+    method: 'POST',
+    body,
+  });
+  return r.ok;
 }
 
 /** Release a number back to the provider. */
