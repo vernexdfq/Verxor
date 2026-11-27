@@ -104,8 +104,41 @@ function humanizeField(name: string): string {
 
 /** Fallback base USD estimate for standard game packs if provider catalog and live price return zero */
 function estimateKnownPackUsd(name: string): number {
-  const n = name.toLowerCase();
-  // PUBG UC packs
+  const n = name.trim().toLowerCase();
+
+  // 1. Currency face-value vouchers (EUR / USD / GBP gift cards e.g. Roblox, Riot Cash, 1Mobile)
+  const eurMatch = n.match(/(?:€|\beur\s*)(\d+(?:\.\d+)?)/i) || n.match(/(\d+(?:\.\d+)?)\s*(?:€|eur\b)/i);
+  if (eurMatch) {
+    const amt = parseFloat(eurMatch[1]);
+    if (Number.isFinite(amt) && amt > 0) return Math.round(amt * 1.08 * 100) / 100;
+  }
+  const usdMatch = n.match(/(?:\$|\busd\s*)(\d+(?:\.\d+)?)/i) || n.match(/(\d+(?:\.\d+)?)\s*(?:\$|usd\b)/i);
+  if (usdMatch) {
+    const amt = parseFloat(usdMatch[1]);
+    if (Number.isFinite(amt) && amt > 0) return amt;
+  }
+  const gbpMatch = n.match(/(?:£|\bgbp\s*)(\d+(?:\.\d+)?)/i) || n.match(/(\d+(?:\.\d+)?)\s*(?:£|gbp\b)/i);
+  if (gbpMatch) {
+    const amt = parseFloat(gbpMatch[1]);
+    if (Number.isFinite(amt) && amt > 0) return Math.round(amt * 1.28 * 100) / 100;
+  }
+
+  // 2. Dragon Crystals (AFK Journey / Direct Topup)
+  if (n.includes("dragon crystal")) {
+    if (/\b21\b/.test(n)) return 0.99;
+    if (/\b126\b/.test(n)) return 4.99;
+    if (/\b294\b/.test(n)) return 9.99;
+    if (/\b588\b/.test(n)) return 19.99;
+    if (/\b1,?554\b/.test(n)) return 49.99;
+    if (/\b3,?150\b/.test(n)) return 99.99;
+  }
+  if (n.includes("esperia monthly") || n.includes("gazette")) {
+    if (n.includes("premium")) return 14.99;
+    return 4.99;
+  }
+  if (n.includes("growth bundle")) return 19.99;
+
+  // 3. PUBG Mobile UC packs
   if (/\b10\s*uc\b/.test(n)) return 0.16;
   if (/\b60\s*uc\b/.test(n)) return 0.96;
   if (/\b300\s*\+\s*25\s*uc\b|\b325\s*uc\b/.test(n)) return 4.75;
@@ -120,12 +153,23 @@ function estimateKnownPackUsd(name: string): number {
   if (/elite\s*pass\s*plus/.test(n)) return 23.75;
   if (/elite\s*pass\s*lv1-50/.test(n)) return 4.75;
   if (/elite\s*pass/.test(n)) return 9.5;
-  // Free Fire Diamonds
+
+  // 4. Free Fire Diamonds
   if (/\b100\s*diamond/.test(n)) return 0.95;
   if (/\b210\s*diamond/.test(n)) return 1.95;
   if (/\b530\s*diamond/.test(n)) return 4.85;
   if (/\b1080\s*diamond/.test(n)) return 9.75;
   if (/\b2200\s*diamond/.test(n)) return 19.5;
+
+  // 5. Mobile Legends Diamonds (MLBB)
+  const mlMatch = n.match(/(\d+)\s*(?:\+\s*\d+)?\s*diamond/);
+  if (mlMatch) {
+    const d = parseInt(mlMatch[1], 10);
+    if (d <= 50) return Math.round(d * 0.02 * 100) / 100;
+    if (d <= 250) return Math.round(d * 0.019 * 100) / 100;
+    return Math.round(d * 0.018 * 100) / 100;
+  }
+
   return 0;
 }
 
@@ -219,7 +263,12 @@ export async function s2tProductsForBig(
           });
 
           const prices = subs
-            .map((s) => Number(s.price))
+            .map((s) => {
+              const rawPrice = s.price ?? (s as any).unit_price ?? (s as any).original_price;
+              const p = Number(rawPrice);
+              if (Number.isFinite(p) && p > 0) return p;
+              return estimateKnownPackUsd(s.name);
+            })
             .filter((p) => Number.isFinite(p) && p > 0);
 
           if (prices.length) {
@@ -298,13 +347,15 @@ export async function s2tProductDetail(productId: string): Promise<S2TProductDet
   }
 
   const variations: S2TVariation[] = items.map((s) => {
-    const usd = Number(s.price);
+    const rawPrice = s.price ?? (s as any).unit_price ?? (s as any).original_price;
+    const usd = Number(rawPrice);
     const providerStock =
       typeof s.in_stock === 'boolean' ? s.in_stock
       : typeof s.in_stock === 'string' ? /^(true|1|yes)$/i.test(s.in_stock)
       : undefined;
+    const itemId = String(s.item_id ?? (s as any).id ?? "");
     return {
-      id: String(s.item_id),
+      id: itemId,
       name: String(s.name),
       priceUsd: Number.isFinite(usd) && usd > 0 ? usd : 0,
       inStock: providerStock === undefined ? true : providerStock,
@@ -322,16 +373,23 @@ export async function s2tProductDetail(productId: string): Promise<S2TProductDet
           const info = await s2tItemPriceInfo(v.id);
           if (info.price > 0) v.priceUsd = info.price;
           if (info.inStock !== undefined) v.inStock = info.inStock;
-          if (v.priceUsd <= 0) {
-            const est = estimateKnownPackUsd(v.name);
-            if (est > 0) v.priceUsd = est;
-          }
         } catch {
+          /* non-fatal; fallback estimator fills below */
+        }
+        if (v.priceUsd <= 0) {
           const est = estimateKnownPackUsd(v.name);
           if (est > 0) v.priceUsd = est;
         }
       }),
     );
+  }
+
+  // Final check: fill any remaining zero-priced items from standard face values / packs
+  for (const v of variations) {
+    if (!v.priceUsd || v.priceUsd <= 0) {
+      const est = estimateKnownPackUsd(v.name);
+      if (est > 0) v.priceUsd = est;
+    }
   }
 
   return {
