@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { swBuyNumber, swConfigured } from '@/lib/providers/signalwire';
+import { swBuyNumber, swConfigured, swUpdateNumberWebhooks } from '@/lib/providers/signalwire';
 import { rentLinePriceNgn, RENT_LINE_PERIODS, type RentLineAudience } from '@/lib/rentline-pricing';
 import { resolvePanelClient } from '@/lib/panel-auth';
 import { notifyAdmin } from '@/lib/notify';
@@ -82,7 +82,7 @@ function friendlyE164(e164: string): string {
  * POST /api/v1/rent-line/purchase
  *   { e164, country, type, period, userId }
  * Wallet debited at the server-side price, then the number is provisioned at
- * SignalWire. On provider failure the debit is refunded + admin notified.
+ * SignalWire with SMS + voice webhooks. On provider failure the debit is refunded.
  */
 export async function POST(req: NextRequest) {
   if (!swConfigured()) {
@@ -110,9 +110,6 @@ export async function POST(req: NextRequest) {
   if (!userId) {
     return NextResponse.json({ ok: false, error: 'Sign in to rent a number.' }, { status: 401 });
   }
-  // RETAIL / API DEVELOPER ONLY — per Denny's rule this service is NOT
-  // offered to child panels (no new services for the panel). Panel keys are
-  // rejected outright.
   const panel = await resolvePanelClient(req).catch(() => null);
   if (panel) {
     return NextResponse.json(
@@ -142,6 +139,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: msg }, { status: 500 });
   }
 
+  // Purchase + attach webhooks in one request (SmsUrl / VoiceUrl from APP_URL).
   const buy = await swBuyNumber(e164);
   if (!buy.ok || !buy.sid) {
     await creditRetailWallet(userId, totalNgn, `refund-${debitRef}`, `Refund (number rental failed) · ${desc}`);
@@ -153,6 +151,9 @@ export async function POST(req: NextRequest) {
       { status: 503 },
     );
   }
+
+  // Best-effort re-apply webhooks if buy-time attachment was skipped (no APP_URL).
+  void swUpdateNumberWebhooks(buy.sid).catch(() => null);
 
   const base = supabaseBase();
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
