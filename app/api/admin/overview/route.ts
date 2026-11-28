@@ -11,7 +11,9 @@ export const dynamic = 'force-dynamic';
 
 type LedgerRow = {
   amount?: number;
-  amount_ngn?: number;
+  amount_usd?: number;
+  amount_ngn?: number | null;
+  currency?: string;
   kind?: string;
   reference?: string;
   description?: string;
@@ -34,11 +36,7 @@ function lagosDayStart(daysAgo: number): string {
   return new Date(Date.UTC(y, m, d - daysAgo) - 60 * 60 * 1000).toISOString();
 }
 
-function rowValue(r: LedgerRow): number {
-  const v = Number(r.amount ?? r.amount_ngn ?? 0);
-  return Number.isFinite(v) ? v : 0;
-}
-
+/** Lagos (UTC+1) calendar day of a row, e.g. "2026-11-28". */
 function rowDayKey(r: LedgerRow): string | null {
   const ts = r.created_at;
   if (!ts) return null;
@@ -49,10 +47,35 @@ function rowDayKey(r: LedgerRow): string | null {
   return lagos.toISOString().slice(0, 10);
 }
 
+/**
+ * Row value in NGN. wallet_ledger has NO plain `amount` column: it stores
+ * `amount_usd` (always set) and `amount_ngn` (set for NGN rows, null for USD).
+ * USD rows are converted with the live admin rate.
+ */
+function rowValue(r: LedgerRow, usdRate: number): number {
+  if (r.amount_ngn !== undefined && r.amount_ngn !== null && Number.isFinite(Number(r.amount_ngn))) {
+    return Number(r.amount_ngn);
+  }
+  if (r.amount !== undefined && Number.isFinite(Number(r.amount))) {
+    return Number(r.amount);
+  }
+  const usd = Number(r.amount_usd);
+  if (Number.isFinite(usd) && usd !== 0) return usd * usdRate;
+  return 0;
+}
+
 function rowIsRefund(r: LedgerRow): boolean {
   const kind = String(r.kind || '').toLowerCase();
   const ref = String(r.reference || '').toLowerCase();
   return kind.includes('refund') || ref.startsWith('refund-');
+}
+
+/** A row is a customer purchase if its kind says so, or if it debits the wallet. */
+function rowIsPurchase(r: LedgerRow): boolean {
+  const kind = String(r.kind || '').toLowerCase();
+  if (kind.includes('refund')) return false;
+  if (kind.includes('purchase') || kind.includes('debit') || kind.includes('order')) return true;
+  return false;
 }
 
 function serviceLabel(r: LedgerRow): string {
@@ -92,6 +115,22 @@ export async function GET(req: NextRequest) {
   }
   const hdr = { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` };
 
+  // Live USD→NGN rate for converting USD ledger rows (admin_settings, fallback 1380).
+  let usdRate = 1380;
+  try {
+    const rr = await fetch(`${base}/rest/v1/admin_settings?key=eq.usd_ngn_rate&select=value&limit=1`, {
+      headers: hdr,
+      cache: 'no-store',
+    });
+    if (rr.ok) {
+      const rows = (await rr.json()) as Array<{ value?: string | number }>;
+      const parsed = Number(rows[0]?.value);
+      if (Number.isFinite(parsed) && parsed > 0) usdRate = parsed;
+    }
+  } catch {
+    /* fallback rate */
+  }
+
   const since = lagosDayStart(13);
   const dayKeys: string[] = [];
   for (let i = 0; i <= 13; i++) {
@@ -108,15 +147,16 @@ export async function GET(req: NextRequest) {
       const key = rowDayKey(r);
       if (!key || !days.has(key)) continue;
       const bucket = days.get(key)!;
-      const value = rowValue(r);
-      const refund = rowIsRefund(r);
-      if (refund) {
+      const value = rowValue(r, usdRate);
+      if (rowIsRefund(r)) {
         bucket.refunds += 1;
         bucket.net -= Math.abs(value);
         continue;
       }
-      if (value < 0) {
-        // Customer purchase debit
+      // Customer purchase debit: kind says purchase/debit/order, or the row
+      // carries a negative amount (RPC may store signed values).
+      const isPurchase = rowIsPurchase(r) || value < 0;
+      if (isPurchase && value !== 0) {
         bucket.orders += 1;
         bucket.sales += Math.abs(value);
         bucket.net += Math.abs(value);
