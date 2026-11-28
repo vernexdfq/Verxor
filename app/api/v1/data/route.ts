@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { isUserFrozen } from '@/lib/access-guard';
 import { isApi247Configured, purchaseData247 } from '@/lib/providers/api247';
 import { isClubKonnectConfigured, purchaseDataClubKonnect } from '@/lib/providers/clubkonnect';
 import { resolvePurchasePlan, childPriceFromCost } from '@/lib/data-plan-sync';
@@ -321,6 +322,14 @@ export async function POST(req: NextRequest) {
           : 'Your session expired. Please sign in again to buy data.',
       },
       { status: 401 },
+    );
+  }
+
+  // Frozen by admin: login is fine, purchases are blocked.
+  if (await isUserFrozen(userId)) {
+    return NextResponse.json(
+      { ok: false, error: 'Your account is frozen. Contact Verxor support to restore access.' },
+      { status: 403 },
     );
   }
 

@@ -7,6 +7,7 @@
  *    $0.01–$1.00 ×1.50 · $1.01–$10.00 ×1.25 · $10.01+ ×1.15 at the USD_NGN_RATE)
  */
 
+import { isUserFrozen } from '@/lib/access-guard';
 import { NextRequest, NextResponse } from 'next/server';
 import { fetchPlatformCatalog, purchaseListing, normalizePlatform, pruneListingFromCache } from '@/lib/providers/accszone';
 import { sbInsert, supabaseConfigured } from '@/lib/supabase-admin';
@@ -329,6 +330,11 @@ export async function POST(req: NextRequest) {
         );
       }
       return bad('Unauthorized. Sign in to your Verxor account to purchase.', 401);
+    }
+
+    // Frozen by admin: login is fine, purchases are blocked.
+    if (await isUserFrozen(userId)) {
+      return bad('Your account is frozen. Contact Verxor support to restore access.', 403);
     }
 
     const adId = Number(body.providerListingId ?? body.listingId);

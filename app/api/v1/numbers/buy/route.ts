@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { isUserFrozen } from '@/lib/access-guard';
 import { grizzly } from '@/lib/providers';
 import { textverifiedConfigured, tvCreateVerification } from '@/lib/providers/textverified';
 import { sbInsert, sbSelect, supabaseConfigured } from '@/lib/supabase-admin';
@@ -285,6 +286,14 @@ export async function POST(req: NextRequest) {
           'Panel wallet not linked. Regenerate the panel key with ownerEmail, or set meta.wallet_user_id / VERXOR_PANEL_WALLET_USER_ID.',
       },
       { status: 402 },
+    );
+  }
+
+  // Frozen by admin: login is fine, purchases are blocked.
+  if (await isUserFrozen(userId)) {
+    return NextResponse.json(
+      { ok: false, error: 'Your account is frozen. Contact Verxor support to restore access.' },
+      { status: 403 },
     );
   }
 

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { isUserFrozen } from '@/lib/access-guard';
 import {
   mgCreateOrder,
   mgProductDetail,
@@ -118,6 +119,14 @@ export async function POST(req: NextRequest) {
   const userId = await resolveUserId(req, body.userId);
   if (!userId) {
     return NextResponse.json({ ok: false, error: 'Sign in to complete your purchase.' }, { status: 401 });
+  }
+
+  // Frozen by admin: login is fine, purchases are blocked.
+  if (await isUserFrozen(userId)) {
+    return NextResponse.json(
+      { ok: false, error: 'Your account is frozen. Contact Verxor support to restore access.' },
+      { status: 403 },
+    );
   }
 
   const detail = await mgProductDetail(productId);

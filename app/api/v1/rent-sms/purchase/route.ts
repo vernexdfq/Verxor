@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { isUserFrozen } from '@/lib/access-guard';
 import {
   textverifiedConfigured,
   tvCreateRental,
@@ -168,6 +169,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       { ok: false, error: panel ? 'Panel wallet user is not linked.' : 'Sign in to rent a number.' },
       { status: 401 },
+    );
+  }
+
+  // Frozen by admin: login is fine, purchases are blocked.
+  if (await isUserFrozen(userId)) {
+    return NextResponse.json(
+      { ok: false, error: 'Your account is frozen. Contact Verxor support to restore access.' },
+      { status: 403 },
     );
   }
   const isPanel = Boolean(panel);

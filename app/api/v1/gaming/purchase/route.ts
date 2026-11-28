@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { isUserFrozen } from '@/lib/access-guard';
 import {
   s2tConfigured,
   s2tCreateOrder,
@@ -173,6 +174,14 @@ export async function POST(req: NextRequest) {
         error: panel ? 'Panel wallet user is not linked.' : 'Sign in to complete your purchase.',
       },
       { status: 401 },
+    );
+  }
+
+  // Frozen by admin: login is fine, purchases are blocked.
+  if (await isUserFrozen(userId)) {
+    return NextResponse.json(
+      { ok: false, error: 'Your account is frozen. Contact Verxor support to restore access.' },
+      { status: 403 },
     );
   }
 

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { isUserFrozen } from '@/lib/access-guard';
 import { SMM_MAX_USD_CUTOFF } from '@/lib/providers/smm';
 import {
   loadBoostMarkups,
@@ -390,6 +391,14 @@ export async function POST(req: NextRequest) {
           'Panel wallet not linked. Set meta.wallet_user_id on the API client or VERXOR_PANEL_WALLET_USER_ID.',
       },
       { status: 401 },
+    );
+  }
+
+  // Frozen by admin: login is fine, purchases are blocked.
+  if (await isUserFrozen(userId)) {
+    return NextResponse.json(
+      { ok: false, error: 'Your account is frozen. Contact Verxor support to restore access.' },
+      { status: 403 },
     );
   }
 
