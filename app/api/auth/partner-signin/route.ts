@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { isUserBanned } from '@/lib/access-guard';
 
 /**
  * Partner sign-in: email OR phone + account password.
@@ -90,6 +91,14 @@ export async function POST(req: Request) {
       return NextResponse.json(
         { error: 'No account found. Create a normal account first, then use Partner login.' },
         { status: 404 },
+      );
+    }
+
+    // Banned by admin: no login, generic message.
+    if (await isUserBanned(profile.id)) {
+      return NextResponse.json(
+        { error: 'Something went wrong. Contact support.' },
+        { status: 403 },
       );
     }
 

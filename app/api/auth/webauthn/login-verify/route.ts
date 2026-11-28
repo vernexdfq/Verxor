@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { verifyAuthenticationResponse } from '@simplewebauthn/server';
 import { consumeChallenge, getWebAuthnConfig, readJson, sbRequest, webauthnConfigResponse } from '../../../../../lib/webauthn-server';
+import { isUserBanned } from '@/lib/access-guard';
 
 export const runtime = 'nodejs';
 
@@ -97,6 +98,14 @@ export async function POST(req: Request) {
     );
     const profile = profiles[0];
     if (!profile?.id || profile.id !== authUser.id) throw new Error('PROFILE_OR_AUTH_CONFIG_MISSING');
+
+    // Banned by admin: no login, generic message.
+    if (await isUserBanned(profile.id)) {
+      return NextResponse.json(
+        { error: 'Something went wrong. Contact support.' },
+        { status: 403 },
+      );
+    }
 
     const session = await issueSession(base, serviceKey, anonKey, authUser.email);
     const wallets = await sbRequest<any[]>(

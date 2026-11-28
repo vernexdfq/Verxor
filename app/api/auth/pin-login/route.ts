@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { isUserBanned } from '@/lib/access-guard';
 
 /**
  * Primex-style login: phone OR email + 4-digit PIN → session tokens.
@@ -95,6 +96,14 @@ export async function POST(req: Request) {
       return NextResponse.json(
         { error: 'No account found. Check your details or create an account.' },
         { status: 404 },
+      );
+    }
+
+    // Banned by admin: no login, generic message.
+    if (await isUserBanned(profile.id)) {
+      return NextResponse.json(
+        { error: 'Something went wrong. Contact support.' },
+        { status: 403 },
       );
     }
 
