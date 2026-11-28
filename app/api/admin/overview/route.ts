@@ -86,6 +86,23 @@ function serviceLabel(r: LedgerRow): string {
       '',
   ).toLowerCase();
   const k = kind.toLowerCase();
+  // Debit reference prefixes are the most reliable per-service signal
+  // (each purchase route uses a fixed prefix, e.g. dt- for data).
+  const ref = String(r.reference || '').toLowerCase();
+  const metaRef = String(
+    ((r.meta as Record<string, unknown> | null)?.reference as string | undefined) || '',
+  ).toLowerCase();
+  const refCheck = ref || metaRef;
+  if (refCheck.startsWith('email-otp')) return 'Email OTP';
+  if (refCheck.startsWith('gmg')) return 'Gaming Top-up';
+  if (refCheck.startsWith('dt-')) return 'Data';
+  if (refCheck.startsWith('at-')) return 'Airtime';
+  if (refCheck.startsWith('tv-')) return 'Cable TV';
+  if (refCheck.startsWith('el-')) return 'Electricity';
+  if (refCheck.startsWith('vn-buy')) return 'Virtual Numbers';
+  if (refCheck.startsWith('rsm-')) return 'Rent SMS';
+  if (refCheck.startsWith('acc-buy')) return 'Buy Accounts/Logs';
+  if (refCheck.startsWith('gfc-')) return 'Gift Cards';
   if (k.includes('boost')) return 'Boost Account (SMM)';
   if (k.includes('vn') || k.includes('virtual') || k.includes('number')) return 'Virtual Numbers';
   if (k.includes('airtime') || desc.includes('airtime')) return 'Airtime';
@@ -160,11 +177,15 @@ export async function GET(req: NextRequest) {
         bucket.orders += 1;
         bucket.sales += Math.abs(value);
         bucket.net += Math.abs(value);
-        const label = serviceLabel(r);
-        const s = services.get(label) || { orders: 0, sales: 0 };
-        s.orders += 1;
-        s.sales += Math.abs(value);
-        services.set(label, s);
+        // "Most-used services today" must aggregate TODAY ONLY, never the
+        // whole 14-day window (dayKeys[0] is today).
+        if (key === dayKeys[0]) {
+          const label = serviceLabel(r);
+          const s = services.get(label) || { orders: 0, sales: 0 };
+          s.orders += 1;
+          s.sales += Math.abs(value);
+          services.set(label, s);
+        }
       }
     }
   };
