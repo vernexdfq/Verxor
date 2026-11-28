@@ -2686,6 +2686,31 @@ export function AdminPage({
   const [section, setSection] = useState<AdminSection>(initialSection);
   const [menuOpen, setMenuOpen] = useState(false);
 
+  // Lock background scroll when the mobile admin drawer is open, while keeping
+  // the sidebar nav itself scrollable on mobile devices.
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    if (menuOpen) {
+      document.body.classList.add('vxa-drawer-open');
+      const prevOverflow = document.body.style.overflow;
+      const prevTouchAction = document.body.style.touchAction;
+      document.body.style.overflow = 'hidden';
+      document.body.style.touchAction = 'none';
+
+      const onKeyDown = (e: KeyboardEvent) => {
+        if (e.key === 'Escape') setMenuOpen(false);
+      };
+      window.addEventListener('keydown', onKeyDown);
+
+      return () => {
+        document.body.classList.remove('vxa-drawer-open');
+        document.body.style.overflow = prevOverflow;
+        document.body.style.touchAction = prevTouchAction;
+        window.removeEventListener('keydown', onKeyDown);
+      };
+    }
+  }, [menuOpen]);
+
   // Today's USD→NGN rate. UI-only for now: Phase 2 moves it to the database
   // so editing it here updates every service and every child panel.
   const [rate, setRate] = useState(1380);
@@ -2859,7 +2884,15 @@ export function AdminPage({
           <button type="button" onClick={onBack}><ArrowLeft size={16} /> Back to site</button>
         </div>
       </aside>
-      {menuOpen ? <button type="button" className="vxa-scrim" aria-label="Close menu" onClick={() => setMenuOpen(false)} /> : null}
+      {menuOpen ? (
+        <button
+          type="button"
+          className="vxa-scrim"
+          aria-label="Close menu"
+          onClick={() => setMenuOpen(false)}
+          onTouchMove={(e) => e.preventDefault()}
+        />
+      ) : null}
 
       {/* ── Main ── */}
       <div className="vxa-main">
