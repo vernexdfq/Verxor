@@ -27,6 +27,21 @@ function supabaseBase() {
     .replace(/\/$/, '');
 }
 
+/**
+ * Lagos (UTC+1) calendar day key, i days ago, e.g. "2026-11-28".
+ * Must be computed from the Lagos calendar date directly: converting the
+ * start-of-day UTC instant back to a date string shifts it to the previous
+ * day (Lagos midnight is 23:00 UTC the day before).
+ */
+function lagosDayKey(daysAgo: number): string {
+  const now = new Date(Date.now() + 60 * 60 * 1000); // shift to Lagos
+  return new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - daysAgo),
+  )
+    .toISOString()
+    .slice(0, 10);
+}
+
 /** Start of a Lagos (UTC+1) calendar day, i days ago, as UTC ISO. */
 function lagosDayStart(daysAgo: number): string {
   const now = new Date(Date.now() + 60 * 60 * 1000); // shift to Lagos
@@ -152,7 +167,7 @@ export async function GET(req: NextRequest) {
   const dayKeys: string[] = [];
   for (let i = 0; i <= 13; i++) {
     // Today first, then going back — matches the child-panel daily-earnings layout.
-    dayKeys.push(new Date(lagosDayStart(i)).toISOString().slice(0, 10));
+    dayKeys.push(lagosDayKey(i));
   }
 
   const days = new Map<string, { orders: number; sales: number; refunds: number; net: number }>();
