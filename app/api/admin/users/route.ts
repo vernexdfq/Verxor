@@ -100,21 +100,22 @@ async function writeUserList(key: string, list: string[]): Promise<boolean> {
   if (!base || !hdr) return false;
   const res = await fetch(`${base}/rest/v1/admin_settings?key=eq.${key}`, {
     method: 'PATCH',
-    headers: { ...hdr, Prefer: 'return=minimal' },
+    headers: { ...hdr, Prefer: 'return=representation' },
     body: JSON.stringify({ value: JSON.stringify(list), updated_at: new Date().toISOString() }),
     cache: 'no-store',
   });
-  if (!res.ok && res.status === 404) {
-    // Row missing — insert it.
-    const ins = await fetch(`${base}/rest/v1/admin_settings`, {
-      method: 'POST',
-      headers: { ...hdr, Prefer: 'resolution=ignore-duplicates,return=minimal' },
-      body: JSON.stringify({ key, value: JSON.stringify(list) }),
-      cache: 'no-store',
-    });
-    return ins.ok;
-  }
-  return res.ok;
+  if (!res.ok) return false;
+  const rows = (await res.json().catch(() => [])) as unknown[];
+  // PATCH on a missing row returns 200 with an EMPTY array (not 404) —
+  // nothing was written, so insert the row instead.
+  if (Array.isArray(rows) && rows.length > 0) return true;
+  const ins = await fetch(`${base}/rest/v1/admin_settings`, {
+    method: 'POST',
+    headers: { ...hdr, Prefer: 'resolution=ignore-duplicates,return=minimal' },
+    body: JSON.stringify({ key, value: JSON.stringify(list) }),
+    cache: 'no-store',
+  });
+  return ins.ok;
 }
 
 export async function GET(req: NextRequest) {
@@ -594,7 +595,8 @@ export async function POST(req: NextRequest) {
           headers: hdr,
           cache: 'no-store',
         });
-        return res.ok;
+        // 404 = the table does not exist on this project — nothing to delete.
+        return res.ok || res.status === 404;
       };
 
       const failures: string[] = [];
