@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import type { AuthSession } from './auth/AuthFlow';
 import { loadSessionTokens } from './auth/session-unlock';
+import { clearSessionUnlock } from './auth/session-unlock';
 import './edit-profile-page.css';
 
 const SESSION_KEY = 'verxor-auth-session';
@@ -124,6 +125,7 @@ export function EditProfilePage({
   const [toast, setToast] = useState<string | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState('');
+  const [deleteBusy, setDeleteBusy] = useState(false);
 
   const initialName = session.name || '';
 
@@ -338,11 +340,31 @@ export function EditProfilePage({
               <button
                 type="button"
                 className="ep-modal-danger"
-                disabled={deleteConfirm !== 'DELETE'}
+                disabled={deleteConfirm !== 'DELETE' || deleteBusy}
                 onClick={() => {
                   setDeleteOpen(false);
-                  setToast('Account deletion requires support — contact us');
-                  window.setTimeout(() => setToast(null), 2800);
+                  setDeleteBusy(true);
+                  void (async () => {
+                    try {
+                      const token = loadSessionTokens()?.access_token || '';
+                      const res = await fetch('/api/me/profile', {
+                        method: 'DELETE',
+                        headers: token ? { Authorization: `Bearer ${token}` } : {},
+                      });
+                      const data = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
+                      if (res.ok && data.ok) {
+                        clearSessionUnlock();
+                        setToast('Account deleted. Goodbye.');
+                        window.setTimeout(() => { window.location.href = '/'; }, 1500);
+                        return;
+                      }
+                      setError(data.error || 'Could not delete your account. Contact support.');
+                    } catch {
+                      setError('Network error. Check your connection and try again.');
+                    } finally {
+                      setDeleteBusy(false);
+                    }
+                  })();
                 }}
               >
                 Delete forever

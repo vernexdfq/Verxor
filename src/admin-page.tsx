@@ -684,23 +684,56 @@ function UserManagement({ focusUserId }: { focusUserId?: string | null }) {
             </div>
           </div>
           <div className="vxa-user-head-right">
-            <button type="button" disabled={busy}
-              className={selected.banned ? 'vxa-ban-btn banned' : 'vxa-ban-btn'}
-              onClick={() => act(
-                { action: selected.banned ? 'unban' : 'ban', userId: selected.id },
-                selected.banned ? 'User unbanned' : 'User banned',
-              )}>
-              <Ban size={15} /> {selected.banned ? 'Unban' : 'Ban'}
-            </button>
-            <button type="button" disabled={busy}
-              className={selected.frozen ? 'vxa-freeze-btn frozen' : 'vxa-freeze-btn'}
-              onClick={() => act(
-
-                { action: selected.frozen ? 'unfreeze' : 'freeze', userId: selected.id },
-                selected.frozen ? 'User unfrozen' : 'User frozen',
-              )}>
-              <Lock size={15} /> {selected.frozen ? 'Unfreeze' : 'Freeze'}
-            </button>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'flex-end' }}>
+              {/* Ban toggle: knob left + red shine = banned; knob right + green shine = active */}
+              <button type="button" role="switch" aria-checked={!selected.banned} disabled={busy}
+                title={selected.banned ? 'Click to unban — user can log in again' : 'Click to ban — user cannot log in'}
+                onClick={() => act(
+                  { action: selected.banned ? 'unban' : 'ban', userId: selected.id },
+                  selected.banned ? 'User unbanned — they can log in again' : 'User banned — logins refused',
+                )}
+                style={{
+                  width: 58, height: 32, borderRadius: 999, position: 'relative', cursor: 'pointer',
+                  border: 'none', padding: 0, transition: 'background 0.25s, box-shadow 0.25s',
+                  background: selected.banned ? '#7f1d1d' : '#14532d',
+                  boxShadow: selected.banned ? '0 0 14px rgba(239,68,68,0.75)' : '0 0 14px rgba(34,197,94,0.65)',
+                }}>
+                <span style={{
+                  position: 'absolute', top: 3, left: 3, width: 26, height: 26, borderRadius: '50%',
+                  background: selected.banned ? '#ef4444' : '#22c55e', transition: 'transform 0.25s',
+                  transform: selected.banned ? 'translateX(0)' : 'translateX(26px)',
+                  boxShadow: 'inset 0 -2px 4px rgba(0,0,0,0.25)',
+                }} />
+                <em style={{
+                  position: 'absolute', top: 7, fontSize: 10, fontWeight: 700, color: '#fff',
+                  left: selected.banned ? 34 : 12, transition: 'left 0.25s', fontStyle: 'normal',
+                }}>{selected.banned ? 'BANNED' : 'ACTIVE'}</em>
+              </button>
+              {/* Freeze toggle: knob left + red shine = frozen (no purchases); right + green = free */}
+              <button type="button" role="switch" aria-checked={!selected.frozen} disabled={busy}
+                title={selected.frozen ? 'Click to unfreeze — purchases allowed again' : 'Click to freeze — logins fine, purchases blocked'}
+                onClick={() => act(
+                  { action: selected.frozen ? 'unfreeze' : 'freeze', userId: selected.id },
+                  selected.frozen ? 'User unfrozen — purchases allowed' : 'User frozen — purchases blocked',
+                )}
+                style={{
+                  width: 58, height: 32, borderRadius: 999, position: 'relative', cursor: 'pointer',
+                  border: 'none', padding: 0, transition: 'background 0.25s, box-shadow 0.25s',
+                  background: selected.frozen ? '#7f1d1d' : '#14532d',
+                  boxShadow: selected.frozen ? '0 0 14px rgba(239,68,68,0.75)' : '0 0 14px rgba(34,197,94,0.65)',
+                }}>
+                <span style={{
+                  position: 'absolute', top: 3, left: 3, width: 26, height: 26, borderRadius: '50%',
+                  background: selected.frozen ? '#ef4444' : '#22c55e', transition: 'transform 0.25s',
+                  transform: selected.frozen ? 'translateX(0)' : 'translateX(26px)',
+                  boxShadow: 'inset 0 -2px 4px rgba(0,0,0,0.25)',
+                }} />
+                <em style={{
+                  position: 'absolute', top: 7, fontSize: 10, fontWeight: 700, color: '#fff',
+                  left: selected.frozen ? 32 : 8, transition: 'left 0.25s', fontStyle: 'normal',
+                }}>{selected.frozen ? 'FROZEN' : 'FREE'}</em>
+              </button>
+            </div>
             <button type="button" disabled={busy} className="vxa-del-btn"
               onClick={() => {
                 if (!window.confirm(`Delete ${displayName(selected)} permanently?\n\nThis erases their profile, wallet, balance, orders, chats and flags. It cannot be undone.`)) return;
