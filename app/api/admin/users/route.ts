@@ -627,8 +627,36 @@ export async function POST(req: NextRequest) {
       if (!(await del('child_panels', `user_id=eq.${encodeURIComponent(userId)}`))) failures.push('child_panels');
       if (!(await del('virtual_accounts', `user_id=eq.${encodeURIComponent(userId)}`))) failures.push('virtual_accounts');
       if (email && !(await del('feedback', `user_email=eq.${encodeURIComponent(email)}`))) failures.push('feedback');
+      // Service orders + per-service history
+      if (!(await del('number_orders', `user_id=eq.${encodeURIComponent(userId)}`))) failures.push('number_orders');
+      if (!(await del('gaming_orders', `user_id=eq.${encodeURIComponent(userId)}`))) failures.push('gaming_orders');
+      if (!(await del('email_orders', `user_id=eq.${encodeURIComponent(userId)}`))) failures.push('email_orders');
+      if (!(await del('service_orders', `user_id=eq.${encodeURIComponent(userId)}`))) failures.push('service_orders');
+      if (!(await del('rented_lines', `user_id=eq.${encodeURIComponent(userId)}`))) failures.push('rented_lines');
+      if (!(await del('rent_line_messages', `user_id=eq.${encodeURIComponent(userId)}`))) failures.push('rent_line_messages');
+      if (!(await del('rent_sms_rentals', `user_id=eq.${encodeURIComponent(userId)}`))) failures.push('rent_sms_rentals');
+      if (!(await del('virtual_cards', `user_id=eq.${encodeURIComponent(userId)}`))) failures.push('virtual_cards');
+      if (!(await del('notifications', `user_id=eq.${encodeURIComponent(userId)}`))) failures.push('notifications');
+      if (!(await del('referral_rewards', `user_id=eq.${encodeURIComponent(userId)}`))) failures.push('referral_rewards');
+      if (!(await del('webauthn_credentials', `user_id=eq.${encodeURIComponent(userId)}`))) failures.push('webauthn_credentials');
+      if (!(await del('webauthn_challenges', `user_id=eq.${encodeURIComponent(userId)}`))) failures.push('webauthn_challenges');
       // Finally the profile itself
       if (!(await del('profiles', `id=eq.${encodeURIComponent(userId)}`))) failures.push('profiles');
+
+      // Remove the Supabase AUTH user too, so the person cannot sign back in
+      // and re-register with the same credentials. profiles.id has
+      // on delete cascade from auth.users, so this order is safe.
+      try {
+        const authDel = await fetch(`${base}/auth/v1/admin/users/${encodeURIComponent(userId)}`, {
+          method: 'DELETE',
+          headers: hdr,
+          cache: 'no-store',
+        });
+        // 404 = already gone (e.g. deleted profile only) — that is fine.
+        if (!authDel.ok && authDel.status !== 404) failures.push('auth_user');
+      } catch {
+        failures.push('auth_user');
+      }
 
       // Remove from the admin_settings flag lists.
       for (const key of ['banned_users', 'frozen_users', 'api_users']) {
