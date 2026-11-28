@@ -27,6 +27,7 @@ import { BettingPage } from './betting-page';
 import { ExamPinPage } from './exam-pin-page';
 import { EditProfilePage } from './edit-profile-page';
 import { ReferralPage } from './referral-page';
+import { ChildPanelPurchasePage } from './child-panel-page';
 import { PrivacyPolicyPage } from './privacy-policy-page';
 import { TermsOfServicePage } from './terms-page';
 import { FeedbackPage } from './feedback-page';
@@ -560,6 +561,8 @@ export function VerxorApp({
     content = <SecurityPage onBack={closeService} session={auth} />;
   } else if (isFaqService(service)) {
     content = <FaqPage onBack={closeService} />;
+  } else if (service === 'child-panel') {
+    content = <ChildPanelPurchasePage onBack={closeService} session={auth} />;
   } else if (service) {
     content = <ServicePage view={service} onBack={closeService} />;
   } else if (page === 'history') {

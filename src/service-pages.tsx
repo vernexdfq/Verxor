@@ -1,3 +1,4 @@
+import { ChildPanelPurchasePage } from './child-panel-page';
 import { useState, type ReactNode } from 'react';
 import {
   ArrowLeft,
@@ -116,25 +117,7 @@ export function ServicePage({ view, onBack }: { view: Exclude<ServiceView, 'serv
   if (view === 'alerts') return <NotificationsPage onBack={onBack} />;
 
   if (view === 'child-panel') {
-    return (
-      <ServiceLayout
-        title="Child Panel"
-        eyebrow="WHITE-LABEL"
-        description="Run your own branded site. Pricing for Child Panel is separate from API usage."
-        onBack={onBack}
-      >
-        <Card className="form-card">
-          <p className="settings-section-label" style={{ marginTop: 0 }}>
-            Available to all users
-          </p>
-          <p style={{ margin: '0 0 12px', fontSize: 13, lineHeight: 1.5, color: 'var(--muted)' }}>
-            Child Panel lets you offer Verxor services under your own brand. Panel pricing and API pricing are not the
-            same — Child Panel is a white-label product with its own plan, while API keys are for programmatic access.
-          </p>
-          <PrimaryButton type="button">Get started</PrimaryButton>
-        </Card>
-      </ServiceLayout>
-    );
+    return <ChildPanelPurchasePage onBack={onBack} />;
   }
 
   if (view === 'api-keys') {
